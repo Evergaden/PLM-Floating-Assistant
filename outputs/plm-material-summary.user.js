@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.294
+// @version      2.8.296
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.294';
+  const SCRIPT_VERSION = '2.8.296';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   let excelJsLoadPromise = null;
 
@@ -4738,7 +4738,7 @@
   );
   // </product-development-ingredient-templates-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.26.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.28.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'copywriting-templates-v1';
   const PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID = 'capsule';
   const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object.freeze([
@@ -4830,7 +4830,7 @@
     '实验认证', '认证', '疾病', '药品', '处方', '诊断', '抗炎', '止痛', '抗癌',
     '减肥', '降脂', '降糖', '增强免疫', '改善疾病',
   ]);
-  const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v4';
+  const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v6';
   const PRODUCT_DEVELOPMENT_REVIEW_ACTIONS = Object.freeze({
     remove: 'remove',
     replaceLogo: 'replace-logo',
@@ -9842,7 +9842,7 @@
       || /^(?:contains?|ingredients?|active\s+ingredients?|other\s+ingredients?|成分|配料|原料)\s*[:：]/i.test(text)
       || /\b(?:made\s+with|contains?|powered\s+by)\s+/i.test(text)
       || (!role && /\b(?:acid|ate|ide|citrate|glycinate|oxide|chloride|sulfate|gluconate|phosphate|aspartate|malate|picolinate|taurate|collagen|probiotic|vitamin|minerals?|magnesium|zinc|calcium|iron|potassium|sodium|extract|oil|glycerin|sorbate|enzyme|fiber|fibre|protein|peptide|coq10|nad|nac)\b|(?:维生素|益生菌|胶原蛋白|提取物|甘氨酸|柠檬酸|山梨酸|蛋白|酶|膳食纤维)/i.test(text))) return 'ingredient';
-    if (/\b(?:non[-\s]?gmo|gluten[-\s]?free|sugar[-\s]?free|dairy[-\s]?free|soy[-\s]?free|lactose[-\s]?free|zero\s+(?:fat|sugar|calories)|no\s+added\s+(?:sugar|sucrose|preservatives?)|free\s+from|high\s+in|rich\s+in|low\s+in|low[-\s]+dose|\d+\s*(?:day|days|week|weeks|month|months)\s+supply|\d+\s*x\s*(?:daily|per\s+day)|pure|clean|premium|natural|organic|vegan|gmp(?:\s+certified)?|certified|lab[-\s]?tested|tested|scientific(?:ally)?(?:\s+proven)?|efficient(?:ly)?|rapid\s+absorption|fast[-\s]?acting)\b|(?:非转基因|无麸质|无糖|无乳糖|无大豆|纯素|有机|天然|纯|优质|高效|快速吸收|认证|检测|经测试|低脂|低糖|零脂肪|零糖|不含)/i.test(text)) return 'attribute';
+    if (/\b(?:non[-\s]?gmo|gluten[-\s]?free|sugar[-\s]?free|dairy[-\s]?free|soy[-\s]?free|lactose[-\s]?free|zero\s+(?:fat|sugar|calories)|no\s+added\s+(?:sugar|sucrose|preservatives?)|free\s+from|high\s+in|rich\s+in|low\s+in|low[-\s]+dose|\d+\s*(?:day|days|week|weeks|month|months)\s+supply|\d+\s*x\s*(?:daily|per\s+day)|supports?|promotes?|helps?|maintains?|improves?|health|wellness|wild[-\s]?caught|high\s+purity|purity|molecularly|distilled|pure|clean|premium|natural|organic|vegan|gmp(?:\s+certified)?|certified|lab[-\s]?tested|tested|scientific(?:ally)?(?:\s+proven)?|efficient(?:ly)?|rapid\s+absorption|fast[-\s]?acting)\b|(?:非转基因|无麸质|无糖|无乳糖|无大豆|纯素|有机|天然|纯|优质|高效|快速吸收|认证|检测|经测试|低脂|低糖|零脂肪|零糖|不含|支持|促进|帮助|维持|改善|健康|高纯度|分子蒸馏|野生捕捞)/i.test(text)) return 'attribute';
     return '';
   }
 
@@ -9855,6 +9855,90 @@
       const normalized = productDevelopmentNormalizedClaimText(evidence);
       return tokens.every((token) => normalized.includes(productDevelopmentNormalizedClaimText(token)));
     });
+  }
+
+  function productDevelopmentReviewProductAnchor(snapshot) {
+    const source = snapshot && typeof snapshot === 'object' ? snapshot : {};
+    const context = [
+      source.name,
+      source.englishName,
+      source.productType,
+      source.ingredientSummary && source.ingredientSummary.en,
+      source.ingredientSummary && source.ingredientSummary.cn,
+      Array.isArray(source.ingredients) ? source.ingredients.map((item) => item && [item.en, item.cn].filter(Boolean).join(' ')).join(' ') : '',
+    ].filter(Boolean).join(' ');
+    const anchors = [
+      { pattern: /omega[-\s]?3/i, shortEn: 'Omega-3', mediumEn: 'Omega-3 Formula', longEn: 'Omega-3 Nutritional Formula', shortZh: 'Omega-3', mediumZh: 'Omega-3配方', longZh: 'Omega-3营养配方' },
+      { pattern: /fish\s*oil|鱼油/i, shortEn: 'Fish Oil', mediumEn: 'Fish Oil Formula', longEn: 'Fish Oil Nutritional Formula', shortZh: '鱼油', mediumZh: '鱼油配方', longZh: '鱼油营养配方' },
+      { pattern: /magnesium|镁/i, shortEn: 'Magnesium', mediumEn: 'Magnesium Formula', longEn: 'Magnesium Nutritional Formula', shortZh: '镁', mediumZh: '镁配方', longZh: '镁营养配方' },
+      { pattern: /probiotic|益生菌/i, shortEn: 'Probiotic', mediumEn: 'Probiotic Formula', longEn: 'Probiotic Nutritional Formula', shortZh: '益生菌', mediumZh: '益生菌配方', longZh: '益生菌营养配方' },
+      { pattern: /collagen|胶原蛋白/i, shortEn: 'Collagen', mediumEn: 'Collagen Formula', longEn: 'Collagen Nutritional Formula', shortZh: '胶原蛋白', mediumZh: '胶原蛋白配方', longZh: '胶原蛋白营养配方' },
+      { pattern: /vitamin|维生素/i, shortEn: 'Vitamin Formula', mediumEn: 'Daily Vitamin Formula', longEn: 'Daily Vitamin Nutritional Formula', shortZh: '维生素配方', mediumZh: '日常维生素配方', longZh: '日常维生素营养配方' },
+    ];
+    return anchors.find((anchor) => anchor.pattern.test(context)) || {
+      shortEn: 'Formula',
+      mediumEn: 'Product Formula',
+      longEn: 'Daily Nutritional Formula',
+      shortZh: '配方',
+      mediumZh: '产品配方',
+      longZh: '日常营养配方',
+    };
+  }
+
+  function productDevelopmentReviewNeutralReplacement(sourceText, snapshot, type) {
+    const text = String(sourceText || '').trim();
+    const sourceLength = text.replace(/\s/g, '').length;
+    const anchor = productDevelopmentReviewProductAnchor(snapshot);
+    const chooseLength = (shortValue, mediumValue, longValue) => {
+      if (sourceLength <= String(shortValue || '').replace(/\s/g, '').length + 3) return shortValue;
+      if (sourceLength <= String(mediumValue || '').replace(/\s/g, '').length + 8) return mediumValue;
+      return longValue;
+    };
+    if (type === 'attribute') {
+      const topics = [
+        { pattern: /heart|心脏/i, en: 'Heart', zh: '心脏' },
+        { pattern: /brain|大脑|脑部/i, en: 'Brain', zh: '大脑' },
+        { pattern: /joint|关节/i, en: 'Joints', zh: '关节' },
+        { pattern: /digest|消化|肠道/i, en: 'Digestive', zh: '消化' },
+        { pattern: /immune|免疫/i, en: 'Immune', zh: '免疫' },
+        { pattern: /energy|活力|精力/i, en: 'Energy', zh: '活力' },
+        { pattern: /hair|头发/i, en: 'Hair', zh: '头发' },
+        { pattern: /skin|皮肤/i, en: 'Skin', zh: '皮肤' },
+        { pattern: /eye|眼睛/i, en: 'Eyes', zh: '眼睛' },
+        { pattern: /sleep|睡眠/i, en: 'Sleep', zh: '睡眠' },
+      ].filter((topic) => topic.pattern.test(text)).slice(0, 4);
+      if (topics.length) {
+        const englishTopics = topics.length === 1
+          ? topics[0].en
+          : topics.slice(0, -1).map((topic) => topic.en).join(', ') + ' & ' + topics[topics.length - 1].en;
+        const chineseTopics = topics.length === 1
+          ? topics[0].zh
+          : topics.slice(0, -1).map((topic) => topic.zh).join('、') + '和' + topics[topics.length - 1].zh;
+        return {
+          replacementEn: 'Daily Nutrition for ' + englishTopics,
+          replacementZh: chineseTopics + '日常营养支持',
+        };
+      }
+    }
+    return {
+      replacementEn: chooseLength(anchor.shortEn, anchor.mediumEn, anchor.longEn),
+      replacementZh: chooseLength(anchor.shortZh, anchor.mediumZh, anchor.longZh),
+    };
+  }
+
+  function productDevelopmentReviewReplacementIsSafe(sourceText, replacementEn, replacementZh, snapshot, brand, type) {
+    const nextEn = productDevelopmentCompactSemanticText(replacementEn, 300).replace(/\*/g, '');
+    const nextZh = productDevelopmentCompactSemanticText(replacementZh, 300).replace(/\*/g, '');
+    if (!nextEn || !nextZh || /omit\s+from\s+packaging|从包装中删除/i.test(nextEn + ' ' + nextZh)) return false;
+    if (productDevelopmentNormalizedClaimText(nextEn + ' ' + nextZh) === productDevelopmentNormalizedClaimText(sourceText)) return false;
+    const sourceLength = String(sourceText || '').replace(/\s/g, '').length;
+    const replacementLength = nextEn.replace(/\s/g, '').length;
+    if (sourceLength > 8 && (replacementLength < sourceLength * 0.4 || replacementLength > sourceLength * 2.2)) return false;
+    if (productDevelopmentFindBannedTerm(nextEn + ' ' + nextZh, brand)) return false;
+    const candidateType = productDevelopmentUnsupportedClaimType(nextEn, '');
+    if (candidateType === 'source' || candidateType === 'attribute') return false;
+    if (candidateType === 'ingredient' && /\b(?:made\s+with|contains?|powered\s+by)\b/i.test(nextEn)) return false;
+    return type !== 'source' || !/\b(?:made|manufactured|formulated)\s+in\b|\bproduct\s+of\b|\bcountry\s+of\s+origin\b/i.test(nextEn);
   }
 
   function productDevelopmentEnsureHumanSupplementLine(items, snapshot) {
@@ -9934,11 +10018,22 @@
         action: PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replaceLogo,
       };
     }
-    if (opts.unsupportedClaim) {
+    const neutralRiskRewrite = Boolean(opts.unsupportedClaim || opts.neutralRiskRewrite || action === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.remove || /omit\s+from\s+packaging|从包装中删除/i.test(nextEn + ' ' + nextZh));
+    if (neutralRiskRewrite) {
+      const claimType = opts.unsupportedClaimType || productDevelopmentUnsupportedClaimType(sourceText, textRole) || 'attribute';
+      const fixedRule = PRODUCT_DEVELOPMENT_REVIEW_FIXED_PHRASES.find((rule) => rule.pattern.test(sourceText));
+      const fixedEn = fixedRule ? productDevelopmentReplaceApprovedPhrase(sourceText, fixedRule) : '';
+      const fixedZh = fixedRule ? fixedRule.replacementZh : '';
+      const candidate = productDevelopmentReviewReplacementIsSafe(sourceText, nextEn, nextZh, opts.snapshot, opts.brand, claimType)
+        ? { replacementEn: nextEn, replacementZh: nextZh }
+        : productDevelopmentReviewNeutralReplacement(sourceText, opts.snapshot, claimType);
+      const selected = fixedEn && productDevelopmentReviewReplacementIsSafe(sourceText, fixedEn, fixedZh, opts.snapshot, opts.brand, claimType)
+        ? { replacementEn: fixedEn, replacementZh: fixedZh }
+        : candidate;
       return {
-        replacementEn: 'OMIT FROM PACKAGING',
-        replacementZh: '从包装中删除',
-        action: PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.remove,
+        replacementEn: selected.replacementEn,
+        replacementZh: selected.replacementZh,
+        action: PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replacePhrase,
       };
     }
     for (const rule of PRODUCT_DEVELOPMENT_REVIEW_FIXED_PHRASES) {
@@ -10007,13 +10102,19 @@
       if (normalizedBbox && !productDevelopmentReviewBboxTouchesPackaging(normalizedBbox, packagingBboxes)) return null;
       seen.add(key);
       const detected = productDevelopmentDetectSourceRisks(sourceText, brand);
-      const unsupportedClaimType = productDevelopmentUnsupportedClaimType(sourceText, textRole);
-      const unsupportedClaim = Boolean(unsupportedClaimType && !productDevelopmentReviewClaimHasEvidence(sourceText, snapshot, unsupportedClaimType));
-      const riskTypes = Array.from(new Set((Array.isArray(sourceItem.riskTypes) ? sourceItem.riskTypes : [sourceItem.riskType])
+      const sourceRiskTypes = (Array.isArray(sourceItem.riskTypes) ? sourceItem.riskTypes : [sourceItem.riskType])
         .map((type) => String(type || '').trim().toLowerCase())
-        .filter((type) => ['banned', 'exaggeration', 'medical', 'brand', 'unsupported', 'other'].includes(type))
-        .concat(detected.types)
-        .concat(unsupportedClaim ? ['unsupported'] : []))).slice(0, 4);
+        .filter((type) => ['banned', 'exaggeration', 'medical', 'brand', 'unsupported', 'other'].includes(type));
+      const modelUnsupported = sourceRiskTypes.includes('unsupported') && !productDevelopmentIsNetContentText(textRole, sourceText);
+      const inferredUnsupportedType = /ingredient|formula|成分|配料|原料/i.test(textRole)
+        ? 'ingredient'
+        : /origin|source|country|made|manufactur|产地|原产|来源|制造|生产/i.test(textRole)
+          ? 'source'
+          : 'attribute';
+      const unsupportedClaimType = productDevelopmentUnsupportedClaimType(sourceText, textRole) || (modelUnsupported ? inferredUnsupportedType : '');
+      const unsupportedClaim = Boolean(modelUnsupported || (unsupportedClaimType && !productDevelopmentReviewClaimHasEvidence(sourceText, snapshot, unsupportedClaimType)));
+      const neutralRiskRewrite = sourceRiskTypes.some((type) => ['banned', 'exaggeration', 'medical', 'unsupported'].includes(type));
+      const riskTypes = Array.from(new Set(sourceRiskTypes.concat(detected.types).concat(unsupportedClaim ? ['unsupported'] : []))).slice(0, 4);
       const riskTerms = Array.from(new Set((Array.isArray(sourceItem.riskTerms) ? sourceItem.riskTerms : [])
         .map((term) => productDevelopmentCleanText(term, 100)).filter(Boolean).concat(detected.terms)
         .concat(unsupportedClaim ? ['缺少 PLM 证据的' + (unsupportedClaimType === 'ingredient' ? '成分' : unsupportedClaimType === 'source' ? '来源' : '属性') + '声明'] : []))).slice(0, 8);
@@ -10021,6 +10122,8 @@
         brand,
         snapshot,
         unsupportedClaim,
+        unsupportedClaimType,
+        neutralRiskRewrite,
       });
       if (approved.action && !riskTypes.length) {
         riskTypes.push(approved.action === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replaceLogo ? 'brand' : 'other');
@@ -10033,7 +10136,7 @@
         textRole,
         riskTypes,
         riskTerms,
-        riskReason: productDevelopmentCompactSemanticText(sourceItem.riskReason || sourceItem.reason || sourceItem.warning, 400) || (riskTerms.length ? '原文检测到：' + riskTerms.join('、') : ''),
+        riskReason: productDevelopmentCompactSemanticText(sourceItem.riskReason || sourceItem.reason || sourceItem.warning, 400) || (unsupportedClaim ? '原图存在缺少 PLM 证据的' + (unsupportedClaimType === 'ingredient' ? '成分' : unsupportedClaimType === 'source' ? '来源' : '属性') + '声明，已改为近似长度的中性产品表述' : riskTerms.length ? '原文检测到：' + riskTerms.join('、') : ''),
         replacementEn: productDevelopmentCompactSemanticText(approved.replacementEn, 300),
         replacementZh: productDevelopmentCompactSemanticText(approved.replacementZh, 300),
         translationZh: productDevelopmentCompactSemanticText(sourceItem.translationZh || sourceItem.translation || sourceItem.chinese || approved.replacementZh, 300),
