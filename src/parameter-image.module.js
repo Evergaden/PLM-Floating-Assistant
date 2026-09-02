@@ -81,7 +81,23 @@
       if (typeof value === 'object') Object.values(value).forEach((item) => collectTextValues(item, output, depth + 1));
     }
 
+    function isEntryProductName(value) {
+      return /[（(]\s*入口\s*[）)]/i.test(String(value || ''));
+    }
+
+    function hasEntryProductName(data) {
+      const source = data && typeof data === 'object' ? data : {};
+      return [
+        source.name,
+        source.productName,
+        source.productNameCn,
+        source.product_name,
+        source.dev_product_name,
+      ].some(isEntryProductName);
+    }
+
     function extractEnglishName(data) {
+      if (hasEntryProductName(data)) return 'Dietary Supplement';
       const direct = sanitizeEnglishName(data && (data.englishName || data.productEnglishName || ''), data && data.brand);
       if (direct) return direct;
       const values = [];
@@ -2200,8 +2216,12 @@
 
     async function applyExtraData(data, session) {
       const extra = await context.collectExtra(data.sku);
-      if (extra && extra.englishName) session.fields.englishName = sanitizeEnglishName(extra.englishName, data && data.brand);
-      if (!session.fields.englishName) session.fields.englishName = extractEnglishName(extra && extra.liveData || data);
+      if (hasEntryProductName(data)) {
+        session.fields.englishName = 'Dietary Supplement';
+      } else {
+        if (extra && extra.englishName) session.fields.englishName = sanitizeEnglishName(extra.englishName, data && data.brand);
+        if (!session.fields.englishName) session.fields.englishName = extractEnglishName(extra && extra.liveData || data);
+      }
       if (extra && extra.liveData) {
         const live = extra.liveData;
         if (live.netContent) session.fields.netContent = live.netContent;

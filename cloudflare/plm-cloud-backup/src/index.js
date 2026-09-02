@@ -133,7 +133,7 @@ const PRODUCT_DEVELOPMENT_BANNED_TERMS = Object.freeze([
   '减肥', '降脂', '降糖', '增强免疫', '改善疾病',
 ]);
 const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v6';
-const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'human-drops-700mg-v1';
+const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'ingredient-template-v2';
 const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS = 'Purified Water, Vegetable Glycerin, Citric Acid, Potassium Sorbate';
 const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS_CN = '纯化水、植物甘油、柠檬酸、山梨酸钾';
 const PRODUCT_DEVELOPMENT_CORPUS_LANGUAGE_GUIDE = Object.freeze([
@@ -270,10 +270,18 @@ async function callAiText(env, options) {
 
 function readOpenAiMessageText(message) {
   const content = message && message.content;
-  if (typeof content === 'string') return content.trim();
+  if (typeof content === 'string' && content.trim()) return content.trim();
   if (Array.isArray(content)) {
-    return content.map((item) => item && (item.text || item.content) ? String(item.text || item.content) : '').join('').trim();
+    const text = content.map((item) => item && (item.text || item.content) ? String(item.text || item.content) : '').join('').trim();
+    if (text) return text;
   }
+  const directText = message && (message.text || message.output_text);
+  if (typeof directText === 'string' && directText.trim()) return directText.trim();
+  // Some Qwen gateway responses put the completed answer in the reasoning
+  // field when the normal content field is empty. It may still contain prose,
+  // so the JSON extractor below will isolate the object.
+  const reasoning = message && (message.reasoning_content || message.reasoningContent);
+  if (typeof reasoning === 'string' && reasoning.trim()) return reasoning.trim();
   return '';
 }
 
@@ -311,11 +319,13 @@ async function callModelScopeText(config, options) {
   if (!response.ok) {
     throw new Error(data && data.error && data.error.message ? data.error.message : 'ModelScope HTTP ' + response.status);
   }
+  const choice = data && data.choices && data.choices[0];
+  const message = choice && choice.message ? choice.message : choice;
   return {
     provider: config.provider,
     source: config.source,
     model: config.model,
-    text: readOpenAiMessageText(data && data.choices && data.choices[0] && data.choices[0].message),
+    text: readOpenAiMessageText(message) || readOpenAiMessageText(choice),
   };
 }
 
@@ -2044,6 +2054,10 @@ function productDevelopmentIsHumanSupplement(source, extraText) {
   return /\bhuman\b|人类|人用|保健品?|保健食品|膳食补充|营养补充|营养品|dietary\s+supplement|supplement|wellness\s+product|health\s+supplement|capsule|softgel|gumm(?:y|ies)?|vitamin|mineral|probiotic|fish\s*oil|protein\s*powder|胶囊|软胶囊|软糖|维生素|益生菌|鱼油|蛋白粉/i.test(evidence);
 }
 
+function productDevelopmentIsEntryProductName(value) {
+  return /[（(]\s*入口\s*[）)]/i.test(cleanText(value, 300));
+}
+
 function productDevelopmentReviewEvidenceValues(source, type) {
   const value = source && typeof source === 'object' ? source : {};
   const copywriting = value.sourceCopywriting && typeof value.sourceCopywriting === 'object' ? value.sourceCopywriting : {};
@@ -2354,7 +2368,8 @@ function parseProductDevelopmentJson(value) {
       }
     }
   }
-  throw new Error('product development response is not JSON: ' + cleanText(lastError && lastError.message, 160));
+  const reason = cleanText(lastError && lastError.message, 160) || (raw ? 'no JSON object found' : 'empty response');
+  throw new Error('product development response is not JSON: ' + reason);
 }
 
 function normalizeProductDevelopmentIngredientInput(value) {
@@ -2375,13 +2390,16 @@ function normalizeProductDevelopmentNameExamples(value) {
     .slice(0, 20);
 }
 
-function sanitizeProductDevelopmentNamingCandidate(value, brand) {
+function sanitizeProductDevelopmentNamingCandidate(value, brand, context = {}) {
   const source = value && typeof value === 'object' ? value : {};
   const naming = source.productNaming && typeof source.productNaming === 'object'
     ? source.productNaming
     : source.naming && typeof source.naming === 'object' ? source.naming : {};
   const chineseProductName = cleanText(naming.chineseProductName || naming.productNameCn || naming.chineseName || naming.cn, 180);
-  const englishProductName = cleanText(naming.englishProductName || naming.productNameEn || naming.englishName || naming.en, 180);
+  const entryProductName = [context.name, context.productName, source.name, source.productName, chineseProductName].some(productDevelopmentIsEntryProductName);
+  const englishProductName = entryProductName
+    ? 'Dietary Supplement'
+    : cleanText(naming.englishProductName || naming.productNameEn || naming.englishName || naming.en, 180);
   const functionSummary = cleanText(naming.functionSummary || naming.productFunction || naming.function, 300);
   const evidenceText = cleanText(naming.evidenceText || naming.mainTitle || naming.titleEvidence, 300);
   const restricted = [chineseProductName, englishProductName, functionSummary]
@@ -2534,7 +2552,7 @@ function sanitizeProductDevelopmentReviewCandidate(value, brand, rules = {}) {
     };
   }).filter(Boolean).slice(0, 80);
   items = productDevelopmentEnsureHumanSupplementLine(items, rules);
-  const productNaming = sanitizeProductDevelopmentNamingCandidate(value, brand);
+  const productNaming = sanitizeProductDevelopmentNamingCandidate(value, brand, { name: rules.name });
   return {
     texts: items,
     items: items.filter((item) => item.riskTypes.length),
@@ -2604,7 +2622,7 @@ async function handleProductDevelopmentReview(request, env) {
         '原图中的属性声明、成分声明或来源声明，只有在当前 SKU 的 PLM 证据中逐项明确出现时才允许原样保留；图片中可读的成分名称也必须将 textRole 标为 ingredient，哪怕没有证据。没有证据支持时必须标记 riskTypes=unsupported，不得原样复制，也不能用另一个未经证实的成分、属性或产地替换；优先用与原文接近长度的安全中性产品表述改写，revisionAction=replace-phrase，只有确实无法形成安全替换时才使用 revisionAction=remove、OMIT FROM PACKAGING、从包装中删除。',
         '当品牌为 Kriath 且类目/产品类型属于宠物入口时，适用对象文本 textRole 必须为 petAudience，英文 replacementEn 只能使用全大写 FOR DOGS & CATS、FOR DOGS 或 FOR CATS。',
         '成分证据可以为空；不要因为没有成分而停止图片文字风险筛查，也不要从图片或常识虚构成分。只使用提供的产品类型、成分（如有）和卖点作为补充事实依据，不要补写未提供的数值、认证、疾病或疗效。',
-        '除 texts 外，同时只根据包装表面清晰可见的产品主标题和文字整体作用返回 productNaming。englishProductName 必须优先逐字采用包装上的英文大标题，不要翻译中文名，不要拼接品牌、规格、口味、适用对象或卖点；标题分成多行时可以合并。chineseProductName 只参考包装表面可见作用、适用对象和剂型，使用朦胧的日常状态/支持表达，不能采用背景宣传栏文字，也不能出现医疗、预防、治疗、绝对化或夸大词。',
+        '除 texts 外，同时只根据包装表面清晰可见的产品主标题和文字整体作用返回 productNaming。englishProductName 必须优先逐字采用包装上的英文大标题；如果产品名带有（入口），englishProductName 固定填写 Dietary Supplement；不要翻译中文名，不要拼接品牌、规格、口味、适用对象或卖点；标题分成多行时可以合并。chineseProductName 只参考包装表面可见作用、适用对象和剂型，使用朦胧的日常状态/支持表达，不能采用背景宣传栏文字，也不能出现医疗、预防、治疗、绝对化或夸大词。',
         '命名示例只用于学习中文产品名的节奏和结构，不是当前产品事实，不能照抄成分或作用：' + namingExamples.join('、'),
         '不要访问 WIPO 或其他外部查询网站；本接口只做图片文字读取和风险初筛。',
         '没有可靠风险时仍返回清晰可见文字，但 riskTypes 为空；看不清的文字不要猜测。所有内容必须是一个 JSON 对象，不要 Markdown。',
@@ -3034,13 +3052,16 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
   const source = value && typeof value === 'object' ? value : {};
   const input = context && context.input && typeof context.input === 'object' ? context.input : {};
   const target = context && context.target && typeof context.target === 'object' ? context.target : {};
+  const ingredientKind = String(context && context.kind || input.ingredientKind || 'human').trim().toLowerCase() === 'pet' ? 'pet' : 'human';
   const candidateProduct = source.product && typeof source.product === 'object'
     ? source.product
     : source.productInfo && typeof source.productInfo === 'object' ? source.productInfo : source;
   const brand = cleanText(input.brand, 160);
   const nameCn = cleanText(readProductDevelopmentField(candidateProduct, ['nameCn', 'productNameCn', 'chineseName', 'nameChinese', 'cn']) || input.nameCn || '日常营养支持滴剂', 220);
-  const nameEn = cleanText(readProductDevelopmentField(candidateProduct, ['nameEn', 'productNameEn', 'englishName', 'nameEnglish', 'en']) || input.nameEn || 'Daily Wellness Support Drops', 220);
-  const productType = cleanText(input.productType || readProductDevelopmentField(candidateProduct, ['productType', 'category', 'type']) || 'Human dietary supplement / liquid drops', 180);
+  const nameEn = [nameCn, input.nameCn].some(productDevelopmentIsEntryProductName)
+    ? 'Dietary Supplement'
+    : cleanText(readProductDevelopmentField(candidateProduct, ['nameEn', 'productNameEn', 'englishName', 'nameEnglish', 'en']) || input.nameEn || 'Daily Wellness Support Drops', 220);
+  const productType = cleanText(input.productType || readProductDevelopmentField(candidateProduct, ['productType', 'category', 'type']) || (ingredientKind === 'pet' ? 'Pet food supplement / liquid drops' : 'Human dietary supplement / liquid drops'), 180);
   const includeCopywriting = !context || context.includeCopywriting !== false;
   const netContent = cleanText(input.netContent || readProductDevelopmentField(candidateProduct, ['netContent', 'netQuantity']) || '60 mL', 120);
   const restricted = [nameCn, nameEn].map((item) => productDevelopmentFindBannedTerm(item, brand)).find(Boolean);
@@ -3051,7 +3072,7 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
       ? source.ingredientFacts
       : source.supplementFacts && typeof source.supplementFacts === 'object' ? source.supplementFacts : source;
   const warnings = [];
-  const rows = productDevelopmentOneShotRows(tableSource, warnings);
+  const rows = productDevelopmentOneShotRows(tableSource, warnings, ingredientKind);
   const requestedActiveMg = Number(target.activeMg) || 700;
   let activeTotalMg = productDevelopmentOneShotRounded(rows.reduce((sum, row) => sum + row.amountMg, 0));
   const difference = requestedActiveMg - activeTotalMg;
@@ -3110,7 +3131,7 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
       netContent,
     },
     ingredientTable: {
-      title: 'Supplement Facts',
+      title: cleanText(tableSource.title || tableSource.heading || '', 160) || (ingredientKind === 'pet' ? 'Product Facts' : 'Supplement Facts'),
       servingSize: String(target.servingSize || '1 mL'),
       servingsPerContainer: Number(target.servingsPerContainer) || 60,
       activeTotalMg,
@@ -3143,7 +3164,8 @@ async function handleProductDevelopmentOneShot(request, env) {
   if (!body) return json({ ok: false, error: 'application/json body required' }, 400);
   const requestedStage = cleanText(body.stage || body.mode, 40).toLowerCase();
   const ingredientOnly = ['ingredient', 'ingredient-table', 'table'].includes(requestedStage);
-  if (String(body.kind || 'human').trim().toLowerCase() === 'pet') return json({ ok: false, error: 'one-shot target mode currently supports human dietary supplements only' }, 400);
+  const ingredientKind = String(body.kind || 'human').trim().toLowerCase() === 'pet' ? 'pet' : 'human';
+  const defaultProductType = ingredientKind === 'pet' ? 'Pet food supplement / liquid drops' : 'Human dietary supplement / liquid drops';
   const image = cleanModelScopeImages([body.imageDataUrl])[0] || '';
   const referenceUrl = cleanText(body.referenceUrl, 1200);
   if (referenceUrl && !/^https?:\/\//i.test(referenceUrl)) return json({ ok: false, error: 'referenceUrl must use http or https' }, 400);
@@ -3152,11 +3174,12 @@ async function handleProductDevelopmentOneShot(request, env) {
   const standardizedPercent = productDevelopmentOneShotNumber(body.targetActivePercent);
   const servingsPerContainer = Math.max(1, Math.min(365, Math.round(productDevelopmentOneShotNumber(body.servingsPerContainer) || 60)));
   const input = {
+    ingredientKind,
     sku: cleanText(body.sku, 80) || 'ONE-SHOT-' + new Date().toISOString().slice(0, 10).replace(/-/g, ''),
     brand: cleanText(body.brand, 160),
     nameCn: cleanText(body.nameCn || body.productNameCn, 220),
     nameEn: cleanText(body.nameEn || body.productNameEn, 220),
-    productType: cleanText(body.productType, 180) || 'Human dietary supplement / liquid drops',
+    productType: cleanText(body.productType, 180) || defaultProductType,
     netContent: cleanText(body.netContent, 120) || '60 mL',
     servingSize: cleanText(body.servingSize, 80) || '1 mL',
     servingsPerContainer,
@@ -3166,6 +3189,7 @@ async function handleProductDevelopmentOneShot(request, env) {
     otherIngredientsEn: cleanText(body.otherIngredientsEn, 1600) || PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS,
     otherIngredientsCn: cleanText(body.otherIngredientsCn, 1200) || PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS_CN,
     productAttributes: body.productAttributes && typeof body.productAttributes === 'object' ? {
+      ingredientKind: cleanText(body.productAttributes.ingredientKind, 20) || ingredientKind,
       productType: cleanText(body.productAttributes.productType, 180),
       netContent: cleanText(body.productAttributes.netContent, 120),
       servingSize: cleanText(body.productAttributes.servingSize, 80),
@@ -3184,7 +3208,7 @@ async function handleProductDevelopmentOneShot(request, env) {
     servingSize: input.servingSize,
     servingsPerContainer: input.servingsPerContainer,
   };
-  const context = { input, target, imageDataUrl: image, referenceUrl, includeCopywriting: !ingredientOnly };
+  const context = { input, target, imageDataUrl: image, referenceUrl, includeCopywriting: !ingredientOnly, kind: ingredientKind };
   const formulaSeed = [
     'Vitamin C | 维生素C | Acidum ascorbicum | 60 mg',
     'Zinc | 锌 | Zincum citras | 7.5 mg',
@@ -3195,24 +3219,35 @@ async function handleProductDevelopmentOneShot(request, env) {
     'Grape Seed Extract | 葡萄籽提取物 | Vitis vinifera | 82.5 mg | standardized to 95% proanthocyanidins',
   ].join('\n');
   const system = [
-    '你是美国人用膳食补充剂的配方与包装文案草稿助手，不是医疗或法律意见提供者。',
-    '只生成 human dietary supplement，不生成宠物、化妆品或药品。输出只能是一个 JSON 对象，不要 Markdown、代码围栏或解释。',
+    ingredientKind === 'pet'
+      ? '你是美国宠物食品和宠物营养补充剂的配方与包装文案草稿助手，不是医疗或法律意见提供者。'
+      : '你是美国人用膳食补充剂的配方与包装文案草稿助手，不是医疗或法律意见提供者。',
+    ingredientKind === 'pet'
+      ? '只生成 pet food 或 pet nutritional supplement，不生成成人膳食补充剂、化妆品或药品。输出只能是一个 JSON 对象，不要 Markdown、代码围栏或解释。'
+      : '只生成 human dietary supplement，不生成宠物、化妆品或药品。输出只能是一个 JSON 对象，不要 Markdown、代码围栏或解释。',
     '证据优先级：图片中清晰可读的文字和用户明确输入的属性优先；referenceUrl 只是用户提供的线索，本 Worker 不抓取链接，不得把链接页面当成已验证事实；目标数值是配方设计目标，不等于供应商已经确认的事实。图片未能读出完整配方时可以提出配方草案，但 warnings 必须明确是 proposed draft。',
-    '必须按目标生成 Supplement Facts：Serving Size、Servings Per Container、3 至 7 条活性成分、Other Ingredients。活性成分每份合计必须精确达到目标毫克数；标准化活性标志物合计必须不低于目标百分比。辅料不能计入活性合计。',
+    ingredientKind === 'pet'
+      ? '必须按目标生成选定宠物成分表：Serving Size、Servings Per Container、3 至 7 条活性成分、Other Ingredients。活性成分每份合计必须精确达到目标毫克数；标准化活性标志物合计必须不低于目标百分比。辅料不能计入活性合计。'
+      : '必须按目标生成 Supplement Facts：Serving Size、Servings Per Container、3 至 7 条活性成分、Other Ingredients。活性成分每份合计必须精确达到目标毫克数；标准化活性标志物合计必须不低于目标百分比。辅料不能计入活性合计。',
     '每条活性成分必须同时有 nameEn、nameCn、latinName、sourcePart、standardization、amountMg、dailyValue、markerActiveMg；nameEn/nameCn 不要自己加括号，前端会把 latinName、sourcePart、standardization 组合进括号。每个植物成分必须写准确拉丁学名和植物部位；非植物成分也按用户要求提供对应的来源/化学拉丁式名称。',
-    '成分顺序遵循样例优先规则：维生素，再矿物质，再其他活性成分；每组内部按每份重量从高到低。Supplement Facts 使用 **Daily Value not established.；Vitamin C、Zinc 等有 DV 的营养素给出合理的整数百分比。',
+    ingredientKind === 'pet'
+      ? '成分顺序遵循选定宠物模板和样例优先规则：维生素，再矿物质，再其他活性成分；每组内部按每份重量从高到低。宠物模板没有人体 Daily Value 时使用 **，不要臆造人体每日参考值。'
+      : '成分顺序遵循样例优先规则：维生素，再矿物质，再其他活性成分；每组内部按每份重量从高到低。Supplement Facts 使用 **Daily Value not established.；Vitamin C、Zinc 等有 DV 的营养素给出合理的整数百分比。',
     'Other Ingredients 单独输出，不把水、甘油、酸度调节剂或防腐剂算入 700 mg 活性合计。',
     ingredientOnly
-      ? '当前阶段只生成 Supplement Facts 与 Other Ingredients 成分表草稿，不生成 A-D 文案；可以省略 copywriting 字段。'
+      ? (ingredientKind === 'pet'
+        ? '当前阶段只生成选定宠物模板对应的成分表与 Other Ingredients 草稿，不生成 A-D 文案；可以省略 copywriting 字段。'
+        : '当前阶段只生成 Supplement Facts 与 Other Ingredients 成分表草稿，不生成 A-D 文案；可以省略 copywriting 字段。')
       : '文案使用直接、简短、美国电商膳食补充剂风格，围绕 supports daily wellness、helps maintain、formulated with、designed for、suitable for routine use、daily vitality、steady energy、feels refreshed、ready for the day 等克制表达。食品类文案主要描述身体日常状态和生活感受，不写检测、测试、实验室、第三方、验证、认证或证明背书，也不要写 efficient nutrient absorption 等未经输入证明的效率结论。禁止疾病、诊断、治疗、预防、医疗、绝对化、保证、认证、品牌或未提供的数字；不得出现限制词：' + PRODUCT_DEVELOPMENT_BANNED_TERMS.join('、') + '。',
     PRODUCT_DEVELOPMENT_CORPUS_LANGUAGE_GUIDE.join(' '),
     ingredientOnly
       ? '成分表信息必须服从 input.productType、input.productAttributes 与选定模板元数据；模板只决定字段和版式，不得把其他产品类型或模板案例的事实带入当前 SKU。'
       : 'A-D 必须严格为 A 4 条、B 4 条、C 15 条、D 与活性成分数量相同。C 前 4 条有双语标题且标题不写成分，后 11 条标题为空。D 的 ingredientEn/ingredientCn 必须与输出成分 nameEn/nameCn 按顺序完全一致。',
-    '请保留以下参考样式的优先级：实际案例中的 Supplement Facts 版式、Other Ingredients、摇匀和每日用量表达优先于抽象模板规则；不要照抄案例中的品牌、禁词或未经证实的功效。',
+    '请保留以下参考样式的优先级：实际案例中的成分表版式、Other Ingredients、摇匀和每日用量表达优先于抽象模板规则；不要照抄案例中的品牌、禁词或未经证实的功效。',
   ].join(' ');
   const basePayload = {
     stage: ingredientOnly ? 'ingredient' : 'ingredient-and-copywriting',
+    kind: ingredientKind,
     input,
     target,
     templates: {
@@ -3230,9 +3265,10 @@ async function handleProductDevelopmentOneShot(request, env) {
     imageProvided: Boolean(image),
     designFormulaPattern: formulaSeed,
   };
+  const ingredientTableTitle = ingredientKind === 'pet' ? 'Product Facts' : 'Supplement Facts';
   const responseSchema = ingredientOnly
-    ? '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"Supplement Facts","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":700,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountMg":0,"dailyValue":"**","markerActiveMg":0}],"otherIngredientsEn":"","otherIngredientsCn":""},"warnings":[]}'
-    : '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"Supplement Facts","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":700,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountMg":0,"dailyValue":"**","markerActiveMg":0}],"otherIngredientsEn":"","otherIngredientsCn":""},"copywriting":{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}},"warnings":[]}';
+    ? '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":700,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountMg":0,"dailyValue":"**","markerActiveMg":0}],"otherIngredientsEn":"","otherIngredientsCn":""},"warnings":[]}'
+    : '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":700,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountMg":0,"dailyValue":"**","markerActiveMg":0}],"otherIngredientsEn":"","otherIngredientsCn":""},"copywriting":{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}},"warnings":[]}';
   const options = {
     primaryModel: getProductDevelopmentPrimaryQwenModel(env),
     model: getProductDevelopmentPrimaryQwenModel(env),
@@ -3401,23 +3437,55 @@ async function handleProductDevelopmentCopywriting(request, env) {
     ingredients,
     brand
   );
+  const copywritingSuccess = (preferred, warnings, source) => json({
+    ok: true,
+    sections: preferred.value,
+    warnings: Array.isArray(warnings) ? warnings : [],
+    provider: preferred.result.provider || preferred.result.source || '',
+    model: preferred.result.model || '',
+    templateVersion,
+    templateId,
+    templateLabel,
+    ingredientTemplateId,
+    ingredientTemplateLabel,
+    ingredientTemplateSheetName,
+    source,
+  });
   try {
     const preferred = await callPreferredAiText(env, options, validateCopywritingCandidate);
-    return json({
-      ok: true,
-      sections: preferred.value,
-      warnings: [],
-      provider: preferred.result.provider || preferred.result.source || '',
-      model: preferred.result.model || '',
-      templateVersion,
-      templateId,
-      templateLabel,
-      ingredientTemplateId,
-      ingredientTemplateLabel,
-      ingredientTemplateSheetName,
-      source: 'product-development-copywriting-v4-single-qwen-first',
-    });
+    return copywritingSuccess(preferred, [], 'product-development-copywriting-v4-single-qwen-first');
   } catch (error) {
+    const jsonFormatFailure = /response is not JSON|completion response is not JSON|not JSON/i.test(String(error && error.message || ''));
+    if (jsonFormatFailure) {
+      try {
+        const retried = await callPreferredAiText(env, {
+          ...options,
+          maxTokens: Math.max(Number(options.maxTokens || 0), 8000),
+          primaryTimeoutMs: 300000,
+          system: [
+            commonSystem,
+            '上一轮响应无法解析为 JSON。请重新完整生成，不要输出思考过程、Markdown、代码围栏、注释、前后说明或截断内容。',
+            '即使文案较多，也必须一次性返回完整 JSON；先在内部检查 A=4、B=4、C=15、D=全部成分，再只输出 JSON 对象。',
+          ].join(' '),
+          prompt: [
+            JSON.stringify(basePayload),
+            '这是 JSON 格式重试。',
+            '只返回一个完整 JSON 对象，结构严格为：',
+            '{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}}',
+            '再次检查：A=4、B=4、C=15、D=输入成分总数；C 前 4 条有双语标题，后 11 条标题字段为空；每一项 en 和 cn 非空；不要输出星号、品牌词、禁词或空行。',
+          ].join('\n'),
+        }, validateCopywritingCandidate);
+        return copywritingSuccess(retried, ['首次响应格式异常，已自动重新生成'], 'product-development-copywriting-v6-json-retry');
+      } catch (retryError) {
+        const originalMessage = cleanText(error && error.message, 420);
+        const retryMessage = cleanText(retryError && retryError.message, 420);
+        const combined = new Error(originalMessage + ' | JSON重试：' + retryMessage);
+        combined.aiCandidates = retryError && Array.isArray(retryError.aiCandidates)
+          ? retryError.aiCandidates
+          : error && error.aiCandidates;
+        error = combined;
+      }
+    }
     const canRepair = /restricted term|含限制词|asterisk|blank line|星号|空行|exceeds length|超出长度/i.test(String(error && error.message || ''));
     const candidate = error && Array.isArray(error.aiCandidates) ? error.aiCandidates[0] : null;
     if (canRepair && candidate && candidate.text) {
@@ -3440,20 +3508,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
             '严格返回完整 JSON，结构必须与候选一致。',
           ].join('\n'),
         }, validateCopywritingCandidate);
-        return json({
-          ok: true,
-          sections: repaired.value,
-          warnings: ['首次生成命中限制词，已自动合规修复'],
-          provider: repaired.result.provider || repaired.result.source || '',
-          model: repaired.result.model || '',
-          templateVersion,
-          templateId,
-          templateLabel,
-          ingredientTemplateId,
-          ingredientTemplateLabel,
-          ingredientTemplateSheetName,
-          source: 'product-development-copywriting-v5-auto-repair',
-        });
+        return copywritingSuccess(repaired, ['首次生成命中限制词，已自动合规修复'], 'product-development-copywriting-v5-auto-repair');
       } catch (repairError) {
         error = new Error(cleanText(error && error.message, 420) + ' | 自动修复：' + cleanText(repairError && repairError.message, 420));
       }

@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.28.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.29.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'copywriting-templates-v1';
   const PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID = 'capsule';
   const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object.freeze([
@@ -40,7 +40,7 @@
   // shipped as a built-in text summary and no longer accept local imports.
   const PRODUCT_DEVELOPMENT_INGREDIENT_LOCAL_TEMPLATE_KEY = 'plm-floating-helper:product-development-ingredient-local-templates:v1';
   const PRODUCT_DEVELOPMENT_INGREDIENT_MAX_CELLS = 600;
-  const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'human-drops-700mg-v1';
+  const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'ingredient-template-v2';
   const PRODUCT_DEVELOPMENT_ONE_SHOT_DRAFT_KEY = 'plm-floating-helper:product-development-one-shot-draft:v1';
   const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT = Object.freeze({
     sku: '',
@@ -663,7 +663,9 @@
     if (!sku) return normalizeProductDevelopmentTaskMeta({});
     const stored = loadProductDevelopmentTaskMeta()[sku] || {};
     const memory = state.productDevelopmentTaskMeta && state.productDevelopmentTaskMeta[sku] || {};
-    return { ...productDevelopmentTaskMetaFallback(task, detail), ...stored, ...memory };
+    const meta = { ...productDevelopmentTaskMetaFallback(task, detail), ...stored, ...memory };
+    const entryEnglishProductName = productDevelopmentEntryEnglishProductName(detail, task, meta);
+    return entryEnglishProductName ? { ...meta, productNameEn: entryEnglishProductName } : meta;
   }
 
   function saveProductDevelopmentTaskMeta(sku, value) {
@@ -1775,17 +1777,48 @@
     return field.value === undefined ? '' : field.value;
   }
 
+  function productDevelopmentIsEntryProductName(value) {
+    return /[（(]\s*入口\s*[）)]/i.test(productDevelopmentPrefillText(value, 300));
+  }
+
+  function productDevelopmentEntryEnglishProductName(detail, task, meta) {
+    const localPage1 = detail && detail.productDetailLocalPage1 && typeof detail.productDetailLocalPage1 === 'object'
+      ? detail.productDetailLocalPage1
+      : {};
+    const localNames = detail && detail.productDetailLocalNames && typeof detail.productDetailLocalNames === 'object'
+      ? detail.productDetailLocalNames
+      : {};
+    const names = [
+      detail && detail.name,
+      detail && detail.productNameCn,
+      detail && detail.productNameEn,
+      task && task.name,
+      task && task.productName,
+      task && task.productNameCn,
+      task && task.productNameEn,
+      meta && meta.productNameCn,
+      meta && meta.productNameEn,
+      localPage1.productNameCn,
+      localPage1.productNameEn,
+      localNames.productNameCn,
+      localNames.productNameEn,
+    ];
+    return names.some(productDevelopmentIsEntryProductName) ? 'Dietary Supplement' : '';
+  }
+
   function productDevelopmentPage1FieldValue(detail, key) {
     const localPage1 = detail && detail.productDetailLocalPage1 && typeof detail.productDetailLocalPage1 === 'object'
       ? detail.productDetailLocalPage1
       : {};
-    if (productDevelopmentPrefillHasValue(localPage1, key)) return key === 'categoryPath'
-      ? productDevelopmentNormalizeCategoryPathValue(localPage1[key])
-      : key === 'brand'
-        ? productDevelopmentNormalizeBrandValue(localPage1[key])
-        : localPage1[key];
     const task = getProductDevelopmentTaskBySku(detail && detail.sku) || state.productDevelopmentSelectedTask || {};
     const meta = getProductDevelopmentTaskMeta(task, detail);
+    const entryEnglishProductName = productDevelopmentEntryEnglishProductName(detail, task, meta);
+    if (productDevelopmentPrefillHasValue(localPage1, key)) {
+      if (key === 'categoryPath') return productDevelopmentNormalizeCategoryPathValue(localPage1[key]);
+      if (key === 'brand') return productDevelopmentNormalizeBrandValue(localPage1[key]);
+      if (key === 'productNameEn' && entryEnglishProductName) return entryEnglishProductName;
+      return localPage1[key];
+    }
     const info = detail && detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};
     const group = info.product_group && typeof info.product_group === 'object' ? info.product_group : {};
     if (key === 'categoryPath') return productDevelopmentNormalizeCategoryPathValue(detail && (detail.categoryName || info.category_name || task.plmCategory) || '');
@@ -1793,8 +1826,8 @@
       ? detail.productDetailLocalNames[key]
       : meta.productNameCn || detail && detail.productNameCn || '';
     if (key === 'productNameEn') return detail && detail.productDetailLocalNames && productDevelopmentPrefillHasValue(detail.productDetailLocalNames, key)
-      ? detail.productDetailLocalNames[key]
-      : meta.productNameEn || detail && detail.productNameEn || '';
+      ? entryEnglishProductName || detail.productDetailLocalNames[key]
+      : entryEnglishProductName || meta.productNameEn || detail && detail.productNameEn || '';
     if (key === 'brand') return productDevelopmentNormalizeBrandValue(meta.brand || detail && detail.brand || info.brand_name || info.brandName || '');
     if (key === 'productGroupPath') return info.product_group_path || info.product_group_full_name || info.product_group_name || group.path || group.full_name || group.name || detail && detail.productGroupName || '';
     return '';
@@ -2921,10 +2954,13 @@
     return definition ? productDevelopmentPrefillProductFieldValue(detail, definition) : '';
   }
 
-  function productDevelopmentProductDetailLanguageConfig(detail) {
+  function productDevelopmentProductDetailLanguageConfig(detail, task) {
     const info = detail && detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};
     const source = Array.isArray(info.language_config) ? productDevelopmentCloneValue(info.language_config) : [];
     const languages = Array.isArray(source) ? source : [];
+    const resolvedTask = task || getProductDevelopmentTaskBySku(detail && detail.sku) || {};
+    const meta = getProductDevelopmentTaskMeta(resolvedTask, detail);
+    const entryEnglishProductName = productDevelopmentEntryEnglishProductName(detail, resolvedTask, meta);
     const localNames = detail && detail.productDetailLocalNames && typeof detail.productDetailLocalNames === 'object'
       ? detail.productDetailLocalNames
       : {};
@@ -2939,9 +2975,9 @@
     const cn = Object.prototype.hasOwnProperty.call(localNames, 'productNameCn')
       ? localNames.productNameCn
       : detail && detail.productNameCn || '';
-    const en = Object.prototype.hasOwnProperty.call(localNames, 'productNameEn')
+    const en = entryEnglishProductName || (Object.prototype.hasOwnProperty.call(localNames, 'productNameEn')
       ? localNames.productNameEn
-      : detail && detail.productNameEn || '';
+      : detail && detail.productNameEn || '');
     const chinese = ensureLanguage(1, cn);
     if (cn !== '') chinese.product_name = productDevelopmentCleanText(cn, 180);
     const existingEnglish = languages.some((item) => Number(item && item.language_id) === 2);
@@ -2967,7 +3003,7 @@
       ? productDevelopmentCloneValue(source[key])
       : productDevelopmentCloneValue(fallback);
     const product = {
-      language_config: productDevelopmentProductDetailLanguageConfig(detail),
+      language_config: productDevelopmentProductDetailLanguageConfig(detail, task),
       product_id: productId,
       code: infoValue('code', sku),
       product_type: infoValue('product_type', infoValue('type', 1)),
@@ -3895,7 +3931,10 @@
     const definitions = (requiredDefinitions.length ? requiredDefinitions : PRODUCT_DEVELOPMENT_REQUIRED_FIELD_FALLBACKS).filter((item, index, list) => list.findIndex((candidate) => Number(candidate.attrId) === Number(item.attrId)) === index);
     const requiredFields = definitions.map((definition) => productDevelopmentReadonlyFieldValue(attrs, definition, info, bomRows));
     const productNameCn = productDevelopmentCleanText((info.language_config || []).find((item) => Number(item && item.language_id) === 1)?.product_name || source.name || productSnapshot && productSnapshot.chineseName, 180);
-    const productNameEn = productDevelopmentCleanText((info.language_config || []).find((item) => Number(item && item.language_id) === 2)?.product_name || productSnapshot && productSnapshot.englishName, 180);
+    const productNameEnSource = productDevelopmentCleanText((info.language_config || []).find((item) => Number(item && item.language_id) === 2)?.product_name || productSnapshot && productSnapshot.englishName, 180);
+    const productNameEn = productDevelopmentIsEntryProductName(source.name) || productDevelopmentIsEntryProductName(productNameCn)
+      ? 'Dietary Supplement'
+      : productNameEnSource;
     const productId = String(info.product_id || source.productId || productSnapshot && productSnapshot.productId || '').trim();
     const productVersionId = String(info.product_version_id || source.productVersionId || productSnapshot && productSnapshot.productVersionId || '').trim();
     const productMainId = String(info.product_main_id || info.productMainId || source.productMainId || source.product_main_id || productSnapshot && (productSnapshot.productMainId || productSnapshot.product_main_id) || (bomRows.find((row) => row.type === '成品') || {}).productMainId || '').trim();
@@ -4822,11 +4861,15 @@
     const ingredientEvidence = productDevelopmentSnapshotEvidenceText(evidenceSource, 'ingredient');
     const attributeEvidence = productDevelopmentSnapshotEvidenceText(evidenceSource, 'attribute');
     const sourceEvidence = productDevelopmentSnapshotEvidenceText(evidenceSource, 'source');
+    const productName = productDevelopmentCleanText(snapshot && snapshot.chineseName || data.name, 300);
+    const englishNameSource = productDevelopmentCleanText(snapshot && snapshot.englishName, 300);
     const result = {
       version: PRODUCT_DEVELOPMENT_VERSION,
       sku: normalizedSku,
-      name: productDevelopmentCleanText(snapshot && snapshot.chineseName || data.name, 300),
-      englishName: productDevelopmentCleanText(snapshot && snapshot.englishName, 300),
+      name: productName,
+      englishName: productDevelopmentIsEntryProductName(data.name) || productDevelopmentIsEntryProductName(productName)
+        ? 'Dietary Supplement'
+        : englishNameSource,
       brand: productDevelopmentCleanText(snapshot && snapshot.brand || data.brand, 160),
       productType: productDevelopmentCleanText(snapshot && snapshot.productType || data.productType || data.manualCategory, 180),
       productTypeCn: productDevelopmentCleanText(snapshot && snapshot.productTypeCn || data.productTypeCn, 180),
@@ -5519,6 +5562,8 @@
       if (item.replacementEn.includes('*') || item.replacementZh.includes('*')) throw new Error('侵权对照图修改内容不能含星号');
     }
     const productNaming = productDevelopmentNormalizeProductNaming(result);
+    const entryEnglishProductName = productDevelopmentEntryEnglishProductName(snapshot);
+    if (entryEnglishProductName) productNaming.englishProductName = entryEnglishProductName;
     const namingText = productNaming.chineseProductName + ' ' + productNaming.englishProductName;
     const namingBanned = productDevelopmentFindBannedTerm(namingText, brand);
     if (namingBanned || namingText.includes('*')) throw new Error('AI 产品名称含风险词：' + (namingBanned || '星号'));
@@ -5783,7 +5828,7 @@
           efficacy: snapshot.sourceCopywriting.efficacy,
           namingExamples: PRODUCT_DEVELOPMENT_NAME_EXAMPLES,
           reviewRuleVersion: PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION,
-          namingRule: '英文产品名取对标图上清晰可见的产品主标题；中文产品名使用适用对象、朦胧作用/状态和剂型组合，不使用医疗、预防、治疗、绝对化或夸大表达。',
+          namingRule: '英文产品名取对标图上清晰可见的产品主标题；如果产品名带有（入口），英文产品名固定填写 Dietary Supplement；中文产品名使用适用对象、朦胧作用/状态和剂型组合，不使用医疗、预防、治疗、绝对化或夸大表达。',
           imageDataUrl: image.dataUrl,
           referenceUrl: snapshot.referenceUrl,
         },
@@ -6124,13 +6169,28 @@
     });
   }
 
-  function productDevelopmentBodyRunProperties(source) {
-    if (!source) return null;
-    const clone = source.cloneNode(true);
+  function productDevelopmentBodyRunProperties(source, doc) {
+    if (!doc) return null;
+    const clone = source ? source.cloneNode(true) : doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:rPr');
     Array.from(clone.childNodes || []).forEach((child) => {
       const localName = String(child.localName || child.nodeName || '').replace(/^w:/, '');
-      if (localName === 'b' || localName === 'bCs') clone.removeChild(child);
+      if (localName === 'b' || localName === 'bCs' || localName === 'rStyle') clone.removeChild(child);
     });
+    // A template can make a run bold through paragraph/character styles even
+    // when the source run has no direct <w:b>. Explicitly turn bold off on
+    // generated text so Word cannot re-inherit that formatting.
+    const bold = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:b');
+    bold.setAttribute('w:val', '0');
+    const boldCs = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:bCs');
+    boldCs.setAttribute('w:val', '0');
+    // Keep the OOXML run-property order valid: rFonts/rStyle come before
+    // b/bCs, while size/color/etc. follow them.
+    const firstAfterFonts = Array.from(clone.childNodes || []).find((child) => {
+      const localName = String(child.localName || child.nodeName || '').replace(/^w:/, '');
+      return localName !== 'rStyle' && localName !== 'rFonts';
+    }) || null;
+    clone.insertBefore(bold, firstAfterFonts);
+    clone.insertBefore(boldCs, firstAfterFonts);
     return clone;
   }
 
@@ -6146,7 +6206,7 @@
       const paragraph = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:p');
       if (sourcePPr) paragraph.appendChild(sourcePPr.cloneNode(true));
       const run = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:r');
-      const bodyRPr = productDevelopmentBodyRunProperties(sourceRPr);
+      const bodyRPr = productDevelopmentBodyRunProperties(sourceRPr, doc);
       if (bodyRPr) run.appendChild(bodyRPr);
       const text = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:t');
       text.setAttribute('xml:space', 'preserve');
@@ -6180,7 +6240,7 @@
       const paragraph = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:p');
       if (sourcePPr) paragraph.appendChild(sourcePPr.cloneNode(true));
       if (index === 0 && prefix) appendRun(paragraph, String(prefix).trim() + ' ', headingRPr);
-      appendRun(paragraph, line, productDevelopmentBodyRunProperties(bodyRPr));
+      appendRun(paragraph, line, productDevelopmentBodyRunProperties(bodyRPr, doc));
       cell.appendChild(paragraph);
     });
   }
@@ -7032,6 +7092,40 @@
     return '<div class="pfh-product-development-copywriting-preview">' + rows.map((row) => '<section><h4>' + escapeHtml(row[0]) + '</h4><div><ol>' + row[1].map((item) => '<li><span>' + escapeHtml((row[0] === 'C 产品卖点' && item.titleEn ? item.titleEn + ': ' : '') + (item.en || item.ingredientEn)) + '</span><em>' + escapeHtml((row[0] === 'C 产品卖点' && item.titleCn ? item.titleCn + '：' : '') + (item.cn || item.ingredientCn)) + '</em></li>').join('') + '</ol></div></section>').join('') + '</div>';
   }
 
+  function productDevelopmentIngredientTemplateById(templateId) {
+    const id = String(templateId || '').trim();
+    if (!id) return null;
+    return (Array.isArray(PRODUCT_DEVELOPMENT_INGREDIENT_TEMPLATES) ? PRODUCT_DEVELOPMENT_INGREDIENT_TEMPLATES : [])
+      .find((item) => item && String(item.id || '').trim() === id) || null;
+  }
+
+  function productDevelopmentOneShotIngredientTemplate() {
+    const selected = productDevelopmentIngredientTemplateById(state.productDevelopmentIngredientTemplateId);
+    if (selected) return selected;
+    const kind = normalizeProductDevelopmentIngredientKind(state.productDevelopmentIngredientKind);
+    return productDevelopmentIngredientSelectedTemplate(kind, '') || productDevelopmentIngredientTemplateById('human-builtin');
+  }
+
+  function productDevelopmentOneShotIngredientTemplateSheets(template) {
+    return template && Array.isArray(template.sheets)
+      ? template.sheets.filter((sheet) => sheet && String(sheet.name || '').trim() && Array.isArray(sheet.cells) && sheet.cells.length)
+      : [];
+  }
+
+  function productDevelopmentOneShotIngredientTemplateOptions(selectedTemplate) {
+    const templates = productDevelopmentIngredientTemplates('human').concat(productDevelopmentIngredientTemplates('pet'));
+    return templates.map((item) => '<option value="' + escapeHtml(item.id) + '"' + (item.id === (selectedTemplate && selectedTemplate.id) ? ' selected' : '') + '>' + escapeHtml(item.label || item.fileName || item.id) + '</option>').join('');
+  }
+
+  function productDevelopmentOneShotIngredientSheetOptions(template) {
+    const selectedSheet = String(state.productDevelopmentIngredientSheetName || '').trim();
+    const sheets = productDevelopmentOneShotIngredientTemplateSheets(template);
+    return '<option value=""' + (!sheets.some((sheet) => String(sheet.name || '') === selectedSheet) ? ' selected' : '') + '>自动匹配参考工作表</option>' + sheets.map((sheet) => {
+      const name = String(sheet.name || '').trim();
+      return '<option value="' + escapeHtml(name) + '"' + (name === selectedSheet ? ' selected' : '') + '>' + escapeHtml(name) + '</option>';
+    }).join('');
+  }
+
   function productDevelopmentOneShotSelectedSourceHtml(sku) {
     const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku
       ? state.productDevelopmentSnapshot
@@ -7043,14 +7137,18 @@
     const imageReady = Boolean(snapshot && snapshot.imageKind === 'benchmark' && snapshot.imageUrl);
     const referenceUrl = productDevelopmentCleanText(snapshot && snapshot.referenceUrl || '', 1200);
     const input = productDevelopmentOneShotInputForRender();
-    const productType = productDevelopmentCleanText(snapshot && snapshot.productType || input.productType || '生成时按当前 SKU 读取', 180);
     const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
-    const ingredientKind = normalizeProductDevelopmentIngredientKind(state.productDevelopmentIngredientKind);
-    const ingredientTemplate = productDevelopmentIngredientSelectedTemplate(ingredientKind, state.productDevelopmentIngredientTemplateId);
+    const ingredientTemplate = productDevelopmentOneShotIngredientTemplate();
+    const displayedProductType = productDevelopmentCleanText(snapshot && snapshot.productType || input.productType || '生成时按当前 SKU 读取', 180);
+    const productType = ingredientTemplate && normalizeProductDevelopmentIngredientKind(ingredientTemplate.kind) === 'pet' && /^human\s+dietary\s+supplement/i.test(displayedProductType)
+      ? 'Pet food supplement / liquid drops'
+      : displayedProductType;
     const ingredientTemplateLabel = ingredientTemplate
       ? productDevelopmentCleanText(ingredientTemplate.label || ingredientTemplate.fileName, 120)
-      : '人类食品成分表';
-    return '<div class="pfh-product-development-one-shot-source"><div><small>当前选中产品</small><strong>' + escapeHtml(name) + '</strong><span>SKU ' + escapeHtml(sku || '未选择') + '</span></div><div><small>对标图与参考链接</small><strong>' + (imageReady ? '已读取当前 SKU 对标图' : '点击生成时自动读取') + '</strong><span>' + escapeHtml(referenceUrl || '参考链接将在读取产品资料后自动带入') + '</span></div><div><small>产品类型与模板</small><strong>' + escapeHtml(productType) + '</strong><span>成分表：' + escapeHtml(ingredientTemplateLabel) + ' · 文案：' + escapeHtml(copywritingTemplate.label || '当前选择') + '</span></div></div>';
+      : '未选择成分表模板';
+    const templateOptions = productDevelopmentOneShotIngredientTemplateOptions(ingredientTemplate) || '<option value="">暂无可选模板</option>';
+    const sheetOptions = productDevelopmentOneShotIngredientSheetOptions(ingredientTemplate);
+    return '<div class="pfh-product-development-one-shot-source"><div><small>当前选中产品</small><strong>' + escapeHtml(name) + '</strong><span>SKU ' + escapeHtml(sku || '未选择') + '</span></div><div><small>对标图与参考链接</small><strong>' + (imageReady ? '已读取当前 SKU 对标图' : '点击生成时自动读取') + '</strong><span>' + escapeHtml(referenceUrl || '参考链接将在读取产品资料后自动带入') + '</span></div><div><small>产品类型</small><strong>' + escapeHtml(productType) + '</strong><label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-one-shot-ingredient-template-input" aria-label="选择成分表模板">' + templateOptions + '</select></label><label class="pfh-product-development-material-field"><span>参考工作表（可选）</span><select class="pfh-product-development-one-shot-ingredient-sheet-input" aria-label="选择参考工作表"' + (ingredientTemplate ? '' : ' disabled') + '>' + sheetOptions + '</select></label><span>当前：' + escapeHtml(ingredientTemplateLabel) + ' · 文案：' + escapeHtml(copywritingTemplate.label || '当前选择') + '</span></div></div>';
   }
 
   function productDevelopmentOneShotEditorFieldHtml(value, key, label, type, multiline, wide) {
@@ -7107,7 +7205,7 @@
     if (!String(table.servingSize || '').trim()) errors.push('Serving Size 不能为空');
     if (!(Number(table.servingsPerContainer) > 0)) errors.push('Servings Per Container 必须大于 0');
     if (rows.length < 3) errors.push('至少保留 3 行活性成分');
-    if (rows.length > 7) errors.push('人用滴剂模板最多保留 7 行活性成分');
+    if (rows.length > 7) errors.push('当前成分表模板最多保留 7 行活性成分');
     rows.forEach((row, index) => {
       const line = index + 1;
       const label = productDevelopmentOneShotEditableRowLabel(row);
@@ -7408,7 +7506,9 @@
       : '';
     const meta = metadata && typeof metadata === 'object' ? metadata : {};
     const name = productDevelopmentCleanText(product.nameCn || input.nameCn || '日常营养支持滴剂', 220);
-    const englishName = productDevelopmentCleanText(product.nameEn || input.nameEn || 'Daily Wellness Support Drops', 220);
+    const englishName = productDevelopmentIsEntryProductName(name) || productDevelopmentIsEntryProductName(input && input.nameEn)
+      ? 'Dietary Supplement'
+      : productDevelopmentCleanText(product.nameEn || input.nameEn || 'Daily Wellness Support Drops', 220);
     const brand = productDevelopmentCleanText(input.brand || product.brand, 160);
     return {
       version: PRODUCT_DEVELOPMENT_VERSION,
@@ -7437,6 +7537,7 @@
         otherIngredientsEn: productDevelopmentCleanText(table.otherIngredientsEn, 1600),
         otherIngredientsCn: productDevelopmentCleanText(table.otherIngredientsCn, 1200),
       },
+      ingredientKind: normalizeProductDevelopmentIngredientKind(meta.ingredientKind || input.ingredientKind),
       ingredientTemplateId: productDevelopmentCleanText(meta.ingredientTemplateId, 80),
       ingredientTemplateLabel: productDevelopmentCleanText(meta.ingredientTemplateLabel, 120),
       ingredientTemplateSheetName: productDevelopmentCleanText(meta.ingredientTemplateSheetName, 120),
@@ -7490,6 +7591,7 @@
       labeling: response && response.labeling && typeof response.labeling === 'object' ? response.labeling : {},
       content,
       ingredientConfirmed: false,
+      ingredientKind: normalizeProductDevelopmentIngredientKind(opts.ingredientKind || input.ingredientKind),
       ingredientTemplateId: productDevelopmentCleanText(opts.ingredientTemplateId, 80),
       ingredientTemplateLabel: productDevelopmentCleanText(opts.ingredientTemplateLabel, 120),
       ingredientTemplateSheetName: productDevelopmentCleanText(opts.ingredientTemplateSheetName, 120),
@@ -7793,30 +7895,51 @@
         '当前 SKU 资料读取',
       );
       state.productDevelopmentSnapshot = snapshot;
-      const ingredientKind = normalizeProductDevelopmentIngredientKind(state.productDevelopmentIngredientKind);
-      if (ingredientKind !== 'human') throw new Error('当前分步生成暂支持人类食品 Supplement Facts，请先选择人类食品成分表模板');
-      const ingredientTemplate = productDevelopmentIngredientSelectedTemplate(ingredientKind, state.productDevelopmentIngredientTemplateId);
+      const ingredientTemplate = productDevelopmentOneShotIngredientTemplate();
+      if (!ingredientTemplate) throw new Error('当前没有可用成分表模板，请先选择模板');
+      const ingredientKind = normalizeProductDevelopmentIngredientKind(ingredientTemplate.kind);
+      state.productDevelopmentIngredientKind = ingredientKind;
+      state.productDevelopmentIngredientTemplateId = ingredientTemplate.id;
       const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
       const ingredientTemplateId = ingredientTemplate && ingredientTemplate.id || '';
       const ingredientTemplateLabel = ingredientTemplate && productDevelopmentCleanText(ingredientTemplate.label || ingredientTemplate.fileName, 120) || '人类食品成分表';
-      const ingredientTemplateSheetName = productDevelopmentCleanText(state.productDevelopmentIngredientSheetName, 120);
+      const requestedSheetName = productDevelopmentCleanText(state.productDevelopmentIngredientSheetName, 120);
+      const ingredientTemplateSheetName = productDevelopmentOneShotIngredientTemplateSheets(ingredientTemplate)
+        .some((sheet) => String(sheet.name || '').trim() === requestedSheetName)
+        ? requestedSheetName
+        : '';
+      state.productDevelopmentIngredientSheetName = ingredientTemplateSheetName;
       const copywritingTemplateId = copywritingTemplate && copywritingTemplate.id || '';
       const copywritingTemplateLabel = copywritingTemplate && productDevelopmentCleanText(copywritingTemplate.label, 120) || '当前选择的文案模板';
       const referenceUrl = productDevelopmentCleanText(snapshot.referenceUrl || '', 1200);
+      const previousProductType = productDevelopmentCleanText(state.productDevelopmentOneShotInput && state.productDevelopmentOneShotInput.productType, 180);
+      const humanProductType = PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT.productType;
+      const defaultProductType = ingredientKind === 'pet' ? 'Pet food supplement / liquid drops' : humanProductType;
+      const inputProductType = ingredientKind === 'pet' && (!previousProductType || previousProductType === humanProductType)
+        ? defaultProductType
+        : previousProductType || defaultProductType;
+      const snapshotProductType = productDevelopmentCleanText(snapshot.productType, 180);
+      const selectedProductType = ingredientKind === 'pet' && (!snapshotProductType || snapshotProductType === humanProductType)
+        ? inputProductType
+        : snapshotProductType || inputProductType;
       let input = productDevelopmentOneShotInputValue({
         ...state.productDevelopmentOneShotInput,
         sku: snapshot.sku,
         brand: snapshot.brand || state.productDevelopmentOneShotInput && state.productDevelopmentOneShotInput.brand || '',
         nameCn: snapshot.name || state.productDevelopmentOneShotInput && state.productDevelopmentOneShotInput.nameCn || '',
-        nameEn: snapshot.englishName || state.productDevelopmentOneShotInput && state.productDevelopmentOneShotInput.nameEn || '',
-        productType: snapshot.productType || state.productDevelopmentOneShotInput && state.productDevelopmentOneShotInput.productType || PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT.productType,
+        nameEn: productDevelopmentEntryEnglishProductName(snapshot)
+          || snapshot.englishName
+          || state.productDevelopmentOneShotInput && state.productDevelopmentOneShotInput.nameEn
+          || '',
+        productType: selectedProductType,
         netContent: snapshot.netContent || state.productDevelopmentOneShotInput && state.productDevelopmentOneShotInput.netContent || PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT.netContent,
         referenceUrl: /^https?:\/\//i.test(referenceUrl) ? referenceUrl : '',
       });
       saveProductDevelopmentOneShotDraft(input);
       state.productDevelopmentOneShotInput = input;
       if (!snapshot.imageUrl) throw new Error('当前 SKU 没有可读取的对标图片');
-      state.productDevelopmentStatus = '正在读取当前 SKU 对标图，并按“' + ingredientTemplateLabel + '”与当前产品类型生成成分表，最长等待约 10 分钟…';
+      const ingredientSelectionLabel = ingredientTemplateLabel + (ingredientTemplateSheetName ? ' / ' + ingredientTemplateSheetName : '');
+      state.productDevelopmentStatus = '正在读取当前 SKU 对标图，并按“' + ingredientSelectionLabel + '”与当前产品类型生成成分表，最长等待约 10 分钟…';
       renderShell();
       stage = '读取当前 SKU 对标图';
       const imageResult = await withCopywritingTimeout(
@@ -7833,7 +7956,7 @@
         timeoutMs: 600000,
         body: {
           ...input,
-          kind: 'human',
+          kind: ingredientKind,
           stage: 'ingredient',
           mode: 'ingredient',
           referenceUrl: input.referenceUrl,
@@ -7845,9 +7968,10 @@
           copywritingTemplateLabel,
           productAttributes: {
             sku: snapshot.sku,
+            ingredientKind,
             brand: snapshot.brand,
             nameCn: snapshot.name,
-            nameEn: snapshot.englishName,
+            nameEn: productDevelopmentEntryEnglishProductName(snapshot) || snapshot.englishName,
             productType: input.productType,
             netContent: input.netContent,
             servingSize: input.servingSize,
@@ -7865,6 +7989,7 @@
       renderShell();
       const result = productDevelopmentOneShotNormalizeResponse(response, input, {
         requireCopywriting: false,
+        ingredientKind,
         ingredientTemplateId,
         ingredientTemplateLabel,
         ingredientTemplateSheetName,
@@ -7875,7 +8000,7 @@
         ...result.snapshot,
         sku: snapshot.sku || result.snapshot.sku,
         name: snapshot.name || result.snapshot.name,
-        englishName: snapshot.englishName || result.snapshot.englishName,
+        englishName: productDevelopmentEntryEnglishProductName(snapshot) || snapshot.englishName || result.snapshot.englishName,
         brand: snapshot.brand || result.snapshot.brand,
         productType: snapshot.productType || result.snapshot.productType,
         netContent: snapshot.netContent || result.snapshot.netContent,
@@ -7894,6 +8019,7 @@
       result.ingredientConfirmed = false;
       result.copywritingTemplateId = copywritingTemplateId;
       result.copywritingTemplateLabel = copywritingTemplateLabel;
+      result.ingredientKind = ingredientKind;
       result.ingredientTemplateSheetName = ingredientTemplateSheetName;
       if (state.productDevelopmentCopywriting && String(state.productDevelopmentCopywriting.id || '').startsWith('pd-one-shot-')) state.productDevelopmentCopywriting = null;
       state.productDevelopmentOneShotResult = result;
@@ -7945,8 +8071,9 @@
     const copySnapshot = {
       ...result.snapshot,
       sku: currentSku,
+      ingredientKind: result.ingredientKind || result.snapshot.ingredientKind || normalizeProductDevelopmentIngredientKind(state.productDevelopmentIngredientKind),
       name: sourceSnapshot.name || result.snapshot.name,
-      englishName: sourceSnapshot.englishName || result.snapshot.englishName,
+      englishName: productDevelopmentEntryEnglishProductName(sourceSnapshot) || sourceSnapshot.englishName || result.snapshot.englishName,
       brand: sourceSnapshot.brand || result.snapshot.brand,
       productType: sourceSnapshot.productType || result.snapshot.productType,
       netContent: sourceSnapshot.netContent || result.snapshot.netContent,
@@ -7987,6 +8114,7 @@
           sourceCopywriting: copySnapshot.sourceCopywriting,
           ingredientTable: confirmedTable,
           confirmedIngredientTable: true,
+          ingredientKind: copySnapshot.ingredientKind,
           ingredientTemplateId: result.ingredientTemplateId || '',
           ingredientTemplateLabel: result.ingredientTemplateLabel || '',
           ingredientTemplateSheetName: result.ingredientTemplateSheetName || '',
@@ -8069,6 +8197,64 @@
   function productDevelopmentIngredientSelectedTemplate(kind, templateId) {
     const templates = productDevelopmentIngredientTemplates(kind);
     return templates.find((item) => item.id === templateId) || templates[0] || null;
+  }
+
+  function productDevelopmentOneShotClearResultForIngredientSelection(template, sheetName) {
+    const currentSku = getProductDevelopmentCurrentSku();
+    const result = state.productDevelopmentOneShotResult;
+    const selectedKind = normalizeProductDevelopmentIngredientKind(template && template.kind);
+    const selectedTemplateId = String(template && template.id || '').trim();
+    const selectedSheetName = String(sheetName || '').trim();
+    const resultMatches = result && result.sku === currentSku
+      && normalizeProductDevelopmentIngredientKind(result.ingredientKind || selectedKind) === selectedKind
+      && String(result.ingredientTemplateId || '') === selectedTemplateId
+      && String(result.ingredientTemplateSheetName || '') === selectedSheetName;
+    if (result && result.sku === currentSku && !resultMatches) {
+      state.productDevelopmentOneShotResult = null;
+      state.productDevelopmentOneShotIngredientConfirmed = false;
+      return true;
+    }
+    return false;
+  }
+
+  function productDevelopmentOneShotSwitchIngredientTemplate(templateId) {
+    const template = productDevelopmentIngredientTemplateById(templateId);
+    if (!template) {
+      state.productDevelopmentError = '成分表模板不存在，请重新选择';
+      renderShell();
+      return;
+    }
+    const kind = normalizeProductDevelopmentIngredientKind(template.kind);
+    state.productDevelopmentIngredientKind = kind;
+    state.productDevelopmentIngredientTemplateId = template.id;
+    state.productDevelopmentIngredientSheetName = '';
+    const currentInput = productDevelopmentOneShotInputValue(state.productDevelopmentOneShotInput);
+    const humanProductType = PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT.productType;
+    const petProductType = 'Pet food supplement / liquid drops';
+    if (!currentInput.productType || currentInput.productType === humanProductType || currentInput.productType === petProductType) {
+      currentInput.productType = kind === 'pet' ? petProductType : humanProductType;
+      state.productDevelopmentOneShotInput = saveProductDevelopmentOneShotDraft(currentInput);
+    }
+    const cleared = productDevelopmentOneShotClearResultForIngredientSelection(template, '');
+    state.productDevelopmentError = '';
+    state.productDevelopmentStatus = cleared
+      ? '已切换为“' + template.label + '”，请重新生成成分表'
+      : '已选择成分表模板：' + template.label;
+    renderShell();
+  }
+
+  function productDevelopmentOneShotSwitchIngredientSheet(sheetName) {
+    const template = productDevelopmentOneShotIngredientTemplate();
+    const sheets = productDevelopmentOneShotIngredientTemplateSheets(template);
+    const requested = String(sheetName || '').trim();
+    const selected = requested && sheets.some((sheet) => String(sheet.name || '').trim() === requested) ? requested : '';
+    state.productDevelopmentIngredientSheetName = selected;
+    const cleared = productDevelopmentOneShotClearResultForIngredientSelection(template, selected);
+    state.productDevelopmentError = '';
+    state.productDevelopmentStatus = cleared
+      ? '已切换参考工作表，请重新生成成分表'
+      : selected ? '已选择参考工作表：' + selected : '已设为自动匹配参考工作表';
+    renderShell();
   }
 
   function productDevelopmentIngredientDraftKey(kind, templateId, sheetName) {
@@ -8503,7 +8689,7 @@
         return true;
       }
       if (rows.length >= 7) {
-        showToast('人用滴剂模板最多保留 7 行活性成分');
+        showToast('当前成分表模板最多保留 7 行活性成分');
         return true;
       }
       rows.push({ nameEn: '', nameCn: '', latinName: '', sourcePart: '', standardization: '', amountMg: 0, amountText: '', dailyValue: '**', markerActiveMg: 0, labelEn: '' });
@@ -8829,6 +9015,14 @@
       } catch (error) {
         showToast(formatErrorMessage(error));
       }
+      return true;
+    }
+    if (target.classList.contains('pfh-product-development-one-shot-ingredient-template-input')) {
+      productDevelopmentOneShotSwitchIngredientTemplate(target.value);
+      return true;
+    }
+    if (target.classList.contains('pfh-product-development-one-shot-ingredient-sheet-input')) {
+      productDevelopmentOneShotSwitchIngredientSheet(target.value);
       return true;
     }
     if (target.classList.contains('pfh-product-development-ingredient-kind-input')) {
