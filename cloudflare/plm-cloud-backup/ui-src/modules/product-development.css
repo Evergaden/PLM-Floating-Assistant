@@ -1715,6 +1715,10 @@
   white-space: nowrap;
 }
 
+#plm-floating-helper .pfh-product-development-one-shot-table-head.is-pet {
+  grid-template-columns: minmax(0, 1fr) 110px 24px;
+}
+
 #plm-floating-helper .pfh-product-development-one-shot-add:hover:not(:disabled) {
   background: var(--pfh-theme-surface);
 }
@@ -1844,6 +1848,10 @@
     gap: 5px;
     padding: 0 6px;
     font-size: 8px;
+  }
+
+  #plm-floating-helper .pfh-product-development-one-shot-editor .pfh-product-development-one-shot-table-head.is-pet {
+    grid-template-columns: minmax(0, 1fr) 74px 22px;
   }
 
   #plm-floating-helper .pfh-product-development-hero,

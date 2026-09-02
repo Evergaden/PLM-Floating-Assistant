@@ -133,9 +133,11 @@ const PRODUCT_DEVELOPMENT_BANNED_TERMS = Object.freeze([
   '减肥', '降脂', '降糖', '增强免疫', '改善疾病',
 ]);
 const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v6';
-const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'ingredient-template-v2';
+const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'ingredient-template-v3';
 const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS = 'Purified Water, Vegetable Glycerin, Citric Acid, Potassium Sorbate';
 const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS_CN = '纯化水、植物甘油、柠檬酸、山梨酸钾';
+const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS = 'Chicken Flavor, Beef Flavor, Lecithin, Citric Acid';
+const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS_CN = '鸡肉风味剂、牛肉风味剂、卵磷脂、柠檬酸';
 const PRODUCT_DEVELOPMENT_CORPUS_LANGUAGE_GUIDE = Object.freeze([
   '跨类型高频中性动词：supports、helps maintain、provides nutritional support、formulated with、designed for、suitable for routine use。',
   '跨类型高频状态词：daily wellness、nutrition、balance、comfort、vitality、convenient、simple、routine、liquid drops、easy to use。',
@@ -2943,8 +2945,10 @@ function productDevelopmentOneShotNormalizeOtherIngredients(value, fallback) {
   return source.split(',').map((item) => cleanText(item, 180).replace(/\s+/g, ' ')).filter(Boolean).join(', ');
 }
 
-function productDevelopmentOneShotRows(value, warnings) {
+function productDevelopmentOneShotRows(value, warnings, kind) {
   const table = value && typeof value === 'object' ? value : {};
+  const ingredientKind = String(kind || '').trim().toLowerCase() === 'pet' ? 'pet' : 'human';
+  const isPet = ingredientKind === 'pet';
   const rawRows = Array.isArray(value)
     ? value
     : Array.isArray(table.rows)
@@ -2971,8 +2975,9 @@ function productDevelopmentOneShotRows(value, warnings) {
     const explicitMarker = productDevelopmentOneShotAmountMg(readProductDevelopmentField(source, ['markerActiveMg', 'activeMarkerMg', 'markerAmountMg', 'standardizedActiveMg', '标志物含量']));
     const standardizationPercent = productDevelopmentOneShotMarkerPercent(standardization);
     if (!nameEn || !nameCn) throw new Error('one-shot ingredient row ' + (index + 1) + ' must include English and Chinese names');
-    if (!latinName || !/[A-Za-z]{2,}/.test(latinName)) throw new Error('one-shot ingredient row ' + (index + 1) + ' must include a Latin scientific name');
-    if (/\b(?:extract|berry|root|leaf|seed|flower|bark|rhizome|resin)\b/i.test(nameEn) && !sourcePart) throw new Error('one-shot botanical row ' + (index + 1) + ' must include a plant part');
+    const botanical = /\b(?:extract|berry|root|leaf|seed|flower|bark|rhizome|resin|herb|fruit|mushroom|botanical)\b/i.test(nameEn);
+    if (botanical && (!latinName || !/[A-Za-z]{2,}/.test(latinName))) throw new Error('one-shot botanical row ' + (index + 1) + ' must include a Latin scientific name');
+    if (botanical && !sourcePart) throw new Error('one-shot botanical row ' + (index + 1) + ' must include a plant part');
     if (!Number.isFinite(amountMg) || amountMg <= 0) throw new Error('one-shot ingredient row ' + (index + 1) + ' must include a positive amount');
     if (source.isActive === false || source.active === false || /inactive|other\s+ingredient|非活性|其他成分/i.test(String(source.type || source.category || source.group || ''))) {
       throw new Error('one-shot ingredient rows may contain active ingredients only');
@@ -2985,7 +2990,7 @@ function productDevelopmentOneShotRows(value, warnings) {
     } else if (Number.isFinite(standardizationPercent) && standardizationPercent > 0) {
       markerActiveMg = amountMg * standardizationPercent / 100;
       markerBasis = 'standardization';
-    } else if (category === 'vitamin' || category === 'mineral') {
+    } else if (!isPet && (category === 'vitamin' || category === 'mineral')) {
       markerActiveMg = amountMg;
       markerBasis = 'amount';
     }
@@ -3001,7 +3006,7 @@ function productDevelopmentOneShotRows(value, warnings) {
       standardizationPercent: Number.isFinite(standardizationPercent) ? standardizationPercent : 0,
       amountMg: productDevelopmentOneShotRounded(amountMg),
       amountText: productDevelopmentOneShotFormatAmount(amountMg),
-      dailyValue: productDevelopmentOneShotDailyValue(source, amountMg, nameEn),
+      dailyValue: isPet ? '**' : productDevelopmentOneShotDailyValue(source, amountMg, nameEn),
       markerActiveMg: productDevelopmentOneShotRounded(markerActiveMg),
       markerBasis,
       category,
@@ -3009,7 +3014,7 @@ function productDevelopmentOneShotRows(value, warnings) {
       normalizedNameKey,
     };
   });
-  if (rows.length < 3 || rows.length > 7) throw new Error('one-shot ingredient table must contain 3 to 7 active rows');
+  if (rows.length < 4 || rows.length > 6) throw new Error('one-shot ingredient table must contain 4 to 6 core active rows');
   const seen = new Set();
   rows.forEach((row) => {
     if (seen.has(row.normalizedNameKey)) throw new Error('one-shot ingredient table contains duplicate active rows');
@@ -3093,21 +3098,26 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
   rows.forEach((row) => {
     row.amountText = productDevelopmentOneShotFormatAmount(row.amountMg);
     row.markerActiveMg = productDevelopmentOneShotRounded(row.markerActiveMg);
-    row.dailyValue = productDevelopmentOneShotDailyValue(row, row.amountMg, row.nameEn);
+    row.dailyValue = ingredientKind === 'pet' ? '**' : productDevelopmentOneShotDailyValue(row, row.amountMg, row.nameEn);
   });
   const standardizedActiveMg = productDevelopmentOneShotRounded(rows.reduce((sum, row) => sum + row.markerActiveMg, 0));
   const standardizedActivePercent = activeTotalMg > 0 ? productDevelopmentOneShotRounded(standardizedActiveMg / activeTotalMg * 100, 2) : 0;
-  const requestedActivePercent = Number(target.standardizedPercent) || 30;
-  if (standardizedActivePercent + 0.001 < requestedActivePercent) throw new Error('one-shot standardized active marker content is below the requested ' + productDevelopmentOneShotFormatNumber(requestedActivePercent) + '% target');
+  const requestedActivePercentValue = Number(target.standardizedPercent);
+  const requestedActivePercent = Number.isFinite(requestedActivePercentValue)
+    ? Math.max(0, Math.min(100, requestedActivePercentValue))
+    : ingredientKind === 'pet' ? 0 : 30;
+  if (requestedActivePercent > 0 && standardizedActivePercent + 0.001 < requestedActivePercent) throw new Error('one-shot standardized active marker content is below the requested ' + productDevelopmentOneShotFormatNumber(requestedActivePercent) + '% target');
+  const defaultOtherIngredients = ingredientKind === 'pet' ? PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS : PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS;
+  const defaultOtherIngredientsCn = ingredientKind === 'pet' ? PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS_CN : PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS_CN;
   const otherIngredientsEn = productDevelopmentOneShotNormalizeOtherIngredients(
     readProductDevelopmentField(tableSource, ['otherIngredientsEn', 'otherIngredients', 'inactiveIngredients', 'ingredientsOther', '其他成分']),
-    input.otherIngredientsEn || PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS,
+    input.otherIngredientsEn || defaultOtherIngredients,
   );
   const rawOtherIngredientsCn = readProductDevelopmentField(tableSource, ['otherIngredientsCn', 'inactiveIngredientsCn', '其他成分中文']);
   const otherIngredientsCn = cleanText(
     rawOtherIngredientsCn && typeof rawOtherIngredientsCn === 'object'
       ? rawOtherIngredientsCn.cn || rawOtherIngredientsCn.chinese || rawOtherIngredientsCn.value || ''
-      : rawOtherIngredientsCn || input.otherIngredientsCn || PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS_CN,
+      : rawOtherIngredientsCn || input.otherIngredientsCn || defaultOtherIngredientsCn,
     1200,
   );
   if (!otherIngredientsEn) throw new Error('one-shot other ingredients are required');
@@ -3131,27 +3141,28 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
       netContent,
     },
     ingredientTable: {
-      title: cleanText(tableSource.title || tableSource.heading || '', 160) || (ingredientKind === 'pet' ? 'Product Facts' : 'Supplement Facts'),
+      title: ingredientKind === 'pet' ? 'Product Facts' : 'Supplement Facts',
       servingSize: String(target.servingSize || '1 mL'),
       servingsPerContainer: Number(target.servingsPerContainer) || 60,
       activeTotalMg,
       standardizedActiveMg,
       standardizedActivePercent,
-      activeContentBasis: 'Declared standardized marker mass divided by active ingredient total; excipients excluded.',
+      activeContentBasis: ingredientKind === 'pet' ? 'Active ingredient total excludes inactive ingredients.' : 'Declared standardized marker mass divided by active ingredient total; excipients excluded.',
       requiredActiveMg: requestedActiveMg,
       requiredStandardizedActivePercent: requestedActivePercent,
       rows,
       otherIngredientsEn,
       otherIngredientsCn,
+      otherIngredientsLabel: ingredientKind === 'pet' ? 'Inactive Ingredients' : 'Other Ingredients',
       footnote: '**Daily Value not established.',
     },
     labeling: {
-      directionsEn: 'Shake well before use. Take ' + String(target.servingSize || '1 mL') + ' once daily. May be taken directly or mixed with food.',
-      directionsCn: '使用前摇匀。每日一次，每次' + String(target.servingSize || '1 mL') + '。可直接食用或拌入食物。',
-      disclaimerEn: 'These statements have not been evaluated by the Food and Drug Administration. This product is not intended to diagnose, treat, cure, or prevent any disease.',
-      disclaimerCn: '这些声明未经美国食品药品监督管理局评估。本产品不用于诊断、治疗、治愈或预防任何疾病。',
-      warningsEn: 'Keep out of reach of children. Store in a cool, dry place away from direct sunlight. Consult a healthcare professional if pregnant, nursing, taking medication, or managing a medical condition.',
-      warningsCn: '请置于儿童不能接触处。避光置于阴凉干燥处。如处于孕期、哺乳期、正在服药或有健康状况，请咨询医疗专业人士。',
+      directionsEn: ingredientKind === 'pet' ? 'Give ' + String(target.servingSize || '1 mL') + ' daily or as directed by your veterinarian. May be given directly or mixed with food.' : 'Shake well before use. Take ' + String(target.servingSize || '1 mL') + ' once daily. May be taken directly or mixed with food.',
+      directionsCn: ingredientKind === 'pet' ? '每日按' + String(target.servingSize || '1 mL') + '喂食，或遵循兽医建议。可直接喂食或拌入食物。' : '使用前摇匀。每日一次，每次' + String(target.servingSize || '1 mL') + '。可直接食用或拌入食物。',
+      disclaimerEn: ingredientKind === 'pet' ? '' : 'These statements have not been evaluated by the Food and Drug Administration. This product is not intended to diagnose, treat, cure, or prevent any disease.',
+      disclaimerCn: ingredientKind === 'pet' ? '' : '这些声明未经美国食品药品监督管理局评估。本产品不用于诊断、治疗、治愈或预防任何疾病。',
+      warningsEn: ingredientKind === 'pet' ? 'For animal use only. Keep out of reach of children. Store in a cool, dry place away from direct sunlight.' : 'Keep out of reach of children. Store in a cool, dry place away from direct sunlight. Consult a healthcare professional if pregnant, nursing, taking medication, or managing a medical condition.',
+      warningsCn: ingredientKind === 'pet' ? '仅供动物使用。请置于儿童不能接触处，避光置于阴凉干燥处。' : '请置于儿童不能接触处。避光置于阴凉干燥处。如处于孕期、哺乳期、正在服药或有健康状况，请咨询医疗专业人士。',
     },
     ...(includeCopywriting ? { copywriting } : {}),
     warnings: productDevelopmentOneShotWarningList(warnings),
@@ -3167,9 +3178,11 @@ async function handleProductDevelopmentOneShot(request, env) {
   const ingredientKind = String(body.kind || 'human').trim().toLowerCase() === 'pet' ? 'pet' : 'human';
   const defaultProductType = ingredientKind === 'pet' ? 'Pet food supplement / liquid drops' : 'Human dietary supplement / liquid drops';
   const image = cleanModelScopeImages([body.imageDataUrl])[0] || '';
+  const bodyProductAttributes = body.productAttributes && typeof body.productAttributes === 'object' ? body.productAttributes : {};
+  const sourcePlainTextCopy = cleanText(body.sourcePlainTextCopy || body.infringementPlainTextCopy || body.plainTextCopy || bodyProductAttributes.sourcePlainTextCopy, 12000);
   const referenceUrl = cleanText(body.referenceUrl, 1200);
   if (referenceUrl && !/^https?:\/\//i.test(referenceUrl)) return json({ ok: false, error: 'referenceUrl must use http or https' }, 400);
-  if (!image && !referenceUrl) return json({ ok: false, error: 'one-shot requires an image or reference URL' }, 400);
+  if (!image && !referenceUrl && !sourcePlainTextCopy) return json({ ok: false, error: 'one-shot requires approved plain copy, an image or a reference URL' }, 400);
   const activeMg = productDevelopmentOneShotNumber(body.targetActiveMg);
   const standardizedPercent = productDevelopmentOneShotNumber(body.targetActivePercent);
   const servingsPerContainer = Math.max(1, Math.min(365, Math.round(productDevelopmentOneShotNumber(body.servingsPerContainer) || 60)));
@@ -3184,23 +3197,26 @@ async function handleProductDevelopmentOneShot(request, env) {
     servingSize: cleanText(body.servingSize, 80) || '1 mL',
     servingsPerContainer,
     targetActiveMg: Number.isFinite(activeMg) ? Math.max(50, Math.min(5000, activeMg)) : 700,
-    targetActivePercent: Number.isFinite(standardizedPercent) ? Math.max(1, Math.min(100, standardizedPercent)) : 30,
-    requestedFunctions: cleanText(body.requestedFunctions, 1800) || 'Immune health; cardiovascular wellness; comfortable joints and active mobility; healthy-looking hair and skin.',
-    otherIngredientsEn: cleanText(body.otherIngredientsEn, 1600) || PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS,
-    otherIngredientsCn: cleanText(body.otherIngredientsCn, 1200) || PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS_CN,
-    productAttributes: body.productAttributes && typeof body.productAttributes === 'object' ? {
-      ingredientKind: cleanText(body.productAttributes.ingredientKind, 20) || ingredientKind,
-      productType: cleanText(body.productAttributes.productType, 180),
-      netContent: cleanText(body.productAttributes.netContent, 120),
-      servingSize: cleanText(body.productAttributes.servingSize, 80),
-      servingsPerContainer: cleanText(body.productAttributes.servingsPerContainer, 40),
-      requestedFunctions: cleanText(body.productAttributes.requestedFunctions, 1000),
-      ingredientTemplateId: cleanText(body.productAttributes.ingredientTemplateId, 80),
-      ingredientTemplateLabel: cleanText(body.productAttributes.ingredientTemplateLabel, 120),
-      ingredientTemplateSheetName: cleanText(body.productAttributes.ingredientTemplateSheetName, 120),
-      copywritingTemplateId: cleanText(body.productAttributes.copywritingTemplateId, 80),
-      copywritingTemplateLabel: cleanText(body.productAttributes.copywritingTemplateLabel, 120),
-    } : {},
+    targetActivePercent: Number.isFinite(standardizedPercent) ? Math.max(0, Math.min(100, standardizedPercent)) : ingredientKind === 'pet' ? 0 : 30,
+    requestedFunctions: cleanText(body.requestedFunctions, 1800),
+    otherIngredientsEn: cleanText(body.otherIngredientsEn, 1600) || (ingredientKind === 'pet' ? PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS : PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS),
+    otherIngredientsCn: cleanText(body.otherIngredientsCn, 1200) || (ingredientKind === 'pet' ? PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS_CN : PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS_CN),
+    sourcePlainTextCopy,
+    productAttributes: {
+      ingredientKind: cleanText(bodyProductAttributes.ingredientKind, 20) || ingredientKind,
+      productType: cleanText(bodyProductAttributes.productType, 180),
+      netContent: cleanText(bodyProductAttributes.netContent, 120),
+      servingSize: cleanText(bodyProductAttributes.servingSize, 80),
+      servingsPerContainer: cleanText(bodyProductAttributes.servingsPerContainer, 40),
+      requestedFunctions: cleanText(bodyProductAttributes.requestedFunctions, 1000),
+      sourcePlainTextCopy: cleanText(bodyProductAttributes.sourcePlainTextCopy, 12000),
+      ingredientTemplateId: cleanText(bodyProductAttributes.ingredientTemplateId, 80),
+      ingredientTemplateLabel: cleanText(bodyProductAttributes.ingredientTemplateLabel, 120),
+      ingredientTemplateSheetName: cleanText(bodyProductAttributes.ingredientTemplateSheetName, 120),
+      ingredientTemplateSheetHeader: cleanText(bodyProductAttributes.ingredientTemplateSheetHeader, 1200),
+      copywritingTemplateId: cleanText(bodyProductAttributes.copywritingTemplateId, 80),
+      copywritingTemplateLabel: cleanText(bodyProductAttributes.copywritingTemplateLabel, 120),
+    },
   };
   const target = {
     activeMg: input.targetActiveMg,
@@ -3208,16 +3224,10 @@ async function handleProductDevelopmentOneShot(request, env) {
     servingSize: input.servingSize,
     servingsPerContainer: input.servingsPerContainer,
   };
-  const context = { input, target, imageDataUrl: image, referenceUrl, includeCopywriting: !ingredientOnly, kind: ingredientKind };
-  const formulaSeed = [
-    'Vitamin C | 维生素C | Acidum ascorbicum | 60 mg',
-    'Zinc | 锌 | Zincum citras | 7.5 mg',
-    'Hydrolyzed Collagen Peptides | 水解胶原蛋白肽 | Bos taurus | 200 mg',
-    'Turmeric Root Extract | 姜黄根提取物 | Curcuma longa | 150 mg | standardized to 95% curcuminoids',
-    'Boswellia Serrata Extract | 乳香提取物 | Boswellia serrata | 100 mg | standardized to 65% boswellic acids',
-    'Hawthorn Berry Extract | 山楂果提取物 | Crataegus monogyna | 100 mg',
-    'Grape Seed Extract | 葡萄籽提取物 | Vitis vinifera | 82.5 mg | standardized to 95% proanthocyanidins',
-  ].join('\n');
+  const context = { input, target, imageDataUrl: image, referenceUrl, sourcePlainTextCopy, includeCopywriting: !ingredientOnly, kind: ingredientKind };
+  const formulaSeed = ingredientKind === 'pet'
+    ? 'Use only 4-6 core active ingredients supported by sourcePlainTextCopy; keep the selected Product Facts serving format and put only necessary excipients under Inactive Ingredients.'
+    : 'Use only 4-6 core active ingredients supported by sourcePlainTextCopy; keep the selected Supplement Facts serving format and put only necessary excipients under Other Ingredients.';
   const system = [
     ingredientKind === 'pet'
       ? '你是美国宠物食品和宠物营养补充剂的配方与包装文案草稿助手，不是医疗或法律意见提供者。'
@@ -3225,25 +3235,28 @@ async function handleProductDevelopmentOneShot(request, env) {
     ingredientKind === 'pet'
       ? '只生成 pet food 或 pet nutritional supplement，不生成成人膳食补充剂、化妆品或药品。输出只能是一个 JSON 对象，不要 Markdown、代码围栏或解释。'
       : '只生成 human dietary supplement，不生成宠物、化妆品或药品。输出只能是一个 JSON 对象，不要 Markdown、代码围栏或解释。',
-    '证据优先级：图片中清晰可读的文字和用户明确输入的属性优先；referenceUrl 只是用户提供的线索，本 Worker 不抓取链接，不得把链接页面当成已验证事实；目标数值是配方设计目标，不等于供应商已经确认的事实。图片未能读出完整配方时可以提出配方草案，但 warnings 必须明确是 proposed draft。',
+    '证据优先级：sourcePlainTextCopy（侵权图的纯文字文案版本）是识别产品名称、适用对象、产品定位、卖点和用途的首要依据；用户明确填写的产品属性和目标数值其次；对标图文字仅作缺失信息的辅助参考。referenceUrl 只是用户提供的线索，本 Worker 不抓取链接，不得把链接页面当成已验证事实；目标数值是配方设计目标，不等于供应商已经确认的事实。没有纯文字文案时可以使用图片或属性生成配方草案，但 warnings 必须明确是 proposed draft。',
     ingredientKind === 'pet'
-      ? '必须按目标生成选定宠物成分表：Serving Size、Servings Per Container、3 至 7 条活性成分、Other Ingredients。活性成分每份合计必须精确达到目标毫克数；标准化活性标志物合计必须不低于目标百分比。辅料不能计入活性合计。'
-      : '必须按目标生成 Supplement Facts：Serving Size、Servings Per Container、3 至 7 条活性成分、Other Ingredients。活性成分每份合计必须精确达到目标毫克数；标准化活性标志物合计必须不低于目标百分比。辅料不能计入活性合计。',
-    '每条活性成分必须同时有 nameEn、nameCn、latinName、sourcePart、standardization、amountMg、dailyValue、markerActiveMg；nameEn/nameCn 不要自己加括号，前端会把 latinName、sourcePart、standardization 组合进括号。每个植物成分必须写准确拉丁学名和植物部位；非植物成分也按用户要求提供对应的来源/化学拉丁式名称。',
+      ? '必须按目标生成选定宠物模板的 Product Facts：Serving Size、Servings Per Container、4 至 6 条核心活性成分和 Inactive Ingredients。活性成分每份合计必须精确达到目标毫克数；宠物表不填写人体 % Daily Value，也不强制标准化活性比例。辅料不能计入活性合计。'
+      : '必须按目标生成选定人类模板的 Supplement Facts：Serving Size、Servings Per Container、4 至 6 条核心活性成分和 Other Ingredients。活性成分每份合计必须精确达到目标毫克数；若目标要求标准化活性比例，主要提取物的标志物合计必须不低于目标百分比。辅料不能计入活性合计。',
+    '每条活性成分必须有 nameEn、nameCn、amountMg；只有植物提取物、植物粉、草本、菌菇等需要区分来源时才填写准确的 latinName 和 sourcePart，维生素、矿物质、氨基酸、油脂等不强制添加拉丁学名或无意义来源括号。nameEn/nameCn 不要自己加括号，前端会按需要组合字段。',
     ingredientKind === 'pet'
-      ? '成分顺序遵循选定宠物模板和样例优先规则：维生素，再矿物质，再其他活性成分；每组内部按每份重量从高到低。宠物模板没有人体 Daily Value 时使用 **，不要臆造人体每日参考值。'
+      ? '成分顺序遵循选定宠物模板的版式；只保留与产品定位直接相关的 4 至 6 个核心成分，不要为了凑数加入复合维生素或矿物质；不要臆造人体每日参考值。'
       : '成分顺序遵循样例优先规则：维生素，再矿物质，再其他活性成分；每组内部按每份重量从高到低。Supplement Facts 使用 **Daily Value not established.；Vitamin C、Zinc 等有 DV 的营养素给出合理的整数百分比。',
-    'Other Ingredients 单独输出，不把水、甘油、酸度调节剂或防腐剂算入 700 mg 活性合计。',
+    ingredientKind === 'pet'
+      ? 'Inactive Ingredients 单独输出，只列必要辅料和风味剂，不把水、甘油、酸度调节剂或防腐剂算入活性合计。'
+      : 'Other Ingredients 单独输出，只列必要辅料，不把水、甘油、酸度调节剂或防腐剂算入活性合计。',
     ingredientOnly
       ? (ingredientKind === 'pet'
-        ? '当前阶段只生成选定宠物模板对应的成分表与 Other Ingredients 草稿，不生成 A-D 文案；可以省略 copywriting 字段。'
-        : '当前阶段只生成 Supplement Facts 与 Other Ingredients 成分表草稿，不生成 A-D 文案；可以省略 copywriting 字段。')
+         ? '当前阶段只生成选定宠物模板对应的 Product Facts 与 Inactive Ingredients 草稿，不生成 A-D 文案；可以省略 copywriting 字段。'
+         : '当前阶段只生成选定人类模板对应的 Supplement Facts 与 Other Ingredients 草稿，不生成 A-D 文案；可以省略 copywriting 字段。')
       : '文案使用直接、简短、美国电商膳食补充剂风格，围绕 supports daily wellness、helps maintain、formulated with、designed for、suitable for routine use、daily vitality、steady energy、feels refreshed、ready for the day 等克制表达。食品类文案主要描述身体日常状态和生活感受，不写检测、测试、实验室、第三方、验证、认证或证明背书，也不要写 efficient nutrient absorption 等未经输入证明的效率结论。禁止疾病、诊断、治疗、预防、医疗、绝对化、保证、认证、品牌或未提供的数字；不得出现限制词：' + PRODUCT_DEVELOPMENT_BANNED_TERMS.join('、') + '。',
     PRODUCT_DEVELOPMENT_CORPUS_LANGUAGE_GUIDE.join(' '),
     ingredientOnly
       ? '成分表信息必须服从 input.productType、input.productAttributes 与选定模板元数据；模板只决定字段和版式，不得把其他产品类型或模板案例的事实带入当前 SKU。'
       : 'A-D 必须严格为 A 4 条、B 4 条、C 15 条、D 与活性成分数量相同。C 前 4 条有双语标题且标题不写成分，后 11 条标题为空。D 的 ingredientEn/ingredientCn 必须与输出成分 nameEn/nameCn 按顺序完全一致。',
-    '请保留以下参考样式的优先级：实际案例中的成分表版式、Other Ingredients、摇匀和每日用量表达优先于抽象模板规则；不要照抄案例中的品牌、禁词或未经证实的功效。',
+    '成分生成规则：先围绕纯文字文案识别产品定位，再选择 4 至 6 个核心成分；成分、标签卖点和产品定位必须一致，不得添加文案未体现或无关联的成分；去掉功能重复、价值低和非核心的小剂量成分；Serving Size 按所选工作表的实际格式，液体参考 1 mL/1 Dropper，粉剂参考 5 g、10 g 或 30 g，软糖/软胶囊/软咀嚼参考 1 至 2 个；总活性剂量必须与容量和目标合理匹配；只列必要辅料；避免 Cure、Treat、Prevent、Disease、Anti-inflammatory、Guaranteed、Natural 等违禁或夸大表达，功效只用 supports、helps maintain、daily wellness 等结构功能表述。',
+    '请保留选定工作表的字段版式和 Serving Size，不要照抄工作表中的品牌、案例成分、案例剂量或未经当前纯文字文案支持的功效。',
   ].join(' ');
   const basePayload = {
     stage: ingredientOnly ? 'ingredient' : 'ingredient-and-copywriting',
@@ -3255,6 +3268,7 @@ async function handleProductDevelopmentOneShot(request, env) {
         id: cleanText(body.ingredientTemplateId || input.productAttributes.ingredientTemplateId, 80),
         label: cleanText(body.ingredientTemplateLabel || input.productAttributes.ingredientTemplateLabel, 120),
         sheetName: cleanText(body.ingredientTemplateSheetName || input.productAttributes.ingredientTemplateSheetName, 120),
+        header: cleanText(body.ingredientTemplateSheetHeader || input.productAttributes.ingredientTemplateSheetHeader, 1200),
       },
       copywriting: {
         id: cleanText(body.copywritingTemplateId || input.productAttributes.copywritingTemplateId, 80),
@@ -3262,13 +3276,17 @@ async function handleProductDevelopmentOneShot(request, env) {
       },
     },
     referenceUrl,
+    sourcePlainTextCopy,
     imageProvided: Boolean(image),
     designFormulaPattern: formulaSeed,
   };
   const ingredientTableTitle = ingredientKind === 'pet' ? 'Product Facts' : 'Supplement Facts';
+  const ingredientRowSchema = ingredientKind === 'pet'
+    ? '{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountMg":0}'
+    : '{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountMg":0,"dailyValue":"**","markerActiveMg":0}';
   const responseSchema = ingredientOnly
-    ? '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":700,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountMg":0,"dailyValue":"**","markerActiveMg":0}],"otherIngredientsEn":"","otherIngredientsCn":""},"warnings":[]}'
-    : '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":700,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountMg":0,"dailyValue":"**","markerActiveMg":0}],"otherIngredientsEn":"","otherIngredientsCn":""},"copywriting":{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}},"warnings":[]}';
+    ? '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":700,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[' + ingredientRowSchema + '],"otherIngredientsEn":"","otherIngredientsCn":""},"warnings":[]}'
+    : '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":700,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[' + ingredientRowSchema + '],"otherIngredientsEn":"","otherIngredientsCn":""},"copywriting":{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}},"warnings":[]}';
   const options = {
     primaryModel: getProductDevelopmentPrimaryQwenModel(env),
     model: getProductDevelopmentPrimaryQwenModel(env),
@@ -3284,9 +3302,9 @@ async function handleProductDevelopmentOneShot(request, env) {
       JSON.stringify(basePayload),
       '严格返回完整 JSON：',
       responseSchema,
-      '目标约束：每份活性合计=' + input.targetActiveMg + ' mg；标准化活性标志物比例至少=' + input.targetActivePercent + '%；每个 active row 都必须有 Latin scientific name；Other Ingredients 必须非空。',
+      '目标约束：每份活性合计=' + input.targetActiveMg + ' mg；' + (ingredientKind === 'pet' ? '宠物格式不填写人体 % Daily Value，Inactive Ingredients 必须非空。' : '标准化活性标志物比例至少=' + input.targetActivePercent + '%；Supplement Facts 的 Other Ingredients 必须非空。') + '每行中英文名称和正数用量必须完整，植物成分按需要填写 Latin scientific name 和植物部位。',
       ingredientOnly ? '本次是 ingredient 阶段：只返回成分表和 warnings，不要返回 A-D 文案。' : '本次是 ingredient-and-copywriting 阶段：成分表和 A-D 文案都必须返回。',
-      '如果参考图片与目标配方不同，输出满足目标的 proposed formula，并在 warnings 说明，不要声称图片已经证明这些数值。',
+      '必须先依据 sourcePlainTextCopy 识别定位和卖点，再输出满足目标的 proposed formula；如果参考图片与目标配方不同，在 warnings 说明，不要声称图片已经证明这些数值。',
     ].join('\n'),
   };
   const validate = (candidate) => sanitizeProductDevelopmentOneShotCandidate(parseProductDevelopmentJson(candidate.text), context);
@@ -3317,7 +3335,7 @@ async function handleProductDevelopmentOneShot(request, env) {
       model: preferred.result.model || '',
       stage: ingredientOnly ? 'ingredient' : 'ingredient-and-copywriting',
       oneShotRuleVersion: PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION,
-      source: repaired ? 'product-development-one-shot-v2-repair' : 'product-development-one-shot-v1-qwen-first',
+      source: repaired ? 'product-development-one-shot-v3-repair' : 'product-development-one-shot-v3-qwen-first',
       referenceUrl,
       sku: input.sku,
     });
@@ -3383,6 +3401,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
     ingredients,
     ingredientSummary: body.ingredientSummary && typeof body.ingredientSummary === 'object' ? body.ingredientSummary : {},
     ingredientFunctions: body.ingredientFunctions && typeof body.ingredientFunctions === 'object' ? body.ingredientFunctions : {},
+    sourcePlainTextCopy,
     sourceCopywriting: body.sourceCopywriting && typeof body.sourceCopywriting === 'object' ? body.sourceCopywriting : {},
     confirmedIngredientTable,
     ingredientTable,
@@ -3393,7 +3412,8 @@ async function handleProductDevelopmentCopywriting(request, env) {
   };
   const commonSystem = [
     '你是美国电商宠物/营养产品的双语包装文案草稿助手。',
-    '本任务只使用提交的产品资料、成分和已有卖点，不读取、不分析也不要求产品效果图。',
+    '本任务只使用提交的产品资料、成分、sourcePlainTextCopy 和已有卖点，不读取、不分析也不要求产品效果图。',
+    '如果存在 sourcePlainTextCopy，它是侵权图修改后的纯文字文案版本；先用它理解产品名称、定位、用途和卖点，再把这些事实改写成 A-D。没有它时才使用其他已提交资料。',
     '必须使用符合跨境电商平台合规宣传的客观、克制、可验证表达：可以说明成分、配方特点、产品属性、使用场景和日常营养支持，但不能承诺结果或暗示预防、治疗、诊断、替代药物。',
     '只能围绕输入的成分、产品类型和 PLM 卖点写，不能虚构其他成分、配比、认证、实验、疾病、治疗或数字。',
     '不要写品牌名称。最终输出不得逐字出现以下限制词，大小写不敏感，也不要在输出中复述这份清单：' + PRODUCT_DEVELOPMENT_BANNED_TERMS.join('、') + '。遇到这些表达时，改写为基于输入事实的中性日常支持表达。食品类文案主要描述身体日常状态和生活感受，例如 daily vitality、steady energy、feels refreshed、ready for the day，以及“精神饱满、日常活力、精力充沛、状态轻松”；禁止用检测、实验室、第三方、认证、验证或证明来背书。',

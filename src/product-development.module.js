@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.29.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.30.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'copywriting-templates-v1';
   const PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID = 'capsule';
   const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object.freeze([
@@ -40,7 +40,7 @@
   // shipped as a built-in text summary and no longer accept local imports.
   const PRODUCT_DEVELOPMENT_INGREDIENT_LOCAL_TEMPLATE_KEY = 'plm-floating-helper:product-development-ingredient-local-templates:v1';
   const PRODUCT_DEVELOPMENT_INGREDIENT_MAX_CELLS = 600;
-  const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'ingredient-template-v2';
+  const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'ingredient-template-v3';
   const PRODUCT_DEVELOPMENT_ONE_SHOT_DRAFT_KEY = 'plm-floating-helper:product-development-one-shot-draft:v1';
   const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT = Object.freeze({
     sku: '',
@@ -53,7 +53,7 @@
     servingsPerContainer: '60',
     targetActiveMg: '700',
     targetActivePercent: '30',
-    requestedFunctions: 'Immune health; cardiovascular wellness; comfortable joints and active mobility; healthy-looking hair and skin.',
+    requestedFunctions: '',
     otherIngredientsEn: 'Purified Water, Vegetable Glycerin, Citric Acid, Potassium Sorbate',
     otherIngredientsCn: '纯化水、植物甘油、柠檬酸、山梨酸钾',
     referenceUrl: '',
@@ -325,7 +325,9 @@
     });
     result.servingsPerContainer = String(Math.max(1, Math.min(365, Math.round(Number(result.servingsPerContainer) || 60))));
     result.targetActiveMg = String(Math.max(50, Math.min(5000, Number(result.targetActiveMg) || 700)));
-    result.targetActivePercent = String(Math.max(1, Math.min(100, Number(result.targetActivePercent) || 30)));
+    const targetPercentText = String(result.targetActivePercent === undefined || result.targetActivePercent === null ? '' : result.targetActivePercent).trim();
+    const targetPercent = targetPercentText === '' ? 30 : Number(targetPercentText);
+    result.targetActivePercent = String(Math.max(0, Math.min(100, Number.isFinite(targetPercent) ? targetPercent : 30)));
     return result;
   }
 
@@ -411,6 +413,7 @@
       productTypeCn: productDevelopmentCleanText(read('productTypeCn', ''), 180),
       netContent: productDevelopmentCleanText(read('netContent', ''), 120).toUpperCase(),
       referenceUrl: productDevelopmentCleanText(read('referenceUrl', ''), 1000),
+      sourcePlainTextCopy: productDevelopmentCleanText(read('sourcePlainTextCopy', ''), 12000),
       labeling,
       ingredientTable,
     };
@@ -4885,6 +4888,7 @@
         en: productDevelopmentCleanText(liveIngredients.product_ingredients_efficacy_en || plmCopywriting.ingredientEfficacy.en, 8000),
         cn: productDevelopmentCleanText(liveIngredients.product_ingredients_efficacy_ch || plmCopywriting.ingredientEfficacy.cn, 8000),
       },
+      sourcePlainTextCopy: productDevelopmentOneShotPlainTextCopy(normalizedSku, null),
       sourceCopywriting: {
         ...sourceCopywriting,
       },
@@ -5839,7 +5843,7 @@
       const comparison = await composeProductDevelopmentComparison(image.dataUrl, validated.items, snapshot);
       const id = 'pd-review-' + Date.now().toString(36);
       const fileName = productDevelopmentFileName(snapshot.sku, 'infringement-comparison', 'png');
-      state.productDevelopmentReview = {
+      const reviewResult = {
         id,
         sku: snapshot.sku,
         brand: reviewBrand,
@@ -5860,6 +5864,8 @@
         fileName,
         createdAt: new Date().toLocaleString(),
       };
+      reviewResult.plainTextCopy = productDevelopmentReviewCopyValue(reviewResult, 'revised');
+      state.productDevelopmentReview = reviewResult;
       saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
       saveProductDevelopmentHistory({
         id,
@@ -6710,6 +6716,7 @@
             ingredients: snapshot.ingredients,
             ingredientSummary: snapshot.ingredientSummary,
             ingredientFunctions: snapshot.ingredientFunctions,
+            sourcePlainTextCopy: snapshot.sourcePlainTextCopy || productDevelopmentOneShotPlainTextCopy(snapshot.sku, snapshot),
             sourceCopywriting: snapshot.sourceCopywriting,
             templateVersion: copywritingTemplate.version,
             templateId: copywritingTemplate.id,
@@ -7126,6 +7133,159 @@
     }).join('');
   }
 
+  function productDevelopmentOneShotTemplateHeader(sheet) {
+    const source = sheet && Array.isArray(sheet.cells) ? sheet.cells : [];
+    return source
+      .filter((cell) => Number(cell && cell.row) > 0 && Number(cell && cell.row) <= 3)
+      .map((cell) => String(cell && cell.value || '').trim())
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  function productDevelopmentOneShotTemplateSheetForSelection(template, sheetName, hints) {
+    const sheets = productDevelopmentOneShotIngredientTemplateSheets(template);
+    if (!sheets.length) return null;
+    const requested = String(sheetName || '').trim();
+    const exact = requested ? sheets.find((sheet) => String(sheet.name || '').trim() === requested) : null;
+    if (exact) return exact;
+    const hint = String(hints || '').toLowerCase();
+    const formRules = [
+      { pattern: /drop|liquid|滴剂|饮用|口服|喷雾|水剂/, score: 40 },
+      { pattern: /softgel|soft\s+gel|软胶囊/, score: 40 },
+      { pattern: /capsule|胶囊/, score: 35 },
+      { pattern: /tablet|lozenge|片剂|含片/, score: 35 },
+      { pattern: /gummy|chew|软糖|咀嚼|软颗粒|颗粒/, score: 35 },
+      { pattern: /powder|sachet|粉|牙粉/, score: 30 },
+    ];
+    let best = sheets[0];
+    let bestScore = -1;
+    sheets.forEach((sheet, index) => {
+      const text = (String(sheet.name || '') + ' ' + productDevelopmentOneShotTemplateHeader(sheet)).toLowerCase();
+      let score = Math.max(0, 12 - index / 100);
+      formRules.forEach((rule) => {
+        if (rule.pattern.test(hint) && rule.pattern.test(text)) score += rule.score;
+      });
+      if (score > bestScore) {
+        best = sheet;
+        bestScore = score;
+      }
+    });
+    return best;
+  }
+
+  function productDevelopmentOneShotNormalizeServingSize(value) {
+    let text = productDevelopmentCleanText(value, 120).replace(/\s+/g, ' ').trim();
+    if (!text) return '';
+    text = text
+      .replace(/\bml\b/gi, 'mL')
+      .replace(/\bmcg\b/gi, 'mcg')
+      .replace(/\bsoft\s+chews?\b/gi, (match) => /s$/i.test(match) ? 'Soft Chews' : 'Soft Chew')
+      .replace(/\bsoft\s*gels?\b/gi, (match) => /s$/i.test(match) ? 'Softgels' : 'Softgel')
+      .replace(/\b(dropper|droppers)\b/gi, 'Dropper')
+      .replace(/\b(scoop|scoops)\b/gi, 'Scoop')
+      .replace(/\b(spoon|spoons)\b/gi, 'Spoon')
+      .replace(/\(\s*xx\s*g\s*\)/gi, '')
+      .replace(/\s*:\s*$/, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    if (/^dropper\b/i.test(text) && !/^\d/.test(text)) text = '1 ' + text;
+    text = text.replace(/^(\d+)\s*(scoop|spoon)\b/i, '$1 $2');
+    return text;
+  }
+
+  function productDevelopmentOneShotTemplateForm(sheet, kind) {
+    const sheetName = String(sheet && sheet.name || '').toLowerCase();
+    const header = productDevelopmentOneShotTemplateHeader(sheet).toLowerCase();
+    const text = sheetName + ' ' + header;
+    if (/softgel|soft\s+gel|软胶囊/.test(text)) return kind === 'pet' ? 'soft chews' : 'softgel capsules';
+    if (/capsule|胶囊/.test(text)) return kind === 'pet' ? 'soft chews' : 'capsules';
+    if (/tablet|lozenge|片剂|含片/.test(text)) return kind === 'pet' ? 'soft chews' : 'tablets';
+    if (/gummy|chew|软糖|咀嚼|软颗粒|颗粒/.test(text)) return kind === 'pet' ? 'soft chews' : 'gummies';
+    if (/powder|sachet|粉|牙粉/.test(text)) return 'powder';
+    return 'liquid drops';
+  }
+
+  function productDevelopmentOneShotTemplateDefaults(template, sheetName, hints) {
+    const kind = normalizeProductDevelopmentIngredientKind(template && template.kind);
+    const sheet = productDevelopmentOneShotTemplateSheetForSelection(template, sheetName, hints);
+    const header = productDevelopmentOneShotTemplateHeader(sheet);
+    const servingSizeMatch = header.match(/serving\s+size\s*[:：]?\s*([^\r\n]+)/i);
+    const activePerMatch = header.match(/(?:active\s+ingredients|ingredients)\s+per\s*[:：]?\s*([^\r\n:]+)/i);
+    const form = productDevelopmentOneShotTemplateForm(sheet, kind);
+    let servingSize = productDevelopmentOneShotNormalizeServingSize(servingSizeMatch && servingSizeMatch[1]);
+    if (!servingSize) servingSize = productDevelopmentOneShotNormalizeServingSize(activePerMatch && activePerMatch[1]);
+    if (!servingSize) {
+      servingSize = form === 'liquid drops'
+        ? (kind === 'pet' ? '1 Dropper (1 mL)' : '1 mL')
+        : form === 'powder'
+          ? (kind === 'pet' ? '1 Scoop (5 g)' : '5 g')
+          : form === 'softgel capsules'
+            ? '1 Softgel'
+            : form === 'capsules'
+              ? '1 Capsule'
+              : form === 'tablets'
+                ? '2 Tablets'
+                : form === 'gummies'
+                  ? '2 Gummies'
+                  : '2 Soft Chews';
+    }
+    const servingsMatch = header.match(/serv(?:ing|ings)\s+per\s+container\s*[:：]?\s*(\d+)/i);
+    const defaultServings = servingsMatch ? String(Math.max(1, Math.min(365, Number(servingsMatch[1])))) : '60';
+    const humanOtherEn = PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT.otherIngredientsEn;
+    const humanOtherCn = PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT.otherIngredientsCn;
+    const petOtherEn = 'Chicken Flavor, Beef Flavor, Lecithin, Citric Acid';
+    const petOtherCn = '鸡肉风味剂、牛肉风味剂、卵磷脂、柠檬酸';
+    return {
+      productType: (kind === 'pet' ? 'Pet food supplement / ' : 'Human dietary supplement / ') + form,
+      servingSize,
+      servingsPerContainer: defaultServings,
+      targetActivePercent: kind === 'pet' ? '0' : '30',
+      otherIngredientsEn: kind === 'pet' ? petOtherEn : humanOtherEn,
+      otherIngredientsCn: kind === 'pet' ? petOtherCn : humanOtherCn,
+      resolvedSheetName: String(sheet && sheet.name || '').trim(),
+      resolvedSheetHeader: header,
+    };
+  }
+
+  function productDevelopmentOneShotApplyTemplateDefaults(input, template, sheetName, options) {
+    const result = productDevelopmentOneShotInputValue(input);
+    const snapshot = state.productDevelopmentSnapshot && typeof state.productDevelopmentSnapshot === 'object' ? state.productDevelopmentSnapshot : {};
+    const task = state.productDevelopmentSelectedTask && typeof state.productDevelopmentSelectedTask === 'object' ? state.productDevelopmentSelectedTask : {};
+    const hints = [snapshot.name, snapshot.productType, snapshot.englishName, task.name, task.productName, task.productType].filter(Boolean).join(' ');
+    const defaults = productDevelopmentOneShotTemplateDefaults(template, sheetName, hints);
+    const previous = state.productDevelopmentOneShotTemplateDefaults && typeof state.productDevelopmentOneShotTemplateDefaults === 'object'
+      ? state.productDevelopmentOneShotTemplateDefaults
+      : {};
+    const force = Boolean(options && options.force);
+    ['productType', 'servingSize', 'servingsPerContainer', 'targetActivePercent', 'otherIngredientsEn', 'otherIngredientsCn'].forEach((key) => {
+      const current = String(result[key] || '').trim();
+      const isGeneric = key === 'productType' && /^(?:Human dietary supplement|Pet food supplement) \/ (?:liquid drops|soft chews)$/i.test(current);
+      if (force || !current || current === String(previous[key] || '').trim() || current === String(PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT[key] || '').trim() || isGeneric) result[key] = defaults[key];
+    });
+    state.productDevelopmentOneShotTemplateDefaults = { ...defaults };
+    state.productDevelopmentOneShotResolvedSheetName = defaults.resolvedSheetName;
+    return result;
+  }
+
+  function productDevelopmentOneShotPlainTextCopy(sku, snapshot) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const review = state.productDevelopmentReview && state.productDevelopmentReview.sku === normalizedSku
+      ? state.productDevelopmentReview
+      : getProductDevelopmentReviewDraft(normalizedSku);
+    const snapshotCopy = productDevelopmentCleanText(snapshot && snapshot.sourcePlainTextCopy, 12000);
+    if (snapshotCopy) return snapshotCopy;
+    const stored = productDevelopmentCleanText(review && (review.plainTextCopy || review.approvedPlainText || review.finalCopy), 12000);
+    if (stored) return stored;
+    if (review && Array.isArray(review.items) && review.items.length && !review.fromHistory) {
+      try {
+        return productDevelopmentCleanText(productDevelopmentReviewCopyValue(review, 'revised'), 12000);
+      } catch (_) {
+        return '';
+      }
+    }
+    return '';
+  }
+
   function productDevelopmentOneShotSelectedSourceHtml(sku) {
     const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku
       ? state.productDevelopmentSnapshot
@@ -7139,16 +7299,19 @@
     const input = productDevelopmentOneShotInputForRender();
     const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
     const ingredientTemplate = productDevelopmentOneShotIngredientTemplate();
-    const displayedProductType = productDevelopmentCleanText(snapshot && snapshot.productType || input.productType || '生成时按当前 SKU 读取', 180);
-    const productType = ingredientTemplate && normalizeProductDevelopmentIngredientKind(ingredientTemplate.kind) === 'pet' && /^human\s+dietary\s+supplement/i.test(displayedProductType)
-      ? 'Pet food supplement / liquid drops'
-      : displayedProductType;
+    const productType = productDevelopmentCleanText(input.productType || snapshot && snapshot.productType || '生成时按当前 SKU 读取', 180);
     const ingredientTemplateLabel = ingredientTemplate
       ? productDevelopmentCleanText(ingredientTemplate.label || ingredientTemplate.fileName, 120)
       : '未选择成分表模板';
     const templateOptions = productDevelopmentOneShotIngredientTemplateOptions(ingredientTemplate) || '<option value="">暂无可选模板</option>';
     const sheetOptions = productDevelopmentOneShotIngredientSheetOptions(ingredientTemplate);
-    return '<div class="pfh-product-development-one-shot-source"><div><small>当前选中产品</small><strong>' + escapeHtml(name) + '</strong><span>SKU ' + escapeHtml(sku || '未选择') + '</span></div><div><small>对标图与参考链接</small><strong>' + (imageReady ? '已读取当前 SKU 对标图' : '点击生成时自动读取') + '</strong><span>' + escapeHtml(referenceUrl || '参考链接将在读取产品资料后自动带入') + '</span></div><div><small>产品类型</small><strong>' + escapeHtml(productType) + '</strong><label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-one-shot-ingredient-template-input" aria-label="选择成分表模板">' + templateOptions + '</select></label><label class="pfh-product-development-material-field"><span>参考工作表（可选）</span><select class="pfh-product-development-one-shot-ingredient-sheet-input" aria-label="选择参考工作表"' + (ingredientTemplate ? '' : ' disabled') + '>' + sheetOptions + '</select></label><span>当前：' + escapeHtml(ingredientTemplateLabel) + ' · 文案：' + escapeHtml(copywritingTemplate.label || '当前选择') + '</span></div></div>';
+    const plainTextCopy = productDevelopmentOneShotPlainTextCopy(sku, snapshot);
+    const resolvedSheet = productDevelopmentCleanText(state.productDevelopmentOneShotResolvedSheetName, 120);
+    const sourceCopyLabel = plainTextCopy ? '已读取纯文字文案版本' : '尚未填写纯文字文案版本';
+    const sourceCopyHint = plainTextCopy ? '生成时优先按侵权图修改后的纯文字文案识别定位和核心成分' : '建议先在“产品图风险筛查”中确认纯文字文案，生成时将优先使用它';
+    const imageLabel = plainTextCopy ? '本次生成不读取效果图' : imageReady ? '已读取当前 SKU 对标图' : '点击生成时自动读取';
+    const imageHint = plainTextCopy ? '已确认纯文字文案，效果图仅用于风险对照图查看' : referenceUrl || '参考链接将在读取产品资料后自动带入';
+    return '<div class="pfh-product-development-one-shot-source"><div><small>当前选中产品</small><strong>' + escapeHtml(name) + '</strong><span>SKU ' + escapeHtml(sku || '未选择') + '</span></div><div><small>成分识别依据</small><strong>' + escapeHtml(sourceCopyLabel) + '</strong><span>' + escapeHtml(sourceCopyHint) + '</span></div><div><small>对标图与参考链接</small><strong>' + imageLabel + '</strong><span>' + escapeHtml(imageHint) + '</span></div><div><small>产品类型</small><strong>' + escapeHtml(productType) + '</strong><label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-one-shot-ingredient-template-input" aria-label="选择成分表模板">' + templateOptions + '</select></label><label class="pfh-product-development-material-field"><span>参考工作表（可选）</span><select class="pfh-product-development-one-shot-ingredient-sheet-input" aria-label="选择参考工作表"' + (ingredientTemplate ? '' : ' disabled') + '>' + sheetOptions + '</select></label><span>当前：' + escapeHtml(ingredientTemplateLabel) + (resolvedSheet && !state.productDevelopmentIngredientSheetName ? ' · 自动参考：' + escapeHtml(resolvedSheet) : '') + ' · 文案：' + escapeHtml(copywritingTemplate.label || '当前选择') + '</span></div></div>';
   }
 
   function productDevelopmentOneShotEditorFieldHtml(value, key, label, type, multiline, wide) {
@@ -7197,15 +7360,17 @@
   function productDevelopmentOneShotDraftValidation(result) {
     const table = result && result.ingredientTable && typeof result.ingredientTable === 'object' ? result.ingredientTable : {};
     const rows = Array.isArray(table.rows) ? table.rows : [];
+    const ingredientKind = normalizeProductDevelopmentIngredientKind(result && (result.ingredientKind || result.snapshot && result.snapshot.ingredientKind));
+    const isPet = ingredientKind === 'pet';
     const errors = [];
     const names = new Set();
     let activeTotalMg = 0;
     let standardizedActiveMg = 0;
-    if (!String(table.title || '').trim()) errors.push('Supplement Facts 标题不能为空');
+    if (!String(table.title || '').trim()) errors.push((isPet ? 'Product Facts' : 'Supplement Facts') + ' 标题不能为空');
     if (!String(table.servingSize || '').trim()) errors.push('Serving Size 不能为空');
     if (!(Number(table.servingsPerContainer) > 0)) errors.push('Servings Per Container 必须大于 0');
-    if (rows.length < 3) errors.push('至少保留 3 行活性成分');
-    if (rows.length > 7) errors.push('当前成分表模板最多保留 7 行活性成分');
+    if (rows.length < 4) errors.push('至少保留 4 行核心活性成分');
+    if (rows.length > 6) errors.push('当前成分表最多保留 6 行核心活性成分');
     rows.forEach((row, index) => {
       const line = index + 1;
       const label = productDevelopmentOneShotEditableRowLabel(row);
@@ -7213,14 +7378,13 @@
       const markerMg = productDevelopmentOneShotMarkerToMg(row && row.markerActiveMg);
       const normalizedName = productDevelopmentNormalizedClaimText(label);
       if (!label) errors.push('第 ' + line + ' 行缺少成分名称');
-      if (label && !/\([^)]*[A-Za-z]{2,}[^)]*\)/.test(label)) errors.push('第 ' + line + ' 行必须在括号内保留 Latin scientific name');
       if (!String(row && row.nameCn || '').trim()) errors.push('第 ' + line + ' 行缺少中文名称');
       if (normalizedName && names.has(normalizedName)) errors.push('第 ' + line + ' 行与其他成分重复');
       if (normalizedName) names.add(normalizedName);
       if (!Number.isFinite(amountMg) || amountMg <= 0) errors.push('第 ' + line + ' 行 Amount Per Serving 必须是有效的 mg、g 或 mcg 数值');
-      if (!Number.isFinite(markerMg) || markerMg < 0 || markerMg > amountMg + 0.001) errors.push('第 ' + line + ' 行标志物 mg 必须不大于该成分含量');
+      if (!isPet && (!Number.isFinite(markerMg) || markerMg < 0 || markerMg > amountMg + 0.001)) errors.push('第 ' + line + ' 行标志物 mg 必须不大于该成分含量');
       const dailyValue = String(row && row.dailyValue || '**').trim();
-      if (dailyValue !== '**' && !/^\d+(?:\.\d+)?%$/.test(dailyValue)) errors.push('第 ' + line + ' 行 % Daily Value 请填写数字百分比或 **');
+      if (!isPet && dailyValue !== '**' && !/^\d+(?:\.\d+)?%$/.test(dailyValue)) errors.push('第 ' + line + ' 行 % Daily Value 请填写数字百分比或 **');
       if (Number.isFinite(amountMg) && amountMg > 0) activeTotalMg += amountMg;
       if (Number.isFinite(markerMg) && markerMg > 0) standardizedActiveMg += markerMg;
     });
@@ -7229,9 +7393,9 @@
     const standardizedActivePercent = activeTotalMg > 0 ? standardizedActiveMg / activeTotalMg * 100 : 0;
     if (!(targetActiveMg > 0)) errors.push('每份活性目标必须大于 0');
     if (targetActiveMg > 0 && Math.abs(activeTotalMg - targetActiveMg) > 0.01) errors.push('活性合计 ' + productDevelopmentOneShotRounded(activeTotalMg, 3) + ' mg 必须等于目标 ' + productDevelopmentOneShotRounded(targetActiveMg, 3) + ' mg');
-    if (!(targetStandardizedPercent > 0)) errors.push('标准化活性目标必须大于 0');
+    if (!isPet && !(targetStandardizedPercent > 0)) errors.push('标准化活性目标必须大于 0');
     if (targetStandardizedPercent > 0 && standardizedActivePercent + 0.001 < targetStandardizedPercent) errors.push('标准化活性比例 ' + productDevelopmentOneShotRounded(standardizedActivePercent, 2) + '% 低于目标 ' + productDevelopmentOneShotRounded(targetStandardizedPercent, 2) + '%');
-    if (!String(table.otherIngredientsEn || '').trim()) errors.push('Other Ingredients 不能为空');
+    if (!String(table.otherIngredientsEn || '').trim()) errors.push((isPet ? 'Inactive Ingredients' : 'Other Ingredients') + ' 不能为空');
     return {
       valid: errors.length === 0,
       errors: Array.from(new Set(errors)).slice(0, 8),
@@ -7254,49 +7418,62 @@
   function productDevelopmentOneShotEditorRowsHtml(result) {
     const table = result && result.ingredientTable && typeof result.ingredientTable === 'object' ? result.ingredientTable : {};
     const rows = Array.isArray(table.rows) ? table.rows : [];
+    const ingredientKind = normalizeProductDevelopmentIngredientKind(result && (result.ingredientKind || result.snapshot && result.snapshot.ingredientKind));
+    const isPet = ingredientKind === 'pet';
     return rows.map((row, index) => {
       const label = productDevelopmentOneShotEditableRowLabel(row);
       const amount = productDevelopmentOneShotEditableAmountText(row);
       const marker = row && Number(row.markerActiveMg) > 0 ? productDevelopmentOneShotRounded(row.markerActiveMg, 3) : '';
-      return '<div class="pfh-product-development-review-editor-row"><div class="pfh-product-development-review-editor-head"><b>' + String(index + 1).padStart(2, '0') + '</b><span>活性成分编辑</span><button type="button" data-action="product-development-one-shot-ingredient-remove" data-product-development-one-shot-row-index="' + index + '"' + (rows.length <= 3 ? ' disabled' : '') + ' aria-label="删除第 ' + (index + 1) + ' 行">×</button></div><div class="pfh-product-development-form-grid"><label class="pfh-product-development-material-field is-wide"><span>成分名称 / Ingredient（括号内保留 Latin scientific name）</span><input type="text" class="pfh-product-development-review-input" data-product-development-one-shot-row-index="' + index + '" data-product-development-one-shot-row-field="labelEn" value="' + escapeHtml(label) + '" spellcheck="false"></label><label class="pfh-product-development-material-field"><span>中文名称</span><input type="text" class="pfh-product-development-review-input" data-product-development-one-shot-row-index="' + index + '" data-product-development-one-shot-row-field="nameCn" value="' + escapeHtml(row && row.nameCn || '') + '"></label><label class="pfh-product-development-material-field"><span>用量 / Amount Per Serving</span><input type="text" class="pfh-product-development-review-input" data-product-development-one-shot-row-index="' + index + '" data-product-development-one-shot-row-field="amountText" value="' + escapeHtml(amount) + '" spellcheck="false"></label><label class="pfh-product-development-material-field"><span>% Daily Value</span><input type="text" class="pfh-product-development-review-input" data-product-development-one-shot-row-index="' + index + '" data-product-development-one-shot-row-field="dailyValue" value="' + escapeHtml(row && row.dailyValue || '**') + '" spellcheck="false"></label><label class="pfh-product-development-material-field"><span>标志物 mg（用于标准化比例校验）</span><input type="text" class="pfh-product-development-review-input" data-product-development-one-shot-row-index="' + index + '" data-product-development-one-shot-row-field="markerActiveMg" value="' + escapeHtml(marker) + '" placeholder="可留空" spellcheck="false"></label></div></div>';
+      const humanFields = '<label class="pfh-product-development-material-field"><span>% Daily Value</span><input type="text" class="pfh-product-development-review-input" data-product-development-one-shot-row-index="' + index + '" data-product-development-one-shot-row-field="dailyValue" value="' + escapeHtml(row && row.dailyValue || '**') + '" spellcheck="false"></label><label class="pfh-product-development-material-field"><span>标志物 mg（用于标准化比例校验）</span><input type="text" class="pfh-product-development-review-input" data-product-development-one-shot-row-index="' + index + '" data-product-development-one-shot-row-field="markerActiveMg" value="' + escapeHtml(marker) + '" placeholder="可留空" spellcheck="false"></label>';
+      return '<div class="pfh-product-development-review-editor-row"><div class="pfh-product-development-review-editor-head"><b>' + String(index + 1).padStart(2, '0') + '</b><span>活性成分编辑</span><button type="button" data-action="product-development-one-shot-ingredient-remove" data-product-development-one-shot-row-index="' + index + '"' + (rows.length <= 4 ? ' disabled' : '') + ' aria-label="删除第 ' + (index + 1) + ' 行">×</button></div><div class="pfh-product-development-form-grid"><label class="pfh-product-development-material-field is-wide"><span>成分名称 / Ingredient（需要时填写 Latin scientific name）</span><input type="text" class="pfh-product-development-review-input" data-product-development-one-shot-row-index="' + index + '" data-product-development-one-shot-row-field="labelEn" value="' + escapeHtml(label) + '" spellcheck="false"></label><label class="pfh-product-development-material-field"><span>中文名称</span><input type="text" class="pfh-product-development-review-input" data-product-development-one-shot-row-index="' + index + '" data-product-development-one-shot-row-field="nameCn" value="' + escapeHtml(row && row.nameCn || '') + '"></label><label class="pfh-product-development-material-field"><span>用量 / Amount Per Serving</span><input type="text" class="pfh-product-development-review-input" data-product-development-one-shot-row-index="' + index + '" data-product-development-one-shot-row-field="amountText" value="' + escapeHtml(amount) + '" spellcheck="false"></label>' + (isPet ? '' : humanFields) + '</div></div>';
     }).join('');
   }
 
   function productDevelopmentOneShotPreviewHtml(result) {
     const table = result && result.ingredientTable && typeof result.ingredientTable === 'object' ? result.ingredientTable : {};
     const rows = Array.isArray(table.rows) ? table.rows : [];
-    const rowHtml = rows.map((row) => '<tr><td>' + escapeHtml(productDevelopmentOneShotEditableRowLabel(row)) + '</td><td>' + escapeHtml(productDevelopmentOneShotEditableAmountText(row)) + '</td><td>' + escapeHtml(row && row.dailyValue || '**') + '</td></tr>').join('');
-    return '<div class="pfh-product-development-one-shot-preview"><strong>' + escapeHtml(table.title || 'Supplement Facts') + '</strong><span>Serving Size ' + escapeHtml(table.servingSize || '1 mL') + ' · Servings Per Container ' + escapeHtml(String(table.servingsPerContainer || 60)) + '</span><table><thead><tr><th>Ingredient</th><th>Amount Per Serving</th><th>% Daily Value</th></tr></thead><tbody>' + rowHtml + '</tbody></table><small>Other Ingredients: ' + escapeHtml(table.otherIngredientsEn || '') + '</small></div>';
+    const ingredientKind = normalizeProductDevelopmentIngredientKind(result && (result.ingredientKind || result.snapshot && result.snapshot.ingredientKind));
+    const isPet = ingredientKind === 'pet';
+    const rowHtml = rows.map((row) => '<tr><td>' + escapeHtml(productDevelopmentOneShotEditableRowLabel(row)) + '</td><td>' + escapeHtml(productDevelopmentOneShotEditableAmountText(row)) + '</td>' + (isPet ? '' : '<td>' + escapeHtml(row && row.dailyValue || '**') + '</td>') + '</tr>').join('');
+    return '<div class="pfh-product-development-one-shot-preview"><strong>' + escapeHtml(table.title || (isPet ? 'Product Facts' : 'Supplement Facts')) + '</strong><span>Serving Size ' + escapeHtml(table.servingSize || (isPet ? '1 Dropper (1 mL)' : '1 mL')) + ' · Servings Per Container ' + escapeHtml(String(table.servingsPerContainer || 60)) + '</span><table><thead><tr><th>Ingredient</th><th>Amount Per Serving</th>' + (isPet ? '' : '<th>% Daily Value</th>') + '</tr></thead><tbody>' + rowHtml + '</tbody></table><small>' + (isPet ? 'Inactive Ingredients: ' : 'Other Ingredients: ') + escapeHtml(table.otherIngredientsEn || '') + '</small></div>';
   }
 
   function productDevelopmentOneShotResultHtml(result) {
-    if (!result) return '<div class="pfh-product-development-result-empty">点击上方“生成成分表”后，这里会出现可编辑的 Supplement Facts 草稿。成分表确认前不会生成文案，校验通过前不会允许导出 PDF。</div>';
+    if (!result) {
+      const template = productDevelopmentOneShotIngredientTemplate();
+      const factsLabel = normalizeProductDevelopmentIngredientKind(template && template.kind) === 'pet' ? 'Product Facts' : 'Supplement Facts';
+      return '<div class="pfh-product-development-result-empty">点击上方“生成成分表”后，这里会出现可编辑的 ' + factsLabel + ' 草稿。成分表确认前不会生成文案，校验通过前不会允许导出 PDF。</div>';
+    }
     const table = result.ingredientTable || {};
+    const ingredientKind = normalizeProductDevelopmentIngredientKind(result.ingredientKind || result.snapshot && result.snapshot.ingredientKind);
+    const isPet = ingredientKind === 'pet';
     const validation = productDevelopmentOneShotDraftValidation(result);
     const warnings = Array.isArray(result.warnings) ? result.warnings.filter(Boolean).slice(0, 12) : [];
     const warningHtml = warnings.length ? '<div class="pfh-product-development-preview-note"><strong>人工复核提醒</strong><p>' + warnings.map((item) => escapeHtml(item)).join('<br>') + '</p></div>' : '';
     const labeling = result.labeling && typeof result.labeling === 'object' ? result.labeling : {};
-    const labelingHtml = '<div class="pfh-product-development-preview-note"><strong>标签用语（确认成分表后写入文案 DOCX）</strong><p>Directions: ' + escapeHtml(labeling.directionsEn || '') + '</p><p>' + escapeHtml(labeling.directionsCn || '') + '</p><p>FDA disclaimer: ' + escapeHtml(labeling.disclaimerEn || '') + '</p><p>' + escapeHtml(labeling.warningsEn || '') + '</p></div>';
+    const labelingHtml = '<div class="pfh-product-development-preview-note"><strong>标签用语（确认成分表后写入文案 DOCX）</strong><p>Directions: ' + escapeHtml(labeling.directionsEn || '') + '</p><p>' + escapeHtml(labeling.directionsCn || '') + '</p>' + (labeling.disclaimerEn ? '<p>FDA disclaimer: ' + escapeHtml(labeling.disclaimerEn) + '</p>' : '') + '<p>' + escapeHtml(labeling.warningsEn || '') + '</p></div>';
     const validationHtml = validation.valid
-      ? '<div class="pfh-product-development-one-shot-validation is-valid"><strong>' + (result.content ? '成分表已确认，文案已生成' : '校验通过，请确认成分表后生成文案') + '</strong><span>活性合计 ' + escapeHtml(String(validation.activeTotalMg)) + ' mg · 标准化活性 ' + escapeHtml(String(validation.standardizedActivePercent)) + '%</span></div>'
+      ? '<div class="pfh-product-development-one-shot-validation is-valid"><strong>' + (result.content ? '成分表已确认，文案已生成' : '校验通过，请确认成分表后生成文案') + '</strong><span>活性合计 ' + escapeHtml(String(validation.activeTotalMg)) + ' mg' + (isPet ? '' : ' · 标准化活性 ' + escapeHtml(String(validation.standardizedActivePercent)) + '%') + '</span></div>'
       : '<div class="pfh-product-development-one-shot-validation is-invalid"><strong>成分表仍需修正，暂不能导出</strong><span>' + validation.errors.map((item) => escapeHtml(item)).join('；') + '</span></div>';
-    const footerChecked = table.showFooter !== false;
+    const footerChecked = !isPet && table.showFooter !== false;
     const copywritingAction = result.content
       ? '<button type="button" data-action="product-development-one-shot-download-copywriting">下载文案 DOCX</button>'
       : '<button type="button" data-action="product-development-copywriting-ingredient-confirm"' + (validation.valid && !state.productDevelopmentOneShotBusy ? '' : ' disabled') + '>' + (state.productDevelopmentOneShotBusy ? '正在生成文案…' : '确认成分表并生成文案') + '</button>';
-    return '<section class="pfh-product-development-detail-form pfh-product-development-one-shot-editor"><header><div><small>SUPPLEMENT FACTS PDF</small><h3>编辑成分表草稿</h3></div><span>' + escapeHtml(String(result.snapshot && result.snapshot.englishName || 'Daily Wellness Support Drops')) + '</span></header><div class="pfh-product-development-form-grid">' +
+    return '<section class="pfh-product-development-detail-form pfh-product-development-one-shot-editor"><header><div><small>' + (isPet ? 'PRODUCT FACTS PDF' : 'SUPPLEMENT FACTS PDF') + '</small><h3>编辑成分表草稿</h3></div><span>' + escapeHtml(String(result.snapshot && result.snapshot.englishName || (isPet ? 'Pet Nutrition Support' : 'Daily Wellness Support Drops'))) + '</span></header><div class="pfh-product-development-form-grid">' +
       productDevelopmentOneShotEditorFieldHtml(table, 'title', '标题', 'text', false, true) +
       productDevelopmentOneShotEditorFieldHtml(table, 'servingSize', 'Serving Size', 'text', false, false) +
       productDevelopmentOneShotEditorFieldHtml(table, 'servingsPerContainer', 'Servings Per Container', 'number', false, false) +
       productDevelopmentOneShotEditorFieldHtml(table, 'requiredActiveMg', '活性目标（mg / serving）', 'number', false, false) +
-      productDevelopmentOneShotEditorFieldHtml(table, 'requiredStandardizedActivePercent', '标准化活性目标（%）', 'number', false, false) +
-      productDevelopmentOneShotEditorFieldHtml(table, 'otherIngredientsEn', 'Other Ingredients', 'text', true, true) +
+      (isPet ? '' : productDevelopmentOneShotEditorFieldHtml(table, 'requiredStandardizedActivePercent', '标准化活性目标（%）', 'number', false, false)) +
+      productDevelopmentOneShotEditorFieldHtml(table, 'otherIngredientsEn', isPet ? 'Inactive Ingredients' : 'Other Ingredients', 'text', true, true) +
       productDevelopmentOneShotEditorFieldHtml(table, 'otherIngredientsCn', '其他成分（中文）', 'text', true, true) +
-      '<label class="pfh-product-development-check-field"><input type="checkbox" data-product-development-one-shot-editor-field="showFooter"' + (footerChecked ? ' checked' : '') + '><span>显示 “**Daily Value not established.”</span></label></div><div class="pfh-product-development-one-shot-table-head" aria-hidden="true"><span>成分名称 / Ingredient</span><span>用量 / Amount</span><span>% Daily Value</span><span>标志物 mg</span><span></span></div><div class="pfh-product-development-review-editor-list">' + productDevelopmentOneShotEditorRowsHtml(result) + '</div><button type="button" class="pfh-product-development-one-shot-add" data-action="product-development-one-shot-ingredient-add"' + (Array.isArray(table.rows) && table.rows.length >= 7 ? ' disabled' : '') + '>＋ 添加成分行（最多 7 行）</button>' + validationHtml.replace('<div class="pfh-product-development-one-shot-validation', '<div data-product-development-one-shot-validation class="pfh-product-development-one-shot-validation') + productDevelopmentOneShotPreviewHtml(result) + labelingHtml + warningHtml + '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-one-shot-download-pdf"' + (validation.valid ? '' : ' disabled') + '>' + (validation.valid ? '导出 Supplement Facts PDF' : '修正后导出 PDF') + '</button>' + copywritingAction + '<small>成分表先单独校验；确认后才会把表格内容交给文案生成。PDF 仍使用已选成分表模板的字段约束。</small></div></section>';
+      (isPet ? '' : '<label class="pfh-product-development-check-field"><input type="checkbox" data-product-development-one-shot-editor-field="showFooter"' + (footerChecked ? ' checked' : '') + '><span>显示 “**Daily Value not established.”</span></label>') + '</div><div class="pfh-product-development-one-shot-table-head' + (isPet ? ' is-pet' : '') + '" aria-hidden="true"><span>成分名称 / Ingredient</span><span>用量 / Amount</span>' + (isPet ? '' : '<span>% Daily Value</span><span>标志物 mg</span>') + '<span></span></div><div class="pfh-product-development-review-editor-list">' + productDevelopmentOneShotEditorRowsHtml(result) + '</div><button type="button" class="pfh-product-development-one-shot-add" data-action="product-development-one-shot-ingredient-add"' + (Array.isArray(table.rows) && table.rows.length >= 6 ? ' disabled' : '') + '>＋ 添加成分行（最多 6 行）</button>' + validationHtml.replace('<div class="pfh-product-development-one-shot-validation', '<div data-product-development-one-shot-validation class="pfh-product-development-one-shot-validation') + productDevelopmentOneShotPreviewHtml(result) + labelingHtml + warningHtml + '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-one-shot-download-pdf"' + (validation.valid ? '' : ' disabled') + '>' + (validation.valid ? (isPet ? '导出 Product Facts PDF' : '导出 Supplement Facts PDF') : '修正后导出 PDF') + '</button>' + copywritingAction + '<small>成分表先单独校验；确认后才会把表格内容交给文案生成。格式来自当前选择的模板，模板示例不会直接当作当前产品成分。</small></div></section>';
   }
 
   function productDevelopmentOneShotEmbeddedHtml(sku) {
     const input = productDevelopmentOneShotInputForRender();
+    const template = productDevelopmentOneShotIngredientTemplate();
+    const isPet = normalizeProductDevelopmentIngredientKind(template && template.kind) === 'pet';
     const result = state.productDevelopmentOneShotResult && (!sku || state.productDevelopmentOneShotResult.sku === sku)
       ? state.productDevelopmentOneShotResult
       : null;
@@ -7306,18 +7483,19 @@
       productDevelopmentOneShotFieldHtml(input, 'servingSize', '每份用量', 'text') +
       productDevelopmentOneShotFieldHtml(input, 'servingsPerContainer', '每瓶份数', 'number') +
       productDevelopmentOneShotFieldHtml(input, 'targetActiveMg', '每份活性目标（mg）', 'number') +
-      productDevelopmentOneShotFieldHtml(input, 'targetActivePercent', '标准化活性目标（%）', 'number') +
-      productDevelopmentOneShotFieldHtml(input, 'requestedFunctions', '目标作用', 'text', true) +
-      productDevelopmentOneShotFieldHtml(input, 'otherIngredientsEn', 'Other Ingredients（英文）', 'text', true) +
+      (isPet ? '' : productDevelopmentOneShotFieldHtml(input, 'targetActivePercent', '标准化活性目标（%）', 'number')) +
+      productDevelopmentOneShotFieldHtml(input, 'otherIngredientsEn', isPet ? 'Inactive Ingredients（英文）' : 'Other Ingredients（英文）', 'text', true) +
       productDevelopmentOneShotFieldHtml(input, 'otherIngredientsCn', '其他成分（中文）', 'text', true) +
       '</div>';
-    return '<section class="pfh-product-development-detail-form pfh-product-development-one-shot-launch"><header><div><small>STEP 1 → STEP 2 IN EDIT COPYWRITING</small><h3>先生成成分表，再生成文案</h3></div><span>自动使用当前选中产品的对标图</span></header>' + productDevelopmentOneShotSelectedSourceHtml(sku) + configHtml + '<div class="pfh-product-development-one-shot-launch-actions"><button type="button" class="pfh-product-development-work-card-button" data-action="product-development-copywriting-ingredient-run"' + (state.productDevelopmentOneShotBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentOneShotBusy ? '正在生成成分表…' : result ? '重新生成成分表' : '生成成分表') + '</button><small>不再手动上传图片；先编辑并确认 Supplement Facts，确认后才生成文案。</small></div></section>' + productDevelopmentOneShotResultHtml(result);
+    return '<section class="pfh-product-development-detail-form pfh-product-development-one-shot-launch"><header><div><small>STEP 1 → STEP 2 IN EDIT COPYWRITING</small><h3>先生成成分表，再生成文案</h3></div><span>优先使用侵权图纯文字文案，不读取效果图</span></header>' + productDevelopmentOneShotSelectedSourceHtml(sku) + configHtml + '<div class="pfh-product-development-one-shot-launch-actions"><button type="button" class="pfh-product-development-work-card-button" data-action="product-development-copywriting-ingredient-run"' + (state.productDevelopmentOneShotBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentOneShotBusy ? '正在生成成分表…' : result ? '重新生成成分表' : '生成成分表') + '</button><small>先编辑并确认 ' + (isPet ? 'Product Facts' : 'Supplement Facts') + '，确认后才生成文案。</small></div></section>' + productDevelopmentOneShotResultHtml(result);
   }
 
   function productDevelopmentOneShotUpdateInlineValidation() {
     const result = state.productDevelopmentOneShotResult;
     if (!result || !result.ingredientTable) return;
     const validation = productDevelopmentOneShotDraftValidation(result);
+    const ingredientKind = normalizeProductDevelopmentIngredientKind(result.ingredientKind || result.snapshot && result.snapshot.ingredientKind);
+    const isPet = ingredientKind === 'pet';
     const root = document.querySelector('#plm-floating-helper .pfh-product-development-one-shot-editor');
     if (!root) return;
     const validationNode = root.querySelector('[data-product-development-one-shot-validation]');
@@ -7326,12 +7504,12 @@
     if (validationNode) {
       validationNode.className = 'pfh-product-development-one-shot-validation ' + (validation.valid ? 'is-valid' : 'is-invalid');
       validationNode.innerHTML = validation.valid
-        ? '<strong>' + (result.content ? '成分表已确认，文案已生成' : '校验通过，请确认成分表后生成文案') + '</strong><span>活性合计 ' + escapeHtml(String(validation.activeTotalMg)) + ' mg · 标准化活性 ' + escapeHtml(String(validation.standardizedActivePercent)) + '%</span>'
+        ? '<strong>' + (result.content ? '成分表已确认，文案已生成' : '校验通过，请确认成分表后生成文案') + '</strong><span>活性合计 ' + escapeHtml(String(validation.activeTotalMg)) + ' mg' + (isPet ? '' : ' · 标准化活性 ' + escapeHtml(String(validation.standardizedActivePercent)) + '%') + '</span>'
         : '<strong>成分表仍需修正，暂不能导出</strong><span>' + validation.errors.map((item) => escapeHtml(item)).join('；') + '</span>';
     }
     if (pdfButton) {
       pdfButton.disabled = !validation.valid;
-      pdfButton.textContent = validation.valid ? '导出 Supplement Facts PDF' : '修正后导出 PDF';
+      pdfButton.textContent = validation.valid ? (isPet ? '导出 Product Facts PDF' : '导出 Supplement Facts PDF') : '修正后导出 PDF';
     }
     if (copywritingButton) {
       copywritingButton.disabled = !validation.valid || Boolean(state.productDevelopmentOneShotBusy) || Boolean(result.content);
@@ -7425,7 +7603,13 @@
   }
 
   function productDevelopmentOneShotInputForRender() {
-    const input = productDevelopmentOneShotInputValue(state.productDevelopmentOneShotInput);
+    const template = productDevelopmentOneShotIngredientTemplate();
+    const input = productDevelopmentOneShotApplyTemplateDefaults(
+      state.productDevelopmentOneShotInput,
+      template,
+      state.productDevelopmentIngredientSheetName,
+      { force: false },
+    );
     state.productDevelopmentOneShotInput = input;
     return input;
   }
@@ -7516,7 +7700,7 @@
       name,
       englishName,
       brand,
-      productType: productDevelopmentCleanText(input.productType || product.productType || 'Human dietary supplement / liquid drops', 180),
+      productType: productDevelopmentCleanText(input.productType || product.productType || (normalizeProductDevelopmentIngredientKind(meta.ingredientKind || input.ingredientKind) === 'pet' ? 'Pet food supplement / liquid drops' : 'Human dietary supplement / liquid drops'), 180),
       productTypeCn: productDevelopmentCleanText(product.productTypeCn || input.productTypeCn, 180),
       netContent: productDevelopmentCleanText(input.netContent || product.netContent || '60 mL', 120).toUpperCase(),
       referenceUrl: productDevelopmentCleanText(input.referenceUrl, 1200),
@@ -7526,6 +7710,7 @@
         cn: rows.map((row) => productDevelopmentOneShotIngredientLabel(row, true) + ' ' + productDevelopmentCleanText(row.amountText || row.amountMg, 80)).join('、'),
       },
       ingredientFunctions: { en: '', cn: '' },
+      sourcePlainTextCopy: productDevelopmentCleanText(input.sourcePlainTextCopy, 12000),
       sourceCopywriting: {
         efficacy: { en: sectionText('efficacy', 'en'), cn: sectionText('efficacy', 'cn') },
         advantages: { en: sectionText('advantages', 'en'), cn: sectionText('advantages', 'cn') },
@@ -7541,6 +7726,7 @@
       ingredientTemplateId: productDevelopmentCleanText(meta.ingredientTemplateId, 80),
       ingredientTemplateLabel: productDevelopmentCleanText(meta.ingredientTemplateLabel, 120),
       ingredientTemplateSheetName: productDevelopmentCleanText(meta.ingredientTemplateSheetName, 120),
+      ingredientTemplateSheetHeader: productDevelopmentCleanText(meta.ingredientTemplateSheetHeader, 1200),
       copywritingTemplateId: productDevelopmentCleanText(meta.copywritingTemplateId, 80),
       copywritingTemplateLabel: productDevelopmentCleanText(meta.copywritingTemplateLabel, 120),
       updatedAt: new Date().toLocaleString(),
@@ -7549,15 +7735,23 @@
 
   function productDevelopmentOneShotNormalizeResponse(response, input, options) {
     const opts = options && typeof options === 'object' ? options : {};
+    const ingredientKind = normalizeProductDevelopmentIngredientKind(opts.ingredientKind || input && input.ingredientKind);
+    const isPet = ingredientKind === 'pet';
     const table = response && response.ingredientTable && typeof response.ingredientTable === 'object' ? response.ingredientTable : {};
     const rows = Array.isArray(table.rows) ? table.rows : [];
     const activeTotalMg = Number(table.activeTotalMg);
     const standardizedActivePercent = Number(table.standardizedActivePercent);
     const rowTotalMg = rows.reduce((sum, row) => sum + (Number(row && row.amountMg) || 0), 0);
-    if (rows.length < 3 || rows.length > 7 || rows.some((row) => !row || !row.nameEn || !row.nameCn || !row.latinName || !(Number(row.amountMg) > 0)) || !Number.isFinite(activeTotalMg) || Math.abs(rowTotalMg - activeTotalMg) > 0.01 || activeTotalMg + 0.001 < Number(input.targetActiveMg || 700)) {
+    const targetActiveMg = Number(input && input.targetActiveMg) || 700;
+    const targetActivePercentText = input && input.targetActivePercent !== undefined && input.targetActivePercent !== null
+      ? String(input.targetActivePercent).trim()
+      : '';
+    const targetActivePercent = targetActivePercentText === '' ? (isPet ? 0 : 30) : Number(targetActivePercentText);
+    const invalidRow = rows.some((row) => !row || !row.nameEn || !row.nameCn || !(Number(row.amountMg) > 0));
+    if (rows.length < 4 || rows.length > 6 || invalidRow || !Number.isFinite(activeTotalMg) || Math.abs(rowTotalMg - activeTotalMg) > 0.01 || activeTotalMg + 0.001 < targetActiveMg) {
       throw new Error('一次生成结果未达到每份活性成分目标');
     }
-    if (!Number.isFinite(standardizedActivePercent) || standardizedActivePercent + 0.001 < Number(input.targetActivePercent || 30)) {
+    if (!isPet && (!Number.isFinite(standardizedActivePercent) || standardizedActivePercent + 0.001 < targetActivePercent)) {
       throw new Error('一次生成结果未达到标准化活性目标');
     }
     let content = null;
@@ -7581,17 +7775,19 @@
       snapshot,
       ingredientTable: {
         ...table,
+        title: isPet ? 'Product Facts' : 'Supplement Facts',
         activeTotalMg: productDevelopmentOneShotRounded(activeTotalMg),
-        standardizedActivePercent: productDevelopmentOneShotRounded(standardizedActivePercent, 2),
-        requiredActiveMg: Number(table.requiredActiveMg) || Number(input.targetActiveMg || 700),
-        requiredStandardizedActivePercent: Number(table.requiredStandardizedActivePercent) || Number(input.targetActivePercent || 30),
-        showFooter: table.showFooter !== false,
+        standardizedActivePercent: productDevelopmentOneShotRounded(Number.isFinite(standardizedActivePercent) ? standardizedActivePercent : 0, 2),
+        requiredActiveMg: Number(table.requiredActiveMg) || targetActiveMg,
+        requiredStandardizedActivePercent: Number.isFinite(Number(table.requiredStandardizedActivePercent)) ? Number(table.requiredStandardizedActivePercent) : targetActivePercent,
+        showFooter: !isPet && table.showFooter !== false,
+        otherIngredientsLabel: isPet ? 'Inactive Ingredients' : 'Other Ingredients',
         rows: rows.map((row) => ({ ...row, labelEn: productDevelopmentOneShotIngredientLabel(row, false) })),
       },
       labeling: response && response.labeling && typeof response.labeling === 'object' ? response.labeling : {},
       content,
       ingredientConfirmed: false,
-      ingredientKind: normalizeProductDevelopmentIngredientKind(opts.ingredientKind || input.ingredientKind),
+      ingredientKind,
       ingredientTemplateId: productDevelopmentCleanText(opts.ingredientTemplateId, 80),
       ingredientTemplateLabel: productDevelopmentCleanText(opts.ingredientTemplateLabel, 120),
       ingredientTemplateSheetName: productDevelopmentCleanText(opts.ingredientTemplateSheetName, 120),
@@ -7601,7 +7797,7 @@
       provider: productDevelopmentCleanText(response && response.provider, 80),
       model: productDevelopmentCleanText(response && response.model, 120),
       oneShotRuleVersion: productDevelopmentCleanText(response && response.oneShotRuleVersion || PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION, 80),
-      pdfFileName: productDevelopmentFileDate() + '-' + safeName + '-Supplement-Facts.pdf',
+      pdfFileName: productDevelopmentFileDate() + '-' + safeName + '-' + (isPet ? 'Product-Facts' : 'Supplement-Facts') + '.pdf',
       docxFileName: productDevelopmentCopywritingFileName(snapshot),
       pdfBlob: null,
       docxBlob: null,
@@ -7678,8 +7874,10 @@
 
   function productDevelopmentOneShotPdfFileName(result) {
     const snapshot = result && result.snapshot && typeof result.snapshot === 'object' ? result.snapshot : {};
-    const label = productDevelopmentSafeFileLabel(snapshot.englishName || snapshot.name || snapshot.sku || 'Supplement Facts', 100) || 'Supplement Facts';
-    return productDevelopmentFileDate() + '-' + label + '-Supplement-Facts.pdf';
+    const ingredientKind = normalizeProductDevelopmentIngredientKind(result && (result.ingredientKind || snapshot.ingredientKind));
+    const factsLabel = ingredientKind === 'pet' ? 'Product-Facts' : 'Supplement-Facts';
+    const label = productDevelopmentSafeFileLabel(snapshot.englishName || snapshot.name || snapshot.sku || factsLabel, 100) || factsLabel;
+    return productDevelopmentFileDate() + '-' + label + '-' + factsLabel + '.pdf';
   }
 
   function productDevelopmentOneShotBuildPdf(result, options) {
@@ -7689,6 +7887,8 @@
     if (!validation.valid) throw new Error('成分表仍有问题：' + validation.errors.slice(0, 5).join('；'));
     const table = result.ingredientTable;
     const rows = Array.isArray(table.rows) ? table.rows : [];
+    const ingredientKind = normalizeProductDevelopmentIngredientKind(result && (result.ingredientKind || result.snapshot && result.snapshot.ingredientKind));
+    const isPet = ingredientKind === 'pet';
     const pageWidth = 595.25;
     const pageHeight = 841.85;
     const outerLeft = 53.88;
@@ -7729,13 +7929,16 @@
     };
     commands.push('q 0 0 0 RG 0 0 0 rg 0.6 w');
     rect(outerLeft, outerRight, outerTopOffset, outerBottomOffset - outerTopOffset, false);
-    const title = productDevelopmentOneShotPdfFitText(table.title || 'Supplement Facts', titleFontSize, thickRight - 70.45, 18);
+    const title = productDevelopmentOneShotPdfFitText(isPet ? 'Product Facts' : 'Supplement Facts', titleFontSize, thickRight - 70.45, 18);
     text('F2', title.size, 70.45, 80.42, title.text);
     text('F1', bodyFontSize, 70.45, 104.08, 'Serving Size ' + (table.servingSize || '1 mL'));
     text('F1', bodyFontSize, 70.45, 116.91, 'Servings Per Container ' + String(table.servingsPerContainer || 60));
     rect(thickLeft, thickRight, 129.84, 1.8, true);
-    text('F2', bodyFontSize, innerLeft, 139.58, 'Amount Per Serving');
-    rightText('F2', bodyFontSize, dailyValueRight, 139.58, '% Daily Value');
+    if (isPet) text('F2', bodyFontSize, innerLeft, 139.58, 'Active Ingredients Per ' + (table.servingSize || '1 Dropper (1 mL)'));
+    else {
+      text('F2', bodyFontSize, innerLeft, 139.58, 'Amount Per Serving');
+      rightText('F2', bodyFontSize, dailyValueRight, 139.58, '% Daily Value');
+    }
     rect(thinLeft, thinRight, 153.96, 0.6, true);
     rows.forEach((row, index) => {
       const amount = productDevelopmentOneShotEditableAmountText(row);
@@ -7746,15 +7949,16 @@
       const name = productDevelopmentOneShotPdfFitText(productDevelopmentOneShotEditableRowLabel(row), bodyFontSize, maxNameWidth, 6.6);
       const rowTop = 166.02 + index * rowHeight;
       text('F1', name.size, innerLeft, rowTop, name.text);
-      rightText('F1', bodyFontSize, amountRight, rowTop, amount);
-      rightText('F1', bodyFontSize, dailyValueRight, rowTop, row && row.dailyValue || '**');
+      rightText('F1', bodyFontSize, isPet ? dailyValueRight : amountRight, rowTop, amount);
+      if (!isPet) rightText('F1', bodyFontSize, dailyValueRight, rowTop, row && row.dailyValue || '**');
       if (index < rows.length - 1) rect(thinLeft, thinRight, 184.80 + index * rowHeight, 0.6, true);
     });
     rect(thickLeft, thickRight, finalThickOffset, 1.8, true);
-    if (table.showFooter !== false) text('F1', bodyFontSize, innerLeft, footerOffset, '**Daily Value not established.');
+    if (!isPet && table.showFooter !== false) text('F1', bodyFontSize, innerLeft, footerOffset, '**Daily Value not established.');
     if (hasOtherIngredients) {
-      const otherText = productDevelopmentOneShotPdfFitText('Other Ingredients: ' + table.otherIngredientsEn, 8.6, thickRight - innerLeft - 8, 6.6);
-      text('F1', otherText.size, innerLeft, footerOffset + 14, otherText.text);
+      const otherLabel = isPet ? 'Inactive Ingredients' : 'Other Ingredients';
+      const otherText = productDevelopmentOneShotPdfFitText(otherLabel + ': ' + table.otherIngredientsEn, 8.6, thickRight - innerLeft - 8, 6.6);
+      text('F1', otherText.size, innerLeft, isPet ? footerOffset : footerOffset + 14, otherText.text);
     }
     commands.push('Q');
     const content = commands.join('\n') + '\n';
@@ -7802,7 +8006,8 @@
     }
     if (!result.pdfBlob) {
       state.productDevelopmentOneShotBusy = true;
-      state.productDevelopmentStatus = '正在生成 Supplement Facts PDF…';
+      const factsLabel = normalizeProductDevelopmentIngredientKind(result.ingredientKind || result.snapshot && result.snapshot.ingredientKind) === 'pet' ? 'Product Facts' : 'Supplement Facts';
+      state.productDevelopmentStatus = '正在生成 ' + factsLabel + ' PDF…';
       renderShell();
       try {
         result.pdfBlob = productDevelopmentOneShotBuildPdf(result);
@@ -7813,8 +8018,9 @@
       }
     }
     downloadBlob(result.pdfBlob, result.pdfFileName || productDevelopmentOneShotPdfFileName(result));
-    state.productDevelopmentStatus = 'Supplement Facts PDF 已导出：' + (result.pdfFileName || productDevelopmentOneShotPdfFileName(result));
-    showToast('Supplement Facts PDF 已导出');
+    const factsLabel = normalizeProductDevelopmentIngredientKind(result.ingredientKind || result.snapshot && result.snapshot.ingredientKind) === 'pet' ? 'Product Facts' : 'Supplement Facts';
+    state.productDevelopmentStatus = factsLabel + ' PDF 已导出：' + (result.pdfFileName || productDevelopmentOneShotPdfFileName(result));
+    showToast(factsLabel + ' PDF 已导出');
     renderShell();
   }
 
@@ -7841,10 +8047,12 @@
 
   function productDevelopmentOneShotConfirmedIngredientTable(result) {
     const table = result && result.ingredientTable && typeof result.ingredientTable === 'object' ? result.ingredientTable : {};
-    const rows = Array.isArray(table.rows) ? table.rows.slice(0, 7) : [];
+    const ingredientKind = normalizeProductDevelopmentIngredientKind(result && (result.ingredientKind || result.snapshot && result.snapshot.ingredientKind));
+    const isPet = ingredientKind === 'pet';
+    const rows = Array.isArray(table.rows) ? table.rows.slice(0, 6) : [];
     return {
-      title: productDevelopmentCleanText(table.title || 'Supplement Facts', 160),
-      servingSize: productDevelopmentCleanText(table.servingSize || '1 mL', 80),
+      title: isPet ? 'Product Facts' : 'Supplement Facts',
+      servingSize: productDevelopmentCleanText(table.servingSize || (isPet ? '1 Dropper (1 mL)' : '1 mL'), 80),
       servingsPerContainer: Math.max(1, Math.min(365, Math.round(Number(table.servingsPerContainer) || 60))),
       requiredActiveMg: Number(table.requiredActiveMg) || 0,
       requiredStandardizedActivePercent: Number(table.requiredStandardizedActivePercent) || 0,
@@ -7854,7 +8062,8 @@
       otherIngredientsEn: productDevelopmentCleanText(table.otherIngredientsEn, 1600),
       otherIngredientsCn: productDevelopmentCleanText(table.otherIngredientsCn, 1200),
       footnote: productDevelopmentCleanText(table.footnote || '**Daily Value not established.', 180),
-      showFooter: table.showFooter !== false,
+      otherIngredientsLabel: isPet ? 'Inactive Ingredients' : 'Other Ingredients',
+      showFooter: !isPet && table.showFooter !== false,
       rows: rows.map((row) => ({
         nameEn: productDevelopmentCleanText(productDevelopmentOneShotEditableRowLabel(row) || row && row.nameEn, 300),
         nameCn: productDevelopmentCleanText(row && row.nameCn, 300),
@@ -7889,8 +8098,10 @@
     renderShell();
     let stage = '读取当前 SKU 资料';
     try {
+      restoreProductDevelopmentReviewDraft(currentSku);
+      const existingPlainTextCopy = productDevelopmentOneShotPlainTextCopy(currentSku, null);
       const snapshot = await withCopywritingTimeout(
-        loadProductDevelopmentSnapshot(currentSku, false, { requireIngredients: false, imageKind: 'benchmark' }),
+        loadProductDevelopmentSnapshot(currentSku, false, { requireIngredients: false, includeImage: !existingPlainTextCopy, imageKind: 'benchmark' }),
         180000,
         '当前 SKU 资料读取',
       );
@@ -7912,16 +8123,8 @@
       const copywritingTemplateId = copywritingTemplate && copywritingTemplate.id || '';
       const copywritingTemplateLabel = copywritingTemplate && productDevelopmentCleanText(copywritingTemplate.label, 120) || '当前选择的文案模板';
       const referenceUrl = productDevelopmentCleanText(snapshot.referenceUrl || '', 1200);
-      const previousProductType = productDevelopmentCleanText(state.productDevelopmentOneShotInput && state.productDevelopmentOneShotInput.productType, 180);
-      const humanProductType = PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT.productType;
-      const defaultProductType = ingredientKind === 'pet' ? 'Pet food supplement / liquid drops' : humanProductType;
-      const inputProductType = ingredientKind === 'pet' && (!previousProductType || previousProductType === humanProductType)
-        ? defaultProductType
-        : previousProductType || defaultProductType;
-      const snapshotProductType = productDevelopmentCleanText(snapshot.productType, 180);
-      const selectedProductType = ingredientKind === 'pet' && (!snapshotProductType || snapshotProductType === humanProductType)
-        ? inputProductType
-        : snapshotProductType || inputProductType;
+      const sourcePlainTextCopy = productDevelopmentOneShotPlainTextCopy(currentSku, snapshot);
+      const templateDefaults = productDevelopmentOneShotTemplateDefaults(ingredientTemplate, ingredientTemplateSheetName, [snapshot.name, snapshot.productType, snapshot.englishName].filter(Boolean).join(' '));
       let input = productDevelopmentOneShotInputValue({
         ...state.productDevelopmentOneShotInput,
         sku: snapshot.sku,
@@ -7931,25 +8134,29 @@
           || snapshot.englishName
           || state.productDevelopmentOneShotInput && state.productDevelopmentOneShotInput.nameEn
           || '',
-        productType: selectedProductType,
         netContent: snapshot.netContent || state.productDevelopmentOneShotInput && state.productDevelopmentOneShotInput.netContent || PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT.netContent,
         referenceUrl: /^https?:\/\//i.test(referenceUrl) ? referenceUrl : '',
       });
+      input = productDevelopmentOneShotApplyTemplateDefaults(input, ingredientTemplate, ingredientTemplateSheetName, { force: false });
+      input.sourcePlainTextCopy = sourcePlainTextCopy;
       saveProductDevelopmentOneShotDraft(input);
       state.productDevelopmentOneShotInput = input;
-      if (!snapshot.imageUrl) throw new Error('当前 SKU 没有可读取的对标图片');
+      if (!snapshot.imageUrl && !sourcePlainTextCopy && !input.referenceUrl) throw new Error('当前 SKU 没有对标图片或纯文字文案版本');
       const ingredientSelectionLabel = ingredientTemplateLabel + (ingredientTemplateSheetName ? ' / ' + ingredientTemplateSheetName : '');
-      state.productDevelopmentStatus = '正在读取当前 SKU 对标图，并按“' + ingredientSelectionLabel + '”与当前产品类型生成成分表，最长等待约 10 分钟…';
+      state.productDevelopmentStatus = '正在按“' + ingredientSelectionLabel + '”和' + (sourcePlainTextCopy ? '侵权图纯文字文案' : '当前产品资料') + '生成成分表，最长等待约 10 分钟…';
       renderShell();
       stage = '读取当前 SKU 对标图';
-      const imageResult = await withCopywritingTimeout(
-        productDevelopmentFetchImage(snapshot.imageUrl, snapshot.imageFallbackUrl),
-        60000,
-        '对标图片读取',
-      );
-      let image = imageResult && imageResult.dataUrl ? String(imageResult.dataUrl) : '';
-      if (!/^data:image\//i.test(image)) throw new Error('当前 SKU 对标图片无法转换为可提交的图片');
-      image = await productDevelopmentOneShotOptimizeImage(image);
+      let image = '';
+      if (snapshot.imageUrl) {
+        const imageResult = await withCopywritingTimeout(
+          productDevelopmentFetchImage(snapshot.imageUrl, snapshot.imageFallbackUrl),
+          60000,
+          '对标图片读取',
+        );
+        image = imageResult && imageResult.dataUrl ? String(imageResult.dataUrl) : '';
+        if (!/^data:image\//i.test(image)) throw new Error('当前 SKU 对标图片无法转换为可提交的图片');
+        image = await productDevelopmentOneShotOptimizeImage(image);
+      }
       stage = '生成成分表';
       const response = await withCopywritingTimeout(cloudRequest('/ai-image/product-development-one-shot', {
         method: 'POST',
@@ -7961,9 +8168,11 @@
           mode: 'ingredient',
           referenceUrl: input.referenceUrl,
           imageDataUrl: image,
+          sourcePlainTextCopy,
           ingredientTemplateId,
           ingredientTemplateLabel,
           ingredientTemplateSheetName,
+          ingredientTemplateSheetHeader: templateDefaults.resolvedSheetHeader,
           copywritingTemplateId,
           copywritingTemplateLabel,
           productAttributes: {
@@ -7977,9 +8186,11 @@
             servingSize: input.servingSize,
             servingsPerContainer: input.servingsPerContainer,
             requestedFunctions: input.requestedFunctions,
+            sourcePlainTextCopy,
             ingredientTemplateId,
             ingredientTemplateLabel,
             ingredientTemplateSheetName,
+            ingredientTemplateSheetHeader: templateDefaults.resolvedSheetHeader,
             copywritingTemplateId,
             copywritingTemplateLabel,
           },
@@ -7993,6 +8204,7 @@
         ingredientTemplateId,
         ingredientTemplateLabel,
         ingredientTemplateSheetName,
+        ingredientTemplateSheetHeader: templateDefaults.resolvedSheetHeader,
         copywritingTemplateId,
         copywritingTemplateLabel,
       });
@@ -8002,14 +8214,15 @@
         name: snapshot.name || result.snapshot.name,
         englishName: productDevelopmentEntryEnglishProductName(snapshot) || snapshot.englishName || result.snapshot.englishName,
         brand: snapshot.brand || result.snapshot.brand,
-        productType: snapshot.productType || result.snapshot.productType,
+        productType: input.productType || snapshot.productType || result.snapshot.productType,
         netContent: snapshot.netContent || result.snapshot.netContent,
         imageUrl: snapshot.imageUrl,
         imageFallbackUrl: snapshot.imageFallbackUrl,
-        imageKind: 'benchmark',
-        imageSource: snapshot.imageSource || 'PLM 只读对标图片',
+        imageKind: snapshot.imageKind === 'benchmark' ? 'benchmark' : 'none',
+        imageSource: snapshot.imageSource || (sourcePlainTextCopy ? '已确认纯文字文案' : 'PLM 只读对标图片'),
         referenceUrl: input.referenceUrl,
         ingredientFunctions: snapshot.ingredientFunctions || { en: '', cn: '' },
+        sourcePlainTextCopy,
         sourceCopywriting: snapshot.sourceCopywriting || { efficacy: {}, advantages: {}, sellingPoints: {}, usage: {} },
         labeling: result.labeling,
         ingredientTable: result.ingredientTable,
@@ -8021,6 +8234,7 @@
       result.copywritingTemplateLabel = copywritingTemplateLabel;
       result.ingredientKind = ingredientKind;
       result.ingredientTemplateSheetName = ingredientTemplateSheetName;
+      result.ingredientTemplateSheetHeader = templateDefaults.resolvedSheetHeader;
       if (state.productDevelopmentCopywriting && String(state.productDevelopmentCopywriting.id || '').startsWith('pd-one-shot-')) state.productDevelopmentCopywriting = null;
       state.productDevelopmentOneShotResult = result;
       const validation = productDevelopmentOneShotDraftValidation(result);
@@ -8075,7 +8289,7 @@
       name: sourceSnapshot.name || result.snapshot.name,
       englishName: productDevelopmentEntryEnglishProductName(sourceSnapshot) || sourceSnapshot.englishName || result.snapshot.englishName,
       brand: sourceSnapshot.brand || result.snapshot.brand,
-      productType: sourceSnapshot.productType || result.snapshot.productType,
+      productType: result.snapshot.productType || sourceSnapshot.productType,
       netContent: sourceSnapshot.netContent || result.snapshot.netContent,
       referenceUrl: result.snapshot.referenceUrl || sourceSnapshot.referenceUrl || '',
       ingredients,
@@ -8084,6 +8298,7 @@
         cn: confirmedTable.rows.map((row) => row.nameCn + ' ' + row.amountText).join('、'),
       },
       ingredientFunctions: sourceSnapshot.ingredientFunctions || result.snapshot.ingredientFunctions || { en: '', cn: '' },
+      sourcePlainTextCopy: result.snapshot.sourcePlainTextCopy || productDevelopmentOneShotPlainTextCopy(currentSku, sourceSnapshot),
       sourceCopywriting: sourceSnapshot.sourceCopywriting || result.snapshot.sourceCopywriting || { efficacy: {}, advantages: {}, sellingPoints: {}, usage: {} },
       labeling: result.labeling || {},
       ingredientTable: confirmedTable,
@@ -8111,6 +8326,7 @@
           ingredients,
           ingredientSummary: copySnapshot.ingredientSummary,
           ingredientFunctions: copySnapshot.ingredientFunctions,
+          sourcePlainTextCopy: copySnapshot.sourcePlainTextCopy,
           sourceCopywriting: copySnapshot.sourceCopywriting,
           ingredientTable: confirmedTable,
           confirmedIngredientTable: true,
@@ -8118,6 +8334,7 @@
           ingredientTemplateId: result.ingredientTemplateId || '',
           ingredientTemplateLabel: result.ingredientTemplateLabel || '',
           ingredientTemplateSheetName: result.ingredientTemplateSheetName || '',
+          ingredientTemplateSheetHeader: result.ingredientTemplateSheetHeader || '',
           templateVersion: copywritingTemplate.version,
           templateId: copywritingTemplate.id,
           templateLabel: copywritingTemplate.label,
@@ -8224,17 +8441,18 @@
       renderShell();
       return;
     }
+    const previousKind = normalizeProductDevelopmentIngredientKind(state.productDevelopmentIngredientKind);
     const kind = normalizeProductDevelopmentIngredientKind(template.kind);
     state.productDevelopmentIngredientKind = kind;
     state.productDevelopmentIngredientTemplateId = template.id;
     state.productDevelopmentIngredientSheetName = '';
-    const currentInput = productDevelopmentOneShotInputValue(state.productDevelopmentOneShotInput);
-    const humanProductType = PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT.productType;
-    const petProductType = 'Pet food supplement / liquid drops';
-    if (!currentInput.productType || currentInput.productType === humanProductType || currentInput.productType === petProductType) {
-      currentInput.productType = kind === 'pet' ? petProductType : humanProductType;
-      state.productDevelopmentOneShotInput = saveProductDevelopmentOneShotDraft(currentInput);
-    }
+    const currentInput = productDevelopmentOneShotApplyTemplateDefaults(
+      state.productDevelopmentOneShotInput,
+      template,
+      '',
+      { force: previousKind !== kind },
+    );
+    state.productDevelopmentOneShotInput = saveProductDevelopmentOneShotDraft(currentInput);
     const cleared = productDevelopmentOneShotClearResultForIngredientSelection(template, '');
     state.productDevelopmentError = '';
     state.productDevelopmentStatus = cleared
@@ -8249,6 +8467,12 @@
     const requested = String(sheetName || '').trim();
     const selected = requested && sheets.some((sheet) => String(sheet.name || '').trim() === requested) ? requested : '';
     state.productDevelopmentIngredientSheetName = selected;
+    state.productDevelopmentOneShotInput = saveProductDevelopmentOneShotDraft(productDevelopmentOneShotApplyTemplateDefaults(
+      state.productDevelopmentOneShotInput,
+      template,
+      selected,
+      { force: false },
+    ));
     const cleared = productDevelopmentOneShotClearResultForIngredientSelection(template, selected);
     state.productDevelopmentError = '';
     state.productDevelopmentStatus = cleared
@@ -8435,9 +8659,10 @@
       ? sheetNames.map((name) => '<option value="' + escapeHtml(name) + '"' + (name === selectedSheet ? ' selected' : '') + '>' + escapeHtml(name) + '</option>').join('')
       : '<option value="">' + (state.productDevelopmentIngredientBusy ? '正在加载工作表…' : '请先选择内置模板') + '</option>';
     const canExport = Boolean(editor && !state.productDevelopmentIngredientBusy);
+    const factsLabel = kind === 'pet' ? 'Product Facts' : 'Supplement Facts';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>INGREDIENT TABLE</small><h2>制作成分表</h2></div></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>编辑成分表内容</h3><p>系统已内置模板摘要，选择食品类型和工作表后直接编辑；完成后按原来的 Supplement Facts 版式导出 PDF。</p></div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-ingredient-save-local"' + (canExport ? '' : ' disabled') + '>保存本地</button><button type="button" data-action="product-development-ingredient-export"' + (canExport ? '' : ' disabled') + '>导出 Supplement Facts PDF</button></div></section>' +
+      '<section class="pfh-product-development-work-card"><div><h3>编辑成分表内容</h3><p>系统已内置模板摘要，选择食品类型和工作表后直接编辑；完成后按原来的 ' + factsLabel + ' 版式导出 PDF。</p></div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-ingredient-save-local"' + (canExport ? '' : ' disabled') + '>保存本地</button><button type="button" data-action="product-development-ingredient-export"' + (canExport ? '' : ' disabled') + '>导出 ' + factsLabel + ' PDF</button></div></section>' +
       '<section class="pfh-product-development-detail-form"><header><div><small>模板选择</small><h3>人类食品 / 宠物食品</h3></div><span>' + (template ? '内置模板摘要' : '暂无模板') + '</span></header><div class="pfh-product-development-form-grid">' +
         '<label class="pfh-product-development-material-field"><span>食品类型</span><select class="pfh-product-development-ingredient-kind-input">' + typeOptions + '</select></label>' +
         '<label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-ingredient-template-input">' + (templateOptions || '<option value="">暂无模板</option>') + '</select></label>' +
@@ -8484,6 +8709,8 @@
   }
 
   function productDevelopmentIngredientPdfResultFromEditor(editor, template) {
+    const ingredientKind = normalizeProductDevelopmentIngredientKind(editor && editor.kind);
+    const isPet = ingredientKind === 'pet';
     const cells = editor && Array.isArray(editor.cells) ? editor.cells : [];
     const rowsByNumber = Object.create(null);
     cells.forEach((cell) => {
@@ -8501,7 +8728,7 @@
       .filter(Boolean)
       .join('\n');
     const headerText = [rowText(2), rowText(3)].filter(Boolean).join('\n');
-    const title = productDevelopmentIngredientPdfCellText(headerText.split('\n')[0]) || 'Supplement Facts';
+    const title = isPet ? 'Product Facts' : productDevelopmentIngredientPdfCellText(headerText.split('\n')[0]) || 'Supplement Facts';
     const servingMatch = headerText.match(/Serving\s*Size\s*:?\s*([^\n]+)/i)
       || headerText.match(/(?:Active\s+)?Ingredients?\s+Per\s+([^:\n]+)\s*:?/i);
     const containerMatch = headerText.match(/Servings?\s+Per\s+Container\s*:?\s*([^\n]+)/i);
@@ -8540,7 +8767,7 @@
         nameEn: name,
         nameCn: name,
         amountText: amount,
-        dailyValue: productDevelopmentIngredientPdfDailyValue(row[4] || nameSource),
+        dailyValue: isPet ? '**' : productDevelopmentIngredientPdfDailyValue(row[4] || nameSource),
         markerActiveMg: 0,
       });
     });
@@ -8551,16 +8778,18 @@
       100,
     ) || 'Supplement-Facts';
     return {
-      snapshot: { name: baseLabel, englishName: baseLabel, sku: String(editor && editor.sheetName || baseLabel) },
+      snapshot: { name: baseLabel, englishName: baseLabel, sku: String(editor && editor.sheetName || baseLabel), ingredientKind },
+      ingredientKind,
       ingredientTable: {
         title,
         servingSize,
         servingsPerContainer,
         rows,
         otherIngredientsEn: otherIngredients,
-        showFooter: true,
+        otherIngredientsLabel: isPet ? 'Inactive Ingredients' : 'Other Ingredients',
+        showFooter: !isPet,
       },
-      pdfFileName: productDevelopmentFileDate() + '-' + baseLabel + '-Supplement-Facts.pdf',
+      pdfFileName: productDevelopmentFileDate() + '-' + baseLabel + '-' + (isPet ? 'Product-Facts' : 'Supplement-Facts') + '.pdf',
     };
   }
 
@@ -8578,7 +8807,8 @@
     saveProductDevelopmentIngredientEditorDraft(editor);
     state.productDevelopmentIngredientBusy = true;
     state.productDevelopmentIngredientError = '';
-    state.productDevelopmentIngredientStatus = '正在生成 Supplement Facts PDF…';
+    const factsLabel = normalizeProductDevelopmentIngredientKind(editor.kind) === 'pet' ? 'Product Facts' : 'Supplement Facts';
+    state.productDevelopmentIngredientStatus = '正在生成 ' + factsLabel + ' PDF…';
     renderShell();
     const startedAt = Date.now();
     try {
@@ -8586,9 +8816,9 @@
       const blob = productDevelopmentOneShotBuildPdf(pdfResult, { skipValidation: true });
       const fileName = pdfResult.pdfFileName;
       downloadBlob(blob, fileName);
-      state.productDevelopmentIngredientStatus = 'Supplement Facts PDF 已下载：' + fileName;
+      state.productDevelopmentIngredientStatus = factsLabel + ' PDF 已下载：' + fileName;
       productDevelopmentLog('success', '成分表 PDF 生成完成', editor.kind + ' | 模板=' + template.fileName + ' | 工作表=' + editor.sheetName + ' | 行数=' + pdfResult.ingredientTable.rows.length + ' | 用时=' + (Date.now() - startedAt) + 'ms');
-      showToast('成分表 PDF 已下载');
+      showToast(factsLabel + ' PDF 已下载');
     } catch (error) {
       state.productDevelopmentIngredientError = formatErrorMessage(error);
       state.productDevelopmentIngredientStatus = '';
@@ -8688,8 +8918,8 @@
         showToast('请先完成一次生成');
         return true;
       }
-      if (rows.length >= 7) {
-        showToast('当前成分表模板最多保留 7 行活性成分');
+      if (rows.length >= 6) {
+        showToast('当前成分表最多保留 6 行核心活性成分');
         return true;
       }
       rows.push({ nameEn: '', nameCn: '', latinName: '', sourcePart: '', standardization: '', amountMg: 0, amountText: '', dailyValue: '**', markerActiveMg: 0, labelEn: '' });
@@ -8702,8 +8932,8 @@
       const rows = result && result.ingredientTable && Array.isArray(result.ingredientTable.rows) ? result.ingredientTable.rows : null;
       const index = Number(actionTarget && actionTarget.getAttribute('data-product-development-one-shot-row-index'));
       if (!rows || !Number.isInteger(index) || !rows[index]) return true;
-      if (rows.length <= 3) {
-        showToast('至少保留 3 行活性成分');
+      if (rows.length <= 4) {
+        showToast('至少保留 4 行核心活性成分');
         return true;
       }
       rows.splice(index, 1);
