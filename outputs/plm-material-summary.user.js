@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.300
+// @version      2.8.301
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.300';
+  const SCRIPT_VERSION = '2.8.301';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   let excelJsLoadPromise = null;
 
@@ -22162,7 +22162,7 @@
             }
             setProcessingText('正在缓存 XLSX：' + zipFile.name, true);
             magicUploadLog('info', 'XLSX 开始本地缓存', zipFile.name + ' | bytes=' + Number(zipFile.size || 0));
-            const skus = getSkusFromFileName(zipFile.name);
+            const skus = getMagicUploadSkusFromFileName(zipFile.name);
             const key = 'magic-upload:' + createMagicUploadId() + ':source.xlsx';
             await withMagicUploadTimeout(putUploadFile(key, cloneUploadFile(zipFile)), 120000, 'XLSX 本地缓存');
             magicUploadLog('info', 'XLSX 本地缓存完成', zipFile.name + ' | key=' + key);
@@ -22194,15 +22194,15 @@
           const ignoredCount = decodedEntries.filter((entry) => entry && !entry.dir && entry.name && isMagicUploadIgnoredEntry(entry.name)).length;
           if (ignoredCount) magicUploadLog('warn', 'ZIP 跳过忽略目录文件', zipFile.name + ' | 忽略=' + ignoredCount + ' 个（' + MAGIC_UPLOAD_IGNORE_DIRS.join('/') + '）');
           magicUploadLog('info', 'ZIP 文件清单完成', zipFile.name + ' | 可处理文件=' + entries.length);
-          const fileSkus = getSkusFromFileName(zipFile.name);
+          const fileSkus = getMagicUploadSkusFromFileName(zipFile.name);
           const allSkus = new Set(fileSkus);
-          entries.forEach((entry) => getSkusFromFileName(entry.name).forEach((sku) => allSkus.add(sku)));
+          entries.forEach((entry) => getMagicUploadSkusFromFileName(entry.name).forEach((sku) => allSkus.add(sku)));
           const skus = Array.from(allSkus);
           const groups = new Map((skus.length ? skus : ['']).map((sku) => [sku, []]));
           let entryIndex = 0;
           for (const entry of entries) {
             entryIndex += 1;
-            const innerSkus = getSkusFromFileName(entry.name);
+            const innerSkus = getMagicUploadSkusFromFileName(entry.name);
             const targetSkus = innerSkus.length ? innerSkus : (skus.length ? skus : ['']);
             const entryName = entry.name.split('/').pop() || 'asset';
             setProcessingText('正在解压 ZIP（' + entryIndex + '/' + entries.length + '）：' + entryName, false);
@@ -34347,6 +34347,11 @@ self.onmessage = async function(event) {
 
   function getSkusFromFileName(filename) {
     const matches = String(filename || '').match(/\bSKU\d+\b/ig) || [];
+    return matches.map((sku) => sku.toUpperCase()).filter((sku, index, arr) => arr.indexOf(sku) === index);
+  }
+
+  function getMagicUploadSkusFromFileName(filename) {
+    const matches = String(filename || '').match(/\bSKU\d{8}\b/ig) || [];
     return matches.map((sku) => sku.toUpperCase()).filter((sku, index, arr) => arr.indexOf(sku) === index);
   }
 
