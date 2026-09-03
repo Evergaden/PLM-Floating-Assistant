@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.301
+// @version      2.8.302
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.301';
+  const SCRIPT_VERSION = '2.8.302';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   let excelJsLoadPromise = null;
 
@@ -10983,6 +10983,69 @@
     });
   }
 
+  function productDevelopmentDocxTextLines(value) {
+    return String(value || '')
+      .replace(/\r\n?/g, '\n')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
+  function productDevelopmentSetCellHeadingAndLines(cell, heading, lines, doc) {
+    const sourceParagraph = productDevelopmentXmlElements(cell, 'p')[0];
+    const sourceRuns = sourceParagraph ? productDevelopmentXmlElements(sourceParagraph, 'r').filter((run) => productDevelopmentCellText(run)) : [];
+    const headingRPr = sourceRuns[0] && productDevelopmentXmlElements(sourceRuns[0], 'rPr')[0];
+    const bodyRun = sourceRuns[1] || sourceRuns[0];
+    const bodyRPr = bodyRun && productDevelopmentXmlElements(bodyRun, 'rPr')[0];
+    const sourcePPr = sourceParagraph && productDevelopmentXmlElements(sourceParagraph, 'pPr')[0];
+    const values = [heading].concat(Array.isArray(lines) ? lines : [lines])
+      .map((line) => String(line || '').trim())
+      .filter(Boolean);
+    const appendRun = (paragraph, textValue, runProperties) => {
+      const run = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:r');
+      if (runProperties) run.appendChild(runProperties.cloneNode(true));
+      const text = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:t');
+      text.setAttribute('xml:space', 'preserve');
+      text.textContent = productDevelopmentXmlSafeText(textValue);
+      run.appendChild(text);
+      paragraph.appendChild(run);
+    };
+    productDevelopmentClearCell(cell);
+    values.forEach((line, index) => {
+      const paragraph = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:p');
+      if (sourcePPr) paragraph.appendChild(sourcePPr.cloneNode(true));
+      appendRun(
+        paragraph,
+        line,
+        index === 0 ? headingRPr : productDevelopmentBodyRunProperties(bodyRPr, doc),
+      );
+      cell.appendChild(paragraph);
+    });
+  }
+
+  function productDevelopmentCellGridSpan(cell) {
+    const gridSpan = cell && productDevelopmentXmlElements(cell, 'gridSpan')[0];
+    const value = gridSpan && (gridSpan.getAttribute('w:val') || gridSpan.getAttribute('val'));
+    return Math.max(1, Number(value) || 1);
+  }
+
+  function productDevelopmentSetDirectionsCells(cells, labeling, doc) {
+    if (!cells || !cells[1]) return;
+    const directionsEn = productDevelopmentDocxTextLines(labeling && labeling.directionsEn);
+    const directionsCn = productDevelopmentDocxTextLines(labeling && labeling.directionsCn);
+    const isMergedLanguageCell = productDevelopmentCellGridSpan(cells[1]) > 1 || cells.length < 4;
+    if (isMergedLanguageCell) {
+      productDevelopmentSetCellHeadingAndLines(cells[1], 'DIRECTIONS:', directionsEn.concat(directionsCn), doc);
+      // In the three-cell templates this is the auxiliary sample/rules cell,
+      // not a second language column. Clear it after moving both languages
+      // into the merged content cell so the sample text is not exported.
+      if (cells[2]) productDevelopmentSetCellLines(cells[2], [], doc);
+      return;
+    }
+    productDevelopmentSetCellHeadingAndLines(cells[1], 'DIRECTIONS:', directionsEn, doc);
+    if (cells[2]) productDevelopmentSetCellLines(cells[2], directionsCn, doc);
+  }
+
   function productDevelopmentSetCellPrefixedLines(cell, prefix, lines, doc) {
     const sourceParagraph = productDevelopmentXmlElements(cell, 'p')[0];
     const sourceRuns = sourceParagraph ? productDevelopmentXmlElements(sourceParagraph, 'r').filter((run) => productDevelopmentCellText(run)) : [];
@@ -11332,8 +11395,7 @@
       }
       if (targets.directions && hasLabeling) {
         const cells = productDevelopmentXmlElements(targets.directions, 'tc');
-        if (cells[1]) productDevelopmentSetCellLines(cells[1], ['DIRECTIONS: ' + String(labeling.directionsEn || '')], doc);
-        if (cells[2]) productDevelopmentSetCellLines(cells[2], [String(labeling.directionsCn || '')], doc);
+        productDevelopmentSetDirectionsCells(cells, labeling, doc);
       }
       if (disclaimer && hasLabeling) {
         const cells = productDevelopmentXmlElements(disclaimer, 'tc');
