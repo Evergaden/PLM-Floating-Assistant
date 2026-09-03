@@ -7184,7 +7184,7 @@
     const fullPrice = productDevelopmentPricingNumber(fullPackagePrice);
     const taxRate = productDevelopmentPricingTaxRatePercent(taxRatePercent);
     if (fullPrice === null || fullPrice <= 0 || taxRate === null || taxRate < 0 || taxRate > 100) return null;
-    const thirdPrice = Number((fullPrice * taxRate / 100 + 3 / 0.7).toFixed(2));
+    const thirdPrice = Number(((fullPrice * (1 + taxRate / 100) + 3) / 0.7).toFixed(2));
     return {
       thirdPrice,
       secondPrice: Number((thirdPrice + 1).toFixed(2)),
@@ -11749,7 +11749,7 @@
     const tiers = [
       ['国内一档价格', result.firstPrice, '三档价格 + 2'],
       ['国内二档价格', result.secondPrice, '三档价格 + 1'],
-      ['国内三档价格', result.thirdPrice, '全包价格 × 税率 + 3 ÷ 0.7'],
+      ['国内三档价格', result.thirdPrice, '（全包价格 × (1 + 税率/100) + 3）÷ 0.7'],
     ];
     return '<div class="pfh-product-development-grid pfh-product-development-pricing-result-grid">' + tiers.map((tier) => '<article class="pfh-product-development-card pfh-product-development-pricing-tier"><div class="pfh-product-development-card-head"><span>' + iconHtml('calculator') + '</span><i>公式建议</i></div><h3>' + escapeHtml(tier[0]) + '</h3><p><strong>¥' + escapeHtml(productDevelopmentPricingPriceText(tier[1])) + '</strong></p><small>' + escapeHtml(tier[2]) + '</small></article>').join('') + '</div>' +
       '<div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-pricing-apply" data-product-sku="' + escapeHtml(sku) + '"' + (canApply ? '' : ' disabled') + '>填入当前 SKU 建品资料</button><small>' + escapeHtml(applyHint) + '</small></div>';
@@ -11769,7 +11769,7 @@
     const errorHtml = state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>PRICING STANDARD</small><h2>定价标准</h2></div></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>计算国内三档价格</h3><p>三档价格 = 全包价格 × 税率 + 3 ÷ 0.7；二档价格 = 三档价格 + 1；一档价格 = 三档价格 + 2。</p></div><span>' + escapeHtml(sku ? '当前 SKU：' + sku : '公式计算工具') + '</span></section>' +
+      '<section class="pfh-product-development-work-card"><div><h3>计算国内三档价格</h3><p>三档价格 = （全包价格 × (1 + 税率/100) + 3）÷ 0.7；二档价格 = 三档价格 + 1；一档价格 = 三档价格 + 2。</p></div><span>' + escapeHtml(sku ? '当前 SKU：' + sku : '公式计算工具') + '</span></section>' +
       '<section class="pfh-product-development-detail-form"><header><div><small>PRICING INPUT</small><h3>定价输入</h3></div><span>' + escapeHtml(sourceHint) + '</span></header><div class="pfh-product-development-form-grid"><label class="pfh-product-development-material-field"><span>全包价格（元）</span><input type="number" min="0" step="0.01" inputmode="decimal" class="pfh-product-development-pricing-input" data-product-development-pricing-field="fullPackagePrice" value="' + escapeHtml(input.fullPackagePrice) + '" placeholder="例如：6.50"></label><label class="pfh-product-development-material-field"><span>税率（%）</span><input type="number" min="0" max="100" step="0.01" inputmode="decimal" class="pfh-product-development-pricing-input" data-product-development-pricing-field="taxRatePercent" value="' + escapeHtml(input.taxRatePercent) + '" placeholder="例如：13"></label></div><p class="pfh-product-development-form-note">税率按百分数填写，例如 13% 填写 13；也支持填写 0.13，系统会按 13% 换算。</p></section>' +
       statusHtml + errorHtml +
       '<section class="pfh-product-development-form-section"><h4>计算结果</h4><div class="pfh-product-development-pricing-result">' + productDevelopmentPricingResultHtml(result, sku, detail) + '</div></section>' +
