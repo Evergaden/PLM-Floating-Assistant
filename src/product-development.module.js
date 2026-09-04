@@ -63,6 +63,8 @@
   const productDevelopmentTaskMetaWriteTimers = Object.create(null);
   const productDevelopmentReworkLookupTimers = Object.create(null);
   const productDevelopmentReworkLookupRequestTokens = Object.create(null);
+  const productDevelopmentCategoryOptionsCache = Object.create(null);
+  const productDevelopmentCategoryOptionRecordKeys = new Set();
   const productDevelopmentCopywritingTemplateBufferCache = Object.create(null);
   const PRODUCT_DEVELOPMENT_W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
   const PRODUCT_DEVELOPMENT_REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
@@ -3186,6 +3188,108 @@
       .filter(productDevelopmentDomVisible);
   }
 
+  function productDevelopmentDomVisibleCascaderMenus() {
+    return productDevelopmentDomVisibleDropdowns()
+      .filter((dropdown) => dropdown.classList.contains('ant-cascader-dropdown') || dropdown.querySelector('.ant-cascader-menu'))
+      .flatMap((dropdown) => Array.from(dropdown.querySelectorAll('.ant-cascader-menu')).filter(productDevelopmentDomVisible));
+  }
+
+  function productDevelopmentDomCascaderMenuOptions(menu) {
+    if (!menu) return [];
+    return Array.from(menu.querySelectorAll('.ant-cascader-menu-item, [role="menuitem"]'))
+      .filter(productDevelopmentDomVisible)
+      .filter((option) => option.getAttribute('aria-disabled') !== 'true' && !option.classList.contains('ant-cascader-menu-item-disabled'));
+  }
+
+  function productDevelopmentDomRecordCascaderOptions(stage) {
+    const record = productDevelopmentDomVisibleCascaderMenus().map((menu, index) => ({
+      column: index + 1,
+      stage: String(stage || ''),
+      options: productDevelopmentDomCascaderMenuOptions(menu).map((option) => ({
+        text: productDevelopmentDomOptionText(option),
+        id: option.getAttribute('data-id') || option.getAttribute('data-value') || option.getAttribute('value') || '',
+        title: option.getAttribute('title') || '',
+        hasChildren: option.classList.contains('ant-cascader-menu-item-expand') || Boolean(option.querySelector('.ant-cascader-menu-item-expand-icon')),
+      })).filter((item) => item.text),
+    })).filter((item) => item.options.length);
+    if (record.length) {
+      const detail = record.map((item) => '第' + item.column + '列：' + item.options.map((option) => option.text).join('、')).join(' | ');
+      const key = String(stage || '') + '|' + detail;
+      if (!productDevelopmentCategoryOptionRecordKeys.has(key)) {
+        productDevelopmentCategoryOptionRecordKeys.add(key);
+        productDevelopmentLog('info', '记录 PLM 类目选项', (stage ? String(stage) + ' | ' : '') + detail);
+      }
+    }
+    return record;
+  }
+
+  async function productDevelopmentLoadCategoryOptions(parentId) {
+    const key = String(parentId === undefined || parentId === null ? 0 : parentId);
+    if (productDevelopmentCategoryOptionsCache[key]) return productDevelopmentCategoryOptionsCache[key];
+    const payload = await fetchPlmJson('/api/ProjectFormData/GetCategorySelectOptionNew?types=1&parent_id=' + encodeURIComponent(key));
+    const nodes = productDevelopmentReadonlyList(payload).map((node) => ({
+      id: String(node && node.id || '').trim(),
+      parentId: String(node && node.parent_id === undefined ? key : node.parent_id || '').trim(),
+      name: productDevelopmentDomText(node && node.name),
+      children: Array.isArray(node && node.children) ? node.children : [],
+    })).filter((node) => node.id && node.name);
+    productDevelopmentCategoryOptionsCache[key] = nodes;
+    if (nodes.length) productDevelopmentLog('info', '读取 PLM 类目接口选项', 'parent_id=' + key + ' | ' + nodes.map((node) => node.name + '(' + node.id + ')').join('、'));
+    return nodes;
+  }
+
+  async function productDevelopmentResolveCascaderSegments(input, target) {
+    const directSegments = productDevelopmentDomCascaderSegments(input, target);
+    const rawSegments = productDevelopmentPrefillText(target, 800).split(/[\/／>＞|]+/).map((item) => item.trim()).filter(Boolean);
+    if (!input || input.id !== 'form_item_category_id') return directSegments;
+    const categorySegments = rawSegments[0] === '成品' ? rawSegments.slice(1) : rawSegments;
+    if (categorySegments.length !== 1) return directSegments;
+    const wanted = productDevelopmentDomText(categorySegments[0]);
+    if (!wanted) return directSegments;
+    const queue = [{ parentId: '0', path: [] }];
+    const visited = new Set();
+    while (queue.length && visited.size < 160) {
+      const current = queue.shift();
+      const parentKey = String(current.parentId);
+      if (visited.has(parentKey)) continue;
+      visited.add(parentKey);
+      let nodes = [];
+      try {
+        nodes = await productDevelopmentLoadCategoryOptions(parentKey);
+      } catch (error) {
+        productDevelopmentLog('warn', '读取 PLM 类目选项失败', parentKey + ' | ' + formatErrorMessage(error));
+        continue;
+      }
+      nodes.forEach((node) => {
+        const path = current.path.concat(node.name);
+        if (productDevelopmentDomText(node.name) === wanted) {
+          queue.length = 0;
+          queue.push({ parentId: '__resolved__', path });
+          return;
+        }
+        if (Number(node.id) > 0 && (node.children.length || path.length < 4)) queue.push({ parentId: node.id, path });
+      });
+      const resolved = queue.find((item) => item.parentId === '__resolved__');
+      if (resolved) return resolved.path;
+    }
+    return directSegments;
+  }
+
+  async function productDevelopmentDomWaitForCascaderOption(segment, columnIndex, timeout, stage) {
+    const option = await waitFor(() => {
+      const menus = productDevelopmentDomVisibleCascaderMenus();
+      productDevelopmentDomRecordCascaderOptions(stage || '第' + (columnIndex + 1) + '列');
+      const menu = menus[columnIndex] || menus[menus.length - 1];
+      if (!menu) return null;
+      const wanted = productDevelopmentDomText(segment);
+      return productDevelopmentDomCascaderMenuOptions(menu).find((item) => productDevelopmentDomOptionText(item) === wanted)
+        || productDevelopmentDomCascaderMenuOptions(menu).find((item) => productDevelopmentDomOptionText(item).endsWith(wanted))
+        || null;
+    }, timeout || 10000, 100);
+    if (!option) throw new Error('PLM 类目第' + (columnIndex + 1) + '列找不到“' + segment + '”');
+    return option;
+  }
+
   function productDevelopmentDomDropdownOpen(input) {
     const container = input && input.closest('.ant-select, .ant-cascader-picker, .ant-cascader');
     return Boolean(input && input.getAttribute('aria-expanded') === 'true'
@@ -3270,12 +3374,25 @@
     const opened = await productDevelopmentDomOpenDropdown(input);
     if (!opened) throw new Error('PLM 下拉未能展开');
     if (control === 'cascader') {
-      const segments = productDevelopmentDomCascaderSegments(input, wanted);
+      const segments = await productDevelopmentResolveCascaderSegments(input, wanted);
       for (let index = 0; index < segments.length; index += 1) {
         const segment = segments[index];
-        const option = await productDevelopmentDomWaitForOption(segment, 8000);
-        option.click();
-        if (index < segments.length - 1) await productDevelopmentDomWaitForOption(segments[index + 1], 8000);
+        const option = await productDevelopmentDomWaitForCascaderOption(segment, index, 12000, segments.slice(0, index + 1).join(' / '));
+        productDevelopmentDomActivateTarget(option);
+        if (index < segments.length - 1) {
+          await waitFor(() => {
+            const menus = productDevelopmentDomVisibleCascaderMenus();
+            productDevelopmentDomRecordCascaderOptions(segments.slice(0, index + 1).join(' / '));
+            const nextMenu = menus[index + 1] || menus[menus.length - 1];
+            if (!nextMenu) return false;
+            const wantedNext = productDevelopmentDomText(segments[index + 1]);
+            return productDevelopmentDomCascaderMenuOptions(nextMenu).some((item) => {
+              const text = productDevelopmentDomOptionText(item);
+              return text === wantedNext || text.endsWith(wantedNext);
+            });
+          }, 12000, 100);
+          await productDevelopmentDomWait(80);
+        }
       }
     } else if (control === 'search-select') {
       if (input.readOnly || input.type === 'file') throw new Error('PLM 搜索下拉不可输入');
