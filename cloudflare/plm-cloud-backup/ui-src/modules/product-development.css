@@ -197,8 +197,7 @@
 #plm-floating-helper .pfh-product-development-hero,
 #plm-floating-helper .pfh-product-development-context,
 #plm-floating-helper .pfh-product-development-section,
-#plm-floating-helper .pfh-product-development-work-card,
-#plm-floating-helper .pfh-product-development-template-card {
+#plm-floating-helper .pfh-product-development-work-card {
   border: 1px solid var(--pfh-theme-border);
   border-radius: 18px;
   background: linear-gradient(140deg, var(--pfh-theme-surface), var(--pfh-theme-surface-alt));
@@ -215,8 +214,7 @@
 
 #plm-floating-helper .pfh-product-development-hero small,
 #plm-floating-helper .pfh-product-development-section header small,
-#plm-floating-helper .pfh-product-development-subview-head small,
-#plm-floating-helper .pfh-product-development-template-card small {
+#plm-floating-helper .pfh-product-development-subview-head small {
   color: var(--pfh-theme-primary);
   font-size: 9px;
   letter-spacing: .12em;
@@ -1155,6 +1153,28 @@
   cursor: pointer;
 }
 
+#plm-floating-helper .pfh-product-development-one-shot-editor .pfh-product-development-download-row button {
+  flex: 1 1 0;
+  min-width: 184px;
+  max-width: 240px;
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-action-primary {
+  border-color: var(--pfh-theme-primary);
+  background: var(--pfh-theme-primary);
+  color: #fff;
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-action-secondary {
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary);
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-editor .pfh-product-development-download-row button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
 #plm-floating-helper .pfh-product-development-preview-actions {
   display: flex;
   align-items: center;
@@ -1405,7 +1425,7 @@
 #plm-floating-helper .pfh-product-development-review-bbox {
   display: grid;
   grid-template-columns: 1.2fr repeat(4, minmax(0, 1fr));
-  align-items: end;
+  align-items: flex-end;
   gap: 6px;
 }
 
@@ -1492,24 +1512,29 @@
   line-height: 1.55;
 }
 
-#plm-floating-helper .pfh-product-development-template-card {
+#plm-floating-helper .pfh-product-development-copywriting-toolbar {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 8px;
   flex-wrap: wrap;
-  padding: 12px 14px;
+  padding: 1px 1px 0;
 }
 
-#plm-floating-helper .pfh-product-development-template-card > div {
+#plm-floating-helper .pfh-product-development-copywriting-template-control {
   display: grid;
-  min-width: 210px;
+  min-width: 0;
   flex: 1 1 260px;
-  gap: 3px;
+  gap: 4px;
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-template-control > span {
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
 }
 
 #plm-floating-helper .pfh-product-development-copywriting-template-input {
   width: 100%;
-  min-height: 31px;
+  min-height: 34px;
   padding: 0 30px 0 9px;
   border: 1px solid var(--pfh-theme-border);
   border-radius: 8px;
@@ -1526,22 +1551,14 @@
   outline-offset: 1px;
 }
 
-#plm-floating-helper .pfh-product-development-template-note {
-  flex: 1 1 100%;
-  color: var(--pfh-theme-muted);
-  font-size: 9px;
-  line-height: 1.5;
-}
-
-#plm-floating-helper .pfh-product-development-template-card strong,
-#plm-floating-helper .pfh-product-development-template-card > span {
-  color: var(--pfh-theme-text);
-  font-size: 10px;
-}
-
 #plm-floating-helper .pfh-product-development-template-picker,
-#plm-floating-helper .pfh-product-development-template-card > button {
-  min-height: 29px;
+#plm-floating-helper .pfh-product-development-copywriting-toolbar > button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  white-space: nowrap;
   padding: 0 10px;
   border: 1px solid var(--pfh-theme-border);
   border-radius: 8px;
@@ -1552,6 +1569,32 @@
   cursor: pointer;
 }
 
+#plm-floating-helper .pfh-product-development-copywriting-toolbar > button:hover,
+#plm-floating-helper .pfh-product-development-template-picker:hover {
+  border-color: var(--pfh-theme-primary);
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary);
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-toolbar-output {
+  border-color: var(--pfh-theme-primary);
+  background: var(--pfh-theme-primary);
+  color: #fff;
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-toolbar-output:hover {
+  background: var(--pfh-theme-primary-hover);
+  color: #fff;
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-ingredient-count {
+  align-self: center;
+  margin-left: auto;
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
 #plm-floating-helper .pfh-product-development-template-picker input {
   display: none;
 }
@@ -1559,6 +1602,7 @@
 #plm-floating-helper .pfh-product-development-download-row {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -1623,7 +1667,7 @@
   gap: 8px;
 }
 
-#plm-floating-helper .pfh-product-development-one-shot-source > div {
+#plm-floating-helper .pfh-product-development-one-shot-source-item {
   display: grid;
   min-width: 0;
   gap: 3px;
@@ -1633,8 +1677,8 @@
   background: var(--pfh-theme-control-surface);
 }
 
-#plm-floating-helper .pfh-product-development-one-shot-source small,
-#plm-floating-helper .pfh-product-development-one-shot-source span {
+#plm-floating-helper .pfh-product-development-one-shot-source-item small,
+#plm-floating-helper .pfh-product-development-one-shot-source-item span {
   overflow: hidden;
   color: var(--pfh-theme-muted);
   font-size: 9px;
@@ -1642,7 +1686,7 @@
   white-space: nowrap;
 }
 
-#plm-floating-helper .pfh-product-development-one-shot-source strong {
+#plm-floating-helper .pfh-product-development-one-shot-source-item strong {
   overflow: hidden;
   color: var(--pfh-theme-text);
   font-size: 10px;
@@ -1650,9 +1694,67 @@
   white-space: nowrap;
 }
 
+#plm-floating-helper .pfh-product-development-one-shot-settings {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: var(--pfh-product-development-one-shot-settings-columns, minmax(0, 1.25fr) repeat(2, minmax(0, 1fr)));
+  align-items: end;
+  gap: 8px;
+  padding: 10px 11px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 11px;
+  background: var(--pfh-theme-control-surface);
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-settings-product {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-settings-product > small,
+#plm-floating-helper .pfh-product-development-one-shot-settings-product > .pfh-product-development-material-field > span {
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-settings-product > strong {
+  overflow: hidden;
+  color: var(--pfh-theme-text);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-settings-product > .pfh-product-development-material-field {
+  gap: 4px;
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-settings-summary {
+  grid-column: 1 / -1;
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-settings .pfh-product-development-material-field {
+  gap: 4px;
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-settings .pfh-product-development-material-field input,
+#plm-floating-helper .pfh-product-development-one-shot-settings .pfh-product-development-material-field select {
+  min-height: 31px;
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-inputs {
+  display: grid;
+  grid-template-columns: var(--pfh-product-development-one-shot-input-columns, repeat(3, minmax(0, 1fr)));
+  gap: 9px;
+}
+
 #plm-floating-helper .pfh-product-development-one-shot-launch-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 9px;
   flex-wrap: wrap;
 }
@@ -1670,7 +1772,8 @@
 }
 
 #plm-floating-helper .pfh-product-development-one-shot-add {
-  width: 100%;
+  width: var(--pfh-product-development-one-shot-add-width, fit-content);
+  justify-self: end;
   min-height: 32px;
   padding: 0 12px;
   border: 1px dashed var(--pfh-theme-primary);
@@ -1692,7 +1795,6 @@
   opacity: .55;
 }
 
-#plm-floating-helper .pfh-product-development-one-shot-launch-actions small,
 #plm-floating-helper .pfh-product-development-one-shot-editor .pfh-product-development-download-row small {
   color: var(--pfh-theme-muted);
   font-size: 9px;
@@ -1839,8 +1941,29 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  #plm-floating-helper .pfh-product-development-copywriting-template-control {
+    flex-basis: 100%;
+  }
+
+  #plm-floating-helper .pfh-product-development-copywriting-toolbar .pfh-product-development-template-picker,
+  #plm-floating-helper .pfh-product-development-copywriting-toolbar > button {
+    flex: 1 1 0;
+  }
+
+  #plm-floating-helper .pfh-product-development-copywriting-ingredient-count {
+    width: 100%;
+  }
+
   #plm-floating-helper .pfh-product-development-one-shot-launch .pfh-product-development-one-shot-source {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  #plm-floating-helper .pfh-product-development-one-shot-settings {
+    --pfh-product-development-one-shot-settings-columns: minmax(0, 1fr);
+  }
+
+  #plm-floating-helper .pfh-product-development-one-shot-inputs {
+    --pfh-product-development-one-shot-input-columns: minmax(0, 1fr);
   }
 
   #plm-floating-helper .pfh-product-development-one-shot-editor .pfh-product-development-one-shot-table-head {
@@ -1852,6 +1975,15 @@
 
   #plm-floating-helper .pfh-product-development-one-shot-editor .pfh-product-development-one-shot-table-head.is-pet {
     grid-template-columns: minmax(0, 1fr) 74px 22px;
+  }
+
+  #plm-floating-helper .pfh-product-development-one-shot-launch-actions button,
+  #plm-floating-helper .pfh-product-development-one-shot-editor .pfh-product-development-download-row button {
+    width: 100%;
+  }
+
+  #plm-floating-helper .pfh-product-development-one-shot-add {
+    --pfh-product-development-one-shot-add-width: 100%;
   }
 
   #plm-floating-helper .pfh-product-development-hero,
@@ -1986,6 +2118,18 @@
   color: var(--pfh-theme-muted);
   font-size: 9px;
   line-height: 1.5;
+}
+
+#plm-floating-helper .pfh-product-development-preview-note strong {
+  color: var(--pfh-theme-text);
+  font-size: 10px;
+}
+
+#plm-floating-helper .pfh-product-development-preview-note p {
+  margin: 3px 0 0;
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+  line-height: 1.45;
 }
 
 #plm-floating-helper .pfh-product-development-review-editor-warnings,

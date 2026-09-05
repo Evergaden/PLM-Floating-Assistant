@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.309
+// @version      2.8.310
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.309';
+  const SCRIPT_VERSION = '2.8.310';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -167,7 +167,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.272';
+  const UI_ASSET_VERSION = '2.5.273';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -12268,7 +12268,7 @@
   }
 
   function productDevelopmentCopywritingPreviewHtml(content) {
-    if (!content) return '<div class="pfh-product-development-result-empty">生成后显示 A-D 四个字段的中英文条目。</div>';
+    if (!content) return '';
     const rows = [
       ['A 产品功效', content.efficacy],
       ['B 产品优势', content.advantages],
@@ -12495,14 +12495,14 @@
     const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku
       ? state.productDevelopmentSnapshot
       : null;
+    const result = state.productDevelopmentOneShotResult && state.productDevelopmentOneShotResult.sku === sku
+      ? state.productDevelopmentOneShotResult
+      : null;
     const task = state.productDevelopmentSelectedTask && typeof state.productDevelopmentSelectedTask === 'object'
       ? state.productDevelopmentSelectedTask
       : {};
     const name = productDevelopmentCleanText(snapshot && snapshot.name || task.name || task.productName || '当前选中产品', 220);
-    const imageReady = Boolean(snapshot && snapshot.imageKind === 'benchmark' && snapshot.imageUrl);
-    const referenceUrl = productDevelopmentCleanText(snapshot && snapshot.referenceUrl || '', 1200);
     const input = productDevelopmentOneShotInputForRender();
-    const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
     const ingredientTemplate = productDevelopmentOneShotIngredientTemplate();
     const productType = productDevelopmentCleanText(input.productType || snapshot && snapshot.productType || '生成时按当前 SKU 读取', 180);
     const ingredientTemplateLabel = ingredientTemplate
@@ -12512,11 +12512,15 @@
     const sheetOptions = productDevelopmentOneShotIngredientSheetOptions(ingredientTemplate);
     const plainTextCopy = productDevelopmentOneShotPlainTextCopy(sku, snapshot);
     const resolvedSheet = productDevelopmentCleanText(state.productDevelopmentOneShotResolvedSheetName, 120);
-    const sourceCopyLabel = plainTextCopy ? '已读取纯文字文案版本' : '尚未填写纯文字文案版本';
-    const sourceCopyHint = plainTextCopy ? '生成时优先按侵权图修改后的纯文字文案识别定位和核心成分' : '建议先在“产品图风险筛查”中确认纯文字文案，生成时将优先使用它';
-    const imageLabel = plainTextCopy ? '本次生成不读取效果图' : imageReady ? '已读取当前 SKU 对标图' : '点击生成时自动读取';
-    const imageHint = plainTextCopy ? '已确认纯文字文案，效果图仅用于风险对照图查看' : referenceUrl || '参考链接将在读取产品资料后自动带入';
-    return '<div class="pfh-product-development-one-shot-source"><div><small>当前选中产品</small><strong>' + escapeHtml(name) + '</strong><span>SKU ' + escapeHtml(sku || '未选择') + '</span></div><div><small>成分识别依据</small><strong>' + escapeHtml(sourceCopyLabel) + '</strong><span>' + escapeHtml(sourceCopyHint) + '</span></div><div><small>对标图与参考链接</small><strong>' + imageLabel + '</strong><span>' + escapeHtml(imageHint) + '</span></div><div><small>产品类型</small><strong>' + escapeHtml(productType) + '</strong><label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-one-shot-ingredient-template-input" aria-label="选择成分表模板">' + templateOptions + '</select></label><label class="pfh-product-development-material-field"><span>参考工作表（可选）</span><select class="pfh-product-development-one-shot-ingredient-sheet-input" aria-label="选择参考工作表"' + (ingredientTemplate ? '' : ' disabled') + '>' + sheetOptions + '</select></label><span>当前：' + escapeHtml(ingredientTemplateLabel) + (resolvedSheet && !state.productDevelopmentIngredientSheetName ? ' · 自动参考：' + escapeHtml(resolvedSheet) : '') + ' · 文案：' + escapeHtml(copywritingTemplate.label || '当前选择') + '</span></div></div>';
+    const sourceCopyLabel = plainTextCopy ? '已读取纯文字文案' : '尚未填写纯文字文案';
+    const sourceCopyHint = plainTextCopy ? '已作为本次生成依据' : '请先在“产品图风险筛查”中确认';
+    const productTypeHtml = result
+      ? '<div class="pfh-product-development-one-shot-settings-product"><small>产品类型</small><strong>' + escapeHtml(productType) + '</strong></div>'
+      : '<div class="pfh-product-development-one-shot-settings-product">' + productDevelopmentOneShotFieldHtml(input, 'productType', '产品类型', 'text') + '</div>';
+    const autoSheetHtml = resolvedSheet && !state.productDevelopmentIngredientSheetName
+      ? '<span class="pfh-product-development-one-shot-settings-summary">自动参考：' + escapeHtml(resolvedSheet) + '</span>'
+      : '';
+    return '<div class="pfh-product-development-one-shot-source"><div class="pfh-product-development-one-shot-source-item"><small>当前产品</small><strong>' + escapeHtml(name) + '</strong><span>SKU ' + escapeHtml(sku || '未选择') + '</span></div><div class="pfh-product-development-one-shot-source-item"><small>成分依据</small><strong>' + escapeHtml(sourceCopyLabel) + '</strong><span>' + escapeHtml(sourceCopyHint) + '</span></div><div class="pfh-product-development-one-shot-settings">' + productTypeHtml + '<label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-one-shot-ingredient-template-input" aria-label="选择成分表模板">' + templateOptions + '</select></label><label class="pfh-product-development-material-field"><span>参考工作表（可选）</span><select class="pfh-product-development-one-shot-ingredient-sheet-input" aria-label="选择参考工作表"' + (ingredientTemplate ? '' : ' disabled') + '>' + sheetOptions + '</select></label>' + autoSheetHtml + '</div></div>';
   }
 
   function productDevelopmentOneShotEditorFieldHtml(value, key, label, type, multiline, wide) {
@@ -12651,9 +12655,7 @@
 
   function productDevelopmentOneShotResultHtml(result) {
     if (!result) {
-      const template = productDevelopmentOneShotIngredientTemplate();
-      const factsLabel = normalizeProductDevelopmentIngredientKind(template && template.kind) === 'pet' ? 'Product Facts' : 'Supplement Facts';
-      return '<div class="pfh-product-development-result-empty">点击上方“生成成分表”后，这里会出现可编辑的 ' + factsLabel + ' 草稿。成分表确认前不会生成文案，校验通过前不会允许导出 PDF。</div>';
+      return '<div class="pfh-product-development-result-empty">点击“生成成分表”开始，确认成分表后再生成文案。</div>';
     }
     const table = result.ingredientTable || {};
     const ingredientKind = normalizeProductDevelopmentIngredientKind(result.ingredientKind || result.snapshot && result.snapshot.ingredientKind);
@@ -12662,14 +12664,22 @@
     const warnings = Array.isArray(result.warnings) ? result.warnings.filter(Boolean).slice(0, 12) : [];
     const warningHtml = warnings.length ? '<div class="pfh-product-development-preview-note"><strong>人工复核提醒</strong><p>' + warnings.map((item) => escapeHtml(item)).join('<br>') + '</p></div>' : '';
     const labeling = result.labeling && typeof result.labeling === 'object' ? result.labeling : {};
-    const labelingHtml = '<div class="pfh-product-development-preview-note"><strong>标签用语（确认成分表后写入文案 DOCX）</strong><p>Directions: ' + escapeHtml(labeling.directionsEn || '') + '</p><p>' + escapeHtml(labeling.directionsCn || '') + '</p>' + (labeling.disclaimerEn ? '<p>FDA disclaimer: ' + escapeHtml(labeling.disclaimerEn) + '</p>' : '') + '<p>' + escapeHtml(labeling.warningsEn || '') + '</p></div>';
+    const labelingParts = [
+      labeling.directionsEn ? '<p>Directions: ' + escapeHtml(labeling.directionsEn) + '</p>' : '',
+      labeling.directionsCn ? '<p>' + escapeHtml(labeling.directionsCn) + '</p>' : '',
+      labeling.disclaimerEn ? '<p>FDA disclaimer: ' + escapeHtml(labeling.disclaimerEn) + '</p>' : '',
+      labeling.warningsEn ? '<p>' + escapeHtml(labeling.warningsEn) + '</p>' : '',
+    ].filter(Boolean);
+    const labelingHtml = labelingParts.length
+      ? '<div class="pfh-product-development-preview-note"><strong>标签用语</strong>' + labelingParts.join('') + '</div>'
+      : '';
     const validationHtml = validation.valid
       ? '<div class="pfh-product-development-one-shot-validation is-valid"><strong>' + (result.content ? '成分表已确认，文案已生成' : '校验通过，请确认成分表后生成文案') + '</strong><span>' + (validation.hasMassAmounts ? '活性合计 ' + escapeHtml(String(validation.activeTotalMg)) + ' mg' : '活性用量按包装标示单位') + (isPet || !validation.hasMassAmounts ? '' : ' · 标准化活性 ' + escapeHtml(String(validation.standardizedActivePercent)) + '%') + '</span></div>'
       : '<div class="pfh-product-development-one-shot-validation is-invalid"><strong>成分表仍需修正，暂不能导出</strong><span>' + validation.errors.map((item) => escapeHtml(item)).join('；') + '</span></div>';
     const footerChecked = !isPet && table.showFooter !== false;
     const copywritingAction = result.content
-      ? '<button type="button" data-action="product-development-one-shot-download-copywriting">下载文案 DOCX</button>'
-      : '<button type="button" data-action="product-development-copywriting-ingredient-confirm"' + (validation.valid && !state.productDevelopmentOneShotBusy ? '' : ' disabled') + '>' + (state.productDevelopmentOneShotBusy ? '正在生成文案…' : '确认成分表并生成文案') + '</button>';
+      ? '<button type="button" class="pfh-product-development-one-shot-action-primary" data-action="product-development-one-shot-download-copywriting">下载文案 DOCX</button>'
+      : '<button type="button" class="pfh-product-development-one-shot-action-primary" data-action="product-development-copywriting-ingredient-confirm"' + (validation.valid && !state.productDevelopmentOneShotBusy ? '' : ' disabled') + '>' + (state.productDevelopmentOneShotBusy ? '正在生成文案…' : '确认成分表并生成文案') + '</button>';
     return '<section class="pfh-product-development-detail-form pfh-product-development-one-shot-editor"><header><div><small>' + (isPet ? 'PRODUCT FACTS PDF' : 'SUPPLEMENT FACTS PDF') + '</small><h3>编辑成分表草稿</h3></div><span>' + escapeHtml(String(result.snapshot && result.snapshot.englishName || (isPet ? 'Pet Nutrition Support' : 'Daily Wellness Support Drops'))) + '</span></header><div class="pfh-product-development-form-grid">' +
       productDevelopmentOneShotEditorFieldHtml(table, 'title', '标题', 'text', false, true) +
       productDevelopmentOneShotEditorFieldHtml(table, 'servingSize', 'Serving Size', 'text', false, false) +
@@ -12678,7 +12688,7 @@
       (isPet ? '' : productDevelopmentOneShotEditorFieldHtml(table, 'requiredStandardizedActivePercent', '标准化活性目标（可选，%）', 'number', false, false)) +
       productDevelopmentOneShotEditorFieldHtml(table, 'otherIngredientsEn', isPet ? 'Inactive Ingredients（可选）' : 'Other Ingredients（可选）', 'text', true, true) +
       productDevelopmentOneShotEditorFieldHtml(table, 'otherIngredientsCn', '其他成分（中文，可选）', 'text', true, true) +
-      (isPet ? '' : '<label class="pfh-product-development-check-field"><input type="checkbox" data-product-development-one-shot-editor-field="showFooter"' + (footerChecked ? ' checked' : '') + '><span>显示 “**Daily Value not established.”</span></label>') + '</div><div class="pfh-product-development-one-shot-table-head' + (isPet ? ' is-pet' : '') + '" aria-hidden="true"><span>成分名称 / Ingredient</span><span>用量 / Amount</span>' + (isPet ? '' : '<span>% Daily Value</span><span>标志物 mg</span>') + '<span></span></div><div class="pfh-product-development-review-editor-list">' + productDevelopmentOneShotEditorRowsHtml(result) + '</div><button type="button" class="pfh-product-development-one-shot-add" data-action="product-development-one-shot-ingredient-add"' + (Array.isArray(table.rows) && table.rows.length >= 6 ? ' disabled' : '') + '>＋ 添加成分行（最多 6 行）</button>' + validationHtml.replace('<div class="pfh-product-development-one-shot-validation', '<div data-product-development-one-shot-validation class="pfh-product-development-one-shot-validation') + productDevelopmentOneShotPreviewHtml(result) + labelingHtml + warningHtml + '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-one-shot-download-pdf"' + (validation.valid ? '' : ' disabled') + '>' + (validation.valid ? (isPet ? '导出 Product Facts PDF' : '导出 Supplement Facts PDF') : '修正后导出 PDF') + '</button>' + copywritingAction + '<small>成分表先单独校验；确认后才会把表格内容交给文案生成。格式来自当前选择的模板，模板示例不会直接当作当前产品成分。</small></div></section>';
+      (isPet ? '' : '<label class="pfh-product-development-check-field"><input type="checkbox" data-product-development-one-shot-editor-field="showFooter"' + (footerChecked ? ' checked' : '') + '><span>显示 “**Daily Value not established.”</span></label>') + '</div><div class="pfh-product-development-one-shot-table-head' + (isPet ? ' is-pet' : '') + '" aria-hidden="true"><span>成分名称 / Ingredient</span><span>用量 / Amount</span>' + (isPet ? '' : '<span>% Daily Value</span><span>标志物 mg</span>') + '<span></span></div><div class="pfh-product-development-review-editor-list">' + productDevelopmentOneShotEditorRowsHtml(result) + '</div><button type="button" class="pfh-product-development-one-shot-add" data-action="product-development-one-shot-ingredient-add"' + (Array.isArray(table.rows) && table.rows.length >= 6 ? ' disabled' : '') + '>＋ 添加成分行（最多 6 行）</button>' + validationHtml.replace('<div class="pfh-product-development-one-shot-validation', '<div data-product-development-one-shot-validation class="pfh-product-development-one-shot-validation') + productDevelopmentOneShotPreviewHtml(result) + labelingHtml + warningHtml + '<div class="pfh-product-development-download-row"><button type="button" class="pfh-product-development-one-shot-action-secondary" data-action="product-development-one-shot-download-pdf"' + (validation.valid ? '' : ' disabled') + '>' + (validation.valid ? (isPet ? '导出 Product Facts PDF' : '导出 Supplement Facts PDF') : '修正后导出 PDF') + '</button>' + copywritingAction + '</div></section>';
   }
 
   function productDevelopmentOneShotEmbeddedHtml(sku) {
@@ -12688,17 +12698,16 @@
     const result = state.productDevelopmentOneShotResult && (!sku || state.productDevelopmentOneShotResult.sku === sku)
       ? state.productDevelopmentOneShotResult
       : null;
-    const configHtml = result ? '' : '<div class="pfh-product-development-form-grid">' +
-      productDevelopmentOneShotFieldHtml(input, 'productType', '产品类型', 'text') +
+    const configHtml = result ? '' : '<div class="pfh-product-development-one-shot-inputs">' +
       productDevelopmentOneShotFieldHtml(input, 'netContent', '净含量', 'text') +
       productDevelopmentOneShotFieldHtml(input, 'servingSize', '每份用量', 'text') +
       productDevelopmentOneShotFieldHtml(input, 'servingsPerContainer', '每瓶份数', 'number') +
       productDevelopmentOneShotFieldHtml(input, 'targetActiveMg', '每份活性目标（可选，mg）', 'number') +
       (isPet ? '' : productDevelopmentOneShotFieldHtml(input, 'targetActivePercent', '标准化活性目标（可选，%）', 'number')) +
-      productDevelopmentOneShotFieldHtml(input, 'otherIngredientsEn', isPet ? 'Inactive Ingredients（可选）' : 'Other Ingredients（可选）', 'text', true) +
-      productDevelopmentOneShotFieldHtml(input, 'otherIngredientsCn', '其他成分（中文，可选）', 'text', true) +
+      productDevelopmentOneShotFieldHtml(input, 'otherIngredientsEn', isPet ? 'Inactive Ingredients（可选）' : 'Other Ingredients（可选）', 'text', true, true) +
+      productDevelopmentOneShotFieldHtml(input, 'otherIngredientsCn', '其他成分（中文，可选）', 'text', true, true) +
       '</div>';
-    return '<section class="pfh-product-development-detail-form pfh-product-development-one-shot-launch"><header><div><small>STEP 1 → STEP 2 IN EDIT COPYWRITING</small><h3>先生成成分表，再生成文案</h3></div><span>优先使用侵权图纯文字文案，不读取效果图</span></header>' + productDevelopmentOneShotSelectedSourceHtml(sku) + configHtml + '<div class="pfh-product-development-one-shot-launch-actions"><button type="button" class="pfh-product-development-work-card-button" data-action="product-development-copywriting-ingredient-run"' + (state.productDevelopmentOneShotBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentOneShotBusy ? '正在生成成分表…' : result ? '重新生成成分表' : '生成成分表') + '</button><small>先编辑并确认 ' + (isPet ? 'Product Facts' : 'Supplement Facts') + '，确认后才生成文案。</small></div></section>' + productDevelopmentOneShotResultHtml(result);
+    return '<section class="pfh-product-development-detail-form pfh-product-development-one-shot-launch"><header><div><small>成分表 → 文案</small><h3>先生成成分表，再生成文案</h3></div><span>以侵权图纯文字文案为依据</span></header>' + productDevelopmentOneShotSelectedSourceHtml(sku) + configHtml + '<div class="pfh-product-development-one-shot-launch-actions"><button type="button" data-action="product-development-copywriting-ingredient-run"' + (state.productDevelopmentOneShotBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentOneShotBusy ? '正在生成成分表…' : result ? '重新生成成分表' : '生成成分表') + '</button></div></section>' + productDevelopmentOneShotResultHtml(result);
   }
 
   function productDevelopmentOneShotUpdateInlineValidation() {
@@ -12785,6 +12794,14 @@
     return true;
   }
 
+  function productDevelopmentCopywritingToolbarHtml(templateOptions, ingredientCount, ingredientSourceLabel, result, content, oneShotResult) {
+    const ingredientSummary = ingredientCount ? String(ingredientCount) + ' 个' + ingredientSourceLabel : '待读取';
+    const outputDownload = result && content && !(oneShotResult && oneShotResult.content)
+      ? '<button type="button" class="pfh-product-development-copywriting-toolbar-output" data-action="product-development-copywriting-download">下载文案 DOCX</button>'
+      : '';
+    return '<div class="pfh-product-development-copywriting-toolbar"><label class="pfh-product-development-copywriting-template-control"><span>文案模板</span><select class="pfh-product-development-copywriting-template-input" aria-label="选择文案模板">' + templateOptions + '</select></label><label class="pfh-product-development-template-picker">导入 DOCX<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label>' + (state.productDevelopmentTemplateBase64 ? '<button type="button" data-action="product-development-template-reset">恢复内置模板</button>' : '') + outputDownload + '<span class="pfh-product-development-copywriting-ingredient-count">成分 ' + escapeHtml(ingredientSummary) + '</span></div>';
+  }
+
   function productDevelopmentCopywritingHtml() {
     const sku = getProductDevelopmentCurrentSku();
     const currentResult = state.productDevelopmentCopywriting;
@@ -12806,16 +12823,17 @@
     const ingredientCount = snapshotIngredientCount || cachedIngredientCount;
     const ingredientSourceLabel = snapshotIngredientCount ? '' : (cachedIngredientCount ? '（本地缓存）' : '');
     const displayError = state.productDevelopmentError || '';
+    const oneShotResult = state.productDevelopmentOneShotResult && state.productDevelopmentOneShotResult.sku === sku
+      ? state.productDevelopmentOneShotResult
+      : null;
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>产品文案</small><h2>生成双语文案</h2></div></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>生成产品文案 DOCX</h3><p>根据当前产品名称、成分和卖点生成中英文内容，并自动填入 Word 模板。</p></div><button type="button" data-action="product-development-copywriting-run"' + (state.productDevelopmentCopywritingBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentCopywritingBusy ? '正在生成…' : '生成文案 DOCX') + '</button></section>' +
-      '<section class="pfh-product-development-template-card"><div><small>文案模板</small><strong>' + escapeHtml(template.label) + '</strong><select class="pfh-product-development-copywriting-template-input" aria-label="选择文案模板">' + templateOptions + '</select></div><label class="pfh-product-development-template-picker">添加或替换本地模板<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label>' + (state.productDevelopmentTemplateBase64 ? '<button type="button" data-action="product-development-template-reset">删除本地模板</button>' : '') + '<span>已读取成分：' + escapeHtml(ingredientCount ? String(ingredientCount) + ' 个' + ingredientSourceLabel : '待读取') + '</span><small class="pfh-product-development-template-note">生成时保留所选模板的完整行、图片、备注、字体和列宽，只替换当前 SKU 字段与 A–D 文案。</small></section>' +
+      productDevelopmentCopywritingToolbarHtml(templateOptions, ingredientCount, ingredientSourceLabel, result, content, oneShotResult) +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (displayError ? '<p class="pfh-product-development-error">' + escapeHtml(displayError) + '</p>' : '') +
-      (result && content ? '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-copywriting-download">' + (result.blob ? '下载 ' : '恢复并下载 ') + escapeHtml(result.fileName) + '</button><small>完整 A-D 文案已缓存到本地，刷新页面不会丢失</small></div>' : '') +
       productDevelopmentOneShotEmbeddedHtml(sku) +
       productDevelopmentCopywritingPreviewHtml(content) +
-      '<p class="pfh-product-development-note">文案内容和模板信息自动缓存到本地；DOCX 下载文件不会自动上传或修改 PLM。</p></div>';
+      '</div>';
   }
 
   function productDevelopmentOneShotInputForRender() {
@@ -12996,13 +13014,13 @@
     return output;
   }
 
-  function productDevelopmentOneShotFieldHtml(input, key, label, type, multiline) {
+  function productDevelopmentOneShotFieldHtml(input, key, label, type, multiline, wide) {
     const isOptionalTarget = ['targetActiveMg', 'targetActivePercent'].includes(key);
     const value = isOptionalTarget && !(Number(input[key]) > 0) ? '' : String(input[key] || '');
     const control = multiline
       ? '<textarea class="pfh-product-development-review-input" rows="3" data-product-development-one-shot-field="' + escapeHtml(key) + '" spellcheck="false">' + escapeHtml(value) + '</textarea>'
       : '<input type="' + escapeHtml(type || 'text') + '" class="pfh-product-development-review-input" data-product-development-one-shot-field="' + escapeHtml(key) + '" value="' + escapeHtml(value) + '"' + (type === 'number' ? ' step="any"' : '') + '>';
-    return '<label class="pfh-product-development-material-field"><span>' + escapeHtml(label) + '</span>' + control + '</label>';
+    return '<label class="pfh-product-development-material-field' + (wide ? ' is-wide' : '') + '"><span>' + escapeHtml(label) + '</span>' + control + '</label>';
   }
 
   async function productDevelopmentOneShotOptimizeImage(dataUrl) {
