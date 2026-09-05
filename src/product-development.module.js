@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.32.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.33.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'copywriting-templates-v1';
   const PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID = 'capsule';
   const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object.freeze([
@@ -93,6 +93,43 @@
     '快速见效', '永久', '彻底', '万能', '全能', '无敌', '专家推荐', '权威推荐',
     '实验认证', '认证', '疾病', '药品', '处方', '诊断', '抗炎', '止痛', '抗癌',
     '减肥', '降脂', '降糖', '增强免疫', '改善疾病',
+  ]);
+  const PRODUCT_DEVELOPMENT_COPYWRITING_RESTRICTION_RULES = Object.freeze([
+    Object.freeze({
+      code: 'usage',
+      label: 'dosage, frequency, serving or supply claim',
+      patterns: Object.freeze([
+        /\b(?:serving\s+size|servings?\s+per\s+container|directions?|recommended\s+(?:use|serving|dosage)|dosage|dose)\b/i,
+        /\b(?:once|twice|[1-9]\d*)\s+(?:a|per|each)\s+day\b/i,
+        /\b(?:each|every|daily)\s+serving\b/i,
+        /\b(?:per|each|every)\s+serving\b/i,
+        /\b(?:daily|extended|long[- ]term)\s+(?:supply|serving|use|usage|intake|dose|dosage|needs?)\b/i,
+        /\b\d+\s*[- ]?days?\s+supply\b/i,
+        /\b(?:one|two|three|four|five|six|[1-9]\d*)\s+(?:capsules?|softgels?|tablets?|gummies?|chews?|drops?|droppers?|sprays?|scoops?|servings?)\b/i,
+        /\b(?:take|consume|give)\b[\s\S]{0,80}\b(?:capsules?|softgels?|tablets?|gummies?|chews?|drops?|droppers?|sprays?|scoops?|servings?)\b/i,
+        /(?:每(?:日|天)(?:\s*[一二两三四五六\d]+)?\s*(?:次|粒|颗|片|胶囊|软胶囊|软糖|滴|喷|袋|勺|毫升|毫克|份)|每(?:次|粒|颗|片|滴|喷|袋|份)|服用|食用|用量|剂量|推荐用法|推荐用量|使用方法|供应周期|每日用量|每日供应|每日需求|每天一次|每天两次|\d+\s*(?:天|日)\s*(?:供应|用量|周期))/i,
+      ]),
+    }),
+    Object.freeze({
+      code: 'dietary-attribute',
+      label: 'unsupported dietary-attribute claim',
+      patterns: Object.freeze([
+        /\b(?:suitable\s+for\s+vegans?|vegan[- ]friendly|non[- ]?gmo|(?:gluten|sugar|dairy|soy|lactose|allergen)[- ]free|free\s+from\s+(?:gluten|added\s+sugars?|sugar|dairy|soy|lactose|allergens?)|no\s+added\s+(?:sugar|sugars|preservatives?))\b/i,
+        /(?:适合素食(?:者|人群)?|素食主义|非转基因|无麸质|不含麸质|无糖|不含(?:添加)?糖|无乳制品|不含乳制品|无大豆|不含大豆|无乳糖|不含乳糖|无过敏原|不含过敏原)/i,
+      ]),
+    }),
+    Object.freeze({
+      code: 'quality-process',
+      label: 'unsupported manufacturing, quality or standards claim',
+      patterns: Object.freeze([
+        /\b(?:strict|rigorous)\s+quality\s+control\b/i,
+        /\bquality\s+(?:control|assurance|consistency)\b/i,
+        /\b(?:product|formula|manufacturing)\s+consistency\b/i,
+        /\b(?:recognized|established|industry|production|manufacturing)\s+standards?\b/i,
+        /\b(?:manufactured|produced)\s+(?:under|following|according\s+to|in\s+compliance\s+with)\b/i,
+        /(?:严格(?:的)?(?:质量|品质|生产)(?:控制|管理|标准)?|质量控制|品质控制|产品一致性|生产一致性|(?:符合|遵循|按照|依照)[^。；，,]{0,12}(?:标准|规范)|高标准生产|生产工艺|严格生产)/i,
+      ]),
+    }),
   ]);
   const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v6';
   const PRODUCT_DEVELOPMENT_REVIEW_ACTIONS = Object.freeze({
@@ -5667,6 +5704,12 @@
     return terms.map((term) => String(term || '').trim()).filter(Boolean).find((term) => productDevelopmentBannedTermMatches(value, term, normalized)) || '';
   }
 
+  function productDevelopmentFindCopywritingRestriction(value) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text) return null;
+    return PRODUCT_DEVELOPMENT_COPYWRITING_RESTRICTION_RULES.find((rule) => rule.patterns.some((pattern) => pattern.test(text))) || null;
+  }
+
   function productDevelopmentCopywritingReplacementForTerm(term) {
     const raw = String(term || '').trim();
     const lower = raw.toLowerCase();
@@ -5677,15 +5720,15 @@
     if (['guaranteed', 'guarantee'].includes(lower)) return 'designed';
     if (['reduce', 'remove', 'repair', 'treatment', 'therapy', 'instantly', 'prevent', 'prevention', 'cure', 'heal', 'diagnose', 'diagnosis'].includes(lower)) return 'daily';
     if (['clinical', 'clinically', 'clinically proven', 'fda approved', 'doctor recommended', 'veterinarian recommended', 'medical grade', 'medical-grade'].includes(lower)) return 'formula';
-    if (['fast-acting', 'quick relief', 'instant relief', 'zero risk', 'risk-free', 'no side effects'].includes(lower)) return 'daily use';
+    if (['fast-acting', 'quick relief', 'instant relief', 'zero risk', 'risk-free', 'no side effects'].includes(lower)) return 'routine support';
     if (['miracle', 'miraculous'].includes(lower)) return 'routine';
     return 'daily';
   }
 
   function productDevelopmentRewriteGeneratedCopyText(value, extraTerms) {
     let output = String(value || '')
-      .replace(/\b(?:independently\s+)?tested\s+(?:in|by)\s+(?:an?\s+)?(?:independent\s+)?(?:third[- ]party\s+)?laborator(?:y|ies)\b/gi, 'designed for daily use')
-      .replace(/\b(?:third[- ]party\s+)?lab[- ]tested\b/gi, 'designed for daily use')
+      .replace(/\b(?:independently\s+)?tested\s+(?:in|by)\s+(?:an?\s+)?(?:independent\s+)?(?:third[- ]party\s+)?laborator(?:y|ies)\b/gi, 'designed for routine support')
+      .replace(/\b(?:third[- ]party\s+)?lab[- ]tested\b/gi, 'designed for routine support')
       .replace(/\b(?:scientifically|clinically)\s+proven\b/gi, 'formula information')
       .replace(/\b(?:designed\s+for\s+)?(?:efficient|rapid|optimal)\s+nutrient\s+absorption\b/gi, 'daily nutrition support')
       .replace(/\b(?:efficient|rapid|optimal)\s+absorption\b/gi, 'daily nutrition support')
@@ -6550,11 +6593,22 @@
       en: productDevelopmentRewriteGeneratedCopyText(item && item.en, brand),
       cn: productDevelopmentRewriteGeneratedCopyText(item && item.cn, brand),
     });
+    const errors = [];
+    const copywritingRestrictionError = (label, item) => {
+      const rule = productDevelopmentFindCopywritingRestriction([item && item.en, item && item.cn, item && item.titleEn, item && item.titleCn].filter(Boolean).join(' '));
+      return rule ? label + '含' + rule.label : '';
+    };
+    const preRewriteRestricted = [
+      ...result.efficacy.map((item, index) => copywritingRestrictionError('A 第 ' + (index + 1) + ' 条', item)),
+      ...result.advantages.map((item, index) => copywritingRestrictionError('B 第 ' + (index + 1) + ' 条', item)),
+      ...result.sellingPoints.map((item, index) => copywritingRestrictionError('C 第 ' + (index + 1) + ' 条', item)),
+      ...result.ingredientFunctions.map((item, index) => copywritingRestrictionError('D 第 ' + (index + 1) + ' 条', item)),
+    ].find(Boolean);
+    if (preRewriteRestricted) errors.push(preRewriteRestricted);
     result.efficacy = result.efficacy.map(rewriteGeneratedPair);
     result.advantages = result.advantages.map(rewriteGeneratedPair);
     result.sellingPoints = result.sellingPoints.map(rewriteGeneratedPair);
     result.ingredientFunctions = result.ingredientFunctions.map(rewriteGeneratedPair);
-    const errors = [];
     if (result.efficacy.length !== 4) errors.push('A 产品功效必须为 4 条');
     if (result.advantages.length !== 4) errors.push('B 产品优势必须为 4 条');
     if (result.sellingPoints.length !== 15) errors.push('C 产品卖点必须为 15 条');
@@ -6614,6 +6668,8 @@
       if (productDevelopmentChineseCount(item.cn) > 30 || productDevelopmentEnglishWordCount(item.en) > 30) errors.push('D 第 ' + (index + 1) + ' 条超出长度');
     });
     const invalid = complianceTexts.map((entry) => {
+      const rule = productDevelopmentFindCopywritingRestriction(entry.value);
+      if (rule) return entry.label + '含' + rule.label;
       const term = productDevelopmentFindBannedTerm(entry.value, brand);
       if (term) return entry.label + '含限制词“' + term + '”';
       if (entry.value.includes('*')) return entry.label + '含星号';
@@ -6635,6 +6691,9 @@
     }
     if (/D item \d+ exceeds length|D 第 \d+ 条超出长度/i.test(message)) {
       return '文案生成未完成：D 成分功能文案过长，请再次生成。';
+    }
+    if (/dosage|frequency|serving or supply|dietary-attribute|manufacturing.*quality|quality-process|服用|用量|频次|供应周期|素食|非转基因|无麸质|质量控制|产品一致性/i.test(message)) {
+      return '文案生成未完成：A-D 不得写服用频次或用量、未经输入支持的饮食属性、生产质量背书，请再次生成。';
     }
     if (/restricted term|含限制词|asterisk|blank line|星号|空行/i.test(message)) {
       const termMatch = message.match(/restricted term\s+["“]([^"”]+)["”]/i) || message.match(/含限制词[“"]([^”"]+)[”"]/i);

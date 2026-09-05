@@ -132,6 +132,43 @@ const PRODUCT_DEVELOPMENT_BANNED_TERMS = Object.freeze([
   '实验认证', '认证', '疾病', '药品', '处方', '诊断', '抗炎', '止痛', '抗癌',
   '减肥', '降脂', '降糖', '增强免疫', '改善疾病',
 ]);
+const PRODUCT_DEVELOPMENT_COPYWRITING_RESTRICTION_RULES = Object.freeze([
+  Object.freeze({
+    code: 'usage',
+    label: 'a dosage, frequency, serving or supply claim',
+    patterns: Object.freeze([
+      /\b(?:serving\s+size|servings?\s+per\s+container|directions?|recommended\s+(?:use|serving|dosage)|dosage|dose)\b/i,
+      /\b(?:once|twice|[1-9]\d*)\s+(?:a|per|each)\s+day\b/i,
+      /\b(?:each|every|daily)\s+serving\b/i,
+      /\b(?:per|each|every)\s+serving\b/i,
+      /\b(?:daily|extended|long[- ]term)\s+(?:supply|serving|use|usage|intake|dose|dosage|needs?)\b/i,
+      /\b\d+\s*[- ]?days?\s+supply\b/i,
+      /\b(?:one|two|three|four|five|six|[1-9]\d*)\s+(?:capsules?|softgels?|tablets?|gummies?|chews?|drops?|droppers?|sprays?|scoops?|servings?)\b/i,
+      /\b(?:take|consume|give)\b[\s\S]{0,80}\b(?:capsules?|softgels?|tablets?|gummies?|chews?|drops?|droppers?|sprays?|scoops?|servings?)\b/i,
+      /(?:每(?:日|天)(?:\s*[一二两三四五六\d]+)?\s*(?:次|粒|颗|片|胶囊|软胶囊|软糖|滴|喷|袋|勺|毫升|毫克|份)|每(?:次|粒|颗|片|滴|喷|袋|份)|服用|食用|用量|剂量|推荐用法|推荐用量|使用方法|供应周期|每日用量|每日供应|每日需求|每天一次|每天两次|\d+\s*(?:天|日)\s*(?:供应|用量|周期))/i,
+    ]),
+  }),
+  Object.freeze({
+    code: 'dietary-attribute',
+    label: 'an unsupported dietary-attribute claim',
+    patterns: Object.freeze([
+      /\b(?:suitable\s+for\s+vegans?|vegan[- ]friendly|non[- ]?gmo|(?:gluten|sugar|dairy|soy|lactose|allergen)[- ]free|free\s+from\s+(?:gluten|added\s+sugars?|sugar|dairy|soy|lactose|allergens?)|no\s+added\s+(?:sugar|sugars|preservatives?))\b/i,
+      /(?:适合素食(?:者|人群)?|素食主义|非转基因|无麸质|不含麸质|无糖|不含(?:添加)?糖|无乳制品|不含乳制品|无大豆|不含大豆|无乳糖|不含乳糖|无过敏原|不含过敏原)/i,
+    ]),
+  }),
+  Object.freeze({
+    code: 'quality-process',
+    label: 'an unsupported manufacturing, quality or standards claim',
+    patterns: Object.freeze([
+      /\b(?:strict|rigorous)\s+quality\s+control\b/i,
+      /\bquality\s+(?:control|assurance|consistency)\b/i,
+      /\b(?:product|formula|manufacturing)\s+consistency\b/i,
+      /\b(?:recognized|established|industry|production|manufacturing)\s+standards?\b/i,
+      /\b(?:manufactured|produced)\s+(?:under|following|according\s+to|in\s+compliance\s+with)\b/i,
+      /(?:严格(?:的)?(?:质量|品质|生产)(?:控制|管理|标准)?|质量控制|品质控制|产品一致性|生产一致性|(?:符合|遵循|按照|依照)[^。；，,]{0,12}(?:标准|规范)|高标准生产|生产工艺|严格生产)/i,
+    ]),
+  }),
+]);
 const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v6';
 const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'ingredient-template-v5';
 const PRODUCT_DEVELOPMENT_CORPUS_LANGUAGE_GUIDE = Object.freeze([
@@ -140,7 +177,7 @@ const PRODUCT_DEVELOPMENT_CORPUS_LANGUAGE_GUIDE = Object.freeze([
   '作用表达优先使用日常状态：immune wellness、cardiovascular wellness、digestive comfort、joint comfort、active mobility、healthy-looking hair and skin、daily energy support；不得把这些表达写成疾病或治疗承诺。',
   '食品类文案的主轴是身体日常状态和生活感受，可优先使用 daily vitality、steady energy、feels refreshed、ready for the day、supports an active routine、balanced daily nutrition；中文可使用“精神饱满、日常活力、精力充沛、状态轻松、保持良好状态、适合日常营养补充”等中性表达，只描述日常状态和使用场景，不承诺结果。',
   '食品类 A-D 文案禁止写检测、测试、实验室、第三方、验证、认证、证明或任何背书结论，包括 Tested by independent third-party laboratories、lab-tested、clinically proven 等；也不要写 efficient nutrient absorption 等未经输入证明的效率结论。',
-  '滴剂常见用法：Shake well before use. Take the stated serving once daily. May be taken directly or mixed with food；按实际剂型和用户属性替换数值。',
+  'Directions 是标签独立字段；A-D 文案不得重复服用频次、数量、Serving Size、Servings Per Container、供应周期或每日使用量，标签字段按确认后的成分表单独填写。',
   '案例常见资料结构：产品名、Supplement Facts/Other Ingredients、Directions、FDA disclaimer、Warnings、Distributor/Address、Shelf Life、Origin，再接 A-D 双语文案；有证据时才补关键词或规格。',
 ]);
 const PRODUCT_DEVELOPMENT_REVIEW_ACTIONS = Object.freeze({
@@ -1973,6 +2010,12 @@ function productDevelopmentFindBannedTerm(value, brand) {
   return terms.map((term) => String(term || '').trim()).filter(Boolean).find((term) => productDevelopmentBannedTermMatches(value, term, normalized)) || '';
 }
 
+function productDevelopmentFindCopywritingRestriction(value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text) return null;
+  return PRODUCT_DEVELOPMENT_COPYWRITING_RESTRICTION_RULES.find((rule) => rule.patterns.some((pattern) => pattern.test(text))) || null;
+}
+
 function productDevelopmentCopywritingReplacementForTerm(term) {
   const raw = String(term || '').trim();
   const lower = raw.toLowerCase();
@@ -1983,15 +2026,15 @@ function productDevelopmentCopywritingReplacementForTerm(term) {
   if (['guaranteed', 'guarantee'].includes(lower)) return 'designed';
   if (['reduce', 'remove', 'repair', 'treatment', 'therapy', 'instantly', 'prevent', 'prevention', 'cure', 'heal', 'diagnose', 'diagnosis'].includes(lower)) return 'daily';
   if (['clinical', 'clinically', 'clinically proven', 'fda approved', 'doctor recommended', 'veterinarian recommended', 'medical grade', 'medical-grade'].includes(lower)) return 'formula';
-  if (['fast-acting', 'quick relief', 'instant relief', 'zero risk', 'risk-free', 'no side effects'].includes(lower)) return 'daily use';
+  if (['fast-acting', 'quick relief', 'instant relief', 'zero risk', 'risk-free', 'no side effects'].includes(lower)) return 'routine support';
   if (['miracle', 'miraculous'].includes(lower)) return 'routine';
   return 'daily';
 }
 
 function productDevelopmentRewriteGeneratedCopyText(value, extraTerms) {
   let output = String(value || '')
-    .replace(/\b(?:independently\s+)?tested\s+(?:in|by)\s+(?:an?\s+)?(?:independent\s+)?(?:third[- ]party\s+)?laborator(?:y|ies)\b/gi, 'designed for daily use')
-    .replace(/\b(?:third[- ]party\s+)?lab[- ]tested\b/gi, 'designed for daily use')
+    .replace(/\b(?:independently\s+)?tested\s+(?:in|by)\s+(?:an?\s+)?(?:independent\s+)?(?:third[- ]party\s+)?laborator(?:y|ies)\b/gi, 'designed for routine support')
+    .replace(/\b(?:third[- ]party\s+)?lab[- ]tested\b/gi, 'designed for routine support')
     .replace(/\b(?:scientifically|clinically)\s+proven\b/gi, 'formula information')
     .replace(/\b(?:designed\s+for\s+)?(?:efficient|rapid|optimal)\s+nutrient\s+absorption\b/gi, 'daily nutrition support')
     .replace(/\b(?:efficient|rapid|optimal)\s+absorption\b/gi, 'daily nutrition support')
@@ -2755,8 +2798,17 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
     en: productDevelopmentRewriteGeneratedCopyText(item && item.en, brand),
     cn: productDevelopmentRewriteGeneratedCopyText(item && item.cn, brand),
   });
-  const efficacy = list(['efficacy', 'productEfficacy', 'productEffects', 'functions', 'A', '产品功效']).map(normalizeProductDevelopmentPair).map(rewriteGeneratedPair);
-  const advantages = list(['advantages', 'productAdvantages', 'benefits', 'B', '产品优势']).map(normalizeProductDevelopmentPair).map(rewriteGeneratedPair);
+  const rejectCopywritingRestriction = (item, label) => {
+    const rule = productDevelopmentFindCopywritingRestriction([item && item.en, item && item.cn, item && item.titleEn, item && item.titleCn].filter(Boolean).join(' '));
+    if (rule) throw new Error('copywriting ' + label + ' contains ' + rule.label);
+    return item;
+  };
+  const efficacy = list(['efficacy', 'productEfficacy', 'productEffects', 'functions', 'A', '产品功效'])
+    .map(normalizeProductDevelopmentPair)
+    .map((item, index) => rewriteGeneratedPair(rejectCopywritingRestriction(item, 'A item ' + (index + 1))));
+  const advantages = list(['advantages', 'productAdvantages', 'benefits', 'B', '产品优势'])
+    .map(normalizeProductDevelopmentPair)
+    .map((item, index) => rewriteGeneratedPair(rejectCopywritingRestriction(item, 'B item ' + (index + 1))));
   const sellingPoints = list(['sellingPoints', 'sellingpoints', 'salesPoints', 'highlights', 'C', '产品卖点']).map((item, index) => {
     const row = item && typeof item === 'object' ? item : { cn: item };
     const pair = normalizeProductDevelopmentPair(row);
@@ -2768,12 +2820,12 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
     const cn = index < 4 && titleCn && pair.cn.startsWith(titleCn)
       ? pair.cn.slice(titleCn.length).replace(/^[:：]\s*/, '').trim()
       : pair.cn;
-    return rewriteGeneratedPair({
+    return rewriteGeneratedPair(rejectCopywritingRestriction({
       titleEn: index < 4 ? titleEn : '',
       titleCn: index < 4 ? titleCn : '',
       en,
       cn,
-    });
+    }, 'C item ' + (index + 1)));
   });
   let ingredientFunctions = list(['ingredientFunctions', 'ingredient_functions', 'ingredientBenefits', 'D', '成分功能']).map((item) => {
     const row = item && typeof item === 'object' ? item : {};
@@ -2784,7 +2836,7 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
       en: pair.en,
       cn: pair.cn,
     };
-  }).map(rewriteGeneratedPair);
+  }).map((item, index) => rewriteGeneratedPair(rejectCopywritingRestriction(item, 'D item ' + (index + 1))));
   if (requiredSections.has('efficacy') && efficacy.length !== 4) throw new Error('A efficacy must contain exactly 4 items');
   if (requiredSections.has('advantages') && advantages.length !== 4) throw new Error('B advantages must contain exactly 4 items');
   if (requiredSections.has('sellingPoints') && sellingPoints.length !== 15) throw new Error('C selling points must contain exactly 15 items');
@@ -2844,6 +2896,8 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
     addComplianceText('D item ' + (index + 1) + ' Chinese', item.cn);
   });
   const restricted = complianceTexts.map((entry) => {
+    const rule = productDevelopmentFindCopywritingRestriction(entry.value);
+    if (rule) return entry.label + ' contains ' + rule.label;
     const term = productDevelopmentFindBannedTerm(entry.value, brand);
     if (term) return entry.label + ' contains restricted term "' + term + '"';
     if (entry.value.includes('*')) return entry.label + ' contains an asterisk';
@@ -3441,6 +3495,9 @@ async function handleProductDevelopmentOneShot(request, env) {
          ? '当前阶段只生成选定宠物模板对应的 Product Facts 与 Inactive Ingredients 草稿，不生成 A-D 文案；可以省略 copywriting 字段。'
          : '当前阶段只生成选定人类模板对应的 Supplement Facts 与 Other Ingredients 草稿，不生成 A-D 文案；可以省略 copywriting 字段。')
       : '文案使用直接、简短、美国电商膳食补充剂风格，围绕 supports daily wellness、helps maintain、formulated with、designed for、suitable for routine use、daily vitality、steady energy、feels refreshed、ready for the day 等克制表达。食品类文案主要描述身体日常状态和生活感受，不写检测、测试、实验室、第三方、验证、认证或证明背书，也不要写 efficient nutrient absorption 等未经输入证明的效率结论。禁止疾病、诊断、治疗、预防、医疗、绝对化、保证、认证、品牌或未提供的数字；不得出现限制词：' + PRODUCT_DEVELOPMENT_BANNED_TERMS.join('、') + '。',
+    ingredientOnly
+      ? '成分表阶段可以填写 Serving Size、Servings Per Container 和 Directions，但这些字段不属于 A-D 文案。'
+      : 'A-D 只写产品功效、配方特点和日常状态，不写服用频次、单次数量、每日用量、Serving Size、Servings Per Container、per serving、daily supply、30-day supply 或 take one capsule；也不写未经输入支持的素食、非转基因、无麸质、无糖、无乳制品、无过敏原，以及严格质量控制、生产标准、质量保证、产品一致性等背书。',
     PRODUCT_DEVELOPMENT_CORPUS_LANGUAGE_GUIDE.join(' '),
     ingredientOnly
       ? '成分表信息必须服从 input.productType、input.productAttributes 与选定模板元数据；模板只决定字段和版式，不得把其他产品类型或模板案例的事实带入当前 SKU。'
@@ -3618,6 +3675,8 @@ async function handleProductDevelopmentCopywriting(request, env) {
     '产品类型必须严格沿用输入 productType；所选模板元数据只用于决定字段顺序、段落结构和写作风格，不得把其他模板的事实、规格或产品类型带入当前 SKU。',
     '当 confirmedIngredientTable 为 true 时，ingredientTable 是用户已经确认的成分表，必须作为成分身份、顺序、用量、Serving Size、Other Ingredients 和标准化信息的唯一依据；不得重新发明、增删或改写其中的事实。D 成分功能必须按确认表 rows 顺序输出。',
     '可优先使用 supports daily wellness、helps maintain、formulated with、designed for、suitable for routine use，以及“日常营养支持、帮助维持、配方含有、适合日常使用”等保守表达；只有输入事实支持时才使用，不能把 supports 或 helps 改写成保证效果。',
+    'A-D 只写产品功效、配方特点和日常状态，不写标签用法：禁止服用频次、单次数量、每日用量、Serving Size、Servings Per Container、per serving、daily supply、30-day supply、take one capsule 等表达；Directions 只保留在标签字段中，以确认后的成分表为准。',
+    '默认不写未经当前输入明确支持的素食、非转基因、无麸质、无糖、无乳制品、无过敏原等饮食属性，也不写严格质量控制、生产标准、质量保证、产品一致性等无法由输入证明的生产或质量背书。',
     PRODUCT_DEVELOPMENT_CORPUS_LANGUAGE_GUIDE.join(' '),
   ].join(' ');
   const system = [
@@ -3626,6 +3685,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
     'A 产品功效必须正好 4 条；B 产品优势必须正好 4 条；C 产品卖点必须正好 15 条；D 成分功能必须覆盖输入 ingredients 的全部成分，并保持输入顺序。',
     'C 按模板输出 15 条：第 1-4 条必须有 titleEn 和 titleCn，英文标题建议 3-4 个单词但不因标题词数不符而省略或判错，两个标题不得写成分；title 字段不要带编号或冒号，系统会在 Word 中统一补冒号。第 5-15 条 titleEn 和 titleCn 必须为空，不能再写任何小标题，正文必须完整。',
     'C 的正文长度只作参考，不要为了凑字数删掉信息或省略第 5-15 条；输出前逐条检查标题位置、双语完整性和条数。A 每条中文尽量不超过 30 个汉字；B 每条中文尽量不超过 24 个汉字；D 每条中文尽量不超过 30 个汉字。英文句子可使用更完整的自然表达，但应保持简洁。',
+    '再次检查 A-D：不要出现服用方法、频次、数量、每份/每日用量、包装供应周期、未经输入支持的饮食属性或生产质量背书；这些信息只能在独立标签字段中出现。',
   ].join(' ');
   const options = {
     primaryModel: getProductDevelopmentPrimaryQwenModel(env),
@@ -3701,7 +3761,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
         error = combined;
       }
     }
-    const canRepair = /restricted term|含限制词|asterisk|blank line|星号|空行|exceeds length|超出长度/i.test(String(error && error.message || ''));
+    const canRepair = /restricted term|含限制词|asterisk|blank line|星号|空行|exceeds length|超出长度|dosage|frequency|serving|supply|dietary-attribute|quality-process|服用|用量|频次|供应|素食|非转基因|无麸质|质量控制|产品一致性/i.test(String(error && error.message || ''));
     const candidate = error && Array.isArray(error.aiCandidates) ? error.aiCandidates[0] : null;
     if (canRepair && candidate && candidate.text) {
       try {
@@ -3713,6 +3773,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
             commonSystem,
             '你是文案合规修复助手。下面给出一份已经生成但未通过校验的完整 JSON。保留 A-D 的条数、顺序、成分名称、产品事实和中英文对应关系，只改写命中限制词或格式问题的生成句子。',
             '禁止删除条目，禁止把内容改成空字符串，禁止新增成分、功效、认证、疾病、治疗或数字。',
+            'A-D 不得包含服用频次、单次数量、Serving Size、per serving、daily supply、供应周期、未经输入支持的饮食属性或生产质量背书；Directions 不属于 A-D。',
             '先在内部逐项检查所有 en、cn、titleEn、titleCn，再只返回修复后的完整 JSON；不要解释修复过程，不要复述限制词清单。',
           ].join(' '),
           prompt: [
