@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.310
+// @version      2.8.311
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.310';
+  const SCRIPT_VERSION = '2.8.311';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -8096,7 +8096,12 @@
     const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
     if (descriptor && descriptor.set) descriptor.set.call(element, stringValue);
     else element.value = stringValue;
-    (Array.isArray(events) ? events : ['input', 'change', 'blur']).forEach((type) => element.dispatchEvent(new Event(type, { bubbles: true })));
+    (Array.isArray(events) ? events : ['input', 'change', 'blur']).forEach((type) => {
+      const event = type === 'input' && typeof window.InputEvent === 'function'
+        ? new window.InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: stringValue })
+        : new Event(type, { bubbles: true, composed: true });
+      element.dispatchEvent(event);
+    });
     return true;
   }
 

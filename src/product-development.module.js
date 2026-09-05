@@ -3201,7 +3201,12 @@
     const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
     if (descriptor && descriptor.set) descriptor.set.call(element, stringValue);
     else element.value = stringValue;
-    (Array.isArray(events) ? events : ['input', 'change', 'blur']).forEach((type) => element.dispatchEvent(new Event(type, { bubbles: true })));
+    (Array.isArray(events) ? events : ['input', 'change', 'blur']).forEach((type) => {
+      const event = type === 'input' && typeof window.InputEvent === 'function'
+        ? new window.InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: stringValue })
+        : new Event(type, { bubbles: true, composed: true });
+      element.dispatchEvent(event);
+    });
     return true;
   }
 
