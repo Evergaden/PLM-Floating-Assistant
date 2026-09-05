@@ -10489,6 +10489,15 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
   background: var(--pfh-theme-primary-hover);
 }
 
+#plm-floating-helper .pfh-product-development-one-shot-launch-actions .pfh-product-development-one-shot-action-secondary {
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary);
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-launch-actions .pfh-product-development-one-shot-action-secondary:hover:not(:disabled) {
+  background: var(--pfh-theme-primary-soft-hover, var(--pfh-theme-primary-hover));
+}
+
 #plm-floating-helper .pfh-product-development-one-shot-launch-actions button:disabled,
 #plm-floating-helper .pfh-product-development-one-shot-add:disabled {
   cursor: not-allowed;

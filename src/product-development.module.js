@@ -4954,6 +4954,7 @@
     const includeImage = opts.includeImage !== false;
     const imageKind = includeImage ? (opts.imageKind === 'benchmark' ? 'benchmark' : 'product') : 'none';
     const preferCachedIngredients = Boolean(opts.preferCachedIngredients);
+    const refreshIngredients = Boolean(opts.refreshIngredients);
     if (!normalizedSku) throw new Error('请先在设计任务中选择一个 SKU');
     if (!force && state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === normalizedSku
       && state.productDevelopmentSnapshot.imageKind === imageKind
@@ -4962,7 +4963,7 @@
       return state.productDevelopmentSnapshot;
     }
     const seed = getProductDevelopmentSeedData(normalizedSku);
-    const cachedIngredients = productDevelopmentCachedIngredientPairs(normalizedSku, seed);
+    const cachedIngredients = refreshIngredients ? [] : productDevelopmentCachedIngredientPairs(normalizedSku, seed);
     const startedAt = Date.now();
     productDevelopmentLog('info', '开始读取产品资料', normalizedSku + ' | 成分缓存=' + (cachedIngredients.length ? cachedIngredients.length + ' 项，优先复用' : '未命中') + ' | 强制刷新=' + (force ? '是' : '否'));
     const snapshotRequest = fetchApiProductSnapshot(seed, { force: Boolean(force && !preferCachedIngredients) })
@@ -5018,24 +5019,45 @@
       en: liveIngredients.product_ingredients_summary_en || plmCopywriting.ingredientSummary.en || data.ingredientEnglish,
       cn: liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese,
     });
+    let refreshedIngredients = [];
     if (cachedIngredients.length) {
       productDevelopmentLog('success', '成分缓存命中，跳过重新识别', normalizedSku + ' | ' + cachedIngredients.length + ' 项');
-    } else if (requireIngredients && !ingredients.length && typeof hydrateIngredientPdfForSku === 'function') {
-      productDevelopmentLog('info', '未命中成分缓存，开始读取成分表', normalizedSku);
+    } else if (requireIngredients && (refreshIngredients || !ingredients.length) && typeof hydrateIngredientPdfForSku === 'function') {
+      productDevelopmentLog('info', refreshIngredients ? '开始直接读取 PLM 成分表' : '未命中成分缓存，开始读取成分表', normalizedSku);
       const hydrated = await withCopywritingTimeout(
-        hydrateIngredientPdfForSku(normalizedSku, { preferApi: true, silent: true }),
+        hydrateIngredientPdfForSku(normalizedSku, { preferApi: true, silent: true, force: refreshIngredients }),
         120000,
         '成分表读取',
       ).catch((error) => {
         productDevelopmentLog('warn', '成分表读取失败', normalizedSku + ' | ' + formatErrorMessage(error));
         return null;
       });
-      if (hydrated && hydrated.sku) data = normalizeData({ ...data, ...hydrated });
+      if (hydrated && hydrated.sku) {
+        data = normalizeData({ ...data, ...hydrated });
+        refreshedIngredients = productDevelopmentIngredientPairs(data, {
+          en: data.ingredientEnglish,
+          cn: data.ingredientChinese,
+        });
+        if (refreshIngredients && refreshedIngredients.length) {
+          productDevelopmentLog('success', 'PLM 成分表读取完成', normalizedSku + ' | ' + refreshedIngredients.length + ' 项');
+        }
+      }
     }
-    const resolvedIngredients = productDevelopmentIngredientPairs(data, {
-      en: liveIngredients.product_ingredients_summary_en || plmCopywriting.ingredientSummary.en || data.ingredientEnglish,
-      cn: liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese,
-    });
+    const resolvedIngredients = refreshIngredients && refreshedIngredients.length
+      ? refreshedIngredients
+      : productDevelopmentIngredientPairs(data, {
+        en: liveIngredients.product_ingredients_summary_en || plmCopywriting.ingredientSummary.en || data.ingredientEnglish,
+        cn: liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese,
+      });
+    const resolvedIngredientSummary = refreshIngredients && refreshedIngredients.length
+      ? {
+        en: productDevelopmentCleanText(data.ingredientEnglish || refreshedIngredients.map((item) => item.en).filter(Boolean).join(', '), 8000),
+        cn: productDevelopmentCleanText(data.ingredientChinese || refreshedIngredients.map((item) => item.cn).filter(Boolean).join('、'), 8000),
+      }
+      : {
+        en: productDevelopmentCleanText(liveIngredients.product_ingredients_summary_en || plmCopywriting.ingredientSummary.en || data.ingredientEnglish, 8000),
+        cn: productDevelopmentCleanText(liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese, 8000),
+      };
     if (requireIngredients && !resolvedIngredients.length) throw new Error('当前 SKU 没有读取到有效成分，已停止生成');
     let skuImage = null;
     let imageSource = { imageUrl: '', imageFallbackUrl: '', source: '文案生成不读取效果图' };
@@ -5076,10 +5098,7 @@
       referenceUrl: productDevelopmentCleanText(snapshot && snapshot.referenceUrl || data.referenceUrl || data.benchmarkLink, 1000),
       ingredients: resolvedIngredients,
       ingredientEvidence,
-      ingredientSummary: {
-        en: productDevelopmentCleanText(liveIngredients.product_ingredients_summary_en || plmCopywriting.ingredientSummary.en || data.ingredientEnglish, 8000),
-        cn: productDevelopmentCleanText(liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese, 8000),
-      },
+      ingredientSummary: resolvedIngredientSummary,
       ingredientFunctions: {
         en: productDevelopmentCleanText(liveIngredients.product_ingredients_efficacy_en || plmCopywriting.ingredientEfficacy.en, 8000),
         cn: productDevelopmentCleanText(liveIngredients.product_ingredients_efficacy_ch || plmCopywriting.ingredientEfficacy.cn, 8000),
@@ -6959,6 +6978,10 @@
       showToast('请先在设计任务中打开或选择当前 SKU');
       return;
     }
+    if (state.productDevelopmentOneShotBusy) {
+      productDevelopmentLog('warn', '忽略直接读取文案请求', sku + ' | 成分表草稿仍在生成');
+      return;
+    }
     if (state.productDevelopmentCopywritingBusy) {
       productDevelopmentLog('warn', '忽略重复生成请求', sku + ' | 当前任务仍在执行');
       return;
@@ -6967,15 +6990,15 @@
     let stage = '准备';
     state.productDevelopmentCopywritingBusy = true;
     state.productDevelopmentError = '';
-    state.productDevelopmentStatus = '正在检查本地成分缓存并读取产品资料…';
-    productDevelopmentLog('info', '开始生成 A-D 文案', sku + ' | 本地成分缓存=' + productDevelopmentCachedIngredientPairs(sku).length + ' 项');
+    state.productDevelopmentStatus = '正在读取 PLM 成分表并读取产品资料…';
+    productDevelopmentLog('info', '开始直接读取 PLM 成分表生成 A-D 文案', sku + ' | 本地成分缓存=' + productDevelopmentCachedIngredientPairs(sku).length + ' 项');
     renderShell();
     try {
-      stage = '读取产品资料与成分缓存';
+      stage = '读取 PLM 产品资料与成分表';
       const snapshot = await withCopywritingTimeout(
-        loadProductDevelopmentSnapshot(sku, false, { requireIngredients: true, includeImage: false, preferCachedIngredients: true }),
+        loadProductDevelopmentSnapshot(sku, true, { requireIngredients: true, includeImage: false, preferCachedIngredients: false, refreshIngredients: true }),
         180000,
-        '产品资料读取',
+        'PLM 成分表读取',
       );
       const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
       productDevelopmentLog('success', '产品资料与成分读取完成', sku + ' | 成分=' + snapshot.ingredients.length + ' 项 | 用时=' + (Date.now() - startedAt) + 'ms');
@@ -7049,6 +7072,10 @@
         templateVersion: state.productDevelopmentCopywriting.templateVersion,
       });
       productDevelopmentLog('success', 'AI 文案已缓存到本地', sku + ' | id=' + id);
+      if (state.productDevelopmentOneShotResult && state.productDevelopmentOneShotResult.sku === sku) {
+        state.productDevelopmentOneShotResult = null;
+        state.productDevelopmentOneShotIngredientConfirmed = false;
+      }
       state.productDevelopmentStatus = '正在按四列表格模板生成 DOCX…';
       renderShell();
       stage = '生成 DOCX';
@@ -7765,7 +7792,7 @@
 
   function productDevelopmentOneShotResultHtml(result) {
     if (!result) {
-      return '<div class="pfh-product-development-result-empty">点击“生成成分表”开始，确认成分表后再生成文案。</div>';
+      return '<div class="pfh-product-development-result-empty">可生成成分表后确认，也可直接读取 PLM 成分表生成文案。</div>';
     }
     const table = result.ingredientTable || {};
     const ingredientKind = normalizeProductDevelopmentIngredientKind(result.ingredientKind || result.snapshot && result.snapshot.ingredientKind);
@@ -7805,6 +7832,7 @@
     const input = productDevelopmentOneShotInputForRender();
     const template = productDevelopmentOneShotIngredientTemplate();
     const isPet = normalizeProductDevelopmentIngredientKind(template && template.kind) === 'pet';
+    const busy = Boolean(state.productDevelopmentOneShotBusy || state.productDevelopmentCopywritingBusy);
     const result = state.productDevelopmentOneShotResult && (!sku || state.productDevelopmentOneShotResult.sku === sku)
       ? state.productDevelopmentOneShotResult
       : null;
@@ -7817,7 +7845,7 @@
       productDevelopmentOneShotFieldHtml(input, 'otherIngredientsEn', isPet ? 'Inactive Ingredients（可选）' : 'Other Ingredients（可选）', 'text', true, true) +
       productDevelopmentOneShotFieldHtml(input, 'otherIngredientsCn', '其他成分（中文，可选）', 'text', true, true) +
       '</div>';
-    return '<section class="pfh-product-development-detail-form pfh-product-development-one-shot-launch"><header><div><small>成分表 → 文案</small><h3>先生成成分表，再生成文案</h3></div><span>以侵权图纯文字文案为依据</span></header>' + productDevelopmentOneShotSelectedSourceHtml(sku) + configHtml + '<div class="pfh-product-development-one-shot-launch-actions"><button type="button" data-action="product-development-copywriting-ingredient-run"' + (state.productDevelopmentOneShotBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentOneShotBusy ? '正在生成成分表…' : result ? '重新生成成分表' : '生成成分表') + '</button></div></section>' + productDevelopmentOneShotResultHtml(result);
+    return '<section class="pfh-product-development-detail-form pfh-product-development-one-shot-launch"><header><div><small>成分表 → 文案</small><h3>生成成分表，或直接用 PLM 成分表</h3></div><span>支持直接读取 PLM 成分表</span></header>' + productDevelopmentOneShotSelectedSourceHtml(sku) + configHtml + '<div class="pfh-product-development-one-shot-launch-actions"><button type="button" data-action="product-development-copywriting-ingredient-run"' + (busy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentOneShotBusy ? '正在生成成分表…' : result ? '重新生成成分表' : '生成成分表') + '</button><button type="button" class="pfh-product-development-one-shot-action-secondary" data-action="product-development-copywriting-run"' + (busy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentCopywritingBusy ? '正在读取 PLM 成分表…' : '读取 PLM 成分表生成文案') + '</button></div></section>' + productDevelopmentOneShotResultHtml(result);
   }
 
   function productDevelopmentOneShotUpdateInlineValidation() {
@@ -8659,6 +8687,10 @@
     const currentSku = getProductDevelopmentCurrentSku();
     if (!currentSku) {
       showToast('请先在编辑文案页选择当前 SKU');
+      return;
+    }
+    if (state.productDevelopmentCopywritingBusy) {
+      productDevelopmentLog('warn', '忽略成分表生成请求', currentSku + ' | PLM 成分表文案仍在生成');
       return;
     }
     state.productDevelopmentOneShotBusy = true;
