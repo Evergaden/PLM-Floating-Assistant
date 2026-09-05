@@ -624,7 +624,12 @@
 
   function productDevelopmentNormalizeCategoryPathValue(value) {
     const split = productDevelopmentBrandAndCategory(value);
-    return split.category || productDevelopmentCleanText(value, 180);
+    const text = split.category || productDevelopmentCleanText(value, 180);
+    // The task list calls this branch “食物酒水”, while the create-product
+    // cascader uses “食品酒水” and requires a third-level leaf. These tasks are
+    // the health-supplement flow, so use the PLM leaf confirmed in the drawer.
+    if (text === '食物酒水' || text === '食品酒水') return '食品酒水 / 滋补保健';
+    return text;
   }
 
   function normalizeProductDevelopmentTaskMeta(value) {
@@ -3183,6 +3188,21 @@
     return productDevelopmentDomText(option.getAttribute('title') || option.getAttribute('aria-label') || content && content.textContent || option.textContent);
   }
 
+  function productDevelopmentDomCategoryTextVariants(value) {
+    const text = productDevelopmentDomText(value);
+    const variants = new Set(text ? [text] : []);
+    if (text === '食物酒水') variants.add('食品酒水');
+    if (text === '食品酒水') variants.add('食物酒水');
+    return Array.from(variants);
+  }
+
+  function productDevelopmentDomCascaderTextMatches(candidate, wanted) {
+    const wantedVariants = productDevelopmentDomCategoryTextVariants(wanted);
+    return productDevelopmentDomCategoryTextVariants(candidate).some((candidateText) => wantedVariants.some((wantedText) => (
+      candidateText === wantedText || candidateText.endsWith(wantedText)
+    )));
+  }
+
   function productDevelopmentDomVisibleDropdowns() {
     return Array.from(document.querySelectorAll('.ant-select-dropdown:not(.ant-select-dropdown-hidden), .ant-cascader-dropdown'))
       .filter(productDevelopmentDomVisible);
@@ -3262,7 +3282,7 @@
       }
       nodes.forEach((node) => {
         const path = current.path.concat(node.name);
-        if (productDevelopmentDomText(node.name) === wanted) {
+        if (productDevelopmentDomCascaderTextMatches(node.name, wanted)) {
           queue.length = 0;
           queue.push({ parentId: '__resolved__', path });
           return;
@@ -3282,8 +3302,7 @@
       const menu = menus[columnIndex] || menus[menus.length - 1];
       if (!menu) return null;
       const wanted = productDevelopmentDomText(segment);
-      return productDevelopmentDomCascaderMenuOptions(menu).find((item) => productDevelopmentDomOptionText(item) === wanted)
-        || productDevelopmentDomCascaderMenuOptions(menu).find((item) => productDevelopmentDomOptionText(item).endsWith(wanted))
+      return productDevelopmentDomCascaderMenuOptions(menu).find((item) => productDevelopmentDomCascaderTextMatches(productDevelopmentDomOptionText(item), wanted))
         || null;
     }, timeout || 10000, 100);
     if (!option) throw new Error('PLM 类目第' + (columnIndex + 1) + '列找不到“' + segment + '”');
@@ -3388,7 +3407,7 @@
             const wantedNext = productDevelopmentDomText(segments[index + 1]);
             return productDevelopmentDomCascaderMenuOptions(nextMenu).some((item) => {
               const text = productDevelopmentDomOptionText(item);
-              return text === wantedNext || text.endsWith(wantedNext);
+              return productDevelopmentDomCascaderTextMatches(text, wantedNext);
             });
           }, 12000, 100);
           await productDevelopmentDomWait(80);
