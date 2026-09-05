@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.312
+// @version      2.8.313
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.312';
+  const SCRIPT_VERSION = '2.8.313';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -15119,6 +15119,7 @@
     excelDone: '\u5df2\u751f\u6210 Excel',
     excelFailed: '\u751f\u6210 Excel \u5931\u8d25',
     excelSaveCanceled: '\u5df2\u53d6\u6d88\u4fdd\u5b58',
+    excelFileBusy: '\u76ee\u6807 Excel \u6587\u4ef6\u6b63\u5728\u88ab\u5360\u7528\uff0c\u8bf7\u5173\u95ed\u521a\u6253\u5f00\u7684 Excel \u6587\u4ef6\uff0c\u7b49\u5f85\u51e0\u79d2\u540e\u518d\u91cd\u65b0\u5bfc\u51fa',
     excelSavePickerUnavailable: '\u6d4f\u89c8\u5668\u53e6\u5b58\u4e3a\u63a5\u53e3\u4e0d\u53ef\u7528\uff0c\u5df2\u6539\u7528\u666e\u901a\u4e0b\u8f7d',
     excelNeedData: '\u8bf7\u5148\u9009\u4e2d\u4e00\u4e2a\u5df2\u8bc6\u522b\u7684\u4ea7\u54c1',
     excelNeedLibrary: '\u0045\u0078\u0063\u0065\u006c\u004a\u0053 \u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u7f51\u7edc\u6216\u811a\u672c\u6743\u9650',
@@ -38882,7 +38883,7 @@ self.onmessage = async function(event) {
             markExcelBatchItemsDownloaded([item], fileName);
             recordExcelBatchItems([item], 'excel-batch', fileName);
           } catch (error) {
-            const message = formatErrorMessage(error) || '\u672a\u77e5\u9519\u8bef';
+            const message = formatExcelExportError(error);
             updateExcelBatchQueueEntry(item.data.sku, { status: 'error', error: message });
             state.batchExcelStatus = item.data.sku + ' \u4e0b\u8f7d\u5931\u8d25\uff1a' + message;
             addLog('error', 'Excel \u5355\u72ec\u4e0b\u8f7d\u5931\u8d25', item.data.sku + ' | ' + message);
@@ -38892,7 +38893,7 @@ self.onmessage = async function(event) {
         }
       }
     } catch (error) {
-      const message = formatErrorMessage(error) || '\u672a\u77e5\u9519\u8bef';
+      const message = formatExcelExportError(error);
       state.batchExcelStatus = '\u6279\u91cf Excel \u751f\u6210\u5931\u8d25\uff1a' + message;
       addLog('error', '\u6279\u91cf Excel \u751f\u6210\u5931\u8d25', message);
       showToast(state.batchExcelStatus);
@@ -38900,6 +38901,18 @@ self.onmessage = async function(event) {
       state.batchExcelDownloadRunning = false;
       if (state.view === 'batchExcel') renderShell();
     }
+  }
+
+  function isExcelFileBusyError(error) {
+    const name = String(error && error.name || '');
+    const message = String(error && error.message || '');
+    return name === 'InvalidStateError'
+      || /state cached in an interface object|state had changed since/i.test(message);
+  }
+
+  function formatExcelExportError(error) {
+    if (isExcelFileBusyError(error)) return L.excelFileBusy;
+    return formatErrorMessage(error) || '\u672a\u77e5\u9519\u8bef';
   }
 
   function showExcelMissingToast() {
@@ -39023,7 +39036,7 @@ self.onmessage = async function(event) {
       showToast(state.excelStatus);
     } catch (error) {
       console.warn('PLM floating helper excel failed:', error);
-      const message = formatErrorMessage(error) || '未知错误';
+      const message = formatExcelExportError(error);
       state.excelStatus = L.excelFailed + '：' + message;
       addLog('error', 'Excel 生成失败', data.sku + ' | ' + message);
       renderShell();
