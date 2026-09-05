@@ -2016,6 +2016,107 @@ function productDevelopmentFindCopywritingRestriction(value) {
   return PRODUCT_DEVELOPMENT_COPYWRITING_RESTRICTION_RULES.find((rule) => rule.patterns.some((pattern) => pattern.test(text))) || null;
 }
 
+function productDevelopmentCopywritingFieldKey(source, aliases) {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return '';
+  const keys = Object.keys(source);
+  for (const alias of Array.isArray(aliases) ? aliases : []) {
+    const normalizedAlias = String(alias || '').toLowerCase().replace(/[\s_-]/g, '');
+    const key = keys.find((item) => String(item).toLowerCase().replace(/[\s_-]/g, '') === normalizedAlias);
+    if (key) return key;
+  }
+  return '';
+}
+
+function productDevelopmentCopywritingSectionSource(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  if (source.sections && typeof source.sections === 'object' && !Array.isArray(source.sections)) return source.sections;
+  if (source.data && typeof source.data === 'object' && !Array.isArray(source.data)) return source.data;
+  if (source.result && typeof source.result === 'object' && !Array.isArray(source.result)) return source.result;
+  return source;
+}
+
+function productDevelopmentCopywritingListInfo(value, aliases) {
+  const source = productDevelopmentCopywritingSectionSource(value);
+  const key = productDevelopmentCopywritingFieldKey(source, aliases);
+  if (!key) return null;
+  const container = source[key];
+  if (Array.isArray(container)) return { list: container };
+  if (container && typeof container === 'object' && Array.isArray(container.items)) return { list: container.items };
+  return null;
+}
+
+function productDevelopmentCopywritingRestrictionCode(message) {
+  const text = String(message || '').toLowerCase();
+  if (/dosage|frequency|serving|supply|服用|用量|频次|供应/.test(text)) return 'usage';
+  if (/dietary-attribute|素食|非转基因|无麸质|无糖|无乳制品|无过敏原/.test(text)) return 'dietary-attribute';
+  if (/quality-process|manufacturing|quality|standards|质量控制|产品一致性|生产标准/.test(text)) return 'quality-process';
+  return '';
+}
+
+function productDevelopmentSafeCopywritingPair(ruleCode, section) {
+  if (ruleCode === 'usage' && section === 'B') {
+    return { en: 'A practical formula for everyday routines.', cn: '适合融入日常营养安排。' };
+  }
+  if (ruleCode === 'usage') {
+    return { en: 'Designed for convenient routine support.', cn: '适合融入日常营养支持。' };
+  }
+  if (ruleCode === 'dietary-attribute') {
+    return { en: 'Formulated for simple everyday routines.', cn: '适合日常营养安排。' };
+  }
+  return { en: 'Designed for routine support.', cn: '适合日常营养支持。' };
+}
+
+function productDevelopmentLocalComplianceFallback(rawText, expectedIngredients, brand) {
+  let candidate;
+  try {
+    candidate = parseProductDevelopmentJson(rawText);
+  } catch (_) {
+    return null;
+  }
+  const sectionAliases = {
+    A: ['efficacy', 'productEfficacy', 'productEffects', 'functions', 'A', '产品功效'],
+    B: ['advantages', 'productAdvantages', 'benefits', 'B', '产品优势'],
+    C: ['sellingPoints', 'sellingpoints', 'salesPoints', 'highlights', 'C', '产品卖点'],
+    D: ['ingredientFunctions', 'ingredient_functions', 'ingredientBenefits', 'D', '成分功能'],
+  };
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      return normalizeProductDevelopmentCopywritingCandidate(candidate, expectedIngredients, brand);
+    } catch (error) {
+      const message = String(error && error.message || '');
+      const target = message.match(/\b([ABCD])\s+item\s+(\d+)\b/i);
+      const ruleCode = productDevelopmentCopywritingRestrictionCode(message);
+      if (!target || !ruleCode) return null;
+      const section = target[1].toUpperCase();
+      const index = Number(target[2]) - 1;
+      const info = productDevelopmentCopywritingListInfo(candidate, sectionAliases[section]);
+      if (!info || !Array.isArray(info.list) || !info.list[index]) return null;
+      const original = info.list[index];
+      const row = original && typeof original === 'object' && !Array.isArray(original)
+        ? original
+        : { value: original };
+      const pair = productDevelopmentSafeCopywritingPair(ruleCode, section);
+      row.en = pair.en;
+      row.cn = pair.cn;
+      if (section === 'C') {
+        if (index < 4) {
+          row.titleEn = 'Routine Support';
+          row.titleCn = '日常支持';
+        } else {
+          row.titleEn = '';
+          row.titleCn = '';
+        }
+      }
+      if (section === 'D' && expectedIngredients[index] && !row.ingredientEn && !row.ingredientCn) {
+        row.ingredientEn = expectedIngredients[index].en || '';
+        row.ingredientCn = expectedIngredients[index].cn || '';
+      }
+      info.list[index] = row;
+    }
+  }
+  return null;
+}
+
 function productDevelopmentCopywritingReplacementForTerm(term) {
   const raw = String(term || '').trim();
   const lower = raw.toLowerCase();
@@ -3778,6 +3879,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
             '你是文案合规修复助手。下面给出一份已经生成但未通过校验的完整 JSON。保留 A-D 的条数、顺序、成分名称、产品事实和中英文对应关系，只改写命中限制词或格式问题的生成句子。',
             '禁止删除条目，禁止把内容改成空字符串，禁止新增成分、功效、认证、疾病、治疗或数字。',
             'A-D 不得包含服用频次、单次数量、Serving Size、per serving、daily supply、供应周期、未经输入支持的饮食属性或生产质量背书；Directions 不属于 A-D。',
+            '如果校验失败信息指出某条含 dosage、frequency、serving 或 supply claim，必须把该条整句改成中性产品优势/日常支持表达，不要保留数字、capsule、serving、supply、take、daily use 等用法词。',
             '先在内部逐项检查所有 en、cn、titleEn、titleCn，再只返回修复后的完整 JSON；不要解释修复过程，不要复述限制词清单。',
           ].join(' '),
           prompt: [
@@ -3790,6 +3892,21 @@ async function handleProductDevelopmentCopywriting(request, env) {
         }, validateCopywritingCandidate);
         return copywritingSuccess(repaired, ['首次生成命中限制词，已自动合规修复'], 'product-development-copywriting-v5-auto-repair');
       } catch (repairError) {
+        const repairCandidate = repairError && Array.isArray(repairError.aiCandidates) && repairError.aiCandidates.length
+          ? repairError.aiCandidates[0]
+          : candidate;
+        const locallyRepaired = productDevelopmentLocalComplianceFallback(
+          repairCandidate && repairCandidate.text,
+          ingredients,
+          brand,
+        );
+        if (locallyRepaired && repairCandidate) {
+          return copywritingSuccess(
+            { result: repairCandidate, value: locallyRepaired },
+            ['首次生成和 AI 自动修复均命中合规规则，已用中性文案替换问题条目'],
+            'product-development-copywriting-v7-local-compliance-fallback'
+          );
+        }
         error = new Error(cleanText(error && error.message, 420) + ' | 自动修复：' + cleanText(repairError && repairError.message, 420));
       }
     }
