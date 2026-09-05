@@ -3484,26 +3484,31 @@
       clear.click();
       await productDevelopmentDomWait(80);
     }
-    const clickTarget = productDevelopmentDomClickTarget(input);
-    if (!clickTarget) throw new Error('未找到物料分类点击区域');
-    clickTarget.click();
+    const opened = await productDevelopmentDomOpenDropdown(input);
+    if (!opened) throw new Error('物料分类下拉未能展开');
     const segments = wanted.split(/[\/／>＞|]+/).map((item) => item.trim()).filter(Boolean);
     for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex += 1) {
       const segment = segments[segmentIndex];
-      const option = await waitFor(() => {
-        const menus = Array.from(document.querySelectorAll('.ant-cascader-menu'))
-          .filter(productDevelopmentDomVisible);
-        const menu = menus[segmentIndex] || menus[menus.length - 1];
-        if (!menu) return null;
-        return Array.from(menu.querySelectorAll('.ant-cascader-menu-item'))
-          .filter(productDevelopmentDomVisible)
-          .find((item) => productDevelopmentDomOptionText(item) === productDevelopmentDomText(segment)) || null;
-      }, 5000, 100);
-      if (!option) throw new Error('PLM 物料分类中找不到“' + segment + '”');
-      option.click();
-      await productDevelopmentDomWait(140);
+      const option = await productDevelopmentDomWaitForCascaderOption(segment, segmentIndex, 12000, segments.slice(0, segmentIndex + 1).join(' / '));
+      productDevelopmentDomActivateTarget(option);
+      if (segmentIndex < segments.length - 1) {
+        const nextSegment = segments[segmentIndex + 1];
+        const nextMenuReady = await waitFor(() => {
+          const menus = productDevelopmentDomVisibleCascaderMenus();
+          productDevelopmentDomRecordCascaderOptions(segments.slice(0, segmentIndex + 1).join(' / '));
+          const nextMenu = menus[segmentIndex + 1] || menus[menus.length - 1];
+          if (!nextMenu) return false;
+          const wantedNext = productDevelopmentDomText(nextSegment);
+          return productDevelopmentDomCascaderMenuOptions(nextMenu).some((item) => {
+            const text = productDevelopmentDomOptionText(item);
+            return text === wantedNext || text.endsWith(wantedNext);
+          });
+        }, 12000, 100);
+        if (!nextMenuReady) throw new Error('PLM 物料分类下一层“' + nextSegment + '”未加载');
+      }
     }
-    if (!force && !productDevelopmentDomSelectionMatches(input, wanted)) throw new Error('PLM 未确认物料分类“' + wanted + '”');
+    const selected = await waitFor(() => productDevelopmentDomSelectionMatches(input, wanted) || !productDevelopmentDomDropdownOpen(input), 5000, 100);
+    if (!force && !selected) throw new Error('PLM 未确认物料分类“' + wanted + '”');
   }
 
   function productDevelopmentBomDomKindLabel(kind) {
