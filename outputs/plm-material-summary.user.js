@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.308
+// @version      2.8.309
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.308';
+  const SCRIPT_VERSION = '2.8.309';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -47605,6 +47605,7 @@ self.onmessage = async function(event) {
     const nowMs = Date.now();
     const nowText = new Date(nowMs).toLocaleString();
     const normalized = normalizeData({ ...data, updatedAt: data.updatedAt || nowText, updatedAtMs: data.updatedAtMs || nowMs });
+    const previousAcknowledgedSignature = String(previousNormalized && previousNormalized.recentFieldChangesAcknowledgedSignature || '').trim();
     if (previousNormalized && !Object.prototype.hasOwnProperty.call(data, 'recentFieldChangesAcknowledgedSignature')) {
       normalized.recentFieldChangesAcknowledgedSignature = String(previousNormalized.recentFieldChangesAcknowledgedSignature || '');
     }
@@ -47623,6 +47624,13 @@ self.onmessage = async function(event) {
       normalized.recentFieldChanges = getStoredDataChanges(storedChangesSource);
     }
     const detectedChanges = opts.suppressChangeTracking ? [] : collectTrackedDataChanges(previousNormalized, normalized, opts);
+    if (!detectedChanges.length && previousAcknowledgedSignature) {
+      // An async PLM read may finish with a snapshot captured before the user
+      // acknowledged the update. Keep the acknowledgement from the latest
+      // persisted record instead of reactivating that stale change list.
+      normalized.recentFieldChanges = getStoredDataChanges(previousNormalized);
+      normalized.recentFieldChangesAcknowledgedSignature = previousAcknowledgedSignature;
+    }
     if (detectedChanges.length) {
       normalized.recentFieldChangesAcknowledgedSignature = '';
       const combined = detectedChanges.concat(getStoredDataChanges(normalized));
