@@ -133,11 +133,7 @@ const PRODUCT_DEVELOPMENT_BANNED_TERMS = Object.freeze([
   '减肥', '降脂', '降糖', '增强免疫', '改善疾病',
 ]);
 const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v6';
-const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'ingredient-template-v3';
-const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS = 'Purified Water, Vegetable Glycerin, Citric Acid, Potassium Sorbate';
-const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS_CN = '纯化水、植物甘油、柠檬酸、山梨酸钾';
-const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS = 'Chicken Flavor, Beef Flavor, Lecithin, Citric Acid';
-const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS_CN = '鸡肉风味剂、牛肉风味剂、卵磷脂、柠檬酸';
+const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'ingredient-template-v5';
 const PRODUCT_DEVELOPMENT_CORPUS_LANGUAGE_GUIDE = Object.freeze([
   '跨类型高频中性动词：supports、helps maintain、provides nutritional support、formulated with、designed for、suitable for routine use。',
   '跨类型高频状态词：daily wellness、nutrition、balance、comfort、vitality、convenient、simple、routine、liquid drops、easy to use。',
@@ -2865,18 +2861,124 @@ function productDevelopmentOneShotNumber(value) {
   return match ? Number(match[0]) : NaN;
 }
 
+function productDevelopmentOneShotParseAmount(value) {
+  const source = cleanText(value, 120)
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const match = source.match(/^(-?\d[\d,]*(?:\.\d+)?)\s*(mg|mcg|μg|µg|ug|g|kg|ml|l|fu|gdu|du|iu|cfu|kcal|usp|units?|cu|au|pu|te)?\b/i);
+  if (!match) return { valid: false, value: NaN, unit: '', amountText: '', massMg: NaN, isMass: false };
+  const amount = Number(match[1].replace(/,/g, ''));
+  if (!Number.isFinite(amount) || amount <= 0) return { valid: false, value: amount, unit: '', amountText: '', massMg: NaN, isMass: false };
+  const rawUnit = String(match[2] || 'mg').toLowerCase();
+  const unit = rawUnit === 'mg' || rawUnit === 'mcg' || rawUnit === 'g' || rawUnit === 'kg'
+    ? rawUnit
+    : rawUnit === 'μg' || rawUnit === 'µg' || rawUnit === 'ug'
+      ? 'mcg'
+      : rawUnit === 'ml'
+        ? 'mL'
+        : rawUnit === 'l'
+          ? 'L'
+          : rawUnit === 'units' || rawUnit === 'unit'
+            ? 'units'
+            : rawUnit.toUpperCase();
+  const isMass = ['mg', 'mcg', 'g', 'kg'].includes(rawUnit);
+  const massMg = !isMass
+    ? NaN
+    : rawUnit === 'kg'
+      ? amount * 1000000
+      : rawUnit === 'g'
+        ? amount * 1000
+        : rawUnit === 'mcg' || rawUnit === 'μg' || rawUnit === 'µg' || rawUnit === 'ug'
+          ? amount / 1000
+          : amount;
+  const amountText = match[2]
+    ? source.replace(/\s+(?:per|each)\s+(?:serving|dose|day)\b.*$/i, '').trim().slice(0, 80)
+    : match[1].replace(/,/g, '') + ' mg';
+  return { valid: true, value: amount, unit, amountText, massMg, isMass };
+}
+
 function productDevelopmentOneShotAmountMg(value) {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
-  const text = String(value === undefined || value === null ? '' : value).replace(/,/g, '').trim().toLowerCase();
-  const match = text.match(/-?\d+(?:\.\d+)?\s*(mg|mcg|μg|µg|ug|g|kg)?/i);
-  if (!match) return NaN;
-  const amount = Number(match[0].replace(/[^\d.+-]/g, ''));
-  if (!Number.isFinite(amount)) return NaN;
-  const unit = String(match[1] || 'mg').toLowerCase();
-  if (unit === 'kg') return amount * 1000000;
-  if (unit === 'g') return amount * 1000;
-  if (unit === 'mcg' || unit === 'μg' || unit === 'µg' || unit === 'ug') return amount / 1000;
-  return amount;
+  const parsed = productDevelopmentOneShotParseAmount(value);
+  return parsed.isMass ? parsed.massMg : NaN;
+}
+
+function productDevelopmentOneShotHasNonMassPotency(value) {
+  return /\b(?:FU|GDU|DU|IU|CFU|KCAL|USP)\b/i.test(String(value || ''));
+}
+
+function productDevelopmentOneShotFrontFacts(value) {
+  const source = cleanText(value, 12000)
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const potencyClaims = [];
+  const potencyPattern = /\b\d[\d,]*(?:\.\d+)?\s*(?:FU|GDU|DU|IU|CFU|KCAL|USP)\b(?:\s*(?:per|each|\/)\s*(?:serving|dose|day))?/gi;
+  let potencyMatch;
+  while ((potencyMatch = potencyPattern.exec(source))) {
+    const parsed = productDevelopmentOneShotParseAmount(potencyMatch[0]);
+    if (parsed.valid && !parsed.isMass) potencyClaims.push({
+      amountText: parsed.amountText,
+      value: parsed.value,
+      unit: parsed.unit,
+    });
+  }
+  const amountClaims = [];
+  const amountPattern = /\b\d[\d,]*(?:\.\d+)?\s*(?:mg|mcg|μg|µg|ug|g|kg|FU|GDU|DU|IU|CFU|KCAL|USP)\b(?:\s*(?:per|each|\/)\s*(?:serving|dose|day))?/gi;
+  let amountMatch;
+  while ((amountMatch = amountPattern.exec(source))) {
+    const parsed = productDevelopmentOneShotParseAmount(amountMatch[0]);
+    if (parsed.valid) amountClaims.push({
+      amountText: parsed.amountText,
+      value: parsed.value,
+      unit: parsed.unit,
+      isMass: parsed.isMass,
+    });
+  }
+  const unitPattern = '(capsules?|soft\\s*gel(?:s)?|tablets?|gummies?|soft\\s*chews?|chews?|sachets?|drops?)';
+  const canonicalUnit = (value) => {
+    const unit = String(value || '').toLowerCase().replace(/\s+/g, ' ');
+    if (/capsule/.test(unit)) return 'Capsules';
+    if (/soft\s*gel/.test(unit)) return 'Softgels';
+    if (/tablet/.test(unit)) return 'Tablets';
+    if (/gumm/.test(unit)) return 'Gummies';
+    if (/soft\s*chew/.test(unit)) return 'Soft Chews';
+    if (/chew/.test(unit)) return 'Chews';
+    if (/sachet/.test(unit)) return 'Sachets';
+    return 'Drops';
+  };
+  const formatCount = (value) => productDevelopmentOneShotFormatNumber(Number(value));
+  const packMatch = source.match(new RegExp('\\b(\\d[\\d,]*)\\s*' + unitPattern + '\\b', 'i'));
+  const packCount = packMatch ? Number(String(packMatch[1]).replace(/,/g, '')) : 0;
+  const packUnit = packMatch ? canonicalUnit(packMatch[2]) : '';
+  const supplyMatch = source.match(/\b(\d+)\s*[- ]?day(?:s)?(?:\s+supply)?\b/i);
+  const supplyDays = supplyMatch ? Number(supplyMatch[1]) : 0;
+  const servingSizeMatch = source.match(new RegExp('\\bserving\\s+size\\s*[:：-]?\\s*(\\d+(?:\\.\\d+)?)\\s*' + unitPattern + '\\b', 'i'))
+    || source.match(new RegExp('\\b(?:active\\s+ingredients?|ingredients?)\\s+per\\s*[:：-]?\\s*(\\d+(?:\\.\\d+)?)\\s*' + unitPattern + '\\b', 'i'))
+    || source.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*' + unitPattern + '\\s*(?:per|each|/)\\s*serving\\b', 'i'));
+  const explicitServingCount = servingSizeMatch ? Number(servingSizeMatch[1]) : 0;
+  const explicitServingUnit = servingSizeMatch ? canonicalUnit(servingSizeMatch[2]) : '';
+  const servingsPerContainerMatch = source.match(/\bserv(?:ing|ings)\s+per\s+container\s*[:：-]?\s*(\d+)\b/i);
+  let servingsPerContainer = servingsPerContainerMatch ? Number(servingsPerContainerMatch[1]) : 0;
+  if (!servingsPerContainer && supplyDays > 0) servingsPerContainer = supplyDays;
+  if (!servingsPerContainer && packCount > 0 && explicitServingCount > 0 && packCount % explicitServingCount === 0) {
+    servingsPerContainer = packCount / explicitServingCount;
+  }
+  let servingSize = explicitServingCount > 0 && explicitServingUnit
+    ? formatCount(explicitServingCount) + ' ' + explicitServingUnit
+    : '';
+  if (!servingSize && packCount > 0 && servingsPerContainer > 0 && packCount % servingsPerContainer === 0) {
+    servingSize = formatCount(packCount / servingsPerContainer) + ' ' + packUnit;
+  }
+  return {
+    potencyClaims,
+    amountClaims,
+    servingSize,
+    servingsPerContainer: servingsPerContainer > 0 ? Math.max(1, Math.min(365, Math.round(servingsPerContainer))) : 0,
+    packCount,
+    packUnit,
+    supplyDays,
+  };
 }
 
 function productDevelopmentOneShotRounded(value, digits = 3) {
@@ -2970,15 +3072,17 @@ function productDevelopmentOneShotRows(value, warnings, kind) {
       .trim();
     const sourcePart = cleanText(readProductDevelopmentField(source, ['sourcePart', 'plantPart', 'part', 'source', '植物部位']), 160);
     const standardization = cleanText(readProductDevelopmentField(source, ['standardization', 'standardizedTo', 'assay', 'marker', '标准化']), 220);
-    const amountMg = productDevelopmentOneShotAmountMg(readProductDevelopmentField(source, ['amountMg', 'amount', 'amountPerServing', 'quantity', 'dosage', '含量']));
+    const rawAmount = readProductDevelopmentField(source, ['amountText', 'amount', 'amountPerServing', 'quantity', 'dosage', '含量', 'amountMg']);
+    const amount = productDevelopmentOneShotParseAmount(rawAmount);
+    const amountMg = amount.massMg;
     const category = productDevelopmentOneShotCategory(nameEn);
     const explicitMarker = productDevelopmentOneShotAmountMg(readProductDevelopmentField(source, ['markerActiveMg', 'activeMarkerMg', 'markerAmountMg', 'standardizedActiveMg', '标志物含量']));
     const standardizationPercent = productDevelopmentOneShotMarkerPercent(standardization);
     if (!nameEn || !nameCn) throw new Error('one-shot ingredient row ' + (index + 1) + ' must include English and Chinese names');
-    const botanical = /\b(?:extract|berry|root|leaf|seed|flower|bark|rhizome|resin|herb|fruit|mushroom|botanical)\b/i.test(nameEn);
+    const botanical = /\b(?:berry|root|leaf|seed|flower|bark|rhizome|resin|herb|fruit|mushroom|botanical)\b/i.test(nameEn);
     if (botanical && (!latinName || !/[A-Za-z]{2,}/.test(latinName))) throw new Error('one-shot botanical row ' + (index + 1) + ' must include a Latin scientific name');
     if (botanical && !sourcePart) throw new Error('one-shot botanical row ' + (index + 1) + ' must include a plant part');
-    if (!Number.isFinite(amountMg) || amountMg <= 0) throw new Error('one-shot ingredient row ' + (index + 1) + ' must include a positive amount');
+    if (!amount.valid) throw new Error('one-shot ingredient row ' + (index + 1) + ' must include a positive amount with a unit');
     if (source.isActive === false || source.active === false || /inactive|other\s+ingredient|非活性|其他成分/i.test(String(source.type || source.category || source.group || ''))) {
       throw new Error('one-shot ingredient rows may contain active ingredients only');
     }
@@ -3004,8 +3108,11 @@ function productDevelopmentOneShotRows(value, warnings, kind) {
       sourcePart,
       standardization,
       standardizationPercent: Number.isFinite(standardizationPercent) ? standardizationPercent : 0,
-      amountMg: productDevelopmentOneShotRounded(amountMg),
-      amountText: productDevelopmentOneShotFormatAmount(amountMg),
+      amountMg: Number.isFinite(amountMg) ? productDevelopmentOneShotRounded(amountMg) : 0,
+      amountValue: amount.value,
+      amountUnit: amount.unit,
+      amountIsMass: amount.isMass,
+      amountText: amount.amountText,
       dailyValue: isPet ? '**' : productDevelopmentOneShotDailyValue(source, amountMg, nameEn),
       markerActiveMg: productDevelopmentOneShotRounded(markerActiveMg),
       markerBasis,
@@ -3014,16 +3121,72 @@ function productDevelopmentOneShotRows(value, warnings, kind) {
       normalizedNameKey,
     };
   });
-  if (rows.length < 4 || rows.length > 6) throw new Error('one-shot ingredient table must contain 4 to 6 core active rows');
+  if (rows.length < 1 || rows.length > 6) throw new Error('one-shot ingredient table must contain 1 to 6 product-supported active rows');
   const seen = new Set();
   rows.forEach((row) => {
     if (seen.has(row.normalizedNameKey)) throw new Error('one-shot ingredient table contains duplicate active rows');
     seen.add(row.normalizedNameKey);
   });
-  const categoryRank = { vitamin: 0, mineral: 1, other: 2 };
-  rows.sort((a, b) => (categoryRank[a.category] - categoryRank[b.category]) || (b.amountMg - a.amountMg) || (a.sourceIndex - b.sourceIndex));
-  if (rows.some((row, index) => row.sourceIndex !== index)) warnings.push('Ingredient rows were ordered as vitamins, minerals, then other actives, with each group descending by amount.');
   return rows;
+}
+
+function productDevelopmentOneShotFocusRows(rows, sourcePlainTextCopy, warnings) {
+  const sourceKey = productDevelopmentNormalizedClaimText(sourcePlainTextCopy);
+  const frontFacts = productDevelopmentOneShotFrontFacts(sourcePlainTextCopy);
+  const amountClaims = Array.isArray(frontFacts.amountClaims) ? frontFacts.amountClaims : [];
+  if (!sourceKey || amountClaims.length !== 1 || !Array.isArray(rows) || rows.length <= 1) return rows;
+  const matched = rows.filter((row) => [row && row.nameEn, row && row.nameCn]
+    .map(productDevelopmentNormalizedClaimText)
+    .some((key) => key.length >= 5 && sourceKey.includes(key)));
+  if (matched.length !== 1) {
+    const claimKey = productDevelopmentNormalizedClaimText(amountClaims[0] && amountClaims[0].amountText);
+    const claimIndex = claimKey ? sourceKey.indexOf(claimKey) : -1;
+    const ranked = matched.map((row) => {
+      const nameKey = productDevelopmentNormalizedClaimText(row && row.nameEn);
+      const nameIndex = nameKey && claimIndex >= 0 ? sourceKey.lastIndexOf(nameKey, claimIndex) : -1;
+      return { row, distance: nameIndex >= 0 && claimIndex >= 0 ? claimIndex - nameIndex : Number.MAX_SAFE_INTEGER };
+    }).sort((a, b) => a.distance - b.distance);
+    if (ranked.length > 1 && ranked[0].distance + 12 < ranked[1].distance) {
+      warnings.push('The ingredient row nearest to the single explicit front-copy amount was kept; other matched labels were treated as product descriptors.');
+      return [ranked[0].row];
+    }
+    return rows;
+  }
+  warnings.push('The front copy contains one explicit potency claim, so unsupported extra ingredient rows were removed.');
+  return matched;
+}
+
+function productDevelopmentOneShotApplyFrontFacts(rows, frontFacts, sourcePlainTextCopy, warnings) {
+  const facts = frontFacts && typeof frontFacts === 'object' ? frontFacts : {};
+  const source = String(sourcePlainTextCopy || '');
+  const output = Array.isArray(rows) ? rows : [];
+  const claims = Array.isArray(facts.amountClaims) ? facts.amountClaims : [];
+  if (claims.length !== 1 || output.length !== 1) return output;
+  const claim = claims[0];
+  const row = output[0];
+  const sourceKey = productDevelopmentNormalizedClaimText(source);
+  const rowKey = productDevelopmentNormalizedClaimText(row && row.nameEn);
+  if (!rowKey || rowKey.length < 5 || !sourceKey.includes(rowKey)) return output;
+  const current = productDevelopmentOneShotParseAmount(row && row.amountText);
+  if (current.amountText !== claim.amountText || current.isMass || current.unit !== claim.unit) {
+    const parsedClaim = productDevelopmentOneShotParseAmount(claim.amountText);
+    row.amountText = claim.amountText;
+    row.amountValue = claim.value;
+    row.amountUnit = claim.unit;
+    row.amountIsMass = Boolean(parsedClaim.valid && parsedClaim.isMass);
+    row.amountMg = row.amountIsMass ? productDevelopmentOneShotRounded(parsedClaim.massMg) : 0;
+    if (row.amountIsMass && row.category !== 'other') {
+      row.markerActiveMg = row.amountMg;
+      row.markerBasis = 'amount';
+    } else {
+      row.markerActiveMg = 0;
+      row.markerBasis = 'none';
+    }
+    warnings.push('The explicit potency and unit from the front copy were kept as the row amount; no potency-to-mg conversion was applied.');
+  }
+  if (row.sourcePart && !sourceKey.includes(productDevelopmentNormalizedClaimText(row.sourcePart))) row.sourcePart = '';
+  if (!/%|standard(?:ized|ised)|assay|活性含量|标准化/i.test(source)) row.standardization = '';
+  return output;
 }
 
 function productDevelopmentOneShotNormalizeCopyInput(candidate, rows) {
@@ -3057,6 +3220,7 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
   const source = value && typeof value === 'object' ? value : {};
   const input = context && context.input && typeof context.input === 'object' ? context.input : {};
   const target = context && context.target && typeof context.target === 'object' ? context.target : {};
+  const sourcePlainTextCopy = cleanText(context && context.sourcePlainTextCopy, 12000);
   const ingredientKind = String(context && context.kind || input.ingredientKind || 'human').trim().toLowerCase() === 'pet' ? 'pet' : 'human';
   const candidateProduct = source.product && typeof source.product === 'object'
     ? source.product
@@ -3077,26 +3241,36 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
       ? source.ingredientFacts
       : source.supplementFacts && typeof source.supplementFacts === 'object' ? source.supplementFacts : source;
   const warnings = [];
-  const rows = productDevelopmentOneShotRows(tableSource, warnings, ingredientKind);
-  const requestedActiveMg = Number(target.activeMg) || 700;
+  const frontFacts = productDevelopmentOneShotFrontFacts(sourcePlainTextCopy);
+  const focusedRows = productDevelopmentOneShotFocusRows(productDevelopmentOneShotRows(tableSource, warnings, ingredientKind), sourcePlainTextCopy, warnings);
+  const rows = productDevelopmentOneShotApplyFrontFacts(focusedRows, frontFacts, sourcePlainTextCopy, warnings);
+  const servingSize = frontFacts.servingSize || String(target.servingSize || '1 mL');
+  const servingsPerContainer = frontFacts.servingsPerContainer || Number(target.servingsPerContainer) || 60;
+  const requestedActiveMg = Number(target.activeMg) > 0 ? Number(target.activeMg) : 0;
   let activeTotalMg = productDevelopmentOneShotRounded(rows.reduce((sum, row) => sum + row.amountMg, 0));
+  const allMassAmounts = rows.length > 0 && rows.every((row) => row.amountIsMass);
   const difference = requestedActiveMg - activeTotalMg;
-  if (Math.abs(difference) > 0.01) {
+  let adjustedMassAmounts = false;
+  if (requestedActiveMg > 0 && allMassAmounts && Math.abs(difference) > 0.01) {
     if (Math.abs(difference) > Math.max(5, requestedActiveMg * 0.15)) throw new Error('one-shot active amount must be close to the requested target before normalization');
     const last = rows[rows.length - 1];
     const previousAmount = last.amountMg;
     const nextAmount = productDevelopmentOneShotRounded(previousAmount + difference);
     if (nextAmount <= 0) throw new Error('one-shot target adjustment would make an ingredient amount invalid');
     last.amountMg = nextAmount;
+    last.amountValue = nextAmount;
     if (last.markerBasis === 'standardization') last.markerActiveMg = productDevelopmentOneShotRounded(nextAmount * last.standardizationPercent / 100);
     else if (last.markerBasis === 'amount') last.markerActiveMg = nextAmount;
     else if (last.markerBasis === 'explicit' && previousAmount > 0) last.markerActiveMg = productDevelopmentOneShotRounded(last.markerActiveMg * nextAmount / previousAmount);
+    adjustedMassAmounts = true;
     warnings.push('The generated row amounts were rounded to the requested active target of ' + productDevelopmentOneShotFormatNumber(requestedActiveMg) + ' mg per serving.');
     activeTotalMg = productDevelopmentOneShotRounded(rows.reduce((sum, row) => sum + row.amountMg, 0));
+  } else if (requestedActiveMg > 0 && !allMassAmounts) {
+    warnings.push('The requested mg target was not applied because the packaging uses non-mass potency units; each row keeps its printed amount and unit.');
   }
-  if (activeTotalMg + 0.001 < requestedActiveMg) throw new Error('one-shot active amount is below the requested target');
+  if (requestedActiveMg > 0 && allMassAmounts && activeTotalMg + 0.001 < requestedActiveMg) throw new Error('one-shot active amount is below the requested target');
   rows.forEach((row) => {
-    row.amountText = productDevelopmentOneShotFormatAmount(row.amountMg);
+    if (row.amountIsMass && adjustedMassAmounts) row.amountText = productDevelopmentOneShotFormatAmount(row.amountMg);
     row.markerActiveMg = productDevelopmentOneShotRounded(row.markerActiveMg);
     row.dailyValue = ingredientKind === 'pet' ? '**' : productDevelopmentOneShotDailyValue(row, row.amountMg, row.nameEn);
   });
@@ -3105,22 +3279,23 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
   const requestedActivePercentValue = Number(target.standardizedPercent);
   const requestedActivePercent = Number.isFinite(requestedActivePercentValue)
     ? Math.max(0, Math.min(100, requestedActivePercentValue))
-    : ingredientKind === 'pet' ? 0 : 30;
-  if (requestedActivePercent > 0 && standardizedActivePercent + 0.001 < requestedActivePercent) throw new Error('one-shot standardized active marker content is below the requested ' + productDevelopmentOneShotFormatNumber(requestedActivePercent) + '% target');
-  const defaultOtherIngredients = ingredientKind === 'pet' ? PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS : PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS;
-  const defaultOtherIngredientsCn = ingredientKind === 'pet' ? PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS_CN : PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS_CN;
-  const otherIngredientsEn = productDevelopmentOneShotNormalizeOtherIngredients(
+    : 0;
+  if (requestedActivePercent > 0 && allMassAmounts && standardizedActivePercent + 0.001 < requestedActivePercent) throw new Error('one-shot standardized active marker content is below the requested ' + productDevelopmentOneShotFormatNumber(requestedActivePercent) + '% target');
+  const candidateOtherIngredientsEn = productDevelopmentOneShotNormalizeOtherIngredients(
     readProductDevelopmentField(tableSource, ['otherIngredientsEn', 'otherIngredients', 'inactiveIngredients', 'ingredientsOther', '其他成分']),
-    input.otherIngredientsEn || defaultOtherIngredients,
+    '',
+  );
+  const otherIngredientsEn = productDevelopmentOneShotNormalizeOtherIngredients(
+    input.otherIngredientsEn || (sourcePlainTextCopy ? '' : candidateOtherIngredientsEn),
+    '',
   );
   const rawOtherIngredientsCn = readProductDevelopmentField(tableSource, ['otherIngredientsCn', 'inactiveIngredientsCn', '其他成分中文']);
   const otherIngredientsCn = cleanText(
     rawOtherIngredientsCn && typeof rawOtherIngredientsCn === 'object'
       ? rawOtherIngredientsCn.cn || rawOtherIngredientsCn.chinese || rawOtherIngredientsCn.value || ''
-      : rawOtherIngredientsCn || input.otherIngredientsCn || defaultOtherIngredientsCn,
+      : input.otherIngredientsCn || (sourcePlainTextCopy ? '' : rawOtherIngredientsCn || ''),
     1200,
   );
-  if (!otherIngredientsEn) throw new Error('one-shot other ingredients are required');
   let copywriting = null;
   if (includeCopywriting) {
     const expectedIngredients = rows.map((row) => ({ en: row.nameEn, cn: row.nameCn }));
@@ -3129,9 +3304,11 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
   }
   const candidateWarnings = source.warnings || source.warning || [];
   warnings.push(...(Array.isArray(candidateWarnings) ? candidateWarnings : [candidateWarnings]));
-  warnings.push(context && context.imageDataUrl
-    ? 'This is a proposed formula draft based on the image and target attributes; verify identity, assay, density, solubility, stability and final label amounts with the supplier COA and regulatory reviewer.'
-    : 'This is a proposed formula draft based on the reference link and target attributes; the Worker does not fetch the link, so verify every ingredient and claim with the supplier COA and regulatory reviewer.');
+  warnings.push(sourcePlainTextCopy
+    ? 'This is a proposed formula draft based on the approved plain packaging copy; verify ingredient identity, potency, serving amounts, stability and final label details with the supplier COA and regulatory reviewer.'
+    : context && context.imageDataUrl
+      ? 'This is a proposed formula draft based on the image and target attributes; verify identity, assay, density, solubility, stability and final label amounts with the supplier COA and regulatory reviewer.'
+      : 'This is a proposed formula draft based on the reference link and target attributes; the Worker does not fetch the link, so verify every ingredient and claim with the supplier COA and regulatory reviewer.');
   return {
     product: {
       nameCn,
@@ -3142,12 +3319,14 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
     },
     ingredientTable: {
       title: ingredientKind === 'pet' ? 'Product Facts' : 'Supplement Facts',
-      servingSize: String(target.servingSize || '1 mL'),
-      servingsPerContainer: Number(target.servingsPerContainer) || 60,
+      servingSize,
+      servingsPerContainer,
       activeTotalMg,
       standardizedActiveMg,
       standardizedActivePercent,
-      activeContentBasis: ingredientKind === 'pet' ? 'Active ingredient total excludes inactive ingredients.' : 'Declared standardized marker mass divided by active ingredient total; excipients excluded.',
+      activeContentBasis: activeTotalMg > 0
+        ? (ingredientKind === 'pet' ? 'Active ingredient total excludes inactive ingredients.' : 'Declared standardized marker mass divided by active ingredient total; excipients excluded.')
+        : 'Packaging potency units are preserved as printed; no mg total was inferred.',
       requiredActiveMg: requestedActiveMg,
       requiredStandardizedActivePercent: requestedActivePercent,
       rows,
@@ -3157,8 +3336,8 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
       footnote: '**Daily Value not established.',
     },
     labeling: {
-      directionsEn: ingredientKind === 'pet' ? 'Give ' + String(target.servingSize || '1 mL') + ' daily or as directed by your veterinarian. May be given directly or mixed with food.' : 'Shake well before use. Take ' + String(target.servingSize || '1 mL') + ' once daily. May be taken directly or mixed with food.',
-      directionsCn: ingredientKind === 'pet' ? '每日按' + String(target.servingSize || '1 mL') + '喂食，或遵循兽医建议。可直接喂食或拌入食物。' : '使用前摇匀。每日一次，每次' + String(target.servingSize || '1 mL') + '。可直接食用或拌入食物。',
+      directionsEn: ingredientKind === 'pet' ? 'Give ' + servingSize + ' daily or as directed by your veterinarian. May be given directly or mixed with food.' : 'Shake well before use. Take ' + servingSize + ' once daily. May be taken directly or mixed with food.',
+      directionsCn: ingredientKind === 'pet' ? '每日按' + servingSize + '喂食，或遵循兽医建议。可直接喂食或拌入食物。' : '使用前摇匀。每日一次，每次' + servingSize + '。可直接食用或拌入食物。',
       disclaimerEn: ingredientKind === 'pet' ? '' : 'These statements have not been evaluated by the Food and Drug Administration. This product is not intended to diagnose, treat, cure, or prevent any disease.',
       disclaimerCn: ingredientKind === 'pet' ? '' : '这些声明未经美国食品药品监督管理局评估。本产品不用于诊断、治疗、治愈或预防任何疾病。',
       warningsEn: ingredientKind === 'pet' ? 'For animal use only. Keep out of reach of children. Store in a cool, dry place away from direct sunlight.' : 'Keep out of reach of children. Store in a cool, dry place away from direct sunlight. Consult a healthcare professional if pregnant, nursing, taking medication, or managing a medical condition.',
@@ -3183,9 +3362,18 @@ async function handleProductDevelopmentOneShot(request, env) {
   const referenceUrl = cleanText(body.referenceUrl, 1200);
   if (referenceUrl && !/^https?:\/\//i.test(referenceUrl)) return json({ ok: false, error: 'referenceUrl must use http or https' }, 400);
   if (!image && !referenceUrl && !sourcePlainTextCopy) return json({ ok: false, error: 'one-shot requires approved plain copy, an image or a reference URL' }, 400);
+  const frontFacts = productDevelopmentOneShotFrontFacts(sourcePlainTextCopy);
   const activeMg = productDevelopmentOneShotNumber(body.targetActiveMg);
   const standardizedPercent = productDevelopmentOneShotNumber(body.targetActivePercent);
-  const servingsPerContainer = Math.max(1, Math.min(365, Math.round(productDevelopmentOneShotNumber(body.servingsPerContainer) || 60)));
+  const activeMgExplicit = String(body.targetActiveMgExplicit || '').toLowerCase() === 'true';
+  const standardizedPercentExplicit = String(body.targetActivePercentExplicit || '').toLowerCase() === 'true';
+  const useActiveMgTarget = Number.isFinite(activeMg) && activeMg > 0
+    && (activeMgExplicit || activeMg !== 700)
+    && !(sourcePlainTextCopy && productDevelopmentOneShotHasNonMassPotency(sourcePlainTextCopy) && !activeMgExplicit);
+  const useStandardizedPercentTarget = Number.isFinite(standardizedPercent) && standardizedPercent > 0
+    && (standardizedPercentExplicit || standardizedPercent !== 30);
+  const servingsPerContainer = frontFacts.servingsPerContainer
+    || Math.max(1, Math.min(365, Math.round(productDevelopmentOneShotNumber(body.servingsPerContainer) || 60)));
   const input = {
     ingredientKind,
     sku: cleanText(body.sku, 80) || 'ONE-SHOT-' + new Date().toISOString().slice(0, 10).replace(/-/g, ''),
@@ -3194,14 +3382,15 @@ async function handleProductDevelopmentOneShot(request, env) {
     nameEn: cleanText(body.nameEn || body.productNameEn, 220),
     productType: cleanText(body.productType, 180) || defaultProductType,
     netContent: cleanText(body.netContent, 120) || '60 mL',
-    servingSize: cleanText(body.servingSize, 80) || '1 mL',
+    servingSize: frontFacts.servingSize || cleanText(body.servingSize, 80) || '1 mL',
     servingsPerContainer,
-    targetActiveMg: Number.isFinite(activeMg) ? Math.max(50, Math.min(5000, activeMg)) : 700,
-    targetActivePercent: Number.isFinite(standardizedPercent) ? Math.max(0, Math.min(100, standardizedPercent)) : ingredientKind === 'pet' ? 0 : 30,
+    targetActiveMg: useActiveMgTarget ? Math.max(1, Math.min(5000, activeMg)) : 0,
+    targetActivePercent: useStandardizedPercentTarget ? Math.max(0, Math.min(100, standardizedPercent)) : 0,
     requestedFunctions: cleanText(body.requestedFunctions, 1800),
-    otherIngredientsEn: cleanText(body.otherIngredientsEn, 1600) || (ingredientKind === 'pet' ? PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS : PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS),
-    otherIngredientsCn: cleanText(body.otherIngredientsCn, 1200) || (ingredientKind === 'pet' ? PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_PET_OTHER_INGREDIENTS_CN : PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS_CN),
+    otherIngredientsEn: cleanText(body.otherIngredientsEn, 1600),
+    otherIngredientsCn: cleanText(body.otherIngredientsCn, 1200),
     sourcePlainTextCopy,
+    frontFacts,
     productAttributes: {
       ingredientKind: cleanText(bodyProductAttributes.ingredientKind, 20) || ingredientKind,
       productType: cleanText(bodyProductAttributes.productType, 180),
@@ -3210,6 +3399,7 @@ async function handleProductDevelopmentOneShot(request, env) {
       servingsPerContainer: cleanText(bodyProductAttributes.servingsPerContainer, 40),
       requestedFunctions: cleanText(bodyProductAttributes.requestedFunctions, 1000),
       sourcePlainTextCopy: cleanText(bodyProductAttributes.sourcePlainTextCopy, 12000),
+      frontFacts: bodyProductAttributes.frontFacts && typeof bodyProductAttributes.frontFacts === 'object' ? bodyProductAttributes.frontFacts : {},
       ingredientTemplateId: cleanText(bodyProductAttributes.ingredientTemplateId, 80),
       ingredientTemplateLabel: cleanText(bodyProductAttributes.ingredientTemplateLabel, 120),
       ingredientTemplateSheetName: cleanText(bodyProductAttributes.ingredientTemplateSheetName, 120),
@@ -3226,8 +3416,8 @@ async function handleProductDevelopmentOneShot(request, env) {
   };
   const context = { input, target, imageDataUrl: image, referenceUrl, sourcePlainTextCopy, includeCopywriting: !ingredientOnly, kind: ingredientKind };
   const formulaSeed = ingredientKind === 'pet'
-    ? 'Use only 4-6 core active ingredients supported by sourcePlainTextCopy; keep the selected Product Facts serving format and put only necessary excipients under Inactive Ingredients.'
-    : 'Use only 4-6 core active ingredients supported by sourcePlainTextCopy; keep the selected Supplement Facts serving format and put only necessary excipients under Other Ingredients.';
+    ? 'Use only the core active ingredients supported by the product front copy; if the copy clearly names one active ingredient or potency, output one row rather than adding more; keep the selected Product Facts serving format and put only user-supported excipients under Inactive Ingredients.'
+    : 'Use only the core active ingredients supported by the product front copy; if the copy clearly names one active ingredient or potency, output one row rather than adding more; keep the selected Supplement Facts serving format and put only user-supported excipients under Other Ingredients.';
   const system = [
     ingredientKind === 'pet'
       ? '你是美国宠物食品和宠物营养补充剂的配方与包装文案草稿助手，不是医疗或法律意见提供者。'
@@ -3237,12 +3427,12 @@ async function handleProductDevelopmentOneShot(request, env) {
       : '只生成 human dietary supplement，不生成宠物、化妆品或药品。输出只能是一个 JSON 对象，不要 Markdown、代码围栏或解释。',
     '证据优先级：sourcePlainTextCopy（侵权图的纯文字文案版本）是识别产品名称、适用对象、产品定位、卖点和用途的首要依据；用户明确填写的产品属性和目标数值其次；对标图文字仅作缺失信息的辅助参考。referenceUrl 只是用户提供的线索，本 Worker 不抓取链接，不得把链接页面当成已验证事实；目标数值是配方设计目标，不等于供应商已经确认的事实。没有纯文字文案时可以使用图片或属性生成配方草案，但 warnings 必须明确是 proposed draft。',
     ingredientKind === 'pet'
-      ? '必须按目标生成选定宠物模板的 Product Facts：Serving Size、Servings Per Container、4 至 6 条核心活性成分和 Inactive Ingredients。活性成分每份合计必须精确达到目标毫克数；宠物表不填写人体 % Daily Value，也不强制标准化活性比例。辅料不能计入活性合计。'
-      : '必须按目标生成选定人类模板的 Supplement Facts：Serving Size、Servings Per Container、4 至 6 条核心活性成分和 Other Ingredients。活性成分每份合计必须精确达到目标毫克数；若目标要求标准化活性比例，主要提取物的标志物合计必须不低于目标百分比。辅料不能计入活性合计。',
-    '每条活性成分必须有 nameEn、nameCn、amountMg；只有植物提取物、植物粉、草本、菌菇等需要区分来源时才填写准确的 latinName 和 sourcePart，维生素、矿物质、氨基酸、油脂等不强制添加拉丁学名或无意义来源括号。nameEn/nameCn 不要自己加括号，前端会按需要组合字段。',
+      ? '必须按目标生成选定宠物模板的 Product Facts：Serving Size、Servings Per Container、1 至 6 条核心活性成分和 Inactive Ingredients。若包装正面只显示一个活性成分，就只输出一行；宠物表不填写人体 % Daily Value，也不强制标准化活性比例。辅料不能计入活性合计。'
+      : '必须按目标生成选定人类模板的 Supplement Facts：Serving Size、Servings Per Container、1 至 6 条核心活性成分和 Other Ingredients。若包装正面只显示一个活性成分，就只输出一行；若目标要求标准化活性比例，主要提取物的标志物合计必须不低于目标百分比。辅料不能计入活性合计。',
+    '每条活性成分必须有 nameEn、nameCn、amountText；mg、g、mcg 等质量单位可填写 amountMg，FU、IU、CFU、GDU 等效价单位必须保留在 amountText 中，不能换算成 mg。只有植物提取物、植物粉、草本、菌菇等需要区分来源时才填写准确的 latinName 和 sourcePart，维生素、矿物质、氨基酸、油脂等不强制添加拉丁学名或无意义来源括号。nameEn/nameCn 不要自己加括号，前端会按需要组合字段。',
     ingredientKind === 'pet'
-      ? '成分顺序遵循选定宠物模板的版式；只保留与产品定位直接相关的 4 至 6 个核心成分，不要为了凑数加入复合维生素或矿物质；不要臆造人体每日参考值。'
-      : '成分顺序遵循样例优先规则：维生素，再矿物质，再其他活性成分；每组内部按每份重量从高到低。Supplement Facts 使用 **Daily Value not established.；Vitamin C、Zinc 等有 DV 的营养素给出合理的整数百分比。',
+      ? '成分顺序遵循产品正面文案或用户输入的顺序；模板只提供字段和排版参考，严禁复制模板中的示例成分、示例剂量、示例辅料或其他产品事实；不要为了凑数加入复合维生素或矿物质；不要臆造人体每日参考值。'
+      : '成分顺序遵循产品正面文案或用户输入的顺序；模板只提供字段和排版参考，严禁复制模板中的示例成分、示例剂量、示例辅料或其他产品事实。Supplement Facts 使用 **Daily Value not established.；只有输入事实明确支持时才给出营养素的 % Daily Value。',
     ingredientKind === 'pet'
       ? 'Inactive Ingredients 单独输出，只列必要辅料和风味剂，不把水、甘油、酸度调节剂或防腐剂算入活性合计。'
       : 'Other Ingredients 单独输出，只列必要辅料，不把水、甘油、酸度调节剂或防腐剂算入活性合计。',
@@ -3255,8 +3445,9 @@ async function handleProductDevelopmentOneShot(request, env) {
     ingredientOnly
       ? '成分表信息必须服从 input.productType、input.productAttributes 与选定模板元数据；模板只决定字段和版式，不得把其他产品类型或模板案例的事实带入当前 SKU。'
       : 'A-D 必须严格为 A 4 条、B 4 条、C 15 条、D 与活性成分数量相同。C 前 4 条有双语标题且标题不写成分，后 11 条标题为空。D 的 ingredientEn/ingredientCn 必须与输出成分 nameEn/nameCn 按顺序完全一致。',
-    '成分生成规则：先围绕纯文字文案识别产品定位，再选择 4 至 6 个核心成分；成分、标签卖点和产品定位必须一致，不得添加文案未体现或无关联的成分；去掉功能重复、价值低和非核心的小剂量成分；Serving Size 按所选工作表的实际格式，液体参考 1 mL/1 Dropper，粉剂参考 5 g、10 g 或 30 g，软糖/软胶囊/软咀嚼参考 1 至 2 个；总活性剂量必须与容量和目标合理匹配；只列必要辅料；避免 Cure、Treat、Prevent、Disease、Anti-inflammatory、Guaranteed、Natural 等违禁或夸大表达，功效只用 supports、helps maintain、daily wellness 等结构功能表述。',
-    '请保留选定工作表的字段版式和 Serving Size，不要照抄工作表中的品牌、案例成分、案例剂量或未经当前纯文字文案支持的功效。',
+    '成分生成规则：先逐行阅读 sourcePlainTextCopy 的产品正面描述，识别产品名、核心成分、效价/含量单位、Serving Size、包装数量和供货周期，再生成与其一致的成分表；frontFacts 是从正面文案确定性提取的事实，若有值必须优先采用；正面只写一个成分或一个效价时只保留一个活性行，不要为了填满模板添加 Vitamin C、Grape Seed、Hawthorn 或其他无关成分；正面出现的用量和单位必须原样优先，不能把 10,000 FU 改成任意 mg，也不能用模板示例剂量；正面没有提供质量目标时不要强行凑 mg 总量；只列输入明确提供的辅料，未提供时留空并提醒人工确认。',
+    '例如 sourcePlainTextCopy 同时出现 NATTO ENZYME EXTRACT、NATTOKINASE、10,000 FU PER SERVING、60 CAPSULES、DIETARY SUPPLEMENT、30-DAY SUPPLY 时，只输出 Nattokinase 一行，amountText 为 10,000 FU，Serving Size 为 2 Capsules，Servings Per Container 为 30；不得加入 Vitamin C、Grape Seed Extract、Hawthorn 或把 FU 换成 mg。',
+    '请保留选定工作表的字段版式和成分描述方式作为排版参考；Serving Size 仅在正面文案没有确定信息时作为 fallback。不要照抄工作表中的品牌、案例成分、案例剂量、案例辅料或未经当前纯文字文案支持的功效。',
   ].join(' ');
   const basePayload = {
     stage: ingredientOnly ? 'ingredient' : 'ingredient-and-copywriting',
@@ -3277,16 +3468,20 @@ async function handleProductDevelopmentOneShot(request, env) {
     },
     referenceUrl,
     sourcePlainTextCopy,
+    frontFacts,
     imageProvided: Boolean(image),
     designFormulaPattern: formulaSeed,
   };
   const ingredientTableTitle = ingredientKind === 'pet' ? 'Product Facts' : 'Supplement Facts';
   const ingredientRowSchema = ingredientKind === 'pet'
-    ? '{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountMg":0}'
-    : '{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountMg":0,"dailyValue":"**","markerActiveMg":0}';
+    ? '{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountText":"","amountMg":0}'
+    : '{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountText":"","amountMg":0,"dailyValue":"**","markerActiveMg":0}';
   const responseSchema = ingredientOnly
-    ? '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":700,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[' + ingredientRowSchema + '],"otherIngredientsEn":"","otherIngredientsCn":""},"warnings":[]}'
-    : '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":700,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[' + ingredientRowSchema + '],"otherIngredientsEn":"","otherIngredientsCn":""},"copywriting":{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}},"warnings":[]}';
+    ? '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":0,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[' + ingredientRowSchema + '],"otherIngredientsEn":"","otherIngredientsCn":""},"warnings":[]}'
+    : '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":0,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[' + ingredientRowSchema + '],"otherIngredientsEn":"","otherIngredientsCn":""},"copywriting":{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}},"warnings":[]}';
+  const targetAmountInstruction = input.targetActiveMg > 0
+    ? '若所有行都是质量单位，活性合计=' + input.targetActiveMg + ' mg；若存在 FU、IU、CFU、GDU 等非质量效价单位，保留包装单位，不要为了满足 mg 目标改写效价。'
+    : '未提供质量目标；按产品正面文案的含量/效价和单位输出，不要为了凑模板数量或 mg 总量添加成分。';
   const options = {
     primaryModel: getProductDevelopmentPrimaryQwenModel(env),
     model: getProductDevelopmentPrimaryQwenModel(env),
@@ -3302,7 +3497,7 @@ async function handleProductDevelopmentOneShot(request, env) {
       JSON.stringify(basePayload),
       '严格返回完整 JSON：',
       responseSchema,
-      '目标约束：每份活性合计=' + input.targetActiveMg + ' mg；' + (ingredientKind === 'pet' ? '宠物格式不填写人体 % Daily Value，Inactive Ingredients 必须非空。' : '标准化活性标志物比例至少=' + input.targetActivePercent + '%；Supplement Facts 的 Other Ingredients 必须非空。') + '每行中英文名称和正数用量必须完整，植物成分按需要填写 Latin scientific name 和植物部位。',
+      '目标约束：' + targetAmountInstruction + (ingredientKind === 'pet' ? '宠物格式不填写人体 % Daily Value，Inactive Ingredients 只有在输入提供时才填写。' : '标准化活性标志物比例仅在用户提供目标时校验；Supplement Facts 的 Other Ingredients 只有在输入提供时才填写。') + '每行中英文名称和带单位的正数用量必须完整，植物成分按需要填写 Latin scientific name 和植物部位。',
       ingredientOnly ? '本次是 ingredient 阶段：只返回成分表和 warnings，不要返回 A-D 文案。' : '本次是 ingredient-and-copywriting 阶段：成分表和 A-D 文案都必须返回。',
       '必须先依据 sourcePlainTextCopy 识别定位和卖点，再输出满足目标的 proposed formula；如果参考图片与目标配方不同，在 warnings 说明，不要声称图片已经证明这些数值。',
     ].join('\n'),
@@ -3335,7 +3530,7 @@ async function handleProductDevelopmentOneShot(request, env) {
       model: preferred.result.model || '',
       stage: ingredientOnly ? 'ingredient' : 'ingredient-and-copywriting',
       oneShotRuleVersion: PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION,
-      source: repaired ? 'product-development-one-shot-v3-repair' : 'product-development-one-shot-v3-qwen-first',
+      source: repaired ? 'product-development-one-shot-v4-repair' : 'product-development-one-shot-v4-qwen-first',
       referenceUrl,
       sku: input.sku,
     });

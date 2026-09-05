@@ -24,6 +24,7 @@ const definitions = {
   runtimeData: 'v1/runtime-data.json',
   excelTemplate: 'v1/excel-template.xlsx',
   icons: 'v1/icons.json',
+  ingredientTemplates: 'v1/product-development-ingredient-templates.json',
   uiStyles: `v15/ui-${uiRelease.version}.css`,
 };
 const assets = {};
