@@ -3605,6 +3605,10 @@ async function handleProductDevelopmentCopywriting(request, env) {
   const sku = cleanText(body.sku, 80);
   const name = cleanText(body.name, 300);
   const brand = cleanText(body.brand, 160);
+  const sourcePlainTextCopy = cleanText(
+    body.sourcePlainTextCopy || body.infringementPlainTextCopy || body.plainTextCopy,
+    12000,
+  );
   const ingredients = normalizeProductDevelopmentIngredientInput(body.ingredients);
   const rawIngredientTable = body.ingredientTable && typeof body.ingredientTable === 'object' ? body.ingredientTable : null;
   const ingredientTable = rawIngredientTable ? {
