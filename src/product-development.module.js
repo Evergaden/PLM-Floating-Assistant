@@ -6292,8 +6292,9 @@
       const bytes = Fflate.zipSync(entries, { level: 0 });
       return new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     }
-    if (typeof JSZip !== 'function') throw new Error('DOCX 组件未加载');
-    const zip = new JSZip();
+    const Zip = getLazyExternalRuntime('jszip') || await ensureLazyExternalScript('jszip').catch(() => null);
+    if (typeof Zip !== 'function') throw new Error('DOCX 组件未加载');
+    const zip = new Zip();
     Object.keys(files).forEach((name) => zip.file(name, files[name]));
     return zip.generateAsync({ type: 'blob', compression: 'STORE', streamFiles: true });
   }
@@ -6677,12 +6678,20 @@
     let xml = productDevelopmentBuiltinDocumentXml();
     if (templateSource) {
       templateBuffer = typeof templateSource === 'string' ? base64ToArrayBuffer(templateSource) : templateSource;
+      let Zip = getLazyExternalRuntime('jszip');
+      if (!Zip) {
+        try {
+          Zip = await ensureLazyExternalScript('jszip');
+        } catch (error) {
+          productDevelopmentLog('warn', 'JSZip 按需加载失败，改用备用 DOCX 解压', formatErrorMessage(error));
+        }
+      }
       // JSZip keeps the original DOCX package parts and relationships in a
       // Word-compatible round trip. fflate remains a fallback for hosts where
       // the required JSZip userscript dependency was not loaded.
-      if (typeof JSZip === 'function') {
+      if (typeof Zip === 'function') {
         try {
-          zip = await withCopywritingTimeout(JSZip.loadAsync(templateBuffer), 30000, 'JSZip 读取模板');
+          zip = await withCopywritingTimeout(Zip.loadAsync(templateBuffer), 30000, 'JSZip 读取模板');
           const documentFile = zip.file('word/document.xml');
           if (!documentFile) throw new Error('模板缺少 word/document.xml');
           xml = await withCopywritingTimeout(documentFile.async('string'), 30000, 'JSZip 读取正文');
@@ -6966,7 +6975,7 @@
       state.productDevelopmentStatus = '正在按四列表格模板生成 DOCX…';
       renderShell();
       stage = '生成 DOCX';
-      productDevelopmentLog('info', '开始生成 DOCX 文件', sku + ' | 模板=' + copywritingTemplate.label + ' | id=' + copywritingTemplate.id + ' | 编码器=' + (typeof JSZip === 'function' ? 'JSZip' : productDevelopmentDocxCodec() ? 'fflate' : 'none'));
+      productDevelopmentLog('info', '开始生成 DOCX 文件', sku + ' | 模板=' + copywritingTemplate.label + ' | id=' + copywritingTemplate.id + ' | 编码器=' + (getLazyExternalRuntime('jszip') ? 'JSZip' : productDevelopmentDocxCodec() ? 'fflate' : 'none'));
       const blob = await withCopywritingTimeout(
         buildProductDevelopmentDocx(content, copywritingTemplateSource, snapshot),
         180000,
@@ -7305,7 +7314,7 @@
   function productDevelopmentIngredientTemplateById(templateId) {
     const id = String(templateId || '').trim();
     if (!id) return null;
-    return (Array.isArray(PRODUCT_DEVELOPMENT_INGREDIENT_TEMPLATES) ? PRODUCT_DEVELOPMENT_INGREDIENT_TEMPLATES : [])
+    return productDevelopmentIngredientTemplatesData()
       .find((item) => item && String(item.id || '').trim() === id) || null;
   }
 
@@ -8610,7 +8619,7 @@
 
   function productDevelopmentIngredientTemplates(kind) {
     const normalizedKind = normalizeProductDevelopmentIngredientKind(kind);
-    return (Array.isArray(PRODUCT_DEVELOPMENT_INGREDIENT_TEMPLATES) ? PRODUCT_DEVELOPMENT_INGREDIENT_TEMPLATES : [])
+    return productDevelopmentIngredientTemplatesData()
       .filter((item) => item && normalizeProductDevelopmentIngredientKind(item.kind) === normalizedKind);
   }
 
