@@ -8882,6 +8882,15 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
   position: relative;
 }
 
+#plm-floating-helper .pfh-product-development.is-task-embedded {
+  height: auto;
+  max-height: none;
+  flex: 0 0 auto;
+  overflow: visible;
+  overscroll-behavior: auto;
+  scrollbar-width: auto;
+}
+
 #plm-floating-helper .pfh-product-development::-webkit-scrollbar,
 #plm-floating-helper .pfh-product-development-preview-scroll::-webkit-scrollbar {
   width: 6px;

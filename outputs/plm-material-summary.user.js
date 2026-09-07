@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.314
+// @version      2.8.315
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.314';
+  const SCRIPT_VERSION = '2.8.315';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -5962,7 +5962,7 @@
   const PRODUCT_DEVELOPMENT_DETAIL_CACHE_VERSION = 3;
   const PRODUCT_DEVELOPMENT_DETAIL_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
   const PRODUCT_DEVELOPMENT_DETAIL_CACHE_LIMIT = 20;
-  const PRODUCT_DEVELOPMENT_MATERIAL_DRAFT_VERSION = 2;
+  const PRODUCT_DEVELOPMENT_MATERIAL_DRAFT_VERSION = 3;
   const productDevelopmentDetailCacheWriteTimers = Object.create(null);
   const PRODUCT_DEVELOPMENT_TASK_TABS = Object.freeze([
     { id: 'detail', label: '详情' },
@@ -7464,6 +7464,10 @@
     );
   }
 
+  function productDevelopmentMaterialUsesGlassAdhesive(baseName) {
+    return /滴剂/.test(productDevelopmentCleanText(baseName, 180));
+  }
+
   function productDevelopmentMaterialPackSpec(detail, kind) {
     const rows = detail && Array.isArray(detail.bomRows) ? detail.bomRows : [];
     if (kind === 'instruction') {
@@ -7496,9 +7500,10 @@
     const length = productDevelopmentMaterialNumberText(draft.length, 2);
     const width = productDevelopmentMaterialNumberText(draft.width, 2);
     const height = productDevelopmentMaterialNumberText(draft.height, 2);
+    const adhesive = productDevelopmentCleanText(draft.adhesive, 60);
     const dimensionText = kind === 'box'
       ? (length && width && height ? length + 'x' + width + 'x' + height + 'cm' : '')
-      : (length && width ? length + 'x' + width + 'cm（' + productDevelopmentCleanText(draft.adhesive || '玻璃加粘', 60) + '）' : '');
+      : (length && width ? length + 'x' + width + 'cm' + (adhesive ? '（' + adhesive + '）' : '') : '');
     return [packSpec, dimensionText].filter(Boolean).join('，');
   }
 
@@ -7587,7 +7592,9 @@
       packSpec,
       shelfLife: productDevelopmentCleanText(raw.shelfLife || defaults.shelfLife, 40),
       labelShape: productDevelopmentCleanText(raw.labelShape || defaults.labelShape, 40),
-      adhesive: productDevelopmentCleanText(raw.adhesive || defaults.adhesive, 60),
+      adhesive: kind === 'label' && productDevelopmentMaterialUsesGlassAdhesive(baseName)
+        ? productDevelopmentCleanText(raw.adhesive || defaults.adhesive, 60)
+        : '',
       defaultName: productDevelopmentCleanText(defaults.defaultName, 240),
       length: kind === 'instruction' ? '' : productDevelopmentMaterialNumberText(dimensionValue('length', existing && existing.length, dimensions.length), 2),
       width: kind === 'instruction' ? '' : productDevelopmentMaterialNumberText(dimensionValue('width', existing && existing.width, dimensions.width), 2),
@@ -7609,7 +7616,7 @@
       price: productDevelopmentCleanText(raw.price !== undefined ? raw.price : existing && existing.price, 40),
     };
     if (!draft.materialName && draft.nameSource !== 'manual') draft.materialName = productDevelopmentMaterialDefaultName(kind, baseName, draft);
-    if (!draft.specification && draft.specificationSource !== 'manual') draft.specification = productDevelopmentMaterialDefaultSpecification(kind, draft);
+    if (draft.specificationSource !== 'manual') draft.specification = productDevelopmentMaterialDefaultSpecification(kind, draft);
     const calculatedPrice = productDevelopmentCalculateMaterialPrice(kind, draft);
     if (calculatedPrice !== '') draft.price = calculatedPrice;
     return draft;
@@ -7661,6 +7668,7 @@
     const baseName = productDevelopmentMaterialBaseName(task, detail);
     const calculatedPrice = productDevelopmentCalculateMaterialPrice(kind, draft);
     draft.price = calculatedPrice;
+    if (kind === 'label') draft.adhesive = productDevelopmentMaterialUsesGlassAdhesive(baseName) ? PRODUCT_DEVELOPMENT_MATERIAL_DEFAULTS.label.adhesive : '';
     if (draft.nameSource !== 'manual') draft.materialName = productDevelopmentMaterialDefaultName(kind, baseName, draft);
     if (draft.specificationSource !== 'manual') draft.specification = productDevelopmentMaterialDefaultSpecification(kind, draft);
   }
@@ -9338,7 +9346,7 @@
         productDevelopmentMaterialRadioHtml(sku, kind, 'thicken', '是否需加厚', draft.thicken) +
         '</div></div>'
       : isLabel
-        ? '<div class="pfh-product-development-material-defaults"><strong>标签默认规则</strong><span>圆弧 · 玻璃加粘 · 食品两年 · 用量 1</span></div>'
+        ? '<div class="pfh-product-development-material-defaults"><strong>标签默认规则</strong><span>圆弧' + (draft.adhesive ? ' · ' + escapeHtml(draft.adhesive) : '') + ' · 食品两年 · 用量 1</span></div>'
         : '<div class="pfh-product-development-material-defaults"><strong>说明书默认规则</strong><span>半成品 · 配件类 · 用量 1 · 不使用纸盒/标签尺寸计算</span></div>';
     const priceInput = isInstruction
       ? productDevelopmentMaterialInputHtml(sku, kind, 'price', '采购价（手动）', draft.price, { required: true, placeholder: '填写采购价' })
@@ -9538,6 +9546,7 @@
     if (modeSwitch) modeSwitch.remove();
     if (subviewHead) subviewHead.remove();
     root.classList.remove('pfh-product-development-subview');
+    root.classList.add('is-task-embedded');
     return root.outerHTML;
   }
 
@@ -17313,6 +17322,7 @@
     const safe = data || {};
     safe.apiFieldStates = normalizeApiFieldStates(safe.apiFieldStates);
     safe.name = normalizeProductNameValue(safe.name);
+    const productNameNetContent = productNameDerivedNetContent(safe.name, safe.netContent, safe.specificationText);
     safe.brand = normalizeSkuBrandValue(safe.brand, safe);
     const manualFieldOverrides = normalizeManualFieldOverrides(safe);
     migrateLabelValue(safe, 'packageSizeLabel', 'packageSizeText');
@@ -17373,6 +17383,7 @@
       copywriting,
       copywritingIngredientEnglish,
       copywritingIngredientChinese,
+      netContent: productNameNetContent || safe.netContent || '',
       copywritingIngredientSplit: Boolean(safe.copywritingIngredientSplit || copywriting && copywriting.ingredientSplit),
       ingredientEnglish: normalizeIngredientLocantHyphens(safe.ingredientEnglish || copywritingIngredientEnglish || plmIngredientEnglishText),
       ingredientChinese: safe.ingredientChinese || copywritingIngredientChinese || plmIngredientText,
@@ -19920,7 +19931,7 @@
     const nums = parseDimension(dim, 2);
     const productNums = nums && nums.length >= 2 ? [nums[0], nums[0], nums[1]] : null;
     const count = (row.match(/(\d+(?:\.\d+)?)\s*\u7c92/) || [])[1];
-    const type = /\u8f6f\u7cd6/.test(row) ? 'GUMMIES' : 'CAPSULES';
+    const type = /软糖/.test(row) ? 'GUMMIES' : (/软胶囊/.test(row) ? 'SOFTGELS' : 'CAPSULES');
     return {
       productNums,
       netContent: count ? trimNumber(Number(count)) + type : '',
@@ -19950,6 +19961,14 @@
       return formatNetContentAmount(weightMatch[1], weightMatch[2]);
     }
     return '';
+  }
+
+  function productNameDerivedNetContent(productName, netContent, specificationText) {
+    const name = normalizeProductNameValue(productName);
+    if (!/软胶囊/.test(name)) return '';
+    const source = [name, netContent, specificationText].map((value) => compactText(value)).filter(Boolean).join(' ');
+    const match = source.match(/(\d+(?:\.\d+)?)\s*(?:粒|SOFTGELS?|CAPSULES?)/i);
+    return match ? trimNumber(Number(match[1])) + 'SOFTGELS' : '';
   }
 
   function extractSpecModelNetContent(root) {
@@ -32224,7 +32243,7 @@ self.onmessage = async function(event) {
   function formatCopywritingNetContent(value) {
     const text = cleanCopywritingLine(value);
     if (!text || text === '--' || text === L.unknown) return { text: '', warning: '净含量' };
-    if (/^\d+(?:\.\d+)?(?:CAPSULES|GUMMIES|TABLETS|PAIR|PAIRS|PCS?|PC)$/i.test(text)) return { text: text.toUpperCase(), warning: '' };
+    if (/^\d+(?:\.\d+)?(?:CAPSULES|SOFTGELS|GUMMIES|TABLETS|PAIR|PAIRS|PCS?|PC)$/i.test(text)) return { text: text.toUpperCase(), warning: '' };
     const match = text.match(/(\d+(?:\.\d+)?)\s*(g|ml)\b/i);
     if (!match) return { text, warning: '净含量单位无法换算' };
     const amount = Number(match[1]);
