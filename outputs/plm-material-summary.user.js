@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.313
+// @version      2.8.314
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.313';
+  const SCRIPT_VERSION = '2.8.314';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -5140,6 +5140,7 @@
     Object.freeze({ key: 'thirdPrice', attrId: 156, label: '国内三档价格', domId: 'form_item_6_attr_group_35_2_attr_language_config_json_0_value', type: 'number' }),
     Object.freeze({ key: 'standardPackingQuantity', attrId: 123, label: '标准装箱数', domId: 'form_item_7_attr_group_0_0_attr_language_config_json_0_value', type: 'number' }),
   ]);
+  const PRODUCT_DEVELOPMENT_HIDDEN_DERIVED_FIELD_KEYS = Object.freeze(['outerVolume', 'costPrice']);
 
   const PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS = Object.freeze([
     Object.freeze({ key: 'supplier', label: '供应商子公司名称', domId: 'form_item_0_company_supplier_id', control: 'select', placeholder: '如：JSJ' }),
@@ -6563,6 +6564,11 @@
     return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="product-development-tasks|' + listMode + '|' + page + '">' + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
   }
 
+  function firstProductDevelopmentTask(tasks) {
+    const rows = Array.isArray(tasks) ? tasks.filter(Boolean) : [];
+    return rows.length ? sortSkuListItems(rows)[0] : null;
+  }
+
   function productDevelopmentReadonlyPayloadData(payload) {
     if (typeof getApiPayloadDataObject === 'function') return getApiPayloadDataObject(payload);
     return payload && payload.data !== undefined ? payload.data : payload || {};
@@ -6929,11 +6935,11 @@
     setField('productProductionLine', enriched.productLineValue, enriched.productLine);
     setField('minimumOrderQuantity', '100', '100');
     setField('procurementPrice', enriched.procurementPrice, enriched.procurementPrice);
-    setField('costPrice', enriched.costPrice, enriched.costPrice);
     setField('firstPrice', enriched.firstPrice, enriched.firstPrice);
     setField('secondPrice', enriched.secondPrice, enriched.secondPrice);
     setField('thirdPrice', enriched.thirdPrice, enriched.thirdPrice);
     setField('standardPackingQuantity', enriched.standardPackingQuantity, enriched.standardPackingQuantity);
+    productDevelopmentSyncDerivedProductFields(detail);
     if (!detail.productDetailLocalProcurement || typeof detail.productDetailLocalProcurement !== 'object') detail.productDetailLocalProcurement = Object.create(null);
     Object.assign(detail.productDetailLocalProcurement, {
       ...PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT,
@@ -7387,6 +7393,34 @@
   function productDevelopmentPricingPriceText(value) {
     const number = productDevelopmentPricingNumber(value);
     return number === null ? '' : number.toFixed(2);
+  }
+
+  function productDevelopmentSyncDerivedProductFields(detail) {
+    if (!detail || detail.error) return false;
+    let changed = false;
+    const setDerivedField = (key, value, source) => {
+      const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
+      const text = productDevelopmentPrefillText(value, 800);
+      if (!definition || !text || productDevelopmentPrefillText(productDevelopmentPrefillProductFieldValue(detail, definition), 800) === text) return;
+      productDevelopmentRememberLocalProductField(detail, definition, text, text, source);
+      productDevelopmentProductFieldCollections(detail)
+        .filter((field) => Number(field && field.attrId) === Number(definition.attrId))
+        .forEach((field) => {
+          field.value = text;
+          field.displayValue = text;
+          field.status = '已自动计算（本地）';
+          field.source = source;
+        });
+      changed = true;
+    };
+    const dimensions = ['outerLength', 'outerWidth', 'outerHeight'].map((key) => productDevelopmentPricingNumber(productDevelopmentPricingDetailValue(detail, key)));
+    if (dimensions.every((value) => value !== null && value > 0)) {
+      setDerivedField('outerVolume', String(Number((dimensions[0] * dimensions[1] * dimensions[2]).toFixed(2))), '长宽高自动计算');
+    }
+    const thirdPrice = productDevelopmentPricingNumber(productDevelopmentPricingDetailValue(detail, 'thirdPrice'));
+    if (thirdPrice !== null && thirdPrice >= 2) setDerivedField('costPrice', productDevelopmentPricingPriceText(thirdPrice - 2), '国内三档价格减 2');
+    if (changed && detail.sku) scheduleProductDevelopmentReadonlyDetailCache(detail.sku, detail);
+    return changed;
   }
 
   function productDevelopmentMaterialDimensions(value) {
@@ -7865,6 +7899,7 @@
       showToast('当前 SKU 详情还未读取完成');
       return false;
     }
+    productDevelopmentSyncDerivedProductFields(detail);
     productDevelopmentApplyProductDetailLocalValues(detail);
     detail.productDetailDraftDirty = false;
     detail.productDetailSavedAt = new Date().toLocaleString();
@@ -7881,16 +7916,19 @@
   }
 
   function productDevelopmentProductDetailMissingFields(detail) {
+    productDevelopmentSyncDerivedProductFields(detail);
     const missing = [];
     const checks = [];
     PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS.forEach((definition) => checks.push({
       label: definition.label,
       value: productDevelopmentPage1FieldValue(detail, definition.key),
     }));
-    PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.forEach((definition) => checks.push({
-      label: definition.label,
-      value: productDevelopmentPrefillProductFieldValue(detail, definition),
-    }));
+    PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS
+      .filter((definition) => !PRODUCT_DEVELOPMENT_HIDDEN_DERIVED_FIELD_KEYS.includes(definition.key))
+      .forEach((definition) => checks.push({
+        label: definition.label,
+        value: productDevelopmentPrefillProductFieldValue(detail, definition),
+      }));
     PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS.forEach((definition) => checks.push({
       label: definition.label,
       value: productDevelopmentProcurementFieldValue(detail, definition.key),
@@ -8010,6 +8048,7 @@
     if (typeof fetchPlmApiJson !== 'function') throw new Error('当前脚本没有可用的 PLM 写入请求能力');
     const projectId = String(detail.projectId || task.projectId || task.rowId || '').trim();
     if (!/^\d+$/.test(projectId)) throw new Error('当前开发任务缺少有效项目 ID');
+    productDevelopmentSyncDerivedProductFields(detail);
     productDevelopmentApplyProductDetailLocalValues(detail);
     const product = productDevelopmentBuildProductDetailPayload(detail, task);
     const response = await fetchPlmApiJson('/api/ChemicalNewDevTask/SaveProductDetail', {
@@ -8685,6 +8724,7 @@
   }
 
   async function productDevelopmentFillPlmPage2(detail) {
+    productDevelopmentSyncDerivedProductFields(detail);
     const values = productDevelopmentDomAvailableValues(PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS, (definition) => productDevelopmentPrefillProductFieldValue(detail, definition));
     const procurementValues = productDevelopmentDomAvailableValues(PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS, (definition) => productDevelopmentProcurementFieldValue(detail, definition.key));
     const warnings = [];
@@ -9374,7 +9414,10 @@
     const domFillBusy = state.productDevelopmentDomFillSku === formSku;
     const domFillDisabled = domFillBusy || productPlmBusy ? ' disabled' : '';
     const page1Fields = PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS.map((definition) => ({ ...definition, formGroup: 'page1' }));
-    const page2Fields = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.map((definition) => ({ ...definition, formGroup: 'prefill' }));
+    productDevelopmentSyncDerivedProductFields(detail);
+    const page2Fields = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS
+      .filter((definition) => !PRODUCT_DEVELOPMENT_HIDDEN_DERIVED_FIELD_KEYS.includes(definition.key))
+      .map((definition) => ({ ...definition, formGroup: 'prefill' }));
     const procurementFields = PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS.map((definition) => ({ ...definition, formGroup: 'procurement' }));
     const renderFields = (fields, valueReader) => fields.map((field) => productDevelopmentPrefillFieldHtml(field, formSku, valueReader(field))).join('');
     const attachments = (detail.attachments || []).filter((item) => item && ['产品正面图', '产品文案 DOCX'].includes(String(item.label || '')));
@@ -9528,10 +9571,16 @@
     if (sidebar) sidebar.classList.toggle('is-open', state.productDevelopmentTaskListOpen !== false);
     if (sidebarBody) sidebarBody.innerHTML = productDevelopmentTaskListHtml();
     if (!detail) return;
-    const task = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || state.productDevelopmentSelectedTask;
+    let task = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || state.productDevelopmentSelectedTask;
+    if (!task) {
+      const first = firstProductDevelopmentTask(state.productDevelopmentTasks);
+      if (first) task = selectProductDevelopmentTask(first.sku, { render: false, hydrate: false });
+    }
     if (!task) {
       detail.classList.remove('is-loading');
-      detail.innerHTML = '<div class="pfh-detail-scroll"><section class="pfh-section pfh-product-development-task-empty"><div class="pfh-section-title"><h3>我的开发任务</h3><span>按当前 PLM 用户筛选</span></div><div class="pfh-empty">选择左侧开发 SKU 后显示详情。</div><div class="pfh-about-actions"><button type="button" data-action="product-development-tasks-refresh">刷新任务</button><button type="button" data-action="product-development-tasks-home">返回开发功能</button></div></section></div>';
+      detail.innerHTML = state.productDevelopmentTasksLoading
+        ? '<div class="pfh-detail-scroll"><div class="pfh-empty">正在打开第一个开发产品…</div></div>'
+        : '<div class="pfh-detail-scroll"><div class="pfh-empty">当前用户暂无开发任务</div></div>';
       return;
     }
     state.data = productDevelopmentTaskSeedData(task);
@@ -9557,7 +9606,9 @@
       state.productDevelopmentTasksLoadedAt = Date.now();
       state.productDevelopmentTaskPage = 1;
       const shouldAutoSelect = state.view === 'productDevelopmentTasks' || !opts.silent;
-      const selected = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || (shouldAutoSelect ? rows[0] : null);
+      const selected = opts.selectFirst
+        ? firstProductDevelopmentTask(rows)
+        : (getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || (shouldAutoSelect ? firstProductDevelopmentTask(rows) : null));
       if (selected) {
         const selectedSku = String(state.productDevelopmentTaskSelectedSku || '').trim().toUpperCase();
         const preserveSession = selectedSku === selected.sku && Boolean(
@@ -9590,7 +9641,7 @@
       if (!state.productDevelopmentTaskUserName && cached.userName) state.productDevelopmentTaskUserName = cached.userName;
       const selected = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku);
       if (!selected) {
-        const fallback = Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks[0] : null;
+        const fallback = firstProductDevelopmentTask(state.productDevelopmentTasks);
         if (fallback) selectProductDevelopmentTask(fallback.sku, {
           render: false,
           hydrate: false,
@@ -9606,6 +9657,7 @@
     }).finally(() => {
       state.productDevelopmentTasksLoading = false;
       state.productDevelopmentTaskRequestPromise = null;
+      if (state.view === 'productDevelopmentTasks' && !firstProductDevelopmentTask(state.productDevelopmentTasks)) renderShell();
     });
     state.productDevelopmentTaskRequestPromise = request;
     return request;
@@ -9635,12 +9687,15 @@
     state.skuEditMode = false;
     state.productDevelopmentError = '';
     state.productDevelopmentTaskError = '';
+    const firstCachedTask = firstProductDevelopmentTask(state.productDevelopmentTasks);
+    if (firstCachedTask) selectProductDevelopmentTask(firstCachedTask.sku, { render: false, hydrate: false });
+    state.productDevelopmentTasksLoading = true;
     expandPanel();
     renderShell('正在读取本人开发任务…');
-    loadProductDevelopmentTasks({ force: true }).then((rows) => {
+    loadProductDevelopmentTasks({ force: true, selectFirst: true }).then((rows) => {
       if (state.view !== 'productDevelopmentTasks') return;
       const selected = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku);
-      const first = selected || (Array.isArray(rows) ? rows[0] : null);
+      const first = selected || firstProductDevelopmentTask(rows);
       if (!first) return;
       if (!selected) selectProductDevelopmentTask(first.sku);
       else renderShell();
@@ -12092,6 +12147,10 @@
       '</div>';
   }
 
+  function productDevelopmentSubviewHeaderHtml(kicker, title) {
+    return '<header class="pfh-product-development-subview-head"><button type="button" class="pfh-upload-back" data-action="product-development-home" aria-label="返回产品开发主页">' + iconHtml('backArrow') + '</button><div><small>' + escapeHtml(kicker) + '</small><h2>' + escapeHtml(title) + '</h2></div></header>';
+  }
+
   function productDevelopmentSkuSummaryHtml(snapshot) {
     const sku = getProductDevelopmentCurrentSku();
     if (!sku) return '<div class="pfh-product-development-empty"><strong>还没有当前 SKU</strong><p>请先切换回设计任务，在 PLM 详情中打开一个产品，再进入产品开发。</p><button type="button" data-action="work-mode" data-work-mode="daily">返回设计任务</button></div>';
@@ -12154,8 +12213,8 @@
   }
 
   function productDevelopmentHistoryViewHtml() {
-    return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
-      '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>LOCAL HISTORY</small><h2>本地历史</h2></div></header>' +
+    return '<div class="pfh-product-development pfh-product-development-subview">' +
+      productDevelopmentSubviewHeaderHtml('LOCAL HISTORY', '本地历史') +
       '<section class="pfh-product-development-section pfh-product-development-history"><header><div><small>LOCAL HISTORY</small><h3>已生成记录</h3></div><span>最多保留 ' + PRODUCT_DEVELOPMENT_MAX_HISTORY + ' 条</span></header><div>' + productDevelopmentHistoryHtml(PRODUCT_DEVELOPMENT_MAX_HISTORY) + '</div></section>' +
       '<p class="pfh-product-development-note">图片历史可直接查看和下载已保存的 PNG；文案历史保存完整 A-D 内容，刷新后仍可预览并重新构建 DOCX。所有结果只保存在本地，不向 PLM 回写。</p></div>';
   }
@@ -12218,8 +12277,8 @@
         : '未选择开发 SKU，可先手动输入全包价格和税率。';
     const statusHtml = state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '';
     const errorHtml = state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '';
-    return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
-      '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>PRICING STANDARD</small><h2>定价标准</h2></div></header>' +
+    return '<div class="pfh-product-development pfh-product-development-subview">' +
+      productDevelopmentSubviewHeaderHtml('PRICING STANDARD', '定价标准') +
       '<section class="pfh-product-development-work-card"><div><h3>计算国内三档价格</h3><p>三档价格 = （全包价格 × (1 + 税率/100) + 3）÷ 0.7；二档价格 = 三档价格 + 1；一档价格 = 三档价格 + 2。</p></div><span>' + escapeHtml(sku ? '当前 SKU：' + sku : '公式计算工具') + '</span></section>' +
       '<section class="pfh-product-development-detail-form"><header><div><small>PRICING INPUT</small><h3>定价输入</h3></div><span>' + escapeHtml(sourceHint) + '</span></header><div class="pfh-product-development-form-grid"><label class="pfh-product-development-material-field"><span>全包价格（元）</span><input type="number" min="0" step="0.01" inputmode="decimal" class="pfh-product-development-pricing-input" data-product-development-pricing-field="fullPackagePrice" value="' + escapeHtml(input.fullPackagePrice) + '" placeholder="例如：6.50"></label><label class="pfh-product-development-material-field"><span>税率（%）</span><input type="number" min="0" max="100" step="0.01" inputmode="decimal" class="pfh-product-development-pricing-input" data-product-development-pricing-field="taxRatePercent" value="' + escapeHtml(input.taxRatePercent) + '" placeholder="例如：13"></label></div><p class="pfh-product-development-form-note">税率按百分数填写，例如 13% 填写 13；也支持填写 0.13，系统会按 13% 换算。</p></section>' +
       statusHtml + errorHtml +
@@ -12258,9 +12317,10 @@
           field.source = '定价标准公式（未写入）';
         });
     });
+    productDevelopmentSyncDerivedProductFields(detail);
     productDevelopmentMarkProductDetailDirty(detail);
     scheduleProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
-    state.productDevelopmentStatus = '已按定价标准填入一档、二档、三档价格（本地草稿）';
+    state.productDevelopmentStatus = '已按定价标准填入价格档位，成本价已按三档价格减 2 自动缓存（本地草稿）';
     state.productDevelopmentError = '';
     showToast(state.productDevelopmentStatus);
     renderShell();
@@ -12287,8 +12347,8 @@
         : '')
       : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
     const editor = canEditResult ? productDevelopmentReviewEditorHtml(result, items) : '';
-    return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
-      '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>IMAGE REVIEW</small><h2>产品图风险筛查</h2></div></header>' +
+    return '<div class="pfh-product-development pfh-product-development-subview">' +
+      productDevelopmentSubviewHeaderHtml('IMAGE REVIEW', '产品图风险筛查') +
       '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>使用当前 SKU 的对标图片生成三列对照图。</p></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
@@ -12859,8 +12919,8 @@
     const oneShotResult = state.productDevelopmentOneShotResult && state.productDevelopmentOneShotResult.sku === sku
       ? state.productDevelopmentOneShotResult
       : null;
-    return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
-      '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>产品文案</small><h2>生成双语文案</h2></div></header>' +
+    return '<div class="pfh-product-development pfh-product-development-subview">' +
+      productDevelopmentSubviewHeaderHtml('产品文案', '生成双语文案') +
       productDevelopmentCopywritingToolbarHtml(templateOptions, ingredientCount, ingredientSourceLabel, result, content, oneShotResult) +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (displayError ? '<p class="pfh-product-development-error">' + escapeHtml(displayError) + '</p>' : '') +
@@ -14161,8 +14221,8 @@
       : '<option value="">' + (state.productDevelopmentIngredientBusy ? '正在加载工作表…' : '请先选择内置模板') + '</option>';
     const canExport = Boolean(editor && !state.productDevelopmentIngredientBusy);
     const factsLabel = kind === 'pet' ? 'Product Facts' : 'Supplement Facts';
-    return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
-      '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>INGREDIENT TABLE</small><h2>制作成分表</h2></div></header>' +
+    return '<div class="pfh-product-development pfh-product-development-subview">' +
+      productDevelopmentSubviewHeaderHtml('INGREDIENT TABLE', '制作成分表') +
       '<section class="pfh-product-development-work-card"><div><h3>编辑成分表内容</h3><p>按需从云端加载模板摘要，选择食品类型和工作表后直接编辑；完成后按原来的 ' + factsLabel + ' 版式导出 PDF。</p></div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-ingredient-save-local"' + (canExport ? '' : ' disabled') + '>保存本地</button><button type="button" data-action="product-development-ingredient-export"' + (canExport ? '' : ' disabled') + '>导出 ' + factsLabel + ' PDF</button></div></section>' +
       '<section class="pfh-product-development-detail-form"><header><div><small>模板选择</small><h3>人类食品 / 宠物食品</h3></div><span>' + (template ? '云端模板摘要' : '暂无模板') + '</span></header><div class="pfh-product-development-form-grid">' +
         '<label class="pfh-product-development-material-field"><span>食品类型</span><select class="pfh-product-development-ingredient-kind-input">' + typeOptions + '</select></label>' +
@@ -14892,6 +14952,7 @@
             item.status = displayValue ? '已填写（本地）' : '待补充';
             item.source = displayValue ? '本地人工填写（未写入）' : '待人工补充';
           });
+          productDevelopmentSyncDerivedProductFields(detail);
           productDevelopmentMarkProductDetailDirty(detail);
           persistDetail();
         }
