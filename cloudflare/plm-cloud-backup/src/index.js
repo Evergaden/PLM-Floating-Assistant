@@ -7539,8 +7539,7 @@ async function handleCleaningRuleStatusUpdate(request, env) {
   return json({ ok: true, rule });
 }
 
-export default {
-  async fetch(request, env) {
+async function handleRequest(request, env) {
     if (request.method === 'OPTIONS') return json({ ok: true });
 
     await prepareRequestAuth(request, env);
@@ -7616,6 +7615,22 @@ export default {
     if (url.pathname === '/insights/rules/maintained' && request.method === 'GET') return handleMaintainedCleaningRules(request, env);
     if (url.pathname === '/insights/rules/status' && request.method === 'POST') return handleCleaningRuleStatusUpdate(request, env);
 
-    return json({ error: 'not found' }, 404);
+  return json({ error: 'not found' }, 404);
+}
+
+export default {
+  async fetch(request, env) {
+    try {
+      return await handleRequest(request, env);
+    } catch (error) {
+      const requestId = crypto.randomUUID();
+      console.error('Unhandled Worker request error', {
+        requestId,
+        method: request.method,
+        path: new URL(request.url).pathname,
+        error: error && error.stack || String(error || 'unknown error'),
+      });
+      return json({ error: 'internal server error', requestId }, 500);
+    }
   },
 };

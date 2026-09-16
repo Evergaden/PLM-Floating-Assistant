@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.315
+// @version      2.8.316
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.315';
+  const SCRIPT_VERSION = '2.8.316';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -2972,6 +2972,7 @@
   // Initialize the auth state here so those requests never observe its TDZ.
   let cloudAuthState = null;
   let cloudAuthExchangePromise = null;
+  let cloudApiBase = CLOUD_BACKUP_API_BASE;
   const CLOUD_BACKUP_DEBOUNCE_MS = 8000;
   const CLOUD_BACKUP_KDF_ITERATIONS = 180000;
   const CLOUD_BACKUP_INLINE_LIMIT = 760000;
@@ -46144,10 +46145,28 @@ self.onmessage = async function(event) {
     return cloudAuthExchangePromise;
   }
 
-  function cloudTransport(path, options, extraHeaders) {
+  function createCloudTransportError(message, details) {
+    const error = new Error(message);
+    Object.assign(error, details || {});
+    return error;
+  }
+
+  function shouldRetryCloudTransport(path, method, error) {
+    const safeRetry = method === 'GET'
+      || path === '/auth/exchange'
+      || path === '/backup/save'
+      || path === '/backup/chunk'
+      || path === '/backup/load'
+      || path === '/backup/load-chunk';
+    if (!safeRetry) return false;
+    const status = Number(error && error.status) || 0;
+    return Boolean(error && error.cloudTransportFailure) || status >= 500;
+  }
+
+  function cloudTransportOnce(baseUrl, path, options, extraHeaders) {
     const method = (options && options.method) || 'GET';
     const body = options && options.body ? JSON.stringify(options.body) : null;
-    const url = CLOUD_BACKUP_API_BASE + path;
+    const url = baseUrl + path;
     const timeoutMs = Number(options && options.timeoutMs) || 30000;
     const headers = {
       'content-type': 'application/json',
@@ -46165,7 +46184,10 @@ self.onmessage = async function(event) {
             resolve({ ok: true, responseFormat: 'html' });
             return;
           }
-          reject(new Error('云端返回了非 JSON 响应（HTTP ' + response.status + '）'));
+          reject(createCloudTransportError('云端返回了非 JSON 响应（HTTP ' + response.status + '）', {
+            status: Number(response.status) || 0,
+            cloudTransportFailure: true,
+          }));
           return;
         }
         if (response.status < 200 || response.status >= 300) {
@@ -46181,8 +46203,8 @@ self.onmessage = async function(event) {
           headers,
           data: body,
           onload: handleLoad,
-          onerror: () => reject(new Error('云端请求被浏览器拦截或网络不可用')),
-          ontimeout: () => reject(new Error('timeout')),
+          onerror: () => reject(createCloudTransportError('云端请求被浏览器拦截或网络不可用', { cloudTransportFailure: true })),
+          ontimeout: () => reject(createCloudTransportError('timeout', { cloudTransportFailure: true })),
           timeout: timeoutMs,
         });
         return;
@@ -46201,16 +46223,41 @@ self.onmessage = async function(event) {
           data = text ? JSON.parse(text) : {};
         } catch (error) {
           if (response.ok && path === '/backup/save') return { ok: true, responseFormat: 'html' };
-          throw new Error('云端返回了非 JSON 响应（HTTP ' + response.status + '）');
+          throw createCloudTransportError('云端返回了非 JSON 响应（HTTP ' + response.status + '）', {
+            status: Number(response.status) || 0,
+            cloudTransportFailure: true,
+          });
         }
         if (!response.ok) throw buildCloudError(data, response.status);
         return data;
       }).then(resolve, (error) => {
-        reject(error && error.name === 'AbortError' ? new Error('timeout') : error);
+        if (error && error.name === 'AbortError') {
+          reject(createCloudTransportError('timeout', { cloudTransportFailure: true }));
+        } else if (error && (error.status || error.cloudTransportFailure)) {
+          reject(error);
+        } else {
+          reject(createCloudTransportError(error && error.message || '云端网络请求失败', { cloudTransportFailure: true, cause: error }));
+        }
       }).finally(() => {
         if (timer) window.clearTimeout(timer);
       });
     });
+  }
+
+  async function cloudTransport(path, options, extraHeaders) {
+    const method = (options && options.method) || 'GET';
+    const firstBase = cloudApiBase;
+    const secondBase = firstBase === CLOUD_BACKUP_API_BASE
+      ? CLOUD_ASSET_FALLBACK_API_BASE
+      : CLOUD_BACKUP_API_BASE;
+    try {
+      return await cloudTransportOnce(firstBase, path, options, extraHeaders);
+    } catch (error) {
+      if (secondBase === firstBase || !shouldRetryCloudTransport(path, method, error)) throw error;
+      const response = await cloudTransportOnce(secondBase, path, options, extraHeaders);
+      cloudApiBase = secondBase;
+      return response;
+    }
   }
 
   async function cloudRequest(path, options) {
