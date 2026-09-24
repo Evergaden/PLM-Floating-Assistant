@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.320
+// @version      2.8.321
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.320';
+  const SCRIPT_VERSION = '2.8.321';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -39047,13 +39047,16 @@ self.onmessage = async function(event) {
       layer.setAttribute('data-action', 'excel-export-result-close');
       panel.querySelector('.pfh-full').appendChild(layer);
     }
+    layer.style.alignItems = 'center';
+    layer.style.justifyContent = 'center';
+    layer.style.padding = '24px';
     const missing = Array.isArray(result.missing) ? result.missing.filter(Boolean) : [];
     const detail = missing.length
-      ? '<b>以下数据缺失，表格中已留空：</b>\n' + escapeHtml(missing.join('、'))
-      : '<b>本次导出数据完整</b>\n没有检测到缺失字段。';
-    layer.innerHTML = '<section class="pfh-notification-dialog" role="dialog" aria-modal="true" aria-label="表格导出成功">' +
-      '<header><div><h3>✓ 表格导出成功</h3><span class="pfh-notification-status"><span data-excel-export-countdown>0</span> 秒后自动关闭</span></div><button type="button" class="pfh-notification-close" data-action="excel-export-result-close" aria-label="关闭">×</button></header>' +
-      '<div class="pfh-notification-list"><article class="pfh-notification-item is-unread"><div class="pfh-notification-item-head"><h4>' + escapeHtml(result.fileName || 'Excel 文件') + '</h4></div><div class="pfh-notification-content">' + detail + '</div><div class="pfh-notification-foot"><span>' + escapeHtml(result.sku || '') + '</span><button type="button" data-action="excel-export-result-close">手动关闭</button></div></article></div>' +
+      ? '<div style="font-size:15px;line-height:1.5;color:#9a4d12"><b>缺少 ' + missing.length + ' 项数据</b></div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:11px">' + missing.map((item) => '<span style="padding:6px 10px;border:1px solid rgba(220,130,34,.32);border-radius:999px;background:rgba(255,244,220,.88);color:#8f4b16;font-size:13px;line-height:1.2">' + escapeHtml(item) + '</span>').join('') + '</div><p style="margin:12px 0 0;color:#7c6a57;font-size:13px;line-height:1.6">对应单元格已留空，不影响本次文件使用。</p>'
+      : '<div style="padding:12px 14px;border-radius:12px;background:rgba(226,247,235,.82);color:#247247;font-size:14px;line-height:1.6"><b>本次导出数据完整</b><br>没有检测到缺失字段。</div>';
+    layer.innerHTML = '<section class="pfh-notification-dialog" role="dialog" aria-modal="true" aria-label="表格导出成功" style="width:min(560px,calc(100% - 20px));max-height:calc(100% - 28px)">' +
+      '<header style="align-items:center;padding:20px 22px 16px"><div><h3 style="margin-bottom:6px;font-size:20px;line-height:1.25">✓ 表格导出成功</h3><span class="pfh-notification-status" style="font-size:12px;line-height:1.4"><b data-excel-export-countdown style="color:inherit;font-size:13px">0</b> 秒后自动关闭</span></div><button type="button" class="pfh-notification-close" data-action="excel-export-result-close" aria-label="关闭" style="width:34px;height:34px;font-size:24px">×</button></header>' +
+      '<div class="pfh-notification-list" style="min-height:0;padding:18px 20px 20px"><article class="pfh-notification-item is-unread" style="margin:0;padding:18px 20px 16px"><div class="pfh-notification-item-head"><h4 style="font-size:15px;line-height:1.55;overflow-wrap:anywhere">' + escapeHtml(result.fileName || 'Excel 文件') + '</h4></div><div class="pfh-notification-content" style="margin:15px 0 17px;font-size:14px;line-height:1.7;white-space:normal">' + detail + '</div><div class="pfh-notification-foot" style="align-items:center"><span style="font-size:12px;line-height:1.4">' + escapeHtml(result.sku || '') + '</span><button type="button" data-action="excel-export-result-close" style="height:36px;padding:0 16px;font-size:13px">关闭</button></div></article></div>' +
       '</section>';
     updateExcelExportResultCountdown(panel);
   }
