@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.323
+// @version      2.8.324
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.323';
+  const SCRIPT_VERSION = '2.8.324';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -42464,6 +42464,31 @@ self.onmessage = async function(event) {
     return upsertDailyLedgerFromData(data, { ...(patch || {}), date: key });
   }
 
+  function normalizeLedgerRegistrationDesignType(value) {
+    const text = cleanName(value || '').trim();
+    const compact = text.replace(/\s+/g, '');
+    if (/^设计近似(?:50|80)%$/.test(compact)) return '设计';
+    if (/^(?:无|换)logo$/i.test(compact)) return '换 LOGO';
+    return text;
+  }
+
+  function getLedgerRegistrationRows(rows) {
+    const source = Array.isArray(rows) ? rows : [];
+    const groups = summarizeLedgerPerformance(source).groups || [];
+    const recordGroupIds = new Map();
+    groups.forEach((group) => {
+      (group.recordKeys || []).forEach((key) => recordGroupIds.set(key, group.id));
+    });
+    const exportedGroupIds = new Set();
+    return source.filter((record) => {
+      const groupId = recordGroupIds.get(getLedgerSelectionKey(record));
+      if (!groupId) return true;
+      if (exportedGroupIds.has(groupId)) return false;
+      exportedGroupIds.add(groupId);
+      return true;
+    });
+  }
+
   function copyLedgerTsv(dateKey) {
     const rows = getLedgerRecordsForMonth('finalized', normalizeLedgerMonth(dateKey || state.ledgerDate)).filter((item) => item.finalizedAt && item.status !== '作废');
     if (!rows.length) {
@@ -42475,14 +42500,17 @@ self.onmessage = async function(event) {
       showToast('未识别到当前 PLM 用户姓名，请刷新页面后重试');
       return;
     }
-    const tsv = rows.map((item) => {
+    const exportedRows = getLedgerRegistrationRows(rows);
+    const tsv = exportedRows.map((item) => {
       const cached = normalizeData(loadData(item.sku) || {});
       const productName = [item.brand || cached.brand, item.name || cached.name].filter(Boolean).join(' ');
       const date = item.finalizedAt || '';
-      return [productName, item.sku || '', '', date, item.designType || '', person].map((value) => String(value || '').replace(/[\t\r\n]+/g, ' ').trim()).join('\t');
+      const designType = normalizeLedgerRegistrationDesignType(item.designType || cached.designType || '');
+      return [productName, item.sku || '', '', date, designType, person].map((value) => String(value || '').replace(/[\t\r\n]+/g, ' ').trim()).join('\t');
     }).join('\n');
     copyText(tsv);
-    showToast('本月登记已复制：' + rows.length + '条 · 6列');
+    const omittedCount = rows.length - exportedRows.length;
+    showToast('本月登记已复制：' + exportedRows.length + '条' + (omittedCount ? ' · 系列省略' + omittedCount + '条' : '') + ' · 6列');
   }
 
   function copySelectedFinalizedLedgerSkus() {
