@@ -13,6 +13,10 @@ tmp_plm_js/
 outputs/excel-test/*.xlsx
 outputs/excel-test/*.png
 
+__pycache__/
+*.pyc
+outputs/packaging-fronts/
+
 *.log
 *.tmp
 Thumbs.db
