@@ -1144,8 +1144,9 @@
       indicator.style.setProperty('left', button.offsetLeft + 'px', 'important');
       indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
     };
-    const previous = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskPreviousTab);
-    const previousButton = previous !== activeButton.getAttribute('data-product-development-tab')
+    const previousValue = String(state.productDevelopmentTaskPreviousTab || '').trim();
+    const previous = previousValue ? normalizeProductDevelopmentTaskTab(previousValue) : '';
+    const previousButton = previous && previous !== activeButton.getAttribute('data-product-development-tab')
       ? tabs.querySelector('button[data-product-development-tab="' + previous + '"]')
       : null;
     indicator.style.setProperty('transition', 'none', 'important');
@@ -1153,7 +1154,7 @@
     window.requestAnimationFrame(() => {
       if (!indicator.isConnected) return;
       indicator.style.setProperty('transition', transition, 'important');
-      moveIndicator(activeButton);
+      if (previousButton) moveIndicator(activeButton);
     });
     state.productDevelopmentTaskPreviousTab = '';
   }

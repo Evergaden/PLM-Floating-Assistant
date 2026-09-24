@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.327
+// @version      2.8.328
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.327';
+  const SCRIPT_VERSION = '2.8.328';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -167,7 +167,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.275';
+  const UI_ASSET_VERSION = '2.5.276';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -4919,7 +4919,10 @@
         html += '<div class="pfh-custom-select-group">' + (groupLabel ? '<div class="pfh-custom-select-group-label">' + escapeHtml(groupLabel) + '</div>' : '');
       }
       const disabled = option.disabled || Boolean(groupNode && groupNode.disabled);
-      html += '<button type="button" class="pfh-custom-select-option' + (option.selected ? ' is-selected' : '') + '" role="option" aria-selected="' + (option.selected ? 'true' : 'false') + '" data-option-index="' + index + '"' + (disabled ? ' disabled' : '') + '><span>' + escapeHtml(option.textContent || option.value || '') + '</span><i aria-hidden="true">' + (option.selected ? '&#10003;' : '') + '</i></button>';
+      const checkIcon = option.selected
+        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m8.2 12.1 2.4 2.4 5.2-5.2"></path></svg>'
+        : '';
+      html += '<button type="button" class="pfh-custom-select-option' + (option.selected ? ' is-selected' : '') + '" role="option" aria-selected="' + (option.selected ? 'true' : 'false') + '" data-option-index="' + index + '"' + (disabled ? ' disabled' : '') + '><span>' + escapeHtml(option.textContent || option.value || '') + '</span><i aria-hidden="true">' + checkIcon + '</i></button>';
     });
     if (activeGroup !== null) html += '</div>';
     return html;
@@ -4962,7 +4965,7 @@
     layer.id = CUSTOM_SELECT_LAYER_ID;
     layer.className = 'pfh-custom-select-layer';
     layer.innerHTML = '<section class="pfh-custom-select-menu" role="listbox" aria-label="' + escapeHtml(label) + '"><header><strong>' + escapeHtml(label) + '</strong><small>' + optionCount + ' 项</small></header>' +
-      (searchable ? '<label class="pfh-custom-select-search"><span aria-hidden="true"></span><input type="search" autocomplete="off" placeholder="搜索选项" aria-label="搜索' + escapeHtml(label) + '"></label>' : '') +
+      (searchable ? '<label class="pfh-custom-select-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.7"></circle><path d="m16 16 4.2 4.2"></path></svg><input type="search" autocomplete="off" placeholder="搜索选项" aria-label="搜索' + escapeHtml(label) + '"></label>' : '') +
       '<div class="pfh-custom-select-options">' + buildCustomSelectOptions(select) + '<div class="pfh-custom-select-empty" hidden>没有匹配选项</div></div></section>';
     copyCustomSelectTheme(panel, layer);
     document.documentElement.appendChild(layer);
@@ -6317,8 +6320,9 @@
       indicator.style.setProperty('left', button.offsetLeft + 'px', 'important');
       indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
     };
-    const previous = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskPreviousTab);
-    const previousButton = previous !== activeButton.getAttribute('data-product-development-tab')
+    const previousValue = String(state.productDevelopmentTaskPreviousTab || '').trim();
+    const previous = previousValue ? normalizeProductDevelopmentTaskTab(previousValue) : '';
+    const previousButton = previous && previous !== activeButton.getAttribute('data-product-development-tab')
       ? tabs.querySelector('button[data-product-development-tab="' + previous + '"]')
       : null;
     indicator.style.setProperty('transition', 'none', 'important');
@@ -6326,7 +6330,7 @@
     window.requestAnimationFrame(() => {
       if (!indicator.isConnected) return;
       indicator.style.setProperty('transition', transition, 'important');
-      moveIndicator(activeButton);
+      if (previousButton) moveIndicator(activeButton);
     });
     state.productDevelopmentTaskPreviousTab = '';
   }

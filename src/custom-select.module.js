@@ -109,7 +109,10 @@
         html += '<div class="pfh-custom-select-group">' + (groupLabel ? '<div class="pfh-custom-select-group-label">' + escapeHtml(groupLabel) + '</div>' : '');
       }
       const disabled = option.disabled || Boolean(groupNode && groupNode.disabled);
-      html += '<button type="button" class="pfh-custom-select-option' + (option.selected ? ' is-selected' : '') + '" role="option" aria-selected="' + (option.selected ? 'true' : 'false') + '" data-option-index="' + index + '"' + (disabled ? ' disabled' : '') + '><span>' + escapeHtml(option.textContent || option.value || '') + '</span><i aria-hidden="true">' + (option.selected ? '&#10003;' : '') + '</i></button>';
+      const checkIcon = option.selected
+        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m8.2 12.1 2.4 2.4 5.2-5.2"></path></svg>'
+        : '';
+      html += '<button type="button" class="pfh-custom-select-option' + (option.selected ? ' is-selected' : '') + '" role="option" aria-selected="' + (option.selected ? 'true' : 'false') + '" data-option-index="' + index + '"' + (disabled ? ' disabled' : '') + '><span>' + escapeHtml(option.textContent || option.value || '') + '</span><i aria-hidden="true">' + checkIcon + '</i></button>';
     });
     if (activeGroup !== null) html += '</div>';
     return html;
@@ -152,7 +155,7 @@
     layer.id = CUSTOM_SELECT_LAYER_ID;
     layer.className = 'pfh-custom-select-layer';
     layer.innerHTML = '<section class="pfh-custom-select-menu" role="listbox" aria-label="' + escapeHtml(label) + '"><header><strong>' + escapeHtml(label) + '</strong><small>' + optionCount + ' 项</small></header>' +
-      (searchable ? '<label class="pfh-custom-select-search"><span aria-hidden="true"></span><input type="search" autocomplete="off" placeholder="搜索选项" aria-label="搜索' + escapeHtml(label) + '"></label>' : '') +
+      (searchable ? '<label class="pfh-custom-select-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.7"></circle><path d="m16 16 4.2 4.2"></path></svg><input type="search" autocomplete="off" placeholder="搜索选项" aria-label="搜索' + escapeHtml(label) + '"></label>' : '') +
       '<div class="pfh-custom-select-options">' + buildCustomSelectOptions(select) + '<div class="pfh-custom-select-empty" hidden>没有匹配选项</div></div></section>';
     copyCustomSelectTheme(panel, layer);
     document.documentElement.appendChild(layer);
