@@ -241,7 +241,7 @@
     if (state.homeGreetingsLoading) return;
     state.homeGreetingsLoading = true;
     try {
-      const response = await cloudRequest('/home-greetings?v=' + encodeURIComponent(SCRIPT_VERSION), { method: 'GET' });
+      const response = await cloudRequestWithRetry('/home-greetings?v=' + encodeURIComponent(SCRIPT_VERSION), { method: 'GET' }, { attempts: 2, baseDelayMs: 900 });
       const items = (Array.isArray(response && response.greetings) ? response.greetings : []).map(normalizeHomeGreetingItem).filter(Boolean);
       if (items.length) state.homeGreetings = items;
       state.homeGreetingCheckedAt = Date.now();
@@ -260,7 +260,7 @@
     window.clearTimeout(state.homeGreetingRefreshTimer);
     state.homeGreetingRefreshTimer = window.setTimeout(async () => {
       await refreshHomeGreetings(false);
-      scheduleHomeGreetingRefresh(HOME_GREETING_REFRESH_MS);
+      scheduleHomeGreetingRefresh(HOME_GREETING_REFRESH_MS + Math.floor(Math.random() * 90 * 1000));
     }, Math.max(0, Number(delay) || 0));
   }
 

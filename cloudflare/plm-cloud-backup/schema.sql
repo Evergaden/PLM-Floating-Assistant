@@ -242,6 +242,12 @@ CREATE TABLE IF NOT EXISTS loading_tip_impressions (
   shown_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_loading_tip_impressions_user_day
+ON loading_tip_impressions(user_name, shown_day, tip_id);
+
+CREATE INDEX IF NOT EXISTS idx_loading_tip_impressions_instance_day
+ON loading_tip_impressions(instance_id, shown_day, tip_id);
+
 CREATE INDEX IF NOT EXISTS idx_loading_tip_impressions_lookup
 ON loading_tip_impressions(tip_id, user_name, shown_day, shown_at);
 

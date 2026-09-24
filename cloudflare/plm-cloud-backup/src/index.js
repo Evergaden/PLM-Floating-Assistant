@@ -4227,11 +4227,15 @@ async function listFeatureAccess(env) {
 let featureAccessColumnsReady = false;
 async function ensureFeatureAccessColumns(env) {
   if (featureAccessColumnsReady) return;
-  for (const column of ['magic_upload_enabled', 'parameter_image_enabled', 'lulu_theme_enabled']) {
-    try {
-      await env.DB.prepare('ALTER TABLE feature_access ADD COLUMN ' + column + ' INTEGER NOT NULL DEFAULT 0').run();
-    } catch (_) {
-      // D1 returns an error when the migration has already been applied.
+  try {
+    await env.DB.prepare('SELECT magic_upload_enabled, parameter_image_enabled, lulu_theme_enabled FROM feature_access LIMIT 1').first();
+  } catch (_) {
+    for (const column of ['magic_upload_enabled', 'parameter_image_enabled', 'lulu_theme_enabled']) {
+      try {
+        await env.DB.prepare('ALTER TABLE feature_access ADD COLUMN ' + column + ' INTEGER NOT NULL DEFAULT 0').run();
+      } catch (_) {
+        // Another request may have applied the migration concurrently.
+      }
     }
   }
   featureAccessColumnsReady = true;
@@ -4640,15 +4644,26 @@ async function ensureHomeGreetingsTable(env) {
 }
 
 async function listHomeGreetings(env, includeDisabled = false) {
-  await ensureHomeGreetingsTable(env);
-  const result = await env.DB.prepare('SELECT * FROM home_greetings' + (includeDisabled ? '' : ' WHERE enabled=1') + ' ORDER BY sort_order ASC, greeting_id ASC').all();
+  const query = 'SELECT * FROM home_greetings' + (includeDisabled ? '' : ' WHERE enabled=1') + ' ORDER BY sort_order ASC, greeting_id ASC';
+  let result;
+  try {
+    result = await env.DB.prepare(query).all();
+  } catch (_) {
+    await ensureHomeGreetingsTable(env);
+    result = await env.DB.prepare(query).all();
+  }
   return (result.results || []).map(homeGreetingFromRow);
 }
 
 async function handleHomeGreetings(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
-  const greetings = await listHomeGreetings(env, false);
-  return json({ ok: true, greetings, updatedAt: greetings.reduce((latest, item) => item.updatedAt > latest ? item.updatedAt : latest, '') });
+  try {
+    const greetings = await listHomeGreetings(env, false);
+    return json({ ok: true, greetings, updatedAt: greetings.reduce((latest, item) => item.updatedAt > latest ? item.updatedAt : latest, '') });
+  } catch (error) {
+    console.error('home greetings query failed', error);
+    return json({ ok: true, degraded: true, greetings: DEFAULT_HOME_GREETINGS, updatedAt: '' });
+  }
 }
 
 async function handleAdminHomeGreetingsSave(request, env) {
@@ -5417,29 +5432,42 @@ async function handleLoadingTips(request, env) {
   const nowDate = /^\d{4}-\d{2}-\d{2}$/.test(url.searchParams.get('date') || '') ? url.searchParams.get('date') : new Date().toISOString().slice(0, 10);
   const nowTime = /^\d{2}:\d{2}$/.test(url.searchParams.get('time') || '') ? url.searchParams.get('time') : '12:00';
   const weekday = clampInt(url.searchParams.get('weekday'), 0, 6, 0);
-  const access = await env.DB.prepare('SELECT size_image_enabled FROM feature_access WHERE user_name=?').bind(name).first();
-  const holiday = await env.DB.prepare('SELECT holiday_id FROM holiday_calendar WHERE enabled=1 AND reminder_date=? LIMIT 1').bind(nowDate).first();
-  const result = await env.DB.prepare('SELECT * FROM loading_tip_campaigns WHERE enabled=1 ORDER BY sort_order ASC, updated_at DESC LIMIT 120').all();
-  if (!(result.results || []).length) {
-    const legacyTips = await listLoadingTips(env, false);
-    if (legacyTips.length) return json({ ok: true, tips: legacyTips });
-  }
-  const eligible = [];
-  for (const row of result.results || []) {
-    if (!tipCampaignMatches(row, { name, version, nowDate, nowTime, weekday, holidayEve: Boolean(holiday), sizeImageEnabled: Boolean(access && Number(access.size_image_enabled)) })) continue;
-    const stats = await env.DB.prepare('SELECT COUNT(*) AS count, MAX(shown_at) AS latest FROM loading_tip_impressions WHERE tip_id=? AND (user_name=? OR instance_id=?) AND shown_day=?').bind(row.tip_id, name, instanceId, nowDate).first();
-    if (Number(stats && stats.count || 0) >= Number(row.daily_limit || 3)) continue;
-    if (stats && stats.latest && Date.now() - Date.parse(stats.latest + 'Z') < Number(row.cooldown_minutes || 0) * 60000) continue;
-    eligible.push(mapTipCampaign(row));
-  }
-  return json({ ok: true, tips: eligible.length ? eligible : DEFAULT_LOADING_TIPS.map((text, index) => ({
+  const fallbackTips = () => DEFAULT_LOADING_TIPS.map((text, index) => ({
     tipId: 'default-' + index,
     text,
     enabled: 1,
     weight: 1,
     sortOrder: index + 1,
     source: 'default',
-  })) });
+  }));
+  try {
+    const [access, holiday, result, impressionResult] = await Promise.all([
+      env.DB.prepare('SELECT size_image_enabled FROM feature_access WHERE user_name=?').bind(name).first(),
+      env.DB.prepare('SELECT holiday_id FROM holiday_calendar WHERE enabled=1 AND reminder_date=? LIMIT 1').bind(nowDate).first(),
+      env.DB.prepare('SELECT * FROM loading_tip_campaigns WHERE enabled=1 ORDER BY sort_order ASC, updated_at DESC LIMIT 120').all(),
+      env.DB.prepare(`SELECT tip_id, COUNT(*) AS count, MAX(shown_at) AS latest
+        FROM loading_tip_impressions
+        WHERE shown_day=? AND (user_name=? OR instance_id=?)
+        GROUP BY tip_id`).bind(nowDate, name, instanceId).all(),
+    ]);
+    if (!(result.results || []).length) {
+      const legacyTips = await listLoadingTips(env, false);
+      if (legacyTips.length) return json({ ok: true, tips: legacyTips });
+    }
+    const statsByTipId = new Map((impressionResult.results || []).map((row) => [String(row.tip_id || ''), row]));
+    const eligible = [];
+    for (const row of result.results || []) {
+      if (!tipCampaignMatches(row, { name, version, nowDate, nowTime, weekday, holidayEve: Boolean(holiday), sizeImageEnabled: Boolean(access && Number(access.size_image_enabled)) })) continue;
+      const stats = statsByTipId.get(String(row.tip_id || ''));
+      if (Number(stats && stats.count || 0) >= Number(row.daily_limit || 3)) continue;
+      if (stats && stats.latest && Date.now() - Date.parse(stats.latest + 'Z') < Number(row.cooldown_minutes || 0) * 60000) continue;
+      eligible.push(mapTipCampaign(row));
+    }
+    return json({ ok: true, tips: eligible.length ? eligible : fallbackTips() });
+  } catch (error) {
+    console.error('loading tips query failed', error);
+    return json({ ok: true, degraded: true, tips: fallbackTips() });
+  }
 }
 
 function splitRuleNames(value) {

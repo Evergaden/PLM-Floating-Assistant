@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.316
+// @version      2.8.317
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.316';
+  const SCRIPT_VERSION = '2.8.317';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -193,6 +193,7 @@
   const ASSIGNED_DESIGN_TASK_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
   const PLM_ARCHIVE_OSS_ORIGIN = 'https://oss-pro.plm.westmonth.cn';
   let reviewConfirmRequestedAt = 0;
+  let insightSyncQueue = Promise.resolve();
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
@@ -3753,7 +3754,7 @@
     if (state.homeGreetingsLoading) return;
     state.homeGreetingsLoading = true;
     try {
-      const response = await cloudRequest('/home-greetings?v=' + encodeURIComponent(SCRIPT_VERSION), { method: 'GET' });
+      const response = await cloudRequestWithRetry('/home-greetings?v=' + encodeURIComponent(SCRIPT_VERSION), { method: 'GET' }, { attempts: 2, baseDelayMs: 900 });
       const items = (Array.isArray(response && response.greetings) ? response.greetings : []).map(normalizeHomeGreetingItem).filter(Boolean);
       if (items.length) state.homeGreetings = items;
       state.homeGreetingCheckedAt = Date.now();
@@ -3772,7 +3773,7 @@
     window.clearTimeout(state.homeGreetingRefreshTimer);
     state.homeGreetingRefreshTimer = window.setTimeout(async () => {
       await refreshHomeGreetings(false);
-      scheduleHomeGreetingRefresh(HOME_GREETING_REFRESH_MS);
+      scheduleHomeGreetingRefresh(HOME_GREETING_REFRESH_MS + Math.floor(Math.random() * 90 * 1000));
     }, Math.max(0, Number(delay) || 0));
   }
 
@@ -15639,14 +15640,14 @@
   document.addEventListener('click', handlePageToyCopywritingClick, true);
   ensureLauncher();
   renderShell(L.noDrawer);
-  refreshLoadingTips(false);
+  window.setTimeout(() => refreshLoadingTips(false), 500 + Math.floor(Math.random() * 4500));
   scheduleCloudAssetRefresh(50);
   scheduleSizeImageAccessRefresh(300);
   scheduleParameterImageAccessRefresh(420);
   scheduleLuluThemeAccessRefresh(540);
   scheduleUserHeartbeat(800);
   scheduleNotificationRefresh(1600);
-  scheduleHomeGreetingRefresh(700);
+  scheduleHomeGreetingRefresh(700 + Math.floor(Math.random() * 4500));
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
   startDrawerWatcher();
   startDailyLedgerSync();
@@ -45779,7 +45780,7 @@ self.onmessage = async function(event) {
 
   function syncInsightEvent(eventType, payload) {
     window.setTimeout(() => {
-      cloudRequest('/insights/record', {
+      insightSyncQueue = insightSyncQueue.catch(() => {}).then(() => cloudRequestWithRetry('/insights/record', {
         method: 'POST',
         body: {
           ...(payload || {}),
@@ -45787,7 +45788,7 @@ self.onmessage = async function(event) {
           source: (payload && payload.source) || 'plm-helper',
           version: SCRIPT_VERSION,
         },
-      }).catch((error) => {
+      }, { attempts: 2, baseDelayMs: 700 })).catch((error) => {
         addLog('warn', '\u4e91\u7aef\u6d1e\u5bdf\u540c\u6b65\u5931\u8d25', formatErrorMessage(error));
       });
     }, 0);
@@ -45843,7 +45844,7 @@ self.onmessage = async function(event) {
       time: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
       weekday: String(now.getDay()),
     });
-    return cloudRequest('/tips?' + params.toString(), { method: 'GET' });
+    return cloudRequestWithRetry('/tips?' + params.toString(), { method: 'GET' }, { attempts: 2, baseDelayMs: 900 });
   }
 
   async function refreshLoadingTips(showFeedback) {
@@ -45902,10 +45903,10 @@ self.onmessage = async function(event) {
       return;
     }
     try {
-      const response = await cloudRequest('/users/heartbeat', {
+      const response = await cloudRequestWithRetry('/users/heartbeat', {
         method: 'POST',
         body: { name, instanceId: getClientInstanceId(), version: SCRIPT_VERSION, skuCount: state.index.length },
-      });
+      }, { attempts: 2, baseDelayMs: 900 });
       if (response && typeof response.sizeImageEnabled === 'boolean') {
         state.sizeImageAccessName = name;
         state.sizeImageAccessEnabled = response.sizeImageEnabled;
@@ -45928,11 +45929,11 @@ self.onmessage = async function(event) {
       if (!response || typeof response.magicUploadEnabled !== 'boolean') refreshMagicUploadAccess();
       if (!response || typeof response.parameterImageEnabled !== 'boolean') refreshParameterImageAccess();
       if (!response || typeof response.luluThemeEnabled !== 'boolean') refreshLuluThemeAccess();
-      refreshLoadingTips(false);
+      window.setTimeout(() => refreshLoadingTips(false), Math.floor(Math.random() * 30000));
     } catch (error) {
       addLog('warn', '使用状态同步失败', formatErrorMessage(error));
     } finally {
-      scheduleUserHeartbeat(30 * 60 * 1000);
+      scheduleUserHeartbeat(30 * 60 * 1000 + Math.floor(Math.random() * 90 * 1000));
     }
   }
 
@@ -46274,6 +46275,21 @@ self.onmessage = async function(event) {
     }
   }
 
+  function cloudRequestWithRetry(path, options, retryOptions) {
+    const attempts = Math.max(1, Number(retryOptions && retryOptions.attempts) || 1);
+    const baseDelayMs = Math.max(100, Number(retryOptions && retryOptions.baseDelayMs) || 600);
+    const run = (attempt) => cloudRequest(path, options).catch((error) => {
+      const status = Number(error && error.status) || 0;
+      const retryable = Boolean(error && error.cloudTransportFailure)
+        || status >= 500
+        || /timeout|network|internal server error|overload/i.test(formatErrorMessage(error));
+      if (!retryable || attempt >= attempts) throw error;
+      const delay = baseDelayMs * attempt + Math.floor(Math.random() * baseDelayMs);
+      return new Promise((resolve) => window.setTimeout(resolve, delay)).then(() => run(attempt + 1));
+    });
+    return run(1);
+  }
+
   function buildCloudError(data, status) {
     const error = new Error(formatCloudError(data, status));
     error.cloudData = data || {};
@@ -46484,7 +46500,7 @@ self.onmessage = async function(event) {
 
   function shouldSkipCloudLogSync(level, message) {
     const text = String(message || '');
-    if (/\u4e91\u7aef\u6d1e\u5bdf\u540c\u6b65\u5931\u8d25|\u4e91\u5907\u4efd/.test(text)) return true;
+    if (/\u4e91\u7aef\u6d1e\u5bdf\u540c\u6b65\u5931\u8d25|\u4e91\u5907\u4efd|\u4f7f\u7528\u72b6\u6001\u540c\u6b65\u5931\u8d25|\u4e3b\u9875\u95ee\u5019\u8bed\u540c\u6b65\u5931\u8d25|\u5c0f\u63d0\u793a\u62c9\u53d6\u5931\u8d25/.test(text)) return true;
     if (level === 'success' && !/(\u63d0\u5ba1|\u4e0a\u4f20|\u751f\u6210|Excel|\u6807\u7b7e|\u590d\u5236|AI|\u8868\u683c|\u6e05\u6d17|\u667a\u80fd|\u4ef7\u683c|\u7c7b\u578b|\u6570\u636e|\u56fe\u7247)/i.test(text)) return true;
     if (/^\u56fe\u7247\u4e0b\u8f7d\u6210\u529f/.test(text)) return true;
     if (/^\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1aURL \u515c\u5e95\u4e0b\u8f7d/.test(text)) return true;
