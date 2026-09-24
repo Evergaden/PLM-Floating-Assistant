@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.321
+// @version      2.8.322
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.321';
+  const SCRIPT_VERSION = '2.8.322';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -25082,8 +25082,7 @@
 
   function closeInfringementImageViewer() {
     state.infringementImageViewer = null;
-    const panel = document.getElementById(PANEL_ID);
-    const layer = panel && panel.querySelector('.pfh-infringement-image-viewer-layer');
+    const layer = document.getElementById(PANEL_ID + '-infringement-image-viewer');
     if (layer) layer.remove();
   }
 
@@ -25092,13 +25091,13 @@
     if (!imageUrl) return;
     state.infringementImageViewer = { url: imageUrl, label: String(label || '侵权图') };
     renderInfringementImageViewer(ensurePanel());
-    const close = ensurePanel().querySelector('.pfh-infringement-image-viewer-close');
+    const close = document.querySelector('#' + PANEL_ID + '-infringement-image-viewer .pfh-infringement-image-viewer-close');
     if (close) close.focus();
   }
 
   function renderInfringementImageViewer(panel) {
     if (!panel) return;
-    let layer = panel.querySelector('.pfh-infringement-image-viewer-layer');
+    let layer = document.getElementById(PANEL_ID + '-infringement-image-viewer');
     if (state.view !== 'detail' || !state.infringementImageViewer) {
       if (layer) layer.remove();
       return;
@@ -25106,13 +25105,20 @@
     const viewer = state.infringementImageViewer;
     if (!layer) {
       layer = document.createElement('div');
+      layer.id = PANEL_ID + '-infringement-image-viewer';
       layer.className = 'pfh-infringement-image-viewer-layer';
       layer.setAttribute('data-action', 'infringement-image-viewer-close');
-      const full = panel.querySelector('.pfh-full');
-      if (full) full.appendChild(layer);
-      else panel.appendChild(layer);
+      layer.addEventListener('click', (event) => {
+        const closeTarget = event.target && event.target.closest && event.target.closest('[data-action="infringement-image-viewer-close"]');
+        if (event.target === layer || (closeTarget && closeTarget !== layer)) closeInfringementImageViewer();
+      });
+      layer.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeInfringementImageViewer();
+      });
+      document.documentElement.appendChild(layer);
     }
-    layer.innerHTML = '<section class="pfh-infringement-image-viewer-dialog" role="dialog" aria-modal="true" aria-label="' + escapeHtml(viewer.label) + '"><header class="pfh-infringement-image-viewer-head"><strong>' + escapeHtml(viewer.label) + '</strong><button type="button" class="pfh-infringement-image-viewer-close" data-action="infringement-image-viewer-close" aria-label="关闭图片预览">×</button></header><div class="pfh-infringement-image-viewer-stage"><img src="' + escapeHtml(viewer.url) + '" alt="' + escapeHtml(viewer.label) + '" loading="eager" decoding="async"></div></section>';
+    layer.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:24px;background:rgba(18,15,30,.72);backdrop-filter:blur(8px);';
+    layer.innerHTML = '<section class="pfh-infringement-image-viewer-dialog" role="dialog" aria-modal="true" aria-label="' + escapeHtml(viewer.label) + '" style="display:flex;width:min(1400px,calc(100vw - 48px));height:min(940px,calc(100vh - 48px));max-width:none;max-height:none;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.28);border-radius:18px;background:#fff;box-shadow:0 28px 90px rgba(0,0,0,.42)"><header class="pfh-infringement-image-viewer-head" style="display:flex;min-height:52px;align-items:center;justify-content:space-between;box-sizing:border-box;padding:10px 16px;border-bottom:1px solid #e9e6f2;background:#fff"><strong style="color:#302747;font-size:15px;line-height:1.4">' + escapeHtml(viewer.label) + '</strong><button type="button" class="pfh-infringement-image-viewer-close" data-action="infringement-image-viewer-close" aria-label="关闭图片预览" style="display:grid;width:34px;height:34px;place-items:center;padding:0;border:1px solid #ddd6ee;border-radius:10px;background:#f8f6fc;color:#655b76;font-size:24px;line-height:1;cursor:pointer">×</button></header><div class="pfh-infringement-image-viewer-stage" style="display:flex;min-width:0;min-height:0;flex:1 1 auto;align-items:center;justify-content:center;overflow:auto;padding:16px;background:#24212b"><img src="' + escapeHtml(viewer.url) + '" alt="' + escapeHtml(viewer.label) + '" loading="eager" decoding="async" style="display:block;width:100%;height:100%;object-fit:contain;box-shadow:0 12px 38px rgba(0,0,0,.28)"></div></section>';
   }
 
   function renderInfringementHistoryViewer(panel) {
@@ -42464,15 +42470,19 @@ self.onmessage = async function(event) {
       showToast('本月没有可复制的已定稿记录');
       return;
     }
+    const person = findCurrentPlmUserName();
+    if (!person) {
+      showToast('未识别到当前 PLM 用户姓名，请刷新页面后重试');
+      return;
+    }
     const tsv = rows.map((item) => {
-      const productName = [item.brand, item.name].filter(Boolean).join(' ') || item.name || '';
-      const mainImageMark = item.skuImageUrl ? '主图' : '';
-      const skuImageMark = item.skuImageUrl ? 'SKU图' : '';
+      const cached = normalizeData(loadData(item.sku) || {});
+      const productName = [item.brand || cached.brand, item.name || cached.name].filter(Boolean).join(' ');
       const date = item.finalizedAt || '';
-      return [productName, item.sku || '', mainImageMark, date, skuImageMark, date].map((value) => String(value || '').replace(/[\t\r\n]+/g, ' ')).join('\t');
+      return [productName, item.sku || '', date, '', person].map((value) => String(value || '').replace(/[\t\r\n]+/g, ' ').trim()).join('\t');
     }).join('\n');
     copyText(tsv);
-    showToast('本月登记已复制：' + rows.length + '条');
+    showToast('本月登记已复制：' + rows.length + '条 · 5列');
   }
 
   function copySelectedFinalizedLedgerSkus() {
