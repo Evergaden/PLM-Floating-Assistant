@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.324
+// @version      2.8.325
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.324';
+  const SCRIPT_VERSION = '2.8.325';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -42468,7 +42468,7 @@ self.onmessage = async function(event) {
     const text = cleanName(value || '').trim();
     const compact = text.replace(/\s+/g, '');
     if (/^设计近似(?:50|80)%$/.test(compact)) return '设计';
-    if (/^(?:无|换)logo$/i.test(compact)) return '换 LOGO';
+    if (/^(?:无|换)logo$/i.test(compact)) return '换LOGO';
     return text;
   }
 
