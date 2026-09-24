@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.317
+// @version      2.8.318
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.317';
+  const SCRIPT_VERSION = '2.8.318';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -2836,6 +2836,9 @@
   const LOG_KEY = 'plm-floating-helper:logs';
   const INSIGHTS_KEY = 'plm-floating-helper:insights';
   const USER_INSTANCE_KEY = 'plm-floating-helper:user-instance';
+  const FEATURE_ACCESS_CACHE_KEY = 'plm-floating-helper:feature-access-cache:v1';
+  const FEATURE_ACCESS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+  const FEATURE_ACCESS_CACHE_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
   const DAILY_LEDGER_KEY = 'plm-floating-helper:daily-ledger';
   const DAILY_LEDGER_TRASH_KEY = 'plm-floating-helper:daily-ledger-trash';
   const DAILY_LEDGER_SERIES_EXCLUDED_KEY = 'plm-floating-helper:daily-ledger-series-excluded';
@@ -45862,6 +45865,89 @@ self.onmessage = async function(event) {
     }
   }
 
+  function featureAccessCacheUserKey(name) {
+    return String(name || '').trim().toLowerCase();
+  }
+
+  function loadFeatureAccessCache() {
+    try {
+      const saved = typeof GM_getValue === 'function'
+        ? GM_getValue(FEATURE_ACCESS_CACHE_KEY, null)
+        : JSON.parse(localStorage.getItem(FEATURE_ACCESS_CACHE_KEY) || 'null');
+      return saved && typeof saved === 'object' && saved.users && typeof saved.users === 'object'
+        ? saved
+        : { version: 1, users: {} };
+    } catch (_) {
+      return { version: 1, users: {} };
+    }
+  }
+
+  function saveFeatureAccessCache(cache) {
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(FEATURE_ACCESS_CACHE_KEY, cache);
+      else localStorage.setItem(FEATURE_ACCESS_CACHE_KEY, JSON.stringify(cache));
+    } catch (error) {
+      console.warn('PLM feature access cache save failed:', error);
+    }
+  }
+
+  function getCachedFeatureAccess(name) {
+    const key = featureAccessCacheUserKey(name);
+    const cache = loadFeatureAccessCache();
+    const value = key && cache.users ? cache.users[key] : null;
+    const checkedAt = Number(value && value.checkedAt) || 0;
+    const ageMs = checkedAt ? Math.max(0, Date.now() - checkedAt) : Number.POSITIVE_INFINITY;
+    return value && typeof value === 'object'
+      ? { ...value, ageMs, usable: ageMs <= FEATURE_ACCESS_CACHE_TTL_MS + FEATURE_ACCESS_CACHE_GRACE_MS }
+      : null;
+  }
+
+  function cacheFeatureAccess(name, patch) {
+    const key = featureAccessCacheUserKey(name);
+    if (!key) return null;
+    const cache = loadFeatureAccessCache();
+    const current = cache.users[key] && typeof cache.users[key] === 'object' ? cache.users[key] : {};
+    const next = { ...current, ...(patch || {}), userName: String(name || ''), checkedAt: Date.now() };
+    cache.users[key] = next;
+    saveFeatureAccessCache(cache);
+    return next;
+  }
+
+  function applyCachedFeatureAccess(name) {
+    const cached = getCachedFeatureAccess(name);
+    const result = { sizeImage: false, magicUpload: false, parameterImage: false, luluTheme: false };
+    const accessNames = ['sizeImageAccessName', 'magicUploadAccessName', 'parameterImageAccessName', 'luluThemeAccessName'];
+    const accessFlags = ['sizeImageAccessEnabled', 'magicUploadAccessEnabled', 'parameterImageAccessEnabled', 'luluThemeAccessEnabled'];
+    const loadingFlags = ['sizeImageAccessLoading', 'magicUploadAccessLoading', 'parameterImageAccessLoading', 'luluThemeAccessLoading'];
+    accessNames.forEach((key, index) => {
+      if (state[key] && state[key] !== name) state[accessFlags[index]] = false;
+      state[key] = name;
+      state[loadingFlags[index]] = true;
+    });
+    if (!cached || !cached.usable) return result;
+    if (typeof cached.sizeImageEnabled === 'boolean') {
+      state.sizeImageAccessEnabled = cached.sizeImageEnabled;
+      state.sizeImageAccessLoading = false;
+      result.sizeImage = true;
+    }
+    if (typeof cached.magicUploadEnabled === 'boolean') {
+      state.magicUploadAccessEnabled = cached.magicUploadEnabled;
+      state.magicUploadAccessLoading = false;
+      result.magicUpload = true;
+    }
+    if (typeof cached.parameterImageEnabled === 'boolean') {
+      applyParameterImageAccessState(cached.parameterImageEnabled);
+      state.parameterImageAccessLoading = false;
+      result.parameterImage = true;
+    }
+    if (typeof cached.luluThemeEnabled === 'boolean') {
+      applyLuluThemeAccessState(cached.luluThemeEnabled);
+      state.luluThemeAccessLoading = false;
+      result.luluTheme = true;
+    }
+    return result;
+  }
+
   function getClientInstanceId() {
     try {
       let value = typeof GM_getValue === 'function' ? GM_getValue(USER_INSTANCE_KEY, '') : localStorage.getItem(USER_INSTANCE_KEY);
@@ -45902,28 +45988,44 @@ self.onmessage = async function(event) {
       scheduleUserHeartbeat(3000);
       return;
     }
+    applyCachedFeatureAccess(name);
     try {
       const response = await cloudRequestWithRetry('/users/heartbeat', {
         method: 'POST',
         body: { name, instanceId: getClientInstanceId(), version: SCRIPT_VERSION, skuCount: state.index.length },
-      }, { attempts: 2, baseDelayMs: 900 });
+      }, { attempts: 3, baseDelayMs: 900 });
+      const accessPatch = {};
+      let accessChanged = false;
       if (response && typeof response.sizeImageEnabled === 'boolean') {
         state.sizeImageAccessName = name;
         state.sizeImageAccessEnabled = response.sizeImageEnabled;
         state.sizeImageAccessLoading = false;
+        accessPatch.sizeImageEnabled = response.sizeImageEnabled;
+        accessChanged = true;
+      }
+      if (response && typeof response.magicUploadEnabled === 'boolean') {
         state.magicUploadAccessName = name;
-        state.magicUploadAccessEnabled = Boolean(response.magicUploadEnabled);
+        state.magicUploadAccessEnabled = response.magicUploadEnabled;
         state.magicUploadAccessLoading = false;
-        if (typeof response.parameterImageEnabled === 'boolean') {
-          state.parameterImageAccessName = name;
-          applyParameterImageAccessState(response.parameterImageEnabled);
-          state.parameterImageAccessLoading = false;
-        }
-        if (typeof response.luluThemeEnabled === 'boolean') {
-          state.luluThemeAccessName = name;
-          applyLuluThemeAccessState(response.luluThemeEnabled);
-          state.luluThemeAccessLoading = false;
-        }
+        accessPatch.magicUploadEnabled = response.magicUploadEnabled;
+        accessChanged = true;
+      }
+      if (response && typeof response.parameterImageEnabled === 'boolean') {
+        state.parameterImageAccessName = name;
+        applyParameterImageAccessState(response.parameterImageEnabled);
+        state.parameterImageAccessLoading = false;
+        accessPatch.parameterImageEnabled = response.parameterImageEnabled;
+        accessChanged = true;
+      }
+      if (response && typeof response.luluThemeEnabled === 'boolean') {
+        state.luluThemeAccessName = name;
+        applyLuluThemeAccessState(response.luluThemeEnabled);
+        state.luluThemeAccessLoading = false;
+        accessPatch.luluThemeEnabled = response.luluThemeEnabled;
+        accessChanged = true;
+      }
+      if (accessChanged) {
+        cacheFeatureAccess(name, accessPatch);
         if (state.view === 'home' || state.view === 'about' || state.view === 'parameterImage') renderShell();
       }
       if (!response || typeof response.magicUploadEnabled !== 'boolean') refreshMagicUploadAccess();
@@ -45960,23 +46062,26 @@ self.onmessage = async function(event) {
   async function refreshSizeImageAccess() {
     const name = findCurrentPlmUserName();
     if (!name) {
-      state.sizeImageAccessEnabled = false;
-      state.sizeImageAccessLoading = true;
+      if (!state.sizeImageAccessName) state.sizeImageAccessLoading = true;
       scheduleSizeImageAccessRefresh(1500);
       return;
     }
+    const hasCachedAccess = applyCachedFeatureAccess(name).sizeImage;
+    let accessResolved = hasCachedAccess;
     state.sizeImageAccessName = name;
-    state.sizeImageAccessLoading = true;
+    state.sizeImageAccessLoading = !hasCachedAccess;
     if (state.view === 'home') renderShell();
     try {
-      const response = await cloudRequest('/features/size-image?name=' + encodeURIComponent(name), { method: 'GET' });
+      const response = await cloudRequestWithRetry('/features/size-image?name=' + encodeURIComponent(name), { method: 'GET' }, { attempts: 3, baseDelayMs: 900 });
       if (state.sizeImageAccessName !== name) return;
-      state.sizeImageAccessEnabled = Boolean(response && response.enabled);
+      if (!response || typeof response.enabled !== 'boolean') throw new Error('权限响应格式异常');
+      state.sizeImageAccessEnabled = response.enabled;
+      cacheFeatureAccess(name, { sizeImageEnabled: response.enabled });
+      accessResolved = true;
     } catch (error) {
-      state.sizeImageAccessEnabled = false;
       addLog('warn', '生成尺寸图权限检查失败', formatErrorMessage(error));
     } finally {
-      state.sizeImageAccessLoading = false;
+      state.sizeImageAccessLoading = !accessResolved;
       if (state.view === 'home') renderShell();
     }
   }
@@ -46000,23 +46105,26 @@ self.onmessage = async function(event) {
   async function refreshParameterImageAccess() {
     const name = findCurrentPlmUserName();
     if (!name) {
-      state.parameterImageAccessEnabled = false;
-      state.parameterImageAccessLoading = true;
+      if (!state.parameterImageAccessName) state.parameterImageAccessLoading = true;
       scheduleParameterImageAccessRefresh(1500);
       return;
     }
+    const hasCachedAccess = applyCachedFeatureAccess(name).parameterImage;
+    let accessResolved = hasCachedAccess;
     state.parameterImageAccessName = name;
-    state.parameterImageAccessLoading = true;
+    state.parameterImageAccessLoading = !hasCachedAccess;
     if (state.view === 'home' || state.view === 'detail' || state.view === 'parameterImage') renderShell();
     try {
-      const response = await cloudRequest('/features/parameter-image?name=' + encodeURIComponent(name), { method: 'GET' });
+      const response = await cloudRequestWithRetry('/features/parameter-image?name=' + encodeURIComponent(name), { method: 'GET' }, { attempts: 3, baseDelayMs: 900 });
       if (state.parameterImageAccessName !== name) return;
-      applyParameterImageAccessState(Boolean(response && response.enabled));
+      if (!response || typeof response.enabled !== 'boolean') throw new Error('权限响应格式异常');
+      applyParameterImageAccessState(response.enabled);
+      cacheFeatureAccess(name, { parameterImageEnabled: response.enabled });
+      accessResolved = true;
     } catch (error) {
-      applyParameterImageAccessState(false);
       addLog('warn', '生成参数图权限检查失败', formatErrorMessage(error));
     } finally {
-      state.parameterImageAccessLoading = false;
+      state.parameterImageAccessLoading = !accessResolved;
       if (state.view === 'home' || state.view === 'detail' || state.view === 'parameterImage') renderShell();
     }
   }
@@ -46043,25 +46151,26 @@ self.onmessage = async function(event) {
   async function refreshLuluThemeAccess() {
     const name = findCurrentPlmUserName();
     if (!name) {
-      state.luluThemeAccessEnabled = false;
-      state.luluThemeAccessLoading = true;
+      if (!state.luluThemeAccessName) state.luluThemeAccessLoading = true;
       scheduleLuluThemeAccessRefresh(1500);
       return;
     }
+    const hasCachedAccess = applyCachedFeatureAccess(name).luluTheme;
+    let accessResolved = hasCachedAccess;
     state.luluThemeAccessName = name;
-    state.luluThemeAccessLoading = true;
+    state.luluThemeAccessLoading = !hasCachedAccess;
     if (state.view === 'home' || state.view === 'about') renderShell();
     try {
-      const response = await cloudRequest('/features/lulu-theme?name=' + encodeURIComponent(name), { method: 'GET' });
+      const response = await cloudRequestWithRetry('/features/lulu-theme?name=' + encodeURIComponent(name), { method: 'GET' }, { attempts: 3, baseDelayMs: 900 });
       if (state.luluThemeAccessName !== name) return;
-      applyLuluThemeAccessState(Boolean(response && response.enabled));
+      if (!response || typeof response.enabled !== 'boolean') throw new Error('权限响应格式异常');
+      applyLuluThemeAccessState(response.enabled);
+      cacheFeatureAccess(name, { luluThemeEnabled: response.enabled });
+      accessResolved = true;
     } catch (error) {
-      // Keep a previously selected skin during a temporary network failure;
-      // an explicit false response still revokes the skin immediately.
-      state.luluThemeAccessEnabled = normalizeThemeId(state.settings.theme) === 'lulu';
       addLog('warn', '噜噜乐园主题权限检查失败', formatErrorMessage(error));
     } finally {
-      state.luluThemeAccessLoading = false;
+      state.luluThemeAccessLoading = !accessResolved;
       if (state.view === 'home' || state.view === 'about') renderShell();
     }
   }
@@ -46648,23 +46757,26 @@ self.onmessage = async function(event) {
   async function refreshMagicUploadAccess() {
     const name = findCurrentPlmUserName();
     if (!name) {
-      state.magicUploadAccessEnabled = false;
-      state.magicUploadAccessLoading = true;
+      if (!state.magicUploadAccessName) state.magicUploadAccessLoading = true;
       scheduleMagicUploadAccessRefresh(1500);
       return;
     }
+    const hasCachedAccess = applyCachedFeatureAccess(name).magicUpload;
+    let accessResolved = hasCachedAccess;
     state.magicUploadAccessName = name;
-    state.magicUploadAccessLoading = true;
+    state.magicUploadAccessLoading = !hasCachedAccess;
     if (state.view === 'home' || state.view === 'magicUpload') renderShell();
     try {
-      const response = await cloudRequest('/features/magic-upload?name=' + encodeURIComponent(name), { method: 'GET' });
+      const response = await cloudRequestWithRetry('/features/magic-upload?name=' + encodeURIComponent(name), { method: 'GET' }, { attempts: 3, baseDelayMs: 900 });
       if (state.magicUploadAccessName !== name) return;
-      state.magicUploadAccessEnabled = Boolean(response && response.enabled);
+      if (!response || typeof response.enabled !== 'boolean') throw new Error('权限响应格式异常');
+      state.magicUploadAccessEnabled = response.enabled;
+      cacheFeatureAccess(name, { magicUploadEnabled: response.enabled });
+      accessResolved = true;
     } catch (error) {
-      state.magicUploadAccessEnabled = false;
       addLog('warn', '魔法上传权限检查失败', formatErrorMessage(error));
     } finally {
-      state.magicUploadAccessLoading = false;
+      state.magicUploadAccessLoading = !accessResolved;
       if (state.view === 'home' || state.view === 'magicUpload') renderShell();
     }
   }
