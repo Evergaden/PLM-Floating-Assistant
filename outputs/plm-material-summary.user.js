@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.318
+// @version      2.8.319
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.318';
+  const SCRIPT_VERSION = '2.8.319';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -30303,6 +30303,10 @@ self.onmessage = async function(event) {
     const statusClass = state.excelMissing.length || !state.excelExtra ? ' is-bad' : ' is-good';
     const priceValue = state.excelPurchasePrice === '' ? '6' : state.excelPurchasePrice;
     const exportLabel = state.exportType === 'toy-label' ? L.exportTypeToyLabel : L.exportTypeExcel;
+    const excelGenerateLabel = state.exportType === 'excel' && state.excelMissing.length ? '缺项导出' : L.excel;
+    const excelGenerateTitle = state.exportType === 'excel' && state.excelMissing.length
+      ? '缺少' + state.excelMissing.join('、') + '；仍会立即导出，缺失单元格留空'
+      : '';
     return '<div class="pfh-excel-form is-open">' +
       '<div class="pfh-export-menu' + (state.exportMenuOpen ? ' is-open' : '') + '">' +
         '<button type="button" class="pfh-export-menu-button" data-action="export-menu-toggle" aria-expanded="' + (state.exportMenuOpen ? 'true' : 'false') + '">' +
@@ -30315,7 +30319,7 @@ self.onmessage = async function(event) {
       '</div>' +
       '<input type="number" min="0" step="1" class="pfh-excel-price" placeholder="' + escapeHtml(L.excelPurchasePrice) + '" value="' + escapeHtml(priceValue) + '">' +
       '<button type="button" data-action="excel-prepare" title="' + escapeHtml(L.excelRefresh) + '">' + iconHtml('refresh') + '</button>' +
-      '<button type="button" data-action="excel-generate">' + escapeHtml(L.excel) + '</button>' +
+      '<button type="button" data-action="excel-generate"' + (excelGenerateTitle ? ' title="' + escapeHtml(excelGenerateTitle) + '"' : '') + '>' + escapeHtml(excelGenerateLabel) + '</button>' +
       '<span class="pfh-excel-status' + statusClass + '">' + escapeHtml(status) + '</span>' +
       '</div>';
   }
@@ -38337,7 +38341,7 @@ self.onmessage = async function(event) {
 
   function formatExcelMissingStatus(missing) {
     const fields = Array.isArray(missing) ? missing.filter(Boolean) : [];
-    return fields.length ? L.excelIncomplete + '：缺少' + fields.join('、') : L.excelReady;
+    return fields.length ? L.excelIncomplete + '：缺少' + fields.join('、') + '；可直接缺项导出' : L.excelReady;
   }
 
   function formatExcelCacheDiagnostic(data, extra, missing) {
@@ -38369,7 +38373,7 @@ self.onmessage = async function(event) {
     const cachedMissing = getExcelMissingFields(data, cachedExtra);
     state.excelExtra = { extra: cachedExtra, excelData: data };
     state.excelMissing = cachedMissing;
-    state.excelStatus = cachedMissing.length ? L.excelPreparing + '（缓存缺少：' + cachedMissing.join('、') + '）' : L.excelReady + '（使用缓存）';
+    state.excelStatus = cachedMissing.length ? L.excelPreparing + '（缺少：' + cachedMissing.join('、') + '；可直接缺项导出）' : L.excelReady + '（使用缓存）';
     addLog(cachedMissing.length ? 'info' : 'success', 'Excel 缓存预检', data.sku + ' | ' + formatExcelCacheDiagnostic(data, cachedExtra, cachedMissing));
     renderShell();
     if (!cachedMissing.length) {
@@ -39022,25 +39026,35 @@ self.onmessage = async function(event) {
     }
     syncExcelInputs();
     const purchasePrice = state.excelPurchasePrice === '' ? '6' : state.excelPurchasePrice;
-    if (!state.excelExtra || !state.excelExtra.excelData || state.excelExtra.excelData.sku !== data.sku || state.excelMissing.length) {
-      addLog('info', '生成 Excel 前自动准备数据', data.sku + ' | ' + (state.excelMissing.length ? '上次仍缺：' + state.excelMissing.join('、') : '当前没有匹配的表格数据快照'));
-      await prepareExcelInfo();
-      if (!state.excelExtra || !state.excelExtra.excelData || state.excelExtra.excelData.sku !== data.sku) {
-        state.excelStatus = '\ud83d\udd34 \u8868\u683c\u6570\u636e\u51c6\u5907\u5931\u8d25';
-        renderShell();
-        showToast(state.excelStatus);
-        return;
-      }
+    let exportSnapshot = state.excelExtra && state.excelExtra.excelData && state.excelExtra.excelData.sku === data.sku
+      ? state.excelExtra
+      : null;
+    if (!exportSnapshot) {
+      addLog('info', '生成 Excel 使用当前缓存并后台补全', data.sku + ' | 当前没有匹配的表格数据快照');
+      prepareExcelInfo().catch((error) => {
+        addLog('warn', 'Excel 后台补全失败', data.sku + ' | ' + formatErrorMessage(error));
+      });
+      exportSnapshot = state.excelExtra && state.excelExtra.excelData && state.excelExtra.excelData.sku === data.sku
+        ? state.excelExtra
+        : null;
     }
-    if (state.excelMissing.length) {
-      state.excelStatus = formatExcelMissingStatus(state.excelMissing);
-      addLog('warn', 'Excel 将使用不完整数据生成', data.sku + ' | 缺少：' + state.excelMissing.join('、'));
+    if (!exportSnapshot) {
+      state.excelStatus = '\ud83d\udd34 \u8868\u683c\u6570\u636e\u51c6\u5907\u5931\u8d25';
+      renderShell();
+      showToast(state.excelStatus);
+      return;
+    }
+    const extra = exportSnapshot.extra || buildCachedExcelExtraData(data);
+    const excelData = normalizeData(exportSnapshot.excelData || data);
+    const exportMissing = getExcelMissingFields(excelData, extra);
+    state.excelMissing = exportMissing;
+    if (exportMissing.length) {
+      state.excelStatus = formatExcelMissingStatus(exportMissing);
+      addLog('warn', 'Excel 将使用不完整数据立即生成', data.sku + ' | 缺少：' + exportMissing.join('、'));
       renderShell();
     }
-    if (state.excelMissing.length) showExcelMissingToast();
+    if (exportMissing.length) showExcelMissingToast();
     try {
-      const extra = state.excelExtra.extra;
-      const excelData = state.excelExtra.excelData;
       const Excel = await ensureExcelJsLoaded();
       const packQty = normalizePackQty(getLocalPackQty(excelData));
       state.excelPackQty = packQty;
@@ -39114,7 +39128,7 @@ self.onmessage = async function(event) {
         fileName,
       });
       upsertDailyLedgerFromData(excelData, { status: '制作中', stage: '表格/上传处理中', note: '已生成 Excel' });
-      state.excelStatus = state.excelMissing.length
+      state.excelStatus = exportMissing.length
         ? L.excelDone + '（缺失字段已留空）'
         : L.excelDone;
       renderShell();
