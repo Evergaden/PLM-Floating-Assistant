@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.319
+// @version      2.8.320
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.319';
+  const SCRIPT_VERSION = '2.8.320';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -3693,7 +3693,7 @@
 
   function renderNotificationModal(panel) {
     if (!panel) return;
-    let layer = panel.querySelector('.pfh-notification-layer');
+    let layer = panel.querySelector('[data-notification-layer="1"]');
     if (!state.notificationModalOpen) {
       if (layer) layer.remove();
       return;
@@ -3701,6 +3701,7 @@
     if (!layer) {
       layer = document.createElement('div');
       layer.className = 'pfh-notification-layer';
+      layer.setAttribute('data-notification-layer', '1');
       layer.setAttribute('data-action', 'notification-close');
       panel.querySelector('.pfh-full').appendChild(layer);
     }
@@ -15399,6 +15400,9 @@
     excelStatus: '',
     excelPackQty: '',
     excelPurchasePrice: '6',
+    excelExportResult: null,
+    excelExportResultTimer: 0,
+    excelExportResultInterval: 0,
     batchExcelMode: 'merge',
     batchExcelInput: '',
     batchExcelQueue: loadExcelBatchQueue(),
@@ -20774,6 +20778,7 @@
     renderUploadProgressOverlay(panel);
     renderFirstRunTutorialModal(panel);
     renderNotificationModal(panel);
+    renderExcelExportResultModal(panel);
     if (state.view !== 'ledger') {
       closeLedgerAiImageRetouchComposer();
       state.ledgerAiImageViewer = null;
@@ -32877,6 +32882,11 @@ self.onmessage = async function(event) {
       markAllNotificationsRead();
       return;
     }
+    if (action === 'excel-export-result-close') {
+      if (actionTarget.classList.contains('pfh-excel-export-result-layer') && event.target !== actionTarget) return;
+      closeExcelExportResultModal();
+      return;
+    }
     if (action === 'infringement-image-viewer-close') {
       if (actionTarget.classList.contains('pfh-infringement-image-viewer-layer') && event.target !== actionTarget) return;
       closeInfringementImageViewer();
@@ -39008,6 +39018,69 @@ self.onmessage = async function(event) {
     showToast(L.excelMissing + state.excelMissing.join('\u3001'));
   }
 
+  function clearExcelExportResultTimers() {
+    window.clearTimeout(state.excelExportResultTimer);
+    window.clearInterval(state.excelExportResultInterval);
+    state.excelExportResultTimer = 0;
+    state.excelExportResultInterval = 0;
+  }
+
+  function updateExcelExportResultCountdown(panel) {
+    const result = state.excelExportResult;
+    const countdown = panel && panel.querySelector('[data-excel-export-countdown]');
+    if (!result || !countdown) return;
+    countdown.textContent = String(Math.max(0, Math.ceil((Number(result.closesAt) - Date.now()) / 1000)));
+  }
+
+  function renderExcelExportResultModal(panel) {
+    if (!panel) return;
+    let layer = panel.querySelector('[data-excel-export-result-layer="1"]');
+    const result = state.excelExportResult;
+    if (!result) {
+      if (layer) layer.remove();
+      return;
+    }
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'pfh-notification-layer pfh-excel-export-result-layer';
+      layer.setAttribute('data-excel-export-result-layer', '1');
+      layer.setAttribute('data-action', 'excel-export-result-close');
+      panel.querySelector('.pfh-full').appendChild(layer);
+    }
+    const missing = Array.isArray(result.missing) ? result.missing.filter(Boolean) : [];
+    const detail = missing.length
+      ? '<b>以下数据缺失，表格中已留空：</b>\n' + escapeHtml(missing.join('、'))
+      : '<b>本次导出数据完整</b>\n没有检测到缺失字段。';
+    layer.innerHTML = '<section class="pfh-notification-dialog" role="dialog" aria-modal="true" aria-label="表格导出成功">' +
+      '<header><div><h3>✓ 表格导出成功</h3><span class="pfh-notification-status"><span data-excel-export-countdown>0</span> 秒后自动关闭</span></div><button type="button" class="pfh-notification-close" data-action="excel-export-result-close" aria-label="关闭">×</button></header>' +
+      '<div class="pfh-notification-list"><article class="pfh-notification-item is-unread"><div class="pfh-notification-item-head"><h4>' + escapeHtml(result.fileName || 'Excel 文件') + '</h4></div><div class="pfh-notification-content">' + detail + '</div><div class="pfh-notification-foot"><span>' + escapeHtml(result.sku || '') + '</span><button type="button" data-action="excel-export-result-close">手动关闭</button></div></article></div>' +
+      '</section>';
+    updateExcelExportResultCountdown(panel);
+  }
+
+  function closeExcelExportResultModal() {
+    clearExcelExportResultTimers();
+    state.excelExportResult = null;
+    const panel = document.getElementById(PANEL_ID);
+    const layer = panel && panel.querySelector('[data-excel-export-result-layer="1"]');
+    if (layer) layer.remove();
+  }
+
+  function showExcelExportResultModal(result) {
+    closeExcelExportResultModal();
+    const duration = 7000;
+    state.excelExportResult = {
+      fileName: String(result && result.fileName || ''),
+      sku: String(result && result.sku || ''),
+      missing: Array.isArray(result && result.missing) ? result.missing.filter(Boolean) : [],
+      closesAt: Date.now() + duration,
+    };
+    const panel = ensurePanel();
+    renderExcelExportResultModal(panel);
+    state.excelExportResultInterval = window.setInterval(() => updateExcelExportResultCountdown(panel), 250);
+    state.excelExportResultTimer = window.setTimeout(() => closeExcelExportResultModal(), duration);
+  }
+
   async function generateExcelFromCurrent() {
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) {
@@ -39053,7 +39126,6 @@ self.onmessage = async function(event) {
       addLog('warn', 'Excel 将使用不完整数据立即生成', data.sku + ' | 缺少：' + exportMissing.join('、'));
       renderShell();
     }
-    if (exportMissing.length) showExcelMissingToast();
     try {
       const Excel = await ensureExcelJsLoaded();
       const packQty = normalizePackQty(getLocalPackQty(excelData));
@@ -39132,7 +39204,11 @@ self.onmessage = async function(event) {
         ? L.excelDone + '（缺失字段已留空）'
         : L.excelDone;
       renderShell();
-      showToast(state.excelStatus);
+      showExcelExportResultModal({
+        fileName,
+        sku: excelData.sku,
+        missing: exportMissing,
+      });
     } catch (error) {
       console.warn('PLM floating helper excel failed:', error);
       const message = formatExcelExportError(error);

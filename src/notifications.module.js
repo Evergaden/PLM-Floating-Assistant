@@ -177,7 +177,7 @@
 
   function renderNotificationModal(panel) {
     if (!panel) return;
-    let layer = panel.querySelector('.pfh-notification-layer');
+    let layer = panel.querySelector('[data-notification-layer="1"]');
     if (!state.notificationModalOpen) {
       if (layer) layer.remove();
       return;
@@ -185,6 +185,7 @@
     if (!layer) {
       layer = document.createElement('div');
       layer.className = 'pfh-notification-layer';
+      layer.setAttribute('data-notification-layer', '1');
       layer.setAttribute('data-action', 'notification-close');
       panel.querySelector('.pfh-full').appendChild(layer);
     }
