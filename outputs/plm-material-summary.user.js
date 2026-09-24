@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.322
+// @version      2.8.323
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.322';
+  const SCRIPT_VERSION = '2.8.323';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -42479,10 +42479,10 @@ self.onmessage = async function(event) {
       const cached = normalizeData(loadData(item.sku) || {});
       const productName = [item.brand || cached.brand, item.name || cached.name].filter(Boolean).join(' ');
       const date = item.finalizedAt || '';
-      return [productName, item.sku || '', date, '', person].map((value) => String(value || '').replace(/[\t\r\n]+/g, ' ').trim()).join('\t');
+      return [productName, item.sku || '', '', date, item.designType || '', person].map((value) => String(value || '').replace(/[\t\r\n]+/g, ' ').trim()).join('\t');
     }).join('\n');
     copyText(tsv);
-    showToast('本月登记已复制：' + rows.length + '条 · 5列');
+    showToast('本月登记已复制：' + rows.length + '条 · 6列');
   }
 
   function copySelectedFinalizedLedgerSkus() {
