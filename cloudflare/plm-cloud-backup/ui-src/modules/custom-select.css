@@ -1,0 +1,263 @@
+#plm-floating-helper select:not([multiple]):not([size]) {
+  cursor: pointer;
+}
+
+#plm-floating-helper select.is-custom-select-open {
+  border-color: var(--pfh-theme-border-strong);
+  box-shadow: 0 0 0 3px var(--pfh-theme-shadow-soft);
+}
+
+.pfh-custom-select-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  color-scheme: light;
+  font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+}
+
+.pfh-custom-select-menu {
+  position: fixed;
+  display: flex;
+  max-height: var(--pfh-custom-select-available-height, 380px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--pfh-theme-border, #ded7f0);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--pfh-theme-surface, #fff) 97%, transparent);
+  box-shadow: 0 22px 54px rgba(42, 30, 82, .22), 0 4px 14px rgba(42, 30, 82, .1);
+  pointer-events: auto;
+  transform-origin: top center;
+  animation: pfh-custom-select-enter .16s cubic-bezier(.2, .85, .28, 1) both;
+  backdrop-filter: blur(18px);
+}
+
+.pfh-custom-select-menu.is-above {
+  transform-origin: bottom center;
+}
+
+.pfh-custom-select-menu > header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px 8px;
+  color: var(--pfh-theme-text, #342d45);
+}
+
+.pfh-custom-select-menu > header strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pfh-custom-select-menu > header small {
+  flex: 0 0 auto;
+  color: var(--pfh-theme-muted, #8d849c);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.pfh-custom-select-search {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  margin: 0 10px 7px;
+}
+
+.pfh-custom-select-search > span {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 10px;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid var(--pfh-theme-muted, #8d849c);
+  border-radius: 50%;
+  transform: translateY(-57%);
+  pointer-events: none;
+}
+
+.pfh-custom-select-search > span::after {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  width: 5px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: var(--pfh-theme-muted, #8d849c);
+  content: "";
+  transform: rotate(45deg);
+  transform-origin: left center;
+}
+
+.pfh-custom-select-search input {
+  width: 100%;
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 0 10px 0 30px;
+  border: 1px solid var(--pfh-theme-border, #ded7f0);
+  border-radius: 9px;
+  outline: 0;
+  background: var(--pfh-theme-control-surface, #f8f6fc);
+  color: var(--pfh-theme-text, #342d45);
+  font: inherit;
+  font-size: 11px;
+}
+
+.pfh-custom-select-search input:focus {
+  border-color: var(--pfh-theme-border-strong, #b9a6ec);
+  box-shadow: 0 0 0 3px var(--pfh-theme-shadow-soft, rgba(109, 53, 232, .1));
+}
+
+.pfh-custom-select-search input::placeholder {
+  color: var(--pfh-theme-muted, #9a91a8);
+}
+
+.pfh-custom-select-options {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 4px 7px 8px;
+  scrollbar-color: color-mix(in srgb, var(--pfh-theme-primary, #6d35e8) 28%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.pfh-custom-select-options::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pfh-custom-select-options::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pfh-theme-primary, #6d35e8) 28%, transparent);
+}
+
+.pfh-custom-select-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pfh-custom-select-group-label {
+  padding: 8px 9px 3px;
+  color: var(--pfh-theme-muted, #8d849c);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.pfh-custom-select-option {
+  display: grid;
+  width: 100%;
+  min-height: 34px;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px 7px 11px;
+  border: 0;
+  border-radius: 9px;
+  outline: 0;
+  background: transparent;
+  color: var(--pfh-theme-text, #342d45);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  transition: color .14s ease, background .14s ease, transform .14s ease;
+}
+
+.pfh-custom-select-option > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pfh-custom-select-option > i {
+  color: currentColor;
+  font-size: 13px;
+  font-style: normal;
+  line-height: 1;
+  text-align: center;
+}
+
+.pfh-custom-select-option:hover:not(:disabled),
+.pfh-custom-select-option:focus-visible {
+  background: var(--pfh-theme-primary-soft, #f0eaff);
+  color: var(--pfh-theme-primary-hover, #5422c9);
+}
+
+.pfh-custom-select-option:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--pfh-theme-border-strong, #b9a6ec);
+}
+
+.pfh-custom-select-option.is-selected {
+  background: linear-gradient(135deg, var(--pfh-theme-primary, #6d35e8), var(--pfh-theme-primary-hover, #5422c9));
+  color: #fff;
+}
+
+.pfh-custom-select-option.is-selected:hover,
+.pfh-custom-select-option.is-selected:focus-visible {
+  background: linear-gradient(135deg, var(--pfh-theme-primary-hover, #5422c9), var(--pfh-theme-primary, #6d35e8));
+  color: #fff;
+}
+
+.pfh-custom-select-option:disabled {
+  color: var(--pfh-theme-muted, #9a91a8);
+  cursor: not-allowed;
+  opacity: .48;
+}
+
+.pfh-custom-select-empty {
+  padding: 22px 12px;
+  color: var(--pfh-theme-muted, #8d849c);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.pfh-custom-select-group[hidden],
+.pfh-custom-select-option[hidden],
+.pfh-custom-select-empty[hidden] {
+  display: none;
+}
+
+@keyframes pfh-custom-select-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 560px) {
+  .pfh-custom-select-layer .pfh-custom-select-menu {
+    max-width: calc(100vw - 16px);
+  }
+
+  .pfh-custom-select-layer .pfh-custom-select-option {
+    min-height: 38px;
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pfh-custom-select-layer > .pfh-custom-select-menu {
+    animation: none;
+  }
+}

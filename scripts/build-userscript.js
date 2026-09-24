@@ -11,6 +11,7 @@ const modules = [
   { name: 'notifications', file: path.join(root, 'src', 'notifications.module.js') },
   { name: 'desktop-bridge', file: path.join(root, 'src', 'desktop-bridge.module.js') },
   { name: 'ui-loader', file: path.join(root, 'src', 'ui-loader.module.js') },
+  { name: 'custom-select', file: path.join(root, 'src', 'custom-select.module.js') },
   {
     name: 'product-development-ingredient-templates',
     file: path.join(root, 'src', 'product-development-ingredient-templates.module.js'),

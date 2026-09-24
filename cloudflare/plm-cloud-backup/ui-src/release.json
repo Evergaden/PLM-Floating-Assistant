@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.274",
+  "version": "2.5.275",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -96,6 +96,10 @@
     },
     {
       "path": "modules/ledger-layout.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/custom-select.css",
       "mode": "module"
     },
     {
