@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.328
+// @version      2.8.329
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.328';
+  const SCRIPT_VERSION = '2.8.329';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -167,7 +167,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.276';
+  const UI_ASSET_VERSION = '2.5.277';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -3156,6 +3156,8 @@
   // <cloud-assets-module>
 
   const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v2';
+  const CLOUD_RECOVERY_SESSION_KEY = 'plm-floating-helper:cloud-recovery:v1';
+  const CLOUD_RECOVERY_REFRESH_MAX_AGE_MS = 10 * 60 * 1000;
   const CLOUD_ASSET_CACHE_SCHEMA = 1;
   const CLOUD_ASSET_REFRESH_MS = 24 * 60 * 60 * 1000;
   const FALLBACK_TUBE_SIZE_RULES = [
@@ -3243,18 +3245,103 @@
 
   function scheduleCloudAssetRefresh(delay) {
     window.setTimeout(async () => {
+      let assetsReady = false;
       try {
         await refreshCloudAssets(false);
+        assetsReady = true;
       } catch (error) {
         if (typeof showUiOfflineFallback === 'function') showUiOfflineFallback(error);
         addLog('warn', '\u4e91\u7aef\u8d44\u6e90\u66f4\u65b0\u5931\u8d25', formatErrorMessage(error));
+        reportCloudConnectivityFailure('cloud-assets', error);
       }
       try {
         await refreshBrandComplianceData();
+        if (assetsReady) markCloudRecoverySucceeded();
       } catch (error) {
         addLog('warn', '\u54c1\u724c\u5730\u5740\u66f4\u65b0\u5931\u8d25\uff0c\u7ee7\u7eed\u4f7f\u7528\u672c\u5730\u5907\u7528\u6570\u636e', formatErrorMessage(error));
+        reportCloudConnectivityFailure('brand-compliance', error);
       }
     }, Math.max(0, Number(delay) || 0));
+  }
+
+  function readCloudRecoverySession() {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(CLOUD_RECOVERY_SESSION_KEY) || 'null');
+      const refreshExpired = value && value.status === 'refreshing'
+        && Date.now() - Number(value.updatedAt || 0) > CLOUD_RECOVERY_REFRESH_MAX_AGE_MS;
+      if (!value || !value.status || refreshExpired) {
+        sessionStorage.removeItem(CLOUD_RECOVERY_SESSION_KEY);
+        return null;
+      }
+      return value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeCloudRecoverySession(status) {
+    try {
+      sessionStorage.setItem(CLOUD_RECOVERY_SESSION_KEY, JSON.stringify({ status, updatedAt: Date.now() }));
+    } catch (_) {}
+  }
+
+  function isCloudConnectivityFailure(error) {
+    const message = formatErrorMessage(error).toLowerCase();
+    return /network|failed to fetch|load failed|timeout|browser|blocked|cloud asset|internal server error|\u7f51\u7edc|\u6d4f\u89c8\u5668|\u62e6\u622a|\u8d85\u65f6|\u4e91\u7aef\u8bf7\u6c42/.test(message);
+  }
+
+  function reportCloudConnectivityFailure(source, error) {
+    if (!isCloudConnectivityFailure(error) || !state) return;
+    const sources = Array.isArray(state.cloudRecoveryFailureSources) ? state.cloudRecoveryFailureSources : [];
+    if (source && !sources.includes(source)) sources.push(source);
+    state.cloudRecoveryFailureSources = sources;
+    if (state.cloudRecoveryCheckTimer || state.cloudRecoveryChecking || state.cloudRecoveryPromptVisible) return;
+    state.cloudRecoveryCheckTimer = window.setTimeout(runCloudRecoveryCheck, 1400);
+  }
+
+  async function runCloudRecoveryCheck() {
+    window.clearTimeout(state.cloudRecoveryCheckTimer);
+    state.cloudRecoveryCheckTimer = 0;
+    if (state.cloudRecoveryChecking) return;
+    state.cloudRecoveryChecking = true;
+    try {
+      await refreshCloudAssets(true);
+      await refreshBrandComplianceData();
+      markCloudRecoverySucceeded();
+    } catch (error) {
+      const session = readCloudRecoverySession();
+      if (session && (session.status === 'refreshing' || session.status === 'suppressed')) {
+        writeCloudRecoverySession('suppressed');
+        state.cloudRecoveryPromptVisible = false;
+      } else {
+        state.cloudRecoveryPromptVisible = true;
+      }
+      if (state.view === 'home') renderShell();
+    } finally {
+      state.cloudRecoveryChecking = false;
+    }
+  }
+
+  function markCloudRecoverySucceeded() {
+    if (!state) return;
+    window.clearTimeout(state.cloudRecoveryCheckTimer);
+    state.cloudRecoveryCheckTimer = 0;
+    state.cloudRecoveryChecking = false;
+    state.cloudRecoveryFailureSources = [];
+    const wasVisible = Boolean(state.cloudRecoveryPromptVisible);
+    state.cloudRecoveryPromptVisible = false;
+    try { sessionStorage.removeItem(CLOUD_RECOVERY_SESSION_KEY); } catch (_) {}
+    if (wasVisible && state.view === 'home') renderShell();
+  }
+
+  function refreshPageForCloudRecovery() {
+    writeCloudRecoverySession('refreshing');
+    window.location.reload();
+  }
+
+  function cloudRecoveryNoticeHtml() {
+    if (!state.cloudRecoveryPromptVisible) return '';
+    return '<aside class="pfh-cloud-recovery" role="status"><span class="pfh-cloud-recovery-icon" aria-hidden="true">!</span><div><strong>部分主页功能暂时不可用</strong><p>已自动重试，云端请求仍被浏览器拦截或网络不可用。刷新页面通常可以恢复权限状态。</p></div><button type="button" data-action="cloud-recovery-refresh-page">刷新本网页</button></aside>';
   }
 
   async function refreshBrandComplianceData() {
@@ -3767,6 +3854,7 @@
       if (showFeedback) showToast('主页问候语已更新');
     } catch (error) {
       addLog('warn', '主页问候语同步失败：' + formatErrorMessage(error));
+      reportCloudConnectivityFailure('home-greetings', error);
       if (showFeedback) showToast('暂时无法更新主页问候语');
     } finally {
       state.homeGreetingsLoading = false;
@@ -15694,6 +15782,10 @@
     manualSkuAddStatus: '',
     homeChartPeriod: 7,
     homeFeatureEditMode: false,
+    cloudRecoveryPromptVisible: false,
+    cloudRecoveryChecking: false,
+    cloudRecoveryCheckTimer: 0,
+    cloudRecoveryFailureSources: [],
     homeFeatureDragId: '',
     insightRecommendationSku: '',
     insightRecommendationLoading: false,
@@ -26617,6 +26709,7 @@
     const modeSwitch = productDevelopmentModeSwitchHtml();
     return '<div class="pfh-detail-scroll pfh-home-scroll"><section class="pfh-home-dashboard">' +
       '<header class="pfh-home-welcome"><div><h2>' + escapeHtml(greeting.title) + '</h2><p>' + escapeHtml(dateText) + ' · ' + escapeHtml(status) + '</p></div>' + modeSwitch + '</header>' +
+      cloudRecoveryNoticeHtml() +
       '<div class="pfh-home-analytics">' +
         '<article class="pfh-home-metric"><small>今日新分配</small><div><strong>' + stats.today + '</strong><span>个任务</span></div><p class="pfh-home-compare' + compareClass + '"><b>' + escapeHtml(compareBadge) + '</b><span>' + escapeHtml(compareText) + '</span></p><footer><span><small>昨日</small><b>' + stats.yesterday + '</b></span><span><small>今日已定稿</small><b>' + stats.finalizedToday + '</b></span><span><small>完成率</small><b>' + (stats.today ? stats.completionRate + '%' : '--') + '</b></span></footer></article>' +
         '<article class="pfh-home-chart"><header><div><h3>新任务趋势</h3><p>' + escapeHtml(chartSummary) + '</p></div><div class="pfh-home-period-tabs"><button type="button" data-action="home-chart-period" data-period="7" class="' + (period === 7 ? 'is-active' : '') + '">7日</button><button type="button" data-action="home-chart-period" data-period="30" class="' + (period === 30 ? 'is-active' : '') + '">30日</button></div></header><div class="pfh-home-chart-canvas"><div class="pfh-home-chart-plot"><svg viewBox="0 0 620 130" preserveAspectRatio="none" role="img" aria-label="新任务趋势图"><defs><linearGradient id="pfh-home-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pfh-theme-primary)" stop-opacity=".25"></stop><stop offset="1" stop-color="var(--pfh-theme-primary)" stop-opacity="0"></stop></linearGradient></defs><line x1="0" y1="26" x2="620" y2="26"></line><line x1="0" y1="68" x2="620" y2="68"></line><line x1="0" y1="110" x2="620" y2="110"></line><path class="pfh-home-chart-area" d="' + chart.area + '"></path><path class="pfh-home-chart-line" d="' + chart.line + '"></path></svg><div class="pfh-home-chart-points">' + homeChartPointsHtml(stats, chart) + '</div><div class="pfh-home-chart-tooltip" role="status"><strong></strong><span></span></div></div><div class="pfh-home-chart-labels">' + homeChartLabelsHtml(stats.days, period) + '</div></div></article>' +
@@ -33057,6 +33150,10 @@ self.onmessage = async function(event) {
     if (!namingCard) closePackagingNamingCard(ensurePanel());
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
+    if (action === 'cloud-recovery-refresh-page') {
+      refreshPageForCloudRecovery();
+      return;
+    }
     if (productDevelopmentHandleAction(action, actionTarget)) return;
     if (action === 'ledger-more') {
       event.preventDefault();
@@ -46268,6 +46365,7 @@ self.onmessage = async function(event) {
       state.loadingTips = DEFAULT_LOADING_TIPS.slice();
       state.loadingTipsLoaded = false;
       addLog('warn', '\u5c0f\u63d0\u793a\u62c9\u53d6\u5931\u8d25\uff0c\u5df2\u4f7f\u7528\u672c\u5730\u9ed8\u8ba4\u63d0\u793a', formatErrorMessage(error));
+      reportCloudConnectivityFailure('loading-tips', error);
       if (showFeedback) showToast('\u5c0f\u63d0\u793a\u62c9\u53d6\u5931\u8d25\uff0c\u5df2\u4f7f\u7528\u9ed8\u8ba4\u63d0\u793a');
     }
   }

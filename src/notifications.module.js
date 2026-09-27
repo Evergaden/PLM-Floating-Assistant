@@ -251,6 +251,7 @@
       if (showFeedback) showToast('主页问候语已更新');
     } catch (error) {
       addLog('warn', '主页问候语同步失败：' + formatErrorMessage(error));
+      reportCloudConnectivityFailure('home-greetings', error);
       if (showFeedback) showToast('暂时无法更新主页问候语');
     } finally {
       state.homeGreetingsLoading = false;

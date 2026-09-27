@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.276",
+  "version": "2.5.277",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -68,6 +68,10 @@
     },
     {
       "path": "modules/home-typography.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/cloud-recovery.css",
       "mode": "module"
     },
     {

@@ -1,5 +1,7 @@
 
   const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v2';
+  const CLOUD_RECOVERY_SESSION_KEY = 'plm-floating-helper:cloud-recovery:v1';
+  const CLOUD_RECOVERY_REFRESH_MAX_AGE_MS = 10 * 60 * 1000;
   const CLOUD_ASSET_CACHE_SCHEMA = 1;
   const CLOUD_ASSET_REFRESH_MS = 24 * 60 * 60 * 1000;
   const FALLBACK_TUBE_SIZE_RULES = [
@@ -87,18 +89,103 @@
 
   function scheduleCloudAssetRefresh(delay) {
     window.setTimeout(async () => {
+      let assetsReady = false;
       try {
         await refreshCloudAssets(false);
+        assetsReady = true;
       } catch (error) {
         if (typeof showUiOfflineFallback === 'function') showUiOfflineFallback(error);
         addLog('warn', '\u4e91\u7aef\u8d44\u6e90\u66f4\u65b0\u5931\u8d25', formatErrorMessage(error));
+        reportCloudConnectivityFailure('cloud-assets', error);
       }
       try {
         await refreshBrandComplianceData();
+        if (assetsReady) markCloudRecoverySucceeded();
       } catch (error) {
         addLog('warn', '\u54c1\u724c\u5730\u5740\u66f4\u65b0\u5931\u8d25\uff0c\u7ee7\u7eed\u4f7f\u7528\u672c\u5730\u5907\u7528\u6570\u636e', formatErrorMessage(error));
+        reportCloudConnectivityFailure('brand-compliance', error);
       }
     }, Math.max(0, Number(delay) || 0));
+  }
+
+  function readCloudRecoverySession() {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(CLOUD_RECOVERY_SESSION_KEY) || 'null');
+      const refreshExpired = value && value.status === 'refreshing'
+        && Date.now() - Number(value.updatedAt || 0) > CLOUD_RECOVERY_REFRESH_MAX_AGE_MS;
+      if (!value || !value.status || refreshExpired) {
+        sessionStorage.removeItem(CLOUD_RECOVERY_SESSION_KEY);
+        return null;
+      }
+      return value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeCloudRecoverySession(status) {
+    try {
+      sessionStorage.setItem(CLOUD_RECOVERY_SESSION_KEY, JSON.stringify({ status, updatedAt: Date.now() }));
+    } catch (_) {}
+  }
+
+  function isCloudConnectivityFailure(error) {
+    const message = formatErrorMessage(error).toLowerCase();
+    return /network|failed to fetch|load failed|timeout|browser|blocked|cloud asset|internal server error|\u7f51\u7edc|\u6d4f\u89c8\u5668|\u62e6\u622a|\u8d85\u65f6|\u4e91\u7aef\u8bf7\u6c42/.test(message);
+  }
+
+  function reportCloudConnectivityFailure(source, error) {
+    if (!isCloudConnectivityFailure(error) || !state) return;
+    const sources = Array.isArray(state.cloudRecoveryFailureSources) ? state.cloudRecoveryFailureSources : [];
+    if (source && !sources.includes(source)) sources.push(source);
+    state.cloudRecoveryFailureSources = sources;
+    if (state.cloudRecoveryCheckTimer || state.cloudRecoveryChecking || state.cloudRecoveryPromptVisible) return;
+    state.cloudRecoveryCheckTimer = window.setTimeout(runCloudRecoveryCheck, 1400);
+  }
+
+  async function runCloudRecoveryCheck() {
+    window.clearTimeout(state.cloudRecoveryCheckTimer);
+    state.cloudRecoveryCheckTimer = 0;
+    if (state.cloudRecoveryChecking) return;
+    state.cloudRecoveryChecking = true;
+    try {
+      await refreshCloudAssets(true);
+      await refreshBrandComplianceData();
+      markCloudRecoverySucceeded();
+    } catch (error) {
+      const session = readCloudRecoverySession();
+      if (session && (session.status === 'refreshing' || session.status === 'suppressed')) {
+        writeCloudRecoverySession('suppressed');
+        state.cloudRecoveryPromptVisible = false;
+      } else {
+        state.cloudRecoveryPromptVisible = true;
+      }
+      if (state.view === 'home') renderShell();
+    } finally {
+      state.cloudRecoveryChecking = false;
+    }
+  }
+
+  function markCloudRecoverySucceeded() {
+    if (!state) return;
+    window.clearTimeout(state.cloudRecoveryCheckTimer);
+    state.cloudRecoveryCheckTimer = 0;
+    state.cloudRecoveryChecking = false;
+    state.cloudRecoveryFailureSources = [];
+    const wasVisible = Boolean(state.cloudRecoveryPromptVisible);
+    state.cloudRecoveryPromptVisible = false;
+    try { sessionStorage.removeItem(CLOUD_RECOVERY_SESSION_KEY); } catch (_) {}
+    if (wasVisible && state.view === 'home') renderShell();
+  }
+
+  function refreshPageForCloudRecovery() {
+    writeCloudRecoverySession('refreshing');
+    window.location.reload();
+  }
+
+  function cloudRecoveryNoticeHtml() {
+    if (!state.cloudRecoveryPromptVisible) return '';
+    return '<aside class="pfh-cloud-recovery" role="status"><span class="pfh-cloud-recovery-icon" aria-hidden="true">!</span><div><strong>部分主页功能暂时不可用</strong><p>已自动重试，云端请求仍被浏览器拦截或网络不可用。刷新页面通常可以恢复权限状态。</p></div><button type="button" data-action="cloud-recovery-refresh-page">刷新本网页</button></aside>';
   }
 
   async function refreshBrandComplianceData() {
