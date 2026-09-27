@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.331
+// @version      2.8.333
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.331';
+  const SCRIPT_VERSION = '2.8.333';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -20932,7 +20932,7 @@
     return launcher;
   }
 
-  function expandPanel() {
+  function expandPanel(options) {
     state.expanded = true;
     state.userCollapsedPanel = false;
     state.manuallyCollapsedForSku = '';
@@ -20945,7 +20945,7 @@
       panel.classList.remove('is-tooltip-suppressed');
     }, 260);
     ensureLauncher();
-    renderShell();
+    if (!options || options.render !== false) renderShell();
   }
 
   function togglePanelVisible() {
@@ -38225,7 +38225,9 @@ self.onmessage = async function(event) {
     }
     state.view = 'detail';
     state.copywritingMode = false;
-    expandPanel();
+    // Avoid rendering the same detail view twice. renderShell() sorts the local
+    // catalog, so the duplicate pass was especially noticeable on large lists.
+    expandPanel({ render: false });
     renderShell(first ? '正在后台检查新的设计分配...' : L.openingDetail);
     if (!state.settings.collectionEnabled) return;
     window.setTimeout(() => {
@@ -48281,14 +48283,13 @@ self.onmessage = async function(event) {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  function getSkuListRecord(item) {
-    const cached = item && item.sku ? loadData(item.sku) : null;
-    return cached && typeof cached === 'object' ? { ...item, ...cached } : (item || {});
-  }
-
   function sortSkuListItems(items) {
     const sort = getSkuListSort();
-    const records = (items || []).map((item, index) => ({ item, index, record: getSkuListRecord(item) }));
+    // The index is deliberately a lightweight projection of each cached SKU and
+    // already contains every field needed for list sorting. Reading every full
+    // record here makes a single render perform hundreds of synchronous
+    // GM_getValue/localStorage calls and blocks the first visual response.
+    const records = (items || []).map((item, index) => ({ item, index, record: item || {} }));
     const time = (record) => {
       const assigned = parseSkuListTime(record.designAssignedAt);
       const acquired = [record.acquiredAtMs, record.fetchedAtMs, record.listPrefetchedAtMs, record.updatedAtMs, record.firstSeenAtMs, record.listPrefetchedAt, record.updatedAt, record.createdAt].map(parseSkuListTime).find((value) => value > 0) || 0;
