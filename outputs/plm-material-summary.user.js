@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.329
+// @version      2.8.330
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.329';
+  const SCRIPT_VERSION = '2.8.330';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -30132,11 +30132,13 @@ self.onmessage = async function(event) {
     menu.setAttribute('data-ledger-menu-sku', button.getAttribute('data-sku') || '');
     menu.setAttribute('data-ledger-menu-date', button.getAttribute('data-date') || '');
     host.appendChild(menu);
-    // The cloud stylesheet still has an older absolute-position rule. Pin the
-    // live menu inline so it cannot fall back to the bottom of the panel.
-    menu.style.setProperty('position', 'fixed', 'important');
+    // The panel's backdrop-filter makes fixed descendants use the panel as
+    // their containing block. Anchor the menu to this positioned host instead.
+    menu.style.setProperty('position', 'absolute', 'important');
     menu.style.setProperty('right', 'auto', 'important');
     menu.style.setProperty('bottom', 'auto', 'important');
+    menu.style.setProperty('left', '0px', 'important');
+    menu.style.setProperty('top', '0px', 'important');
     menu.style.setProperty('display', 'grid', 'important');
     menu.style.setProperty('z-index', '2147483646', 'important');
     menu.style.setProperty('pointer-events', 'auto', 'important');
@@ -30145,24 +30147,25 @@ self.onmessage = async function(event) {
       if (!menu.isConnected || !button.isConnected) return;
       const buttonRect = button.getBoundingClientRect();
       const panelRect = panel.getBoundingClientRect();
+      const hostRect = host.getBoundingClientRect();
       const sideInset = 10;
       const topBoundary = Math.max(8, panelRect.top + sideInset);
       const bottomBoundary = Math.min(window.innerHeight - 8, panelRect.bottom - sideInset);
       const leftBoundary = Math.max(8, panelRect.left + sideInset);
       const rightBoundary = Math.min(window.innerWidth - 8, panelRect.right - sideInset);
-      menu.style.maxHeight = Math.max(120, bottomBoundary - topBoundary) + 'px';
-      const menuRect = menu.getBoundingClientRect();
-      const left = Math.max(leftBoundary, Math.min(rightBoundary - menuRect.width, buttonRect.right - menuRect.width));
+      menu.style.maxHeight = Math.max(0, bottomBoundary - topBoundary) + 'px';
+      menu.style.overflowY = 'auto';
+      const menuWidth = menu.offsetWidth;
+      const menuHeight = menu.offsetHeight;
+      const left = Math.max(leftBoundary, Math.min(rightBoundary - menuWidth, buttonRect.right - menuWidth));
       const spaceBelow = bottomBoundary - buttonRect.bottom - 7;
       const spaceAbove = buttonRect.top - topBoundary - 7;
-      const openBelow = spaceBelow >= Math.min(menuRect.height, 240) || spaceBelow >= spaceAbove;
+      const openBelow = spaceBelow >= menuHeight || spaceBelow >= spaceAbove;
       const top = openBelow
-        ? Math.min(bottomBoundary - menuRect.height, buttonRect.bottom + 7)
-        : Math.max(topBoundary, buttonRect.top - menuRect.height - 7);
-      // The hosted stylesheet still declares `top` with `!important`; write
-      // both computed axes at the same priority so the menu stays in view.
-      menu.style.setProperty('left', Math.round(left) + 'px', 'important');
-      menu.style.setProperty('top', Math.round(top) + 'px', 'important');
+        ? Math.min(bottomBoundary - menuHeight, buttonRect.bottom + 7)
+        : Math.max(topBoundary, buttonRect.top - menuHeight - 7);
+      menu.style.setProperty('left', Math.round(left - hostRect.left) + 'px', 'important');
+      menu.style.setProperty('top', Math.round(top - hostRect.top) + 'px', 'important');
       menu.style.setProperty('--pfh-menu-origin', openBelow ? 'right top' : 'right bottom');
       menu.style.visibility = 'visible';
     });
