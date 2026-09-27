@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.334
+// @version      2.8.335
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.334';
+  const SCRIPT_VERSION = '2.8.335';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -21585,7 +21585,7 @@
     detail.innerHTML = uploadPanelHtml();
     setupUploadModeFusion(detail);
     const picker = detail.querySelector('[data-upload-sku-picker]');
-    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(picker, previousPickerScrollLeft);
+    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) scheduleUploadSkuPickerRender(picker, previousPickerScrollLeft);
   }
 
   function setupUploadModeFusion(root) {
@@ -21736,7 +21736,7 @@
     }
     panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
     const picker = panel.querySelector('[data-upload-sku-picker]');
-    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(picker, currentPickerScrollLeft);
+    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) scheduleUploadSkuPickerRender(picker, currentPickerScrollLeft);
     return true;
   }
 
@@ -21758,6 +21758,18 @@
     return mode === 'toy-label' || mode === 'copyright';
   }
 
+  function scheduleUploadSkuPickerRender(picker, restoreScrollLeft) {
+    if (!picker) return;
+    const requestedMode = normalizeUploadMode(state.uploadMode);
+    picker.innerHTML = '<div class="pfh-empty">正在载入 SKU…</div>';
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (!picker.isConnected || state.view !== 'upload' || state.uploadView !== 'queue' || normalizeUploadMode(state.uploadMode) !== requestedMode) return;
+        renderUploadSkuPicker(picker, restoreScrollLeft);
+      });
+    });
+  }
+
   function renderUploadSkuPicker(list, restoreScrollLeft) {
     if (!list) return;
     const currentScroll = list.querySelector('.pfh-upload-sku-picker-scroll');
@@ -21777,13 +21789,12 @@
     state.skuPage = clamp(state.skuPage || 1, 1, totalPages);
     const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
     const cards = items.map((item) => {
-      const data = normalizeData(loadData(item.sku) || item);
-      const title = [item.brand || data.brand, item.name || data.name, item.sku].filter(Boolean).join(' ');
-      const image = getSkuListImageUrl(data);
-      const imageHtml = image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy" decoding="async">' : iconHtml('image');
+      const title = [item.brand, item.name, item.sku].filter(Boolean).join(' ');
+      const image = getLedgerThumbnailUrl(getSkuListImageUrl(item));
+      const imageHtml = image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy" decoding="async" fetchpriority="low">' : iconHtml('image');
       const queued = queuedSkus.has(String(item.sku || '').trim().toUpperCase());
       return '<button type="button" class="pfh-upload-sku-card' + (queued ? ' is-queued' : '') + '" data-sku="' + escapeHtml(item.sku) + '" data-upload-drag-sku="' + escapeHtml(item.sku) + '" draggable="true" aria-pressed="' + String(queued) + '" title="拖动到下方添加任务：' + escapeHtml(title) + '">' +
-        '<span class="pfh-upload-sku-thumb">' + imageHtml + '</span><span class="pfh-upload-sku-meta"><b>' + escapeHtml(item.sku) + '</b><small>' + escapeHtml(item.name || data.name || '未命名产品') + '</small></span></button>';
+        '<span class="pfh-upload-sku-thumb">' + imageHtml + '</span><span class="pfh-upload-sku-meta"><b>' + escapeHtml(item.sku) + '</b><small>' + escapeHtml(item.name || '未命名产品') + '</small></span></button>';
     }).join('');
     const pager = '<div class="pfh-list-pager pfh-upload-sku-picker-pager"><div class="pfh-upload-sku-picker-pager-leading"><span>第 ' + state.skuPage + ' / ' + totalPages + ' 页</span></div><div class="pfh-upload-sku-picker-pager-controls"><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
     const content = items.length ? (listMode === 'waterfall' ? '<div class="pfh-upload-sku-card-grid is-waterfall">' + cards + '</div>' : '<div class="pfh-upload-sku-card-list">' + cards + '</div>') : '<div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div>';
