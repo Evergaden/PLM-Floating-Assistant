@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.1
+// @version      2.9.2
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.1';
+  const SCRIPT_VERSION = '2.9.2';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -15691,8 +15691,8 @@
     drawerTabFlowUserInterrupted: false,
     toastTimer: 0,
     toastExitTimer: 0,
-    toastActive: null,
-    toastQueue: [],
+    toastToken: 0,
+    toastSwapAnimation: null,
     apiReadStatus: { sku: '', phase: 'idle', message: '' },
     apiReadStatusTimer: 0,
     apiLastNoticeKey: '',
@@ -47052,24 +47052,14 @@ self.onmessage = async function(event) {
     else if (navigator.clipboard) navigator.clipboard.writeText(value);
   }
 
-  function showNextToast() {
-    if (state.toastActive || !state.toastQueue.length) return;
-    const item = state.toastQueue.shift();
-    state.toastActive = item;
-    const panel = ensurePanel();
+  function presentToast(toast, item, token) {
+    if (!toast || token !== state.toastToken) return;
     const message = item.message;
     const quiet = item.quiet;
     const tone = item.tone;
     const duration = item.duration;
-    let toast = panel.querySelector('.pfh-toast');
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.className = 'pfh-toast';
-      toast.setAttribute('role', 'status');
-      toast.setAttribute('aria-live', 'polite');
-      panel.appendChild(toast);
-    }
     toast.textContent = message;
+    toast.dataset.message = message;
     toast.classList.toggle('is-quiet', quiet);
     toast.classList.toggle('is-success', tone === 'success');
     toast.classList.toggle('is-error', tone === 'error');
@@ -47080,20 +47070,13 @@ self.onmessage = async function(event) {
     void toast.offsetWidth;
     toast.classList.add('is-visible');
     state.toastTimer = window.setTimeout(() => {
-      if (!toast.isConnected) {
-        state.toastTimer = 0;
-        state.toastActive = null;
-        showNextToast();
-        return;
-      }
+      if (!toast.isConnected || token !== state.toastToken) return;
       toast.classList.remove('is-visible');
       toast.classList.add('is-leaving');
       state.toastExitTimer = window.setTimeout(() => {
-        if (toast.isConnected) toast.remove();
+        if (toast.isConnected && token === state.toastToken) toast.remove();
         state.toastTimer = 0;
         state.toastExitTimer = 0;
-        state.toastActive = null;
-        showNextToast();
       }, 420);
     }, duration);
   }
@@ -47105,11 +47088,49 @@ self.onmessage = async function(event) {
     const requestedTone = String(options && options.tone || '').trim();
     const tone = requestedTone || (quiet ? 'quiet' : (/失败|错误|异常|不可用|无法|不能为空|请先|缺少|拦截|未找到|没有可/.test(message) ? 'error' : 'success'));
     const duration = message.length > 12 ? 12000 : 7000;
-    const activeMessage = state.toastActive && state.toastActive.message;
-    if (activeMessage === message || state.toastQueue.some((item) => item.message === message)) return;
-    state.toastQueue.push({ message, quiet, tone, duration });
-    if (state.toastQueue.length > 6) state.toastQueue.splice(0, state.toastQueue.length - 6);
-    showNextToast();
+    const item = { message, quiet, tone, duration };
+    const panel = ensurePanel();
+    let toast = panel.querySelector('.pfh-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.className = 'pfh-toast';
+      toast.setAttribute('role', 'status');
+      toast.setAttribute('aria-live', 'polite');
+      panel.appendChild(toast);
+    }
+    const token = ++state.toastToken;
+    window.clearTimeout(state.toastTimer);
+    window.clearTimeout(state.toastExitTimer);
+    state.toastTimer = 0;
+    state.toastExitTimer = 0;
+    if (state.toastSwapAnimation) {
+      try { state.toastSwapAnimation.cancel(); } catch (_) {}
+      state.toastSwapAnimation = null;
+    }
+    const shouldTransition = toast.classList.contains('is-visible')
+      && toast.dataset.message
+      && toast.dataset.message !== message
+      && toast.animate
+      && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (!shouldTransition) {
+      presentToast(toast, item, token);
+      return;
+    }
+    const startOpacity = Number.parseFloat(getComputedStyle(toast).opacity);
+    const animation = toast.animate([
+      { opacity: Number.isFinite(startOpacity) ? startOpacity : 1, transform: 'translate(0, 0) scale(1)' },
+      { opacity: 0, transform: 'translate(9px, 4px) scale(.96)' },
+    ], {
+      duration: 150,
+      easing: 'cubic-bezier(.55, .05, .8, .4)',
+      fill: 'forwards',
+    });
+    state.toastSwapAnimation = animation;
+    animation.onfinish = () => {
+      if (state.toastSwapAnimation === animation) state.toastSwapAnimation = null;
+      try { animation.cancel(); } catch (_) {}
+      presentToast(toast, item, token);
+    };
   }
 
   function addLog(level, message, detail) {
