@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.330
+// @version      2.8.331
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.330';
+  const SCRIPT_VERSION = '2.8.331';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -167,7 +167,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.277';
+  const UI_ASSET_VERSION = '2.5.278';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -25410,11 +25410,28 @@
       : '<span class="pfh-parameter-hero-thumb is-empty">' + escapeHtml(sku) + '</span>';
     const title = sku + ' 文案';
     const subtitle = [data && data.brand, data && data.name].filter(Boolean).join(' ') || L.noDrawer;
-    return '<section class="pfh-section pfh-file-section pfh-copywriting-hero-section"><header class="pfh-parameter-hero pfh-copywriting-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>COPYWRITING</small><h3>' + escapeHtml(title) + '</h3><p>' + escapeHtml(subtitle) + '</p></div></header></section>';
+    return '<section class="pfh-section pfh-file-section pfh-copywriting-hero-section"><header class="pfh-parameter-hero pfh-copywriting-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>COPYWRITING</small><h3>' + escapeHtml(title) + '</h3><p>' + escapeHtml(subtitle) + '</p></div>' + copywritingHeroControlsHtml(data) + '</header></section>';
   }
 
   function copywritingCopyIconHtml() {
     return '<svg class="pfh-copywriting-copy-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>';
+  }
+
+  function copywritingHeroControlsHtml(data) {
+    const record = getCopywritingDisplayRecord(data);
+    const view = state.copywritingView === 'full' ? 'full' : 'file';
+    const visibleSections = record && record.sections ? record.sections.filter(isCopywritingFileViewSection) : [];
+    const collapsed = Boolean(state.settings && state.settings.copywritingCollapsed);
+    const collapseButton = view === 'file' && visibleSections.length
+      ? '<button type="button" data-action="copywriting-toggle-collapse" aria-expanded="' + (collapsed ? 'false' : 'true') + '" title="' + (collapsed ? '展开全部文案' : '折叠全部文案') + '">' + (collapsed ? '展开文案' : '折叠文案') + '</button>'
+      : '';
+    return '<div class="pfh-copywriting-hero-controls"><label><span>查看方式</span><select class="pfh-copywriting-view-select" aria-label="选择文案查看方式">' +
+      '<option value="file"' + (view === 'file' ? ' selected' : '') + '>文件视图</option>' +
+      '<option value="full"' + (view === 'full' ? ' selected' : '') + '>全文视图</option>' +
+      '</select></label>' + collapseButton +
+      '<div class="pfh-copywriting-hero-action-row"><button type="button" data-action="copywriting-refresh"' + (state.copywritingLoading || state.copywritingChecking ? ' disabled' : '') + '>' + iconHtml('refresh') + '重新获取</button>' +
+      (record && record.fullText ? '<button type="button" data-action="copywriting-copy">' + copywritingCopyIconHtml() + '复制全文</button>' : '') +
+      '</div></div>';
   }
 
   function isCopywritingFileViewSection(section) {
@@ -25562,23 +25579,14 @@
     const view = state.copywritingView === 'full' ? 'full' : 'file';
     const visibleSections = record && record.sections ? record.sections.filter(isCopywritingFileViewSection) : [];
     const collapsed = view === 'file' && visibleSections.length > 0 && Boolean(state.settings && state.settings.copywritingCollapsed);
-    const collapseButtonHtml = view === 'file' && visibleSections.length > 0
-      ? '<button type="button" data-action="copywriting-toggle-collapse" aria-expanded="' + (collapsed ? 'false' : 'true') + '" title="' + (collapsed ? '展开全部文案' : '折叠全部文案') + '">' + (collapsed ? '展开文案' : '折叠文案') + '</button>'
-      : '';
-    const toolbarHtml = '<div class="pfh-copywriting-toolbar"><label><span>查看方式</span><select class="pfh-copywriting-view-select" aria-label="选择文案查看方式">' +
-      '<option value="file"' + (view === 'file' ? ' selected' : '') + '>文件视图</option>' +
-      '<option value="full"' + (view === 'full' ? ' selected' : '') + '>全文视图</option>' +
-      '</select></label><div class="pfh-copywriting-toolbar-actions">' + collapseButtonHtml + '<button type="button" data-action="copywriting-refresh"' + (state.copywritingLoading || state.copywritingChecking ? ' disabled' : '') + '>' + iconHtml('refresh') + '重新获取</button>' +
-      (record && record.fullText ? '<button type="button" data-action="copywriting-copy">' + copywritingCopyIconHtml() + '复制全文</button>' : '') +
-      '</div></div>';
     if (state.copywritingLoading && !(record && record.fullText)) {
-      return '<section class="pfh-copywriting-page is-loading">' + toolbarHtml + '<div class="pfh-copywriting-empty"><span class="pfh-loading-ring" aria-hidden="true"></span><strong>正在读取产品文案</strong><p>' + escapeHtml(state.copywritingStatus || '正在定位产品信息里的 Word 附件...') + '</p></div></section>';
+      return '<section class="pfh-copywriting-page is-loading"><div class="pfh-copywriting-empty"><span class="pfh-loading-ring" aria-hidden="true"></span><strong>正在读取产品文案</strong><p>' + escapeHtml(state.copywritingStatus || '正在定位产品信息里的 Word 附件...') + '</p></div></section>';
     }
     const errorHtml = state.copywritingError
       ? '<div class="pfh-copywriting-alert is-error"><strong>文案读取未完成</strong><span>' + escapeHtml(state.copywritingError) + '</span></div>'
       : '';
     if (!record || !record.fullText) {
-      return '<section class="pfh-copywriting-page">' + errorHtml + toolbarHtml + '<div class="pfh-copywriting-empty"><strong>还没有可展示的文案</strong><p>点击重新获取后，脚本会读取产品信息里的产品文案 Word。</p></div></section>';
+      return '<section class="pfh-copywriting-page">' + errorHtml + '<div class="pfh-copywriting-empty"><strong>还没有可展示的文案</strong><p>点击重新获取后，脚本会读取产品信息里的产品文案 Word。</p></div></section>';
     }
     const changed = new Set(record.changedSectionKeys || []);
     const updateHtml = record.updatePending
@@ -25602,7 +25610,7 @@
             '<div class="pfh-copywriting-block-head"><span><b>' + String(index + 1).padStart(2, '0') + '</b><strong>' + escapeHtml(section.label || section.key) + '</strong></span><button type="button" data-action="copywriting-section-copy" data-copywriting-key="' + escapeHtml(section.key) + '">' + copywritingCopyIconHtml() + '复制本段</button></div>' +
             '<pre>' + escapeHtml(section.text) + '</pre>' + netNotice + '</div>';
         }).join('');
-    return '<section class="pfh-copywriting-page' + (collapsed ? ' is-collapsed' : '') + '">' + errorHtml + loadingHtml + updateHtml + missingHtml + toolbarHtml + '<div class="pfh-copywriting-content is-' + view + (collapsed ? ' is-collapsed' : '') + '">' + contentHtml + '</div></section>';
+    return '<section class="pfh-copywriting-page' + (collapsed ? ' is-collapsed' : '') + '">' + errorHtml + loadingHtml + updateHtml + missingHtml + '<div class="pfh-copywriting-content is-' + view + (collapsed ? ' is-collapsed' : '') + '">' + contentHtml + '</div></section>';
   }
 
   function copywritingSectionCopyValue(section) {

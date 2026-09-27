@@ -1,4 +1,82 @@
 /*  Copywriting layout and interaction rules migrated from the legacy cascade.  */
+      #plm-floating-helper .pfh-copywriting-parameter-hero .pfh-parameter-hero-copy {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+      }
+      #plm-floating-helper .pfh-copywriting-parameter-hero .pfh-parameter-hero-copy h3,
+      #plm-floating-helper .pfh-copywriting-parameter-hero .pfh-parameter-hero-copy p {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-controls {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 5px 6px;
+        width: 242px;
+        flex: 0 0 242px;
+        margin-left: auto;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-controls label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        color: var(--pfh-theme-text, #30285e);
+        font-size: 11px;
+        white-space: nowrap;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-controls .pfh-copywriting-view-select {
+        width: 100px;
+        min-width: 100px;
+        max-width: 100px;
+        height: 28px;
+        padding-left: 8px;
+        font-size: 11px;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-action-row {
+        display: flex;
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-controls button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-height: 28px;
+        padding: 0 8px;
+        border: 1px solid var(--pfh-theme-border, #d8deea);
+        border-radius: 8px;
+        background: var(--pfh-theme-surface-alt, #faf8ff);
+        color: var(--pfh-theme-primary, #6d35e8);
+        font: inherit;
+        font-size: 11px;
+        line-height: 1;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-controls button:hover:not(:disabled) {
+        border-color: var(--pfh-theme-border-strong, #bca9ff);
+        background: var(--pfh-theme-primary-soft, #f3efff);
+      }
+      #plm-floating-helper .pfh-copywriting-hero-controls button:disabled {
+        cursor: wait;
+        opacity: .56;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-controls button .pfh-icon,
+      #plm-floating-helper .pfh-copywriting-hero-controls button svg {
+        display: inline-flex;
+        width: 13px;
+        height: 13px;
+        flex: 0 0 13px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+      }
       #plm-floating-helper .pfh-copywriting-scroll {
         display: grid;
         grid-template-rows: auto auto minmax(0, 1fr);
