@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.335
+// @version      2.9.0
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.335';
+  const SCRIPT_VERSION = '2.9.0';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -21581,11 +21581,18 @@
     const previousPicker = detail && detail.querySelector('[data-upload-sku-picker]');
     const previousScroll = previousPicker && previousPicker.querySelector('.pfh-upload-sku-picker-scroll');
     const previousPickerScrollLeft = previousScroll ? previousScroll.scrollLeft : 0;
+    const preservePicker = isReusableUploadSkuPicker(previousPicker) ? previousPicker : null;
+    if (preservePicker) preservePicker.remove();
     detail.classList.remove('is-loading');
     detail.innerHTML = uploadPanelHtml();
     setupUploadModeFusion(detail);
     const picker = detail.querySelector('[data-upload-sku-picker]');
-    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) scheduleUploadSkuPickerRender(picker, previousPickerScrollLeft);
+    if (picker && preservePicker) {
+      picker.replaceWith(preservePicker);
+      refreshUploadSkuPickerQueueState(preservePicker);
+    } else if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) {
+      scheduleUploadSkuPickerRender(picker, previousPickerScrollLeft);
+    }
   }
 
   function setupUploadModeFusion(root) {
@@ -21720,7 +21727,8 @@
     currentTabs.querySelectorAll('button[data-action="upload-mode"]').forEach((button) => {
       button.classList.toggle('is-active', button.getAttribute('data-upload-mode') === state.uploadMode);
     });
-    if (currentPicker && nextPicker) currentPicker.replaceWith(nextPicker);
+    const reusePicker = currentPicker && nextPicker && isReusableUploadSkuPicker(currentPicker);
+    if (currentPicker && nextPicker && !reusePicker) currentPicker.replaceWith(nextPicker);
     else if (!currentPicker && nextPicker) currentBody.parentNode.insertBefore(nextPicker, currentBody);
     else if (currentPicker && !nextPicker) currentPicker.remove();
     currentBody.replaceWith(nextBody);
@@ -21736,7 +21744,8 @@
     }
     panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
     const picker = panel.querySelector('[data-upload-sku-picker]');
-    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) scheduleUploadSkuPickerRender(picker, currentPickerScrollLeft);
+    if (picker && reusePicker) refreshUploadSkuPickerQueueState(picker);
+    else if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) scheduleUploadSkuPickerRender(picker, currentPickerScrollLeft);
     return true;
   }
 
@@ -21756,6 +21765,36 @@
 
   function isUploadSkuPickerMode(mode) {
     return mode === 'toy-label' || mode === 'copyright';
+  }
+
+  function getUploadSkuPickerContext() {
+    return [state.skuPage || 1, state.searchQuery.trim(), getSkuListMode(), getSkuListSort()].join('|');
+  }
+
+  function isReusableUploadSkuPicker(picker) {
+    return Boolean(picker
+      && picker.isConnected
+      && state.uploadView === 'queue'
+      && isUploadSkuPickerMode(state.uploadMode)
+      && picker.getAttribute('data-picker-context') === getUploadSkuPickerContext());
+  }
+
+  function getUploadQueuedSkus(mode) {
+    const uploadMode = normalizeUploadMode(mode || state.uploadMode);
+    return new Set((state.uploadQueue || loadUploadQueue())
+      .filter((item) => getUploadItemMode(item) === uploadMode && !/\u6210\u529f/.test(item.status || ''))
+      .map((item) => String(item.sku || '').trim().toUpperCase())
+      .filter(Boolean));
+  }
+
+  function refreshUploadSkuPickerQueueState(picker) {
+    if (!picker) return;
+    const queuedSkus = getUploadQueuedSkus(state.uploadMode);
+    picker.querySelectorAll('.pfh-upload-sku-card[data-sku]').forEach((card) => {
+      const queued = queuedSkus.has(String(card.getAttribute('data-sku') || '').trim().toUpperCase());
+      card.classList.toggle('is-queued', queued);
+      card.setAttribute('aria-pressed', String(queued));
+    });
   }
 
   function scheduleUploadSkuPickerRender(picker, restoreScrollLeft) {
@@ -21779,11 +21818,7 @@
     const searchTokens = parseSearchTokens(query);
     const allItems = sortSkuListItems(getSearchMatches(searchTokens));
     const listMode = getSkuListMode();
-    const uploadMode = normalizeUploadMode(state.uploadMode);
-    const queuedSkus = new Set((state.uploadQueue || loadUploadQueue())
-      .filter((item) => getUploadItemMode(item) === uploadMode && !/\u6210\u529f/.test(item.status || ''))
-      .map((item) => String(item.sku || '').trim().toUpperCase())
-      .filter(Boolean));
+    const queuedSkus = getUploadQueuedSkus(state.uploadMode);
     const pageSize = 20;
     const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
     state.skuPage = clamp(state.skuPage || 1, 1, totalPages);
@@ -21798,6 +21833,7 @@
     }).join('');
     const pager = '<div class="pfh-list-pager pfh-upload-sku-picker-pager"><div class="pfh-upload-sku-picker-pager-leading"><span>第 ' + state.skuPage + ' / ' + totalPages + ' 页</span></div><div class="pfh-upload-sku-picker-pager-controls"><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
     const content = items.length ? (listMode === 'waterfall' ? '<div class="pfh-upload-sku-card-grid is-waterfall">' + cards + '</div>' : '<div class="pfh-upload-sku-card-list">' + cards + '</div>') : '<div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div>';
+    list.setAttribute('data-picker-context', getUploadSkuPickerContext());
     list.innerHTML = '<div class="pfh-upload-sku-picker-scroll">' + content + '</div>' + pager;
     const nextScroll = list.querySelector('.pfh-upload-sku-picker-scroll');
     if (nextScroll) {
