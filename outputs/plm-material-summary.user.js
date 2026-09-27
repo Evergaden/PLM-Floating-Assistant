@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.0
+// @version      2.9.1
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.0';
+  const SCRIPT_VERSION = '2.9.1';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -15690,6 +15690,9 @@
     drawerTabFlowDrawer: null,
     drawerTabFlowUserInterrupted: false,
     toastTimer: 0,
+    toastExitTimer: 0,
+    toastActive: null,
+    toastQueue: [],
     apiReadStatus: { sku: '', phase: 'idle', message: '' },
     apiReadStatusTimer: 0,
     apiLastNoticeKey: '',
@@ -21701,7 +21704,18 @@
     return true;
   }
 
-  function renderUploadModeContent(panel) {
+  function playUploadModeTransition(node) {
+    if (!node || !node.animate || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    node.animate([
+      { opacity: .35, transform: 'translateY(7px) scale(.995)' },
+      { opacity: 1, transform: 'translateY(0) scale(1)' },
+    ], {
+      duration: 260,
+      easing: 'cubic-bezier(.2, .9, .3, 1)',
+    });
+  }
+
+  function renderUploadModeContent(panel, options) {
     const detail = panel && panel.querySelector('.pfh-detail');
     const currentBody = detail && detail.querySelector('.pfh-upload-body');
     const currentTabs = detail && detail.querySelector('.pfh-upload-mode-tabs');
@@ -21732,6 +21746,10 @@
     else if (!currentPicker && nextPicker) currentBody.parentNode.insertBefore(nextPicker, currentBody);
     else if (currentPicker && !nextPicker) currentPicker.remove();
     currentBody.replaceWith(nextBody);
+    if (options && options.animate) {
+      playUploadModeTransition(nextBody);
+      if (nextPicker && !reusePicker && nextPicker.isConnected) playUploadModeTransition(nextPicker);
+    }
     const indicator = currentTabs.querySelector('.pfh-upload-mode-indicator');
     const activeButton = currentTabs.querySelector('button.is-active');
     if (indicator && activeButton) {
@@ -34354,7 +34372,7 @@ self.onmessage = async function(event) {
     if (action === 'upload-mode') {
       const mode = actionTarget.getAttribute('data-upload-mode');
       state.uploadMode = /^(?:standard|toy-label|toy-effect|copyright)$/.test(mode || '') ? mode : 'standard';
-      if (!renderUploadModeContent(ensurePanel())) renderShell();
+      if (!renderUploadModeContent(ensurePanel(), { animate: true })) renderShell();
       return;
     }
     if (action === 'toy-label-queue-add') {
@@ -47034,13 +47052,15 @@ self.onmessage = async function(event) {
     else if (navigator.clipboard) navigator.clipboard.writeText(value);
   }
 
-  function showToast(text, options) {
+  function showNextToast() {
+    if (state.toastActive || !state.toastQueue.length) return;
+    const item = state.toastQueue.shift();
+    state.toastActive = item;
     const panel = ensurePanel();
-    const message = neutralizeTechnicalTerms(text);
-    const quiet = Boolean(options && options.quiet);
-    const requestedTone = String(options && options.tone || '').trim();
-    const tone = requestedTone || (quiet ? 'quiet' : (/失败|错误|异常|不可用|无法|不能为空|请先|缺少|拦截|未找到|没有可/.test(message) ? 'error' : 'success'));
-    const duration = message.length > 12 ? 12000 : 7000;
+    const message = item.message;
+    const quiet = item.quiet;
+    const tone = item.tone;
+    const duration = item.duration;
     let toast = panel.querySelector('.pfh-toast');
     if (!toast) {
       toast = document.createElement('div');
@@ -47055,25 +47075,41 @@ self.onmessage = async function(event) {
     toast.classList.toggle('is-error', tone === 'error');
     toast.classList.toggle('is-info', tone === 'info');
     toast.style.setProperty('--pfh-toast-life', duration + 'ms');
-    window.clearTimeout(state.toastExitTimer);
-    state.toastExitTimer = null;
-    toast.classList.remove('is-leaving');
-    toast.classList.remove('is-visible');
+    toast.classList.remove('is-leaving', 'is-visible');
     toast.classList.add('is-mounted');
-    if (message) {
-      void toast.offsetWidth;
-      toast.classList.add('is-visible');
-    }
-    clearTimeout(state.toastTimer);
-    state.toastTimer = setTimeout(() => {
-      if (!toast.isConnected) return;
+    void toast.offsetWidth;
+    toast.classList.add('is-visible');
+    state.toastTimer = window.setTimeout(() => {
+      if (!toast.isConnected) {
+        state.toastTimer = 0;
+        state.toastActive = null;
+        showNextToast();
+        return;
+      }
       toast.classList.remove('is-visible');
       toast.classList.add('is-leaving');
       state.toastExitTimer = window.setTimeout(() => {
         if (toast.isConnected) toast.remove();
-        state.toastExitTimer = null;
+        state.toastTimer = 0;
+        state.toastExitTimer = 0;
+        state.toastActive = null;
+        showNextToast();
       }, 420);
     }, duration);
+  }
+
+  function showToast(text, options) {
+    const message = neutralizeTechnicalTerms(text);
+    if (!message) return;
+    const quiet = Boolean(options && options.quiet);
+    const requestedTone = String(options && options.tone || '').trim();
+    const tone = requestedTone || (quiet ? 'quiet' : (/失败|错误|异常|不可用|无法|不能为空|请先|缺少|拦截|未找到|没有可/.test(message) ? 'error' : 'success'));
+    const duration = message.length > 12 ? 12000 : 7000;
+    const activeMessage = state.toastActive && state.toastActive.message;
+    if (activeMessage === message || state.toastQueue.some((item) => item.message === message)) return;
+    state.toastQueue.push({ message, quiet, tone, duration });
+    if (state.toastQueue.length > 6) state.toastQueue.splice(0, state.toastQueue.length - 6);
+    showNextToast();
   }
 
   function addLog(level, message, detail) {
