@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.333
+// @version      2.8.334
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.333';
+  const SCRIPT_VERSION = '2.8.334';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -169,8 +169,6 @@
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.278';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
-  const HOME_ENTRY_PRESS_MS = 120;
-  const HOME_ENTRY_RELEASE_MS = 410;
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
   const PLM_INGREDIENT_CACHE_VERSION = 2;
@@ -33197,37 +33195,6 @@ self.onmessage = async function(event) {
       return;
     }
     if (action === 'home-feature-edit-card') return;
-    const homeEntry = actionTarget && actionTarget.closest && actionTarget.closest('.pfh-home-entry');
-    if (homeEntry && !homeEntry.disabled) {
-      if (homeEntry.getAttribute('data-pfh-click-replay') === '1') {
-        homeEntry.removeAttribute('data-pfh-click-replay');
-        homeEntry.removeAttribute('data-pfh-click-pending');
-        homeEntry.classList.remove('is-click-bouncing', 'is-click-releasing');
-      } else if (homeEntry.getAttribute('data-pfh-click-pending') === '1') {
-        event.preventDefault();
-        return;
-      } else {
-        const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (!reduceMotion) {
-          event.preventDefault();
-          homeEntry.setAttribute('data-pfh-click-pending', '1');
-          homeEntry.classList.remove('is-click-bouncing', 'is-click-releasing');
-          void homeEntry.offsetWidth;
-          homeEntry.classList.add('is-click-bouncing');
-          window.setTimeout(() => {
-            if (!homeEntry.isConnected) return;
-            homeEntry.classList.remove('is-click-bouncing');
-            homeEntry.classList.add('is-click-releasing');
-          }, HOME_ENTRY_PRESS_MS);
-          window.setTimeout(() => {
-            if (!homeEntry.isConnected) return;
-            homeEntry.setAttribute('data-pfh-click-replay', '1');
-            homeEntry.click();
-          }, HOME_ENTRY_PRESS_MS + HOME_ENTRY_RELEASE_MS);
-          return;
-        }
-      }
-    }
     const ledgerMoreArea = event.target && event.target.closest && event.target.closest('.pfh-ledger-more,.pfh-ledger-overflow-menu');
     if (state.view === 'ledger' && state.ledgerMenuSku && !ledgerMoreArea) {
       state.ledgerMenuSku = '';
