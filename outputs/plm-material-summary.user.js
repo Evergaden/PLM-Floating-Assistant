@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.7
+// @version      2.9.8
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.7';
+  const SCRIPT_VERSION = '2.9.8';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -21636,6 +21636,79 @@
     renderShell();
   }
 
+  const SETTINGS_GROUP_ICONS = Object.freeze({
+    appearance: CORE_ICON_ASSETS.sparkle,
+    export: CORE_ICON_ASSETS.download,
+    data: CORE_ICON_ASSETS.box,
+    connect: CORE_ICON_ASSETS.link,
+    cloud: CORE_ICON_ASSETS.refresh,
+    runtime: CORE_ICON_ASSETS.history,
+  });
+
+  function settingsGroupHtml(icon, title, body) {
+    if (!body) return '';
+    return '<section class="pfh-set-group"><div class="pfh-set-group-head"><i class="pfh-set-group-icon">' + (SETTINGS_GROUP_ICONS[icon] || '') + '</i><h4>' + escapeHtml(title) + '</h4></div>' + body + '</section>';
+  }
+
+  function settingsCardHtml(title, badge, body, extraClass) {
+    return '<div class="pfh-settings-card' + (extraClass ? ' ' + extraClass : '') + '"><div class="pfh-settings-card-head"><strong>' + escapeHtml(title) + '</strong>' + (badge ? '<span>' + escapeHtml(badge) + '</span>' : '') + '</div>' + body + '</div>';
+  }
+
+  function renderSettingsPageStyle() {
+    const P = '#plm-floating-helper .pfh-settings-page ';
+    return '<style>' +
+      P + '{display:flex!important;flex-direction:column!important;gap:18px!important;align-content:stretch!important;padding:16px 14px 24px!important}' +
+      P + '.pfh-set-hero{position:relative;display:flex;align-items:center;gap:14px;padding:17px 18px;border-radius:20px;border:1px solid var(--pfh-theme-border,rgba(226,224,240,.9));background:linear-gradient(140deg,var(--pfh-theme-surface,#fff),var(--pfh-theme-surface-alt,#FBFAFF));box-shadow:0 1px 2px rgba(31,20,70,.05),0 10px 24px -20px rgba(31,20,70,.36),inset 0 1px 0 rgba(255,255,255,.72);overflow:hidden}' +
+      P + '.pfh-set-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(82% 140% at 100% 0%,var(--pfh-theme-primary-soft,rgba(109,53,232,.16)),transparent 62%);pointer-events:none}' +
+      P + '.pfh-set-hero-badge{position:relative;flex:0 0 auto;display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:linear-gradient(150deg,var(--pfh-theme-primary,#6d35e8),var(--pfh-theme-primary-hover,#5422c9));color:#fff;box-shadow:0 12px 24px -12px rgba(84,34,201,.75),inset 0 1px 0 rgba(255,255,255,.35)}' +
+      P + '.pfh-set-hero-badge svg{width:23px;height:23px}' +
+      P + '.pfh-set-hero-copy{position:relative;flex:1 1 auto;min-width:0}' +
+      P + '.pfh-set-hero-copy h3{margin:0!important;font-size:17px!important;line-height:1.25!important;font-weight:700!important;letter-spacing:.2px;color:var(--pfh-theme-text,#17153f)!important;cursor:default}' +
+      P + '.pfh-set-hero-copy p{margin:3px 0 0!important;font-size:12px!important;line-height:1.45!important;color:var(--pfh-theme-muted,#6b7897)!important}' +
+      P + '.pfh-set-hero-version{position:relative;flex:0 0 auto;padding:5px 11px;border-radius:999px;border:1px solid var(--pfh-theme-border,rgba(211,204,255,.45));background:var(--pfh-theme-card,rgba(255,255,255,.66));font-size:11px!important;font-weight:600;color:var(--pfh-theme-primary-hover,#5f35c8)!important;white-space:nowrap}' +
+      P + '.pfh-set-group{display:flex!important;flex-direction:column!important;gap:10px!important}' +
+      P + '.pfh-set-group-head{display:flex!important;align-items:center!important;gap:9px!important;padding:0 3px!important}' +
+      P + '.pfh-set-group-icon{display:grid;place-items:center;width:23px;height:23px;border-radius:8px;background:var(--pfh-theme-primary-soft,rgba(109,53,232,.14));color:var(--pfh-theme-primary-hover,#5422c9)}' +
+      P + '.pfh-set-group-icon svg{width:13px;height:13px}' +
+      P + '.pfh-set-group-head h4{margin:0!important;font-size:12.5px!important;font-weight:700!important;letter-spacing:.4px;color:var(--pfh-theme-text,#17153f)!important}' +
+      P + '.pfh-set-group-head::after{content:"";flex:1 1 auto;height:1px;background:linear-gradient(90deg,var(--pfh-theme-border,rgba(211,204,255,.55)),transparent)}' +
+      P + '.pfh-settings-card,' + P + '.pfh-log-panel{margin:0!important;padding:15px 18px!important;border:1px solid var(--pfh-theme-border,rgba(226,224,240,.9))!important;border-radius:16px!important;background:linear-gradient(160deg,var(--pfh-theme-surface,#fff),var(--pfh-theme-surface-alt,#FBFAFF))!important;box-shadow:0 1px 2px rgba(31,20,70,.05),0 8px 20px -18px rgba(31,20,70,.32),inset 0 1px 0 rgba(255,255,255,.7)!important;transition:box-shadow .2s ease,transform .2s ease,border-color .2s ease}' +
+      P + '.pfh-settings-card:hover,' + P + '.pfh-log-panel:hover{border-color:var(--pfh-theme-border-strong,rgba(190,199,220,.7))!important;box-shadow:0 2px 4px rgba(31,20,70,.06),0 14px 28px -20px rgba(31,20,70,.4),inset 0 1px 0 rgba(255,255,255,.78)!important;transform:translateY(-1px)}' +
+      P + '.pfh-settings-card-head,' + P + '.pfh-log-head{gap:10px!important;margin:0 0 13px!important;padding-bottom:11px!important;border-bottom:1px solid var(--pfh-theme-border,rgba(226,224,240,.8))!important}' +
+      P + '.pfh-settings-card-head strong,' + P + '.pfh-log-head strong{font-size:13.5px!important;font-weight:700!important;color:var(--pfh-theme-text,#17153f)!important}' +
+      P + '.pfh-settings-card-head span,' + P + '.pfh-log-head span{padding:3px 9px!important;border-radius:999px!important;border:1px solid var(--pfh-theme-border,rgba(211,204,255,.45))!important;background:var(--pfh-theme-card,rgba(255,255,255,.6))!important;font-size:11px!important;font-weight:600!important;color:var(--pfh-theme-primary-hover,#5f35c8)!important;white-space:nowrap!important}' +
+      P + '.pfh-about-note,' + P + '.pfh-cloud-backup p{display:block!important;margin:0 0 12px!important;padding:9px 12px!important;border-radius:11px!important;background:var(--pfh-theme-card,rgba(248,248,253,.82))!important;color:var(--pfh-theme-muted,#6b7897)!important;font-size:11.5px!important;line-height:1.55!important}' +
+      P + '.pfh-setting-row{display:grid!important;grid-template-columns:88px minmax(0,max-content) minmax(0,max-content)!important;gap:8px!important;align-items:center!important;margin-top:8px!important;padding:9px 11px!important;border:1px solid var(--pfh-theme-border,rgba(226,232,240,.75))!important;border-radius:12px!important;background:var(--pfh-theme-card,rgba(255,255,255,.55))!important}' +
+      P + '.pfh-ai-model-row{grid-template-columns:88px minmax(0,1fr)!important}' +
+      P + '.pfh-setting-row:first-child{margin-top:0!important}' +
+      P + '.pfh-setting-row>span{min-width:0!important;color:var(--pfh-theme-muted,#6b7897)!important;font-size:12px!important;font-weight:600!important}' +
+      P + '.pfh-setting-row label{min-height:28px!important;padding:0 12px!important;border:1px solid var(--pfh-theme-border,rgba(190,199,220,.75))!important;border-radius:999px!important;background:var(--pfh-theme-surface,rgba(255,255,255,.72))!important;color:var(--pfh-theme-muted,#4b5875)!important;font-size:12px!important;transition:border-color .16s ease,background .16s ease,color .16s ease,box-shadow .16s ease}' +
+      P + '.pfh-setting-row label:has(input:checked){border-color:var(--pfh-theme-primary,rgba(124,58,237,.55))!important;background:var(--pfh-theme-primary-soft,rgba(243,239,255,.98))!important;color:var(--pfh-theme-primary-hover,#5422c9)!important;font-weight:700!important;box-shadow:inset 0 0 0 1px var(--pfh-theme-primary-soft,rgba(109,53,232,.28)),0 6px 14px -10px rgba(84,34,201,.55)}' +
+      P + '.pfh-setting-row label::before{content:""!important;width:7px!important;height:7px!important;flex:0 0 7px!important;border-radius:50%!important;background:var(--pfh-theme-border-strong,rgba(190,199,220,.95))!important;background-image:none!important;transition:background .16s ease,box-shadow .16s ease}' +
+      P + '.pfh-setting-row label:has(input:checked)::before{background:var(--pfh-theme-primary,#6d35e8)!important;box-shadow:0 0 0 3px var(--pfh-theme-primary-soft,rgba(109,53,232,.2))!important}' +
+      P + '.pfh-theme-grid{gap:9px!important}' +
+      P + '.pfh-theme-option{border-radius:13px!important;border:1px solid var(--pfh-theme-border,rgba(211,204,255,.42))!important;background:var(--pfh-theme-surface,rgba(255,255,255,.72))!important;padding:8px!important;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}' +
+      P + '.pfh-theme-option:hover{transform:translateY(-2px)!important;box-shadow:0 10px 20px -14px rgba(31,20,70,.45)!important}' +
+      P + '.pfh-theme-option.is-selected{border-color:var(--pfh-theme-primary,rgba(124,58,237,.55))!important;box-shadow:0 0 0 3px var(--pfh-theme-primary-soft,rgba(109,53,232,.22)),0 10px 20px -14px rgba(31,20,70,.45)!important}' +
+      P + '.pfh-theme-option-swatch{height:24px!important;border-radius:8px!important}' +
+      P + '.pfh-about-actions{gap:8px!important;margin:9px 0 0!important}' +
+      P + '.pfh-about-actions button{height:30px!important;min-height:30px!important;padding:0 13px!important;border:1px solid var(--pfh-theme-border,rgba(190,199,220,.8))!important;border-radius:999px!important;background:var(--pfh-theme-surface,rgba(255,255,255,.8))!important;color:var(--pfh-theme-text,#253047)!important;font-size:12px!important;font-weight:600!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.9)!important;transition:border-color .16s ease,background .16s ease,color .16s ease,transform .16s ease,box-shadow .16s ease}' +
+      P + '.pfh-about-actions button:hover:not(:disabled){border-color:var(--pfh-theme-primary,rgba(124,58,237,.35))!important;background:var(--pfh-theme-primary-soft,rgba(244,241,255,.92))!important;color:var(--pfh-theme-primary-hover,#5f35c8)!important;transform:translateY(-1px)!important;box-shadow:0 10px 20px -12px rgba(84,34,201,.55)!important}' +
+      P + '.pfh-cloud-key{grid-template-columns:78px minmax(0,1fr)!important;gap:9px!important;align-items:center!important;color:var(--pfh-theme-muted,#6b7897)!important;font-size:12px!important}' +
+      P + '.pfh-cloud-key input{height:32px!important;border:1px solid var(--pfh-theme-border,rgba(190,199,220,.8))!important;border-radius:10px!important;background:var(--pfh-theme-control-surface,rgba(255,255,255,.86))!important;color:var(--pfh-theme-text,#253047)!important;box-shadow:inset 0 1px 2px rgba(31,20,70,.05)!important}' +
+      P + '.pfh-cloud-status,' + P + '.pfh-insight-status{color:var(--pfh-theme-primary-hover,#6d35e8)!important;font-size:12px!important;line-height:1.35!important}' +
+      P + '.pfh-log-list{max-height:240px!important;border-radius:12px!important}' +
+      P + '.pfh-rule-row,' + P + '.pfh-readiness-row{border-radius:11px!important;background:var(--pfh-theme-card,rgba(248,250,252,.68))!important}' +
+      P + '.pfh-rule-row{display:flex!important;align-items:center!important;gap:10px!important;border:1px solid var(--pfh-theme-border,rgba(226,232,240,.7));padding:9px 12px;margin-top:7px}' +
+      P + '.pfh-rule-row>div{flex:1 1 auto;min-width:0}' +
+      P + '.pfh-rule-row>b{color:var(--pfh-theme-text,#253047)}' +
+      P + '.pfh-rule-row>small{color:var(--pfh-theme-muted,#7d86a8)}' +
+      P + '.pfh-rule-row>span{flex:0 0 auto;min-width:82px!important;text-align:right!important;padding:3px 9px;border-radius:999px;background:var(--pfh-theme-primary-soft,rgba(244,241,255,.9));color:var(--pfh-theme-primary-hover,#5f35c8);font-weight:600}' +
+      P + '.pfh-insights-panel,' + P + '.pfh-runtime-log-panel{margin:0!important}' +
+      P + '.pfh-api-monitor-tools{margin:12px 0 0!important}' +
+      '</style>';
+  }
+
   function renderAbout(panel) {
     const detail = panel.querySelector('.pfh-detail');
     const cloudBody = '<label class="pfh-cloud-key"><span>' + escapeHtml(L.cloudBackupKey) + '</span><input type="text" class="pfh-cloud-backup-key" value="' + escapeHtml(state.settings.cloudBackupKey || '') + '" placeholder="' + escapeHtml(L.cloudBackupPlaceholder) + '" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label>' +
@@ -21655,17 +21728,25 @@
     }).join('');
     const themeBody = '<div class="pfh-settings-card pfh-theme-settings-card"><div class="pfh-settings-card-head"><strong>主题颜色</strong><span>' + escapeHtml(getActiveTheme().name) + '</span></div><div class="pfh-about-note">普通色卡直接切换；点击噜噜乐园会切换暖黄配色并按需加载皮肤彩蛋。</div><div class="pfh-theme-grid">' + themeOptions + '</div></div>';
     const cacheBody = '<div class="pfh-about-actions"><button type="button" data-action="export-cache">' + escapeHtml(L.exportCache) + '</button><button type="button" data-action="import-cache">' + escapeHtml(L.importCache) + '</button></div>';
+    const heroHtml = '<header class="pfh-set-hero">' +
+      '<span class="pfh-set-hero-badge">' + CORE_ICON_ASSETS.settings + '</span>' +
+      '<div class="pfh-set-hero-copy"><h3 data-action="developer-settings-tap">' + escapeHtml(L.settingsTitle) + '</h3><p>\u4e91\u5907\u4efd\u3001\u8fd0\u884c\u504f\u597d\u548c\u8c03\u8bd5\u8bb0\u5f55</p></div>' +
+      '<span class="pfh-set-hero-version">v' + escapeHtml(SCRIPT_VERSION) + ' \u00b7 ' + escapeHtml(String(state.index.length)) + ' \u4e2a\u7f16\u7801</span>' +
+    '</header>';
+    const cloudBackupCard = settingsCardHtml(L.cloudBackupTitle, '\u4f18\u5148', cloudBody, 'pfh-cloud-backup');
+    const cacheCard = settingsCardHtml('\u672c\u5730\u7f13\u5b58', '\u5907\u4efd\u8fc1\u79fb', cacheBody);
+    const exportCard = settingsCardHtml('\u5bfc\u51fa\u504f\u597d', 'Excel', preferenceBody);
+    const runtimeBody = (state.developerInsightsUnlocked ? renderInsightsSection() : '') + renderLogSection();
     detail.innerHTML = [
       '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section pfh-settings-page">',
-      '<div class="pfh-settings-hero"><div><h3 data-action="developer-settings-tap">' + escapeHtml(L.settingsTitle) + '</h3><p>\u4e91\u5907\u4efd\u3001\u8fd0\u884c\u504f\u597d\u548c\u8c03\u8bd5\u8bb0\u5f55</p></div><span>v' + escapeHtml(SCRIPT_VERSION) + ' / ' + escapeHtml(String(state.index.length)) + ' \u4e2a\u7f16\u7801</span></div>',
-      desktopBridgeSettingsHtml(),
-      themeBody,
-      renderCloudRuleVersions(),
-      '<div class="pfh-cloud-backup pfh-settings-card"><div class="pfh-settings-card-head"><strong>' + escapeHtml(L.cloudBackupTitle) + '</strong><span>\u4f18\u5148</span></div>' + cloudBody + '</div>',
-      state.developerInsightsUnlocked ? renderInsightsSection() : '',
-      renderLogSection(),
-      '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>\u5bfc\u51fa\u504f\u597d</strong><span>Excel</span></div>' + preferenceBody + '</div>',
-      '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>\u672c\u5730\u7f13\u5b58</strong><span>\u5907\u4efd\u8fc1\u79fb</span></div>' + cacheBody + '</div>',
+      renderSettingsPageStyle(),
+      heroHtml,
+      settingsGroupHtml('appearance', '\u5916\u89c2', themeBody),
+      settingsGroupHtml('export', '\u5bfc\u51fa\u504f\u597d', exportCard),
+      settingsGroupHtml('data', '\u6570\u636e\u4e0e\u5907\u4efd', cloudBackupCard + cacheCard),
+      settingsGroupHtml('connect', '\u8fde\u63a5', desktopBridgeSettingsHtml()),
+      settingsGroupHtml('cloud', '\u4e91\u7aef\u8d44\u6e90', renderCloudRuleVersions()),
+      settingsGroupHtml('runtime', '\u8fd0\u884c\u4e0e\u8bca\u65ad', runtimeBody),
       state.developerToolsOpen ? renderDeveloperTools() : '',
       '</section></div>',
     ].join('');
@@ -39696,23 +39777,99 @@ self.onmessage = async function(event) {
       if (layer) layer.remove();
       return;
     }
+    const missing = Array.isArray(result.missing) ? result.missing.filter(Boolean) : [];
+    const renderKey = [String(result.fileName || ''), String(result.sku || ''), missing.join('\u0001')].join('\u0002');
     if (!layer) {
       layer = document.createElement('div');
-      layer.className = 'pfh-notification-layer pfh-excel-export-result-layer';
+      layer.className = 'pfh-notification-layer pfh-excel-export-result-layer pfh-xr-layer';
       layer.setAttribute('data-excel-export-result-layer', '1');
       layer.setAttribute('data-action', 'excel-export-result-close');
       panel.querySelector('.pfh-full').appendChild(layer);
+    } else if (layer.dataset.xrRenderKey === renderKey && layer.querySelector('.pfh-xr-card')) {
+      // 内容未变化时只刷新倒计时，避免面板重绘反复重建 DOM 造成闪烁与动画重放。
+      layer.style.alignItems = 'center';
+      layer.style.justifyContent = 'center';
+      layer.style.padding = '24px';
+      updateExcelExportResultCountdown(panel);
+      return;
     }
+    layer.dataset.xrRenderKey = renderKey;
     layer.style.alignItems = 'center';
     layer.style.justifyContent = 'center';
     layer.style.padding = '24px';
-    const missing = Array.isArray(result.missing) ? result.missing.filter(Boolean) : [];
-    const detail = missing.length
-      ? '<div style="font-size:15px;line-height:1.5;color:#9a4d12"><b>缺少 ' + missing.length + ' 项数据</b></div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:11px">' + missing.map((item) => '<span style="padding:6px 10px;border:1px solid rgba(220,130,34,.32);border-radius:999px;background:rgba(255,244,220,.88);color:#8f4b16;font-size:13px;line-height:1.2">' + escapeHtml(item) + '</span>').join('') + '</div><p style="margin:12px 0 0;color:#7c6a57;font-size:13px;line-height:1.6">对应单元格已留空，不影响本次文件使用。</p>'
-      : '<div style="padding:12px 14px;border-radius:12px;background:rgba(226,247,235,.82);color:#247247;font-size:14px;line-height:1.6"><b>本次导出数据完整</b><br>没有检测到缺失字段。</div>';
-    layer.innerHTML = '<section class="pfh-notification-dialog" role="dialog" aria-modal="true" aria-label="表格导出成功" style="width:min(560px,calc(100% - 20px));max-height:calc(100% - 28px)">' +
-      '<header style="align-items:center;padding:20px 22px 16px"><div><h3 style="margin-bottom:6px;font-size:20px;line-height:1.25">✓ 表格导出成功</h3><span class="pfh-notification-status" style="font-size:12px;line-height:1.4"><b data-excel-export-countdown style="color:inherit;font-size:13px">0</b> 秒后自动关闭</span></div><button type="button" class="pfh-notification-close" data-action="excel-export-result-close" aria-label="关闭" style="width:34px;height:34px;font-size:24px">×</button></header>' +
-      '<div class="pfh-notification-list" style="min-height:0;padding:18px 20px 20px"><article class="pfh-notification-item is-unread" style="margin:0;padding:18px 20px 16px"><div class="pfh-notification-item-head"><h4 style="font-size:15px;line-height:1.55;overflow-wrap:anywhere">' + escapeHtml(result.fileName || 'Excel 文件') + '</h4></div><div class="pfh-notification-content" style="margin:15px 0 17px;font-size:14px;line-height:1.7;white-space:normal">' + detail + '</div><div class="pfh-notification-foot" style="align-items:center"><span style="font-size:12px;line-height:1.4">' + escapeHtml(result.sku || '') + '</span><button type="button" data-action="excel-export-result-close" style="height:36px;padding:0 16px;font-size:13px">关闭</button></div></article></div>' +
+    const isOk = !missing.length;
+    const statusBlock = isOk
+      ? '<div class="pfh-xr-status is-ok"><span class="pfh-xr-status-icon">' +
+          '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 11.6 9.6 17 20 6.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        '</span><div class="pfh-xr-status-copy"><strong>本次导出数据完整</strong><span>没有检测到缺失字段，可直接使用。</span></div></div>'
+      : '<div class="pfh-xr-status is-warn"><span class="pfh-xr-status-icon">' +
+          '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8.6v5.1" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/><circle cx="12" cy="17.1" r="1.35" fill="currentColor"/></svg>' +
+        '</span><div class="pfh-xr-status-copy"><strong>缺少 ' + missing.length + ' 项数据</strong><span>对应单元格已留空，不影响本次文件使用。</span></div>' +
+        '<div class="pfh-xr-chips">' + missing.map((item) => '<span class="pfh-xr-chip">' + escapeHtml(item) + '</span>').join('') + '</div></div>';
+    layer.innerHTML =
+      '<style>' +
+        '.pfh-xr-layer,.pfh-xr-layer *{box-sizing:border-box}' +
+        '#plm-floating-helper .pfh-xr-layer.pfh-notification-layer,#plm-floating-helper[data-pfh-theme] .pfh-xr-layer.pfh-notification-layer{position:absolute;inset:0;display:flex!important;align-items:center!important;justify-content:center!important;padding:24px!important;border-radius:inherit;background:radial-gradient(120% 90% at 50% 0%,rgba(23,18,48,.28),rgba(15,12,32,.52))!important;backdrop-filter:blur(6px)!important;-webkit-backdrop-filter:blur(6px)!important;animation:pfh-xr-fade .26s ease both}' +
+        '.pfh-xr-card{position:relative;width:min(452px,calc(100% - 12px));max-height:calc(100% - 28px);overflow-x:hidden;overflow-y:auto;padding:30px 30px 24px;border-radius:24px;border:1px solid var(--pfh-theme-border,rgba(226,224,240,.9));background:linear-gradient(180deg,var(--pfh-theme-surface,#fff) 0%,var(--pfh-theme-surface-alt,#FBFAFF) 100%);box-shadow:0 30px 80px -24px rgba(31,20,70,.42),0 4px 14px -6px rgba(31,20,70,.16),inset 0 1px 0 rgba(255,255,255,.7);animation:pfh-xr-rise .42s cubic-bezier(.21,.9,.28,1) both;scrollbar-width:thin}' +
+        '.pfh-xr-card::-webkit-scrollbar{width:6px}' +
+        '.pfh-xr-card::-webkit-scrollbar-thumb{border-radius:999px;background:var(--pfh-theme-border-strong,rgba(120,120,150,.32))}' +
+        '.pfh-xr-card::-webkit-scrollbar-track{background:transparent}' +
+        '.pfh-xr-card::before{content:"";position:absolute;inset:0 0 auto;height:120px;border-radius:24px 24px 0 0;background:radial-gradient(90% 130% at 50% -30%,var(--pfh-theme-primary-soft,rgba(109,53,232,.14)),transparent 68%);pointer-events:none}' +
+        '#plm-floating-helper .pfh-xr-close{position:absolute!important;top:14px!important;right:14px!important;z-index:2;display:grid!important;place-items:center!important;width:32px!important;min-width:32px!important;height:32px!important;min-height:32px!important;margin:0!important;padding:0!important;border:none!important;border-radius:50%!important;background:transparent!important;color:var(--pfh-theme-muted,#9aa0b0)!important;box-shadow:none!important;cursor:pointer;transition:background .18s ease,color .18s ease,transform .18s ease}' +
+        '#plm-floating-helper .pfh-xr-close:hover:not(:disabled){background:var(--pfh-theme-soft,rgba(20,16,50,.06))!important;color:var(--pfh-theme-text,#1F2937)!important;transform:rotate(90deg)!important}' +
+        '.pfh-xr-close svg{width:16px;height:16px}' +
+        '.pfh-xr-hero{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}' +
+        '.pfh-xr-badge{position:relative;display:grid;place-items:center;width:70px;height:70px;border-radius:50%;background:linear-gradient(150deg,#3ddc97 0%,#12b981 52%,#0e9f6e 100%);box-shadow:0 14px 28px -10px rgba(15,150,105,.6),inset 0 2px 4px rgba(255,255,255,.45),inset 0 -4px 10px rgba(6,78,60,.28);animation:pfh-xr-pop .5s cubic-bezier(.2,1.25,.4,1) .06s both}' +
+        '.pfh-xr-badge::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid rgba(18,185,129,.5);animation:pfh-xr-ring 1.9s ease-out .5s infinite}' +
+        '.pfh-xr-badge svg{width:34px;height:34px;color:#fff;filter:drop-shadow(0 1px 1px rgba(4,66,48,.35))}' +
+        '.pfh-xr-badge svg path{stroke-dasharray:23.5;stroke-dashoffset:23.5;animation:pfh-xr-draw .55s ease .28s forwards}' +
+        '.pfh-xr-title{margin:16px 0 0;font-size:19px;font-weight:700;line-height:1.3;letter-spacing:.2px;color:var(--pfh-theme-text,#1F2937)}' +
+        '.pfh-xr-sub{margin:0;font-size:12.5px;line-height:1.5;color:var(--pfh-theme-muted,#9aa0b0)}' +
+        '.pfh-xr-sub b{font-weight:600;color:var(--pfh-theme-text,#1F2937);font-variant-numeric:tabular-nums}' +
+        '.pfh-xr-body{margin-top:22px;display:flex;flex-direction:column;gap:14px}' +
+        '.pfh-xr-file{display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:15px;border:1px solid var(--pfh-theme-border,rgba(226,224,240,.95));background:var(--pfh-theme-card,rgba(248,248,253,.9));min-width:0}' +
+        '.pfh-xr-file-icon{flex:0 0 auto;display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:linear-gradient(150deg,rgba(23,168,110,.16),rgba(23,168,110,.06));color:#0f9d64}' +
+        '.pfh-xr-file-icon svg{width:20px;height:20px}' +
+        '.pfh-xr-file-name{flex:1 1 auto;min-width:0;font-size:13.5px;line-height:1.5;font-weight:600;color:var(--pfh-theme-text,#1F2937);word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+        '.pfh-xr-status{position:relative;display:flex;flex-wrap:wrap;align-items:flex-start;gap:11px;padding:14px 15px;border-radius:15px;font-size:13px;line-height:1.55;border:1px solid transparent}' +
+        '.pfh-xr-status.is-ok{background:linear-gradient(180deg,rgba(16,185,129,.1),rgba(16,185,129,.045));border-color:rgba(16,185,129,.22);color:#0f7a52}' +
+        '.pfh-xr-status.is-warn{background:linear-gradient(180deg,rgba(245,166,35,.12),rgba(245,166,35,.05));border-color:rgba(226,150,30,.28);color:#93591a}' +
+        '.pfh-xr-status-icon{flex:0 0 auto;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;color:#fff}' +
+        '.pfh-xr-status.is-ok .pfh-xr-status-icon{background:linear-gradient(150deg,#34d399,#0e9f6e);box-shadow:0 6px 14px -6px rgba(15,150,105,.7)}' +
+        '.pfh-xr-status.is-warn .pfh-xr-status-icon{background:linear-gradient(150deg,#fbbf24,#e08600);box-shadow:0 6px 14px -6px rgba(200,120,10,.65)}' +
+        '.pfh-xr-status-icon svg{width:15px;height:15px}' +
+        '.pfh-xr-status-copy{display:flex;flex-direction:column;gap:2px;min-width:0}' +
+        '.pfh-xr-status-copy strong{font-size:13.5px;font-weight:650}' +
+        '.pfh-xr-status-copy span{opacity:.82}' +
+        '.pfh-xr-chips{flex-basis:100%;display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}' +
+        '.pfh-xr-chip{padding:4px 10px;border-radius:999px;border:1px solid rgba(226,150,30,.32);background:rgba(255,247,232,.9);font-size:12px;line-height:1.45;color:#8f4b16}' +
+        '.pfh-xr-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px;padding-top:14px;border-top:1px solid var(--pfh-theme-border,rgba(226,224,240,.9))}' +
+        '.pfh-xr-sku{font-size:12px;letter-spacing:.3px;color:var(--pfh-theme-muted,#9aa0b0);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+        '#plm-floating-helper .pfh-xr-btn{flex:0 0 auto!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;height:38px!important;min-height:38px!important;padding:0 22px!important;border-radius:11px!important;border:1px solid transparent!important;background:linear-gradient(160deg,var(--pfh-theme-primary,#6d35e8),var(--pfh-theme-primary-hover,#5422c9))!important;color:#fff!important;-webkit-text-fill-color:#fff!important;font-size:13.5px!important;line-height:1!important;font-weight:600!important;cursor:pointer;box-shadow:0 10px 20px -10px rgba(84,34,201,.75)!important;transition:transform .16s ease,box-shadow .16s ease,filter .16s ease}' +
+        '#plm-floating-helper .pfh-xr-btn:hover:not(:disabled){background:linear-gradient(160deg,var(--pfh-theme-primary,#6d35e8),var(--pfh-theme-primary-hover,#5422c9))!important;border-color:transparent!important;color:#fff!important;transform:translateY(-1px)!important;filter:brightness(1.06);box-shadow:0 14px 24px -10px rgba(84,34,201,.8)!important}' +
+        '#plm-floating-helper .pfh-xr-btn:active:not(:disabled){transform:translateY(0)!important;filter:brightness(.97)}' +
+        '@keyframes pfh-xr-fade{from{opacity:0}to{opacity:1}}' +
+        '@keyframes pfh-xr-rise{from{opacity:0;transform:translateY(16px) scale(.975)}to{opacity:1;transform:none}}' +
+        '@keyframes pfh-xr-pop{0%{opacity:0;transform:scale(.55)}100%{opacity:1;transform:scale(1)}}' +
+        '@keyframes pfh-xr-ring{0%{transform:scale(1);opacity:.7}70%{transform:scale(1.32);opacity:0}100%{transform:scale(1.32);opacity:0}}' +
+        '@keyframes pfh-xr-draw{to{stroke-dashoffset:0}}' +
+        '@media (max-width:520px){#plm-floating-helper .pfh-xr-layer.pfh-notification-layer{padding:14px!important}.pfh-xr-card{padding:24px 20px 20px;border-radius:20px}.pfh-xr-badge{width:60px;height:60px}.pfh-xr-badge svg{width:29px;height:29px}.pfh-xr-title{font-size:17.5px}}' +
+        '@media (prefers-reduced-motion:reduce){.pfh-xr-layer,.pfh-xr-card,.pfh-xr-badge,.pfh-xr-badge::after{animation:none!important}.pfh-xr-badge svg path{stroke-dashoffset:0;animation:none!important}}' +
+      '</style>' +
+      '<section class="pfh-xr-card" role="dialog" aria-modal="true" aria-label="表格导出成功">' +
+        '<button type="button" class="pfh-xr-close" data-action="excel-export-result-close" aria-label="关闭">' +
+          '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>' +
+        '</button>' +
+        '<div class="pfh-xr-hero">' +
+          '<span class="pfh-xr-badge"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 11.6 9.6 17 20 6.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' +
+          '<h3 class="pfh-xr-title">表格导出成功</h3>' +
+          '<p class="pfh-xr-sub"><b data-excel-export-countdown>0</b> 秒后自动关闭</p>' +
+        '</div>' +
+        '<div class="pfh-xr-body">' +
+          '<div class="pfh-xr-file"><span class="pfh-xr-file-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6.5 3h7.2L18.5 8v12.2a.8.8 0 0 1-.8.8H6.5a.8.8 0 0 1-.8-.8V3.8A.8.8 0 0 1 6.5 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M13.4 3.2V8.2h5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.2 12.6l4.4 4.6M13.6 12.6l-4.4 4.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="pfh-xr-file-name">' + escapeHtml(result.fileName || 'Excel 文件') + '</span></div>' +
+          statusBlock +
+          '<div class="pfh-xr-foot"><span class="pfh-xr-sku">' + escapeHtml(result.sku || '') + '</span><button type="button" class="pfh-xr-btn" data-action="excel-export-result-close">关闭</button></div>' +
+        '</div>' +
       '</section>';
     updateExcelExportResultCountdown(panel);
   }
