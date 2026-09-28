@@ -5,7 +5,8 @@ import { BRAND_COMPLIANCE_SEED } from './brand-compliance-seed.js';
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'content-type,authorization,x-api-key',
+  'access-control-allow-headers': 'content-type,authorization,x-api-key,x-plm-request-id',
+  'access-control-expose-headers': 'x-request-id,server-timing',
 };
 
 const MAX_BACKUP_INLINE_CHARS = 900000;
@@ -18,6 +19,7 @@ const REMOTE_TOKEN_ISSUER = 'plm-remote-workbench';
 const REMOTE_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 const REMOTE_TASK_TYPES = new Set(['generate-assets', 'sync-products', 'scan-upload', 'note']);
 const requestAuthContexts = new WeakMap();
+let diagnosticSchemaPromise = null;
 
 const FEEDBACK_TYPES = Object.freeze({
   feature: '功能建议',
@@ -1014,6 +1016,101 @@ async function handleBackupChunkLoad(request, env) {
 
 function cleanText(value, maxLength = 200) {
   return String(value || '').trim().slice(0, maxLength);
+}
+
+function sanitizeDiagnosticText(value, maxLength = 600) {
+  return cleanText(value, maxLength)
+    .replace(/data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/gi, '[image]')
+    .replace(/(authorization|cookie|token|password|backup(?:Key|Password)|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
+    .replace(/Bearer\s+[a-z0-9._~-]+/gi, 'Bearer [redacted]')
+    .replace(/https?:\/\/([^\s?#]+)[^\s]*/gi, 'https://$1/[redacted]')
+    .replace(/[a-z0-9+/]{180,}={0,2}/gi, '[large-data]')
+    .slice(0, maxLength);
+}
+
+async function ensureDiagnosticTable(env) {
+  if (diagnosticSchemaPromise) return diagnosticSchemaPromise;
+  diagnosticSchemaPromise = (async () => {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS diagnostic_events (
+    event_id TEXT PRIMARY KEY,
+    error_code TEXT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    severity TEXT NOT NULL DEFAULT 'error',
+    feature TEXT NOT NULL DEFAULT 'runtime',
+    action TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL,
+    stack TEXT NOT NULL DEFAULT '',
+    script_version TEXT NOT NULL DEFAULT '',
+    ui_version TEXT NOT NULL DEFAULT '',
+    user_name TEXT NOT NULL DEFAULT '',
+    instance_id TEXT NOT NULL DEFAULT '',
+    sku TEXT NOT NULL DEFAULT '',
+    page_path TEXT NOT NULL DEFAULT '',
+    request_id TEXT NOT NULL DEFAULT '',
+    context_json TEXT NOT NULL DEFAULT '{}',
+    occurred_at TEXT NOT NULL,
+    received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_diagnostic_received ON diagnostic_events(received_at DESC)').run();
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_diagnostic_fingerprint_received ON diagnostic_events(fingerprint, received_at DESC)').run();
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_diagnostic_user_received ON diagnostic_events(user_name, received_at DESC)').run();
+  })().catch((error) => {
+    diagnosticSchemaPromise = null;
+    throw error;
+  });
+  return diagnosticSchemaPromise;
+}
+
+function normalizeDiagnosticContext(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    online: typeof source.online === 'boolean' ? source.online : null,
+    language: cleanText(source.language, 30),
+    platform: cleanText(source.platform, 80),
+  };
+}
+
+async function handleDiagnosticReport(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const contentLength = Number(request.headers.get('content-length') || 0);
+  if (contentLength > 32000) return json({ error: 'payload too large' }, 413);
+  const body = await parseJson(request);
+  if (!body || typeof body !== 'object') return json({ error: 'invalid diagnostic report' }, 400);
+  const eventId = cleanText(body.eventId, 120);
+  const errorCode = cleanText(body.errorCode, 80);
+  const fingerprint = cleanText(body.fingerprint, 80);
+  const message = sanitizeDiagnosticText(body.message, 600);
+  if (!eventId || !errorCode || !fingerprint || !message) return json({ error: 'missing diagnostic fields' }, 400);
+  await ensureDiagnosticTable(env);
+  const authContext = requestAuthContexts.get(request);
+  const authenticatedUserName = cleanText(authContext && authContext.claims && authContext.claims.userName, 80);
+  const requestId = cleanText(request.headers.get('x-plm-request-id') || eventId, 120);
+  await env.DB.prepare(`INSERT OR IGNORE INTO diagnostic_events (
+    event_id,error_code,fingerprint,severity,feature,action,message,stack,
+    script_version,ui_version,user_name,instance_id,sku,page_path,request_id,context_json,occurred_at
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
+    eventId,
+    errorCode,
+    fingerprint,
+    cleanText(body.severity, 20) || 'error',
+    cleanText(body.feature, 60) || 'runtime',
+    cleanText(body.action, 80),
+    message,
+    sanitizeDiagnosticText(body.stack, 3000),
+    cleanText(body.scriptVersion, 40),
+    cleanText(body.uiVersion, 80),
+    authenticatedUserName || cleanText(body.userName, 80),
+    cleanText(body.instanceId, 120),
+    cleanText(body.sku, 80),
+    cleanText(body.pagePath, 240),
+    requestId,
+    JSON.stringify(normalizeDiagnosticContext(body.context)),
+    cleanText(body.occurredAt, 40) || new Date().toISOString(),
+  ).run();
+  if (Math.random() < 0.02) {
+    await env.DB.prepare("DELETE FROM diagnostic_events WHERE received_at < datetime('now','-30 days')").run();
+  }
+  return json({ ok: true, eventId, errorCode });
 }
 
 function cleanList(value, maxItems = 20) {
@@ -6087,7 +6184,8 @@ async function handleAdminPage(request, env) {
   await ensureBrandComplianceTables(env);
   await ensureFeedbackTables(env);
   await ensureHomeGreetingsTable(env);
-  const [users, dashboard, usageTotals, trendData, campaigns, holidays, featureRules, notifications, notificationReads, brands, feedbackEntries, homeGreetings] = await Promise.all([
+  await ensureDiagnosticTable(env);
+  const [users, dashboard, usageTotals, trendData, campaigns, holidays, featureRules, notifications, notificationReads, brands, feedbackEntries, homeGreetings, diagnosticSummary, diagnosticTop, diagnosticRecent] = await Promise.all([
     env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, COALESCE(a.magic_upload_enabled,0) AS magic_upload_enabled, COALESCE(a.parameter_image_enabled,0) AS parameter_image_enabled, COALESCE(a.lulu_theme_enabled,0) AS lulu_theme_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.magic_upload_enabled, a.parameter_image_enabled, a.lulu_theme_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
     env.DB.prepare(`SELECT
       COUNT(*) AS users,
@@ -6119,6 +6217,18 @@ async function handleAdminPage(request, env) {
     env.DB.prepare('SELECT * FROM brand_compliance ORDER BY sort_order ASC, brand COLLATE NOCASE ASC').all(),
     env.DB.prepare('SELECT * FROM feedback_entries ORDER BY datetime(created_at) DESC, feedback_id DESC LIMIT 500').all(),
     listHomeGreetings(env, true),
+    env.DB.prepare(`SELECT
+      SUM(CASE WHEN received_at>=datetime('now','-1 day') THEN 1 ELSE 0 END) AS events_today,
+      COUNT(DISTINCT CASE WHEN received_at>=datetime('now','-1 day') THEN NULLIF(user_name,'') END) AS users_today,
+      COUNT(DISTINCT CASE WHEN received_at>=datetime('now','-7 day') THEN fingerprint END) AS issues_week,
+      SUM(CASE WHEN received_at>=datetime('now','-1 day') AND feature='excel' THEN 1 ELSE 0 END) AS excel_today
+      FROM diagnostic_events`).first(),
+    env.DB.prepare(`SELECT fingerprint,COUNT(*) AS event_count,COUNT(DISTINCT NULLIF(user_name,'')) AS user_count,
+      MAX(received_at) AS last_seen,MAX(error_code) AS error_code,MAX(feature) AS feature,
+      MAX(message) AS message,MAX(script_version) AS script_version
+      FROM diagnostic_events WHERE received_at>=datetime('now','-7 day')
+      GROUP BY fingerprint ORDER BY event_count DESC,last_seen DESC LIMIT 20`).all(),
+    env.DB.prepare('SELECT * FROM diagnostic_events ORDER BY datetime(received_at) DESC LIMIT 50').all(),
   ]);
   let campaignRows = campaigns.results || [];
   if (!campaignRows.length) {
@@ -6133,7 +6243,11 @@ async function handleAdminPage(request, env) {
     }));
   }
   const saved = new URL(request.url).searchParams.get('saved') || '';
-  return htmlResponse(renderAdminDashboardPage(users.results || [], { ...(dashboard || {}), ...(usageTotals || {}) }, trendData || {}, campaignRows, holidays.results || [], featureRules, notifications.results || [], notificationReads.results || [], (brands.results || []).map(brandComplianceFromRow), feedbackEntries.results || [], homeGreetings, saved));
+  return htmlResponse(renderAdminDashboardPage(users.results || [], { ...(dashboard || {}), ...(usageTotals || {}) }, trendData || {}, campaignRows, holidays.results || [], featureRules, notifications.results || [], notificationReads.results || [], (brands.results || []).map(brandComplianceFromRow), feedbackEntries.results || [], homeGreetings, {
+    summary: diagnosticSummary || {},
+    top: diagnosticTop.results || [],
+    recent: diagnosticRecent.results || [],
+  }, saved));
 }
 
 function renderBrandRepresentativeFields(label, prefix, representative) {
@@ -6194,6 +6308,7 @@ function renderFeedbackAdminSection(feedbackEntries) {
 const ADMIN_NAV_GROUPS = Object.freeze([
   Object.freeze({ label: '总览', items: Object.freeze([
     Object.freeze({ target: 'overview', title: '数据总览', description: '运行概况', icon: 'overview' }),
+    Object.freeze({ target: 'diagnostics', title: '故障中心', description: '错误与影响范围', icon: 'diagnostics', badgeKey: 'diagnosticEventsToday' }),
   ]) }),
   Object.freeze({ label: '运营管理', items: Object.freeze([
     Object.freeze({ target: 'notifications', title: '系统通知', description: '发布与阅读情况', icon: 'notifications', badgeKey: 'enabledNotifications' }),
@@ -6226,6 +6341,7 @@ function renderAdminNavIcon(icon) {
     features: '<path d="M12 7v14"></path><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path>',
     holidays: '<path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path>',
     feedback: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>',
+    diagnostics: '<path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.3 2.9 1.8 17a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 2.9a2 2 0 0 0-3.4 0Z"></path>',
   };
   return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (paths[icon] || paths.overview) + '</svg>';
 }
@@ -6428,7 +6544,7 @@ function renderAdminDashboardScripts() {
 ` + '</script>';
 }
 
-function renderAdminDashboardPage(users, dashboard, trendData, campaigns, holidays, featureRules, notifications, notificationReads, brands, feedbackEntries, homeGreetings, saved) {
+function renderAdminDashboardPage(users, dashboard, trendData, campaigns, holidays, featureRules, notifications, notificationReads, brands, feedbackEntries, homeGreetings, diagnostics, saved) {
   const knownUserNames = Array.from(new Set(users.map((user) => String(user.user_name || '').trim()).filter(Boolean)));
   const readsByNotification = new Map();
   (notificationReads || []).forEach((row) => {
@@ -6481,12 +6597,17 @@ function renderAdminDashboardPage(users, dashboard, trendData, campaigns, holida
     userCount: Number(dashboard.users || 0),
     brandCount: (brands || []).length,
     pendingFeedback,
+    diagnosticEventsToday: Number(diagnostics && diagnostics.summary && diagnostics.summary.events_today || 0),
   };
   const overviewSection = renderAdminOverviewSection(metrics, dashboard, trendData || {}, campaigns, notifications, feedbackEntries, brands);
   const notificationAdminSection = '<section class="card" id="notifications"><div class="cardhead"><h2>发布通知</h2><div class="sub">发送给所有安装新版脚本的用户；标题或内容包含“新版本 / 版本更新 / 更新提示 / 脚本更新”时，用户端会自动弹出并显示“去更新”。</div></div>' +
     '<form class="form" method="post" action="/admin/notifications/save"><label><span>标题</span><input name="title" maxlength="120" required placeholder="例如：版本更新提示 v2.5.160"></label><label><span>通知内容</span><textarea name="content" maxlength="4000" required placeholder="输入需要发送的通知内容"></textarea></label><div class="row"><label class="checks"><input type="hidden" name="enabled" value="0"><input type="checkbox" name="enabled" value="1" checked>立即启用</label></div><div class="actions"><button type="submit">发送通知</button></div></form>' +
     '<div class="form"><div class="cardhead" style="padding:0"><h2>通知记录（' + (notifications || []).length + '）</h2><div class="sub">展开后可编辑、停用、重新发布、清空阅读记录，并查看已读和未读用户。</div></div><div class="tiplist">' + (notificationEditorRows || '<div class="sub">暂无通知</div>') + '</div></div></section>';
   const feedbackAdminSection = renderFeedbackAdminSection(feedbackEntries || []);
+  const diagnosticSummary = diagnostics && diagnostics.summary || {};
+  const diagnosticTopRows = (diagnostics && diagnostics.top || []).map((item) => '<tr><td><strong>' + htmlEscape(item.error_code || '—') + '</strong><div class="sub">' + htmlEscape(item.fingerprint || '') + '</div></td><td>' + htmlEscape(item.feature || 'runtime') + '</td><td title="' + htmlEscape(item.message || '') + '">' + htmlEscape(String(item.message || '').slice(0, 90)) + '</td><td>' + htmlEscape(Number(item.event_count || 0)) + '</td><td>' + htmlEscape(Number(item.user_count || 0)) + '</td><td>' + htmlEscape(item.script_version || '—') + '</td><td>' + htmlEscape(formatBeijingDateTime(item.last_seen) || item.last_seen || '—') + '</td></tr>').join('');
+  const diagnosticRecentRows = (diagnostics && diagnostics.recent || []).map((item) => '<tr><td>' + htmlEscape(formatBeijingDateTime(item.received_at) || item.received_at || '—') + '</td><td><strong>' + htmlEscape(item.error_code || '—') + '</strong></td><td>' + htmlEscape(item.user_name || '匿名') + '</td><td>' + htmlEscape(item.sku || '—') + '</td><td>' + htmlEscape(item.action || item.feature || 'runtime') + '</td><td title="' + htmlEscape(item.message || '') + '">' + htmlEscape(String(item.message || '').slice(0, 100)) + '</td></tr>').join('');
+  const diagnosticAdminSection = '<section class="card" id="diagnostics"><div class="cardhead"><h2>故障中心</h2><div class="sub">自动聚合同类错误，保留 30 天。只收集错误信息、版本、功能、姓名、SKU 与运行环境，不上传商品正文、成分、图片、Cookie 或密钥。</div></div><div class="form"><div class="metrics"><div class="metric"><span>24小时错误</span><b>' + htmlEscape(Number(diagnosticSummary.events_today || 0)) + '</b></div><div class="metric"><span>影响用户</span><b>' + htmlEscape(Number(diagnosticSummary.users_today || 0)) + '</b></div><div class="metric"><span>近7日故障类型</span><b>' + htmlEscape(Number(diagnosticSummary.issues_week || 0)) + '</b></div><div class="metric"><span>今日表格错误</span><b>' + htmlEscape(Number(diagnosticSummary.excel_today || 0)) + '</b></div></div></div><div class="cardhead"><h2>近7日高频故障</h2></div><div class="tablebox"><table><thead><tr><th>错误编号</th><th>功能</th><th>错误摘要</th><th>次数</th><th>用户</th><th>版本</th><th>最近发生</th></tr></thead><tbody>' + (diagnosticTopRows || '<tr><td colspan="7">暂无故障上报</td></tr>') + '</tbody></table></div><div class="cardhead"><h2>最近50条</h2></div><div class="tablebox"><table><thead><tr><th>收到时间</th><th>错误编号</th><th>用户</th><th>SKU</th><th>步骤</th><th>错误摘要</th></tr></thead><tbody>' + (diagnosticRecentRows || '<tr><td colspan="6">暂无故障上报</td></tr>') + '</tbody></table></div></section>';
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLM 管理后台</title><link rel="stylesheet" href="/admin-console.css"><style>.tiptext,.tipbody textarea{font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Microsoft YaHei",sans-serif}' +
     ':root{--line:#e7e1fb;--text:#261f3d;--muted:#7d728f;--accent:#7c3aed}*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#fbfaff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text);font-weight:400}h1,h2,h3,h4{font-weight:700}b,strong,button,.btn,th,legend,summary{font-weight:400}.wrap{max-width:1260px;margin:auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}h1{margin:0;font-size:24px}h2{margin:0;font-size:17px}.sub{color:var(--muted);font-size:12px;margin-top:5px}.notice{margin:0 0 14px;padding:11px 14px;border:1px solid #a7ead1;border-radius:12px;background:#ecfdf5;color:#087c59;font-size:13px;font-weight:400}.grid{display:grid;gap:18px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric,.card{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:17px;box-shadow:0 16px 50px rgba(76,60,132,.08)}.metric{padding:16px}.metric span{display:block;color:var(--muted);font-size:12px}.metric b{display:block;font-size:25px;margin-top:5px}.card{overflow:hidden}.cardhead{padding:17px 18px}.form{padding:0 18px 18px;display:grid;gap:12px}.row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.row.two{grid-template-columns:1fr 1fr}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 10px;font-size:13px;color:var(--text)}textarea{min-height:150px;resize:vertical;line-height:1.5}label>span{display:block;color:var(--muted);font-size:12px;margin:0 0 5px}button,.btn{height:36px;border:0;border-radius:10px;padding:0 15px;background:var(--accent);color:#fff;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap;min-width:max-content}button:disabled{opacity:.65;cursor:wait}.ghost{background:#fff;color:var(--accent);border:1px solid var(--line)}.actions{display:flex;gap:8px}.tiplist{display:grid;gap:8px}.tipitem{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}.tipitem summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer}.tipselect{width:16px;height:16px;min-height:0;margin:0;padding:0;flex:0 0 auto}.tipno{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#f1edff;color:var(--accent);font-size:12px}.tiptext{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tipstate{font-size:12px;color:var(--muted)}.tipbody{padding:12px;border-top:1px solid var(--line);display:grid;gap:11px;background:#fcfbff}.tipbody textarea{min-height:74px}.danger{color:#dc2626}.tablebox{overflow:auto;max-height:440px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 14px;border-top:1px solid #eeeaf9;text-align:left;white-space:nowrap}th{color:#695d80;background:#faf9ff}.switch input{display:none}.switch span{display:block;width:42px;height:24px;border-radius:99px;background:#d8d3e5;position:relative;cursor:pointer}.switch span:after{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #999;transition:.18s}.switch input:checked+span{background:var(--accent)}.switch input:checked+span:after{transform:translateX(18px)}.checks{display:flex;align-items:center;align-self:end;gap:8px;height:36px;font-size:13px;white-space:nowrap}.checks input{width:16px;height:16px;min-height:0;margin:0;padding:0}.weekdays{grid-column:1/-1}.brandform,.brandbase{display:grid;gap:11px}.brandbase{grid-template-columns:2fr 2fr 100px}.brandbase .wide{grid-column:1/-1}.brandbase textarea{min-height:70px}.repgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.repbox{min-width:0;border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:9px}.repbox legend{padding:0 6px;color:var(--accent);font-weight:400;font-size:13px}.repbox textarea{min-height:85px}.branditem .tipbody{gap:14px}@media(max-width:800px){.wrap{padding:12px}.metrics{grid-template-columns:1fr 1fr}.row,.row.two,.brandbase,.repgrid{grid-template-columns:1fr}.head{align-items:flex-start}.tablebox{max-height:360px}}</style></head><body><main class="wrap">' +
     renderAdminSidebar(sidebarCounts) +
@@ -6494,6 +6615,7 @@ function renderAdminDashboardPage(users, dashboard, trendData, campaigns, holida
     (saved === 'home-greetings' ? '<div class="notice">主页问候语已保存，用户刷新页面后生效</div>' : '') +
     (saved && saved !== 'home-greetings' ? '<div class="notice">' + (saved === 'notifications' ? '通知已保存' : (saved === 'feedback' ? '反馈处理结果已保存' : (saved === 'brands' ? '品牌地址已保存，用户刷新页面后生效' : (saved === 'brands-deleted' ? '品牌地址已删除' : (saved === 'brands-duplicate' ? '品牌名与现有数据重复，未保存' : (saved === 'brands-error' ? '品牌名不能为空' : (saved === 'holidays' ? '节假日设置已保存' : (saved === 'features' ? '参数图 FEATURES 词典已保存' : (saved === 'added' ? '新提示已添加' : '轮播小提示与推送条件已保存'))))))))) + '</div>' : '') +
     overviewSection + '<div class="grid" style="margin-top:18px">' +
+    diagnosticAdminSection +
     homeGreetingAdminSection +
     notificationAdminSection +
     feedbackAdminSection +
@@ -7573,6 +7695,7 @@ async function handleRequest(request, env) {
     await prepareRequestAuth(request, env);
     const url = new URL(request.url);
     if (url.pathname === '/health') return json({ ok: true });
+    if (url.pathname === '/diagnostics/report' && request.method === 'POST') return handleDiagnosticReport(request, env);
     if (url.pathname === '/auth/exchange' && request.method === 'POST') return handleAuthExchange(request, env);
     if (url.pathname === '/remote-api/login' && request.method === 'POST') return handleRemoteLogin(request, env);
     if (url.pathname === '/remote-api/backup' && request.method === 'GET') return handleRemoteBackup(request, env);
@@ -7648,14 +7771,21 @@ async function handleRequest(request, env) {
 
 export default {
   async fetch(request, env) {
+    const startedAt = Date.now();
+    const requestId = cleanText(request.headers.get('x-plm-request-id'), 120) || crypto.randomUUID();
+    const path = new URL(request.url).pathname;
     try {
-      return await handleRequest(request, env);
+      const response = await handleRequest(request, env);
+      const headers = new Headers(response.headers);
+      headers.set('x-request-id', requestId);
+      headers.set('server-timing', 'total;dur=' + (Date.now() - startedAt));
+      console.log(JSON.stringify({ type: 'request', requestId, method: request.method, path, status: response.status, durationMs: Date.now() - startedAt }));
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
     } catch (error) {
-      const requestId = crypto.randomUUID();
       console.error('Unhandled Worker request error', {
         requestId,
         method: request.method,
-        path: new URL(request.url).pathname,
+        path,
         error: error && error.stack || String(error || 'unknown error'),
       });
       return json({ error: 'internal server error', requestId }, 500);

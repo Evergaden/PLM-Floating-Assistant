@@ -341,6 +341,36 @@ CREATE TABLE IF NOT EXISTS home_greetings (
 CREATE INDEX IF NOT EXISTS idx_home_greetings_enabled_sort
 ON home_greetings(enabled, sort_order);
 
+CREATE TABLE IF NOT EXISTS diagnostic_events (
+  event_id TEXT PRIMARY KEY,
+  error_code TEXT NOT NULL,
+  fingerprint TEXT NOT NULL,
+  severity TEXT NOT NULL DEFAULT 'error',
+  feature TEXT NOT NULL DEFAULT 'runtime',
+  action TEXT NOT NULL DEFAULT '',
+  message TEXT NOT NULL,
+  stack TEXT NOT NULL DEFAULT '',
+  script_version TEXT NOT NULL DEFAULT '',
+  ui_version TEXT NOT NULL DEFAULT '',
+  user_name TEXT NOT NULL DEFAULT '',
+  instance_id TEXT NOT NULL DEFAULT '',
+  sku TEXT NOT NULL DEFAULT '',
+  page_path TEXT NOT NULL DEFAULT '',
+  request_id TEXT NOT NULL DEFAULT '',
+  context_json TEXT NOT NULL DEFAULT '{}',
+  occurred_at TEXT NOT NULL,
+  received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_diagnostic_received
+ON diagnostic_events(received_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_diagnostic_fingerprint_received
+ON diagnostic_events(fingerprint, received_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_diagnostic_user_received
+ON diagnostic_events(user_name, received_at DESC);
+
 -- Mobile remote workbench. Passwords and raw backup keys are never stored:
 -- sessions are signed by the Worker and every durable row is scoped by the
 -- existing SHA-256 backup identity.

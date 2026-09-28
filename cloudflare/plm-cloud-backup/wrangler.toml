@@ -4,6 +4,9 @@ compatibility_date = "2026-06-24"
 workers_dev = true
 preview_urls = false
 
+[observability]
+enabled = true
+
 [[d1_databases]]
 binding = "DB"
 database_name = "plm-cloud-backup-db"

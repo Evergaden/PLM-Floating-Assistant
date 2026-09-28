@@ -9,6 +9,7 @@ const modules = [
   { name: 'cloud-assets', file: path.join(root, 'src', 'cloud-assets.module.js') },
   { name: 'icon-assets', file: path.join(root, 'src', 'icon-assets.module.js') },
   { name: 'notifications', file: path.join(root, 'src', 'notifications.module.js') },
+  { name: 'observability', file: path.join(root, 'src', 'observability.module.js') },
   { name: 'desktop-bridge', file: path.join(root, 'src', 'desktop-bridge.module.js') },
   { name: 'ui-loader', file: path.join(root, 'src', 'ui-loader.module.js') },
   { name: 'custom-select', file: path.join(root, 'src', 'custom-select.module.js') },
