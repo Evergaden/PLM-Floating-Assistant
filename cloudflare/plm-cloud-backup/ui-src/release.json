@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.278",
+  "version": "2.5.279",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -56,6 +56,10 @@
     },
     {
       "path": "modules/detail-view-tabs.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/size-image-custom.css",
       "mode": "module"
     },
     {
