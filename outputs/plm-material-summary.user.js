@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.9
+// @version      2.9.10
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.9';
+  const SCRIPT_VERSION = '2.9.10';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -23424,6 +23424,7 @@
 
   function getMagicUploadExcelCellRead(cell) {
     const raw = cell && cell.value;
+    if (raw === null || raw === undefined) return { value: '', formula: '' };
     if (raw && typeof raw === 'object') {
       if (raw.result !== undefined && raw.result !== null && raw.result !== '') {
         return { value: raw.result, formula: String(raw.formula || '') };
@@ -25128,32 +25129,44 @@
 
   async function saveMagicUploadProductDraft(task, productContext) {
     const context = productContext || await resolveMagicUploadProductContext(task);
-    const base = '/api/Product/GetDetailInfoByEdit?product_id=' + encodeURIComponent(context.productId) + '&product_version_id=' + encodeURIComponent(context.productVersionId);
-    const infoPayload = await fetchPlmJson(base);
-    const info = getMagicUploadPayloadData(infoPayload);
-    const categoryId = info.category_id;
-    if (!info.product_id || !categoryId) throw new Error('商品草稿基础信息不完整，缺少 product_id 或 category_id');
-    magicUploadLog('info', '读取商品草稿字段', task.sku + ' | product_id=' + context.productId + ' | product_version_id=' + context.productVersionId + ' | category_id=' + categoryId);
-    const query = (path) => path + '&product_version_id=' + encodeURIComponent(context.productVersionId);
-    const [contentPayload, pricePayload, invoicePayload, procurePayload] = await Promise.all([
-      fetchPlmJson('/api/Product/GetDetailContent?is_edit=true&product_id=' + encodeURIComponent(context.productId) + '&category_id=' + encodeURIComponent(categoryId) + '&product_version_id=' + encodeURIComponent(context.productVersionId)),
-      fetchPlmJson(query('/api/Product/GetProductPriceInfo?type=1')),
-      fetchPlmJson(query('/api/Product/GetProductInvoiceInfo?type=1')),
-      fetchPlmJson('/api/ProductProcureInfo/GetProductProcureInfo?type=1&product_version_id=' + encodeURIComponent(context.productVersionId) + '&code=' + encodeURIComponent(task.sku)),
-    ]);
-    const latestReplacement = getMagicUploadReplacementSnapshot(task, contentPayload);
-    applyMagicUploadReplacementSnapshot(task, latestReplacement, 'ready', '');
-    const currentPacking = getMagicUploadPackingFieldState(flattenMagicUploadProductAttributes(contentPayload));
-    const excelPacking = currentPacking.standardPackingQuantity && currentPacking.boxWeight && currentPacking.boxGauge.length
-      ? currentPacking
-      : await readMagicUploadPackingFromTask(task);
-    const draft = buildMagicUploadProductDraft(task, context, infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, excelPacking);
-    const changedFields = draft._magicUploadChangedFields || [];
-    const packingSummary = draft._magicUploadPackingSummary || { changed: [], retained: [] };
-    delete draft._magicUploadChangedFields;
-    delete draft._magicUploadPackingSummary;
-    magicUploadLog('info', '准备保存商品草稿', task.sku + ' | attr_values=' + draft.attr_values.length + ' | 文件字段=' + changedFields.join('；') + ' | 装箱字段=' + (packingSummary.changed.join('；') || '无（保留 PLM 原值）') + ' | 保留=' + (packingSummary.retained.join('；') || '无'));
-    return fetchPlmApiJson('/api/Product/SaveProductDraftByEdit', draft);
+    let stage = '读取商品基础信息';
+    try {
+      const base = '/api/Product/GetDetailInfoByEdit?product_id=' + encodeURIComponent(context.productId) + '&product_version_id=' + encodeURIComponent(context.productVersionId);
+      const infoPayload = await fetchPlmJson(base);
+      const info = getMagicUploadPayloadData(infoPayload);
+      const categoryId = info.category_id;
+      if (!info.product_id || !categoryId) throw new Error('商品草稿基础信息不完整，缺少 product_id 或 category_id');
+      magicUploadLog('info', '读取商品草稿字段', task.sku + ' | product_id=' + context.productId + ' | product_version_id=' + context.productVersionId + ' | category_id=' + categoryId);
+      const query = (path) => path + '&product_version_id=' + encodeURIComponent(context.productVersionId);
+      stage = '读取商品模板及采购字段';
+      const [contentPayload, pricePayload, invoicePayload, procurePayload] = await Promise.all([
+        fetchPlmJson('/api/Product/GetDetailContent?is_edit=true&product_id=' + encodeURIComponent(context.productId) + '&category_id=' + encodeURIComponent(categoryId) + '&product_version_id=' + encodeURIComponent(context.productVersionId)),
+        fetchPlmJson(query('/api/Product/GetProductPriceInfo?type=1')),
+        fetchPlmJson(query('/api/Product/GetProductInvoiceInfo?type=1')),
+        fetchPlmJson('/api/ProductProcureInfo/GetProductProcureInfo?type=1&product_version_id=' + encodeURIComponent(context.productVersionId) + '&code=' + encodeURIComponent(task.sku)),
+      ]);
+      stage = '检查现有图片及装箱字段';
+      const latestReplacement = getMagicUploadReplacementSnapshot(task, contentPayload);
+      applyMagicUploadReplacementSnapshot(task, latestReplacement, 'ready', '');
+      const currentPacking = getMagicUploadPackingFieldState(flattenMagicUploadProductAttributes(contentPayload));
+      magicUploadLog('info', '商品草稿数据读取完成', task.sku + ' | 装箱数=' + (currentPacking.standardPackingQuantity || '空') + ' | 箱规=' + (currentPacking.boxGauge.join(',') || '空') + ' | 箱重=' + (currentPacking.boxWeight || '空') + ' | XLSX=' + (task.files || []).filter((entry) => entry && /\.xlsx$/i.test(entry.name || '')).length);
+      stage = '读取 Excel 装箱信息';
+      const excelPacking = currentPacking.standardPackingQuantity && currentPacking.boxWeight && currentPacking.boxGauge.length
+        ? currentPacking
+        : await readMagicUploadPackingFromTask(task);
+      stage = '校验并组装商品草稿';
+      const draft = buildMagicUploadProductDraft(task, context, infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, excelPacking);
+      const changedFields = draft._magicUploadChangedFields || [];
+      const packingSummary = draft._magicUploadPackingSummary || { changed: [], retained: [] };
+      delete draft._magicUploadChangedFields;
+      delete draft._magicUploadPackingSummary;
+      magicUploadLog('info', '准备保存商品草稿', task.sku + ' | attr_values=' + draft.attr_values.length + ' | 文件字段=' + changedFields.join('；') + ' | 装箱字段=' + (packingSummary.changed.join('；') || '无（保留 PLM 原值）') + ' | 保留=' + (packingSummary.retained.join('；') || '无'));
+      stage = '调用商品草稿保存接口';
+      return await fetchPlmApiJson('/api/Product/SaveProductDraftByEdit', draft);
+    } catch (error) {
+      magicUploadLog('warn', '商品草稿处理失败', task.sku + ' | ' + stage + ' | ' + formatErrorDiagnostic(error));
+      throw new Error(stage + '失败：' + formatErrorMessage(error));
+    }
   }
 
   async function uploadMagicUploadTask(task) {

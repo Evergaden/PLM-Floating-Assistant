@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.9
+// @version      2.9.10
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.9.9", r = Object.freeze({
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.9.10", r = Object.freeze({
         exceljs: Object.freeze({
             url: "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js",
             global: "ExcelJS",
@@ -16695,6 +16695,10 @@
     }
     function Bh(e) {
         const t = e && e.value;
+        if (null == t) return {
+            value: "",
+            formula: ""
+        };
         if (t && "object" == typeof t) {
             if (void 0 !== t.result && null !== t.result && "" !== t.result) return {
                 value: t.result,
@@ -17776,39 +17780,53 @@
         };
     }
     async function Ly(e, t) {
-        const n = t || await yy(e), r = "/api/Product/GetDetailInfoByEdit?product_id=" + encodeURIComponent(n.productId) + "&product_version_id=" + encodeURIComponent(n.productVersionId), a = await Am(r), i = Dy(a), o = i.category_id;
-        if (!i.product_id || !o) throw new Error("商品草稿基础信息不完整，缺少 product_id 或 category_id");
-        Ch("info", "读取商品草稿字段", e.sku + " | product_id=" + n.productId + " | product_version_id=" + n.productVersionId + " | category_id=" + o);
-        const s = e => e + "&product_version_id=" + encodeURIComponent(n.productVersionId), [l, c, u, d] = await Promise.all([ Am("/api/Product/GetDetailContent?is_edit=true&product_id=" + encodeURIComponent(n.productId) + "&category_id=" + encodeURIComponent(o) + "&product_version_id=" + encodeURIComponent(n.productVersionId)), Am(s("/api/Product/GetProductPriceInfo?type=1")), Am(s("/api/Product/GetProductInvoiceInfo?type=1")), Am("/api/ProductProcureInfo/GetProductProcureInfo?type=1&product_version_id=" + encodeURIComponent(n.productVersionId) + "&code=" + encodeURIComponent(e.sku)) ]);
-        Xh(e, Wh(e, l), "ready", "");
-        const p = function(e) {
-            const t = $e.reduce((t, n) => {
-                const r = Ay(e, n.variableName, n.attrName, n.attrId), a = r && r.value;
-                return t[n.key] = "standardPackingQuantity" === n.key ? _h(a) : Lh(a), t;
-            }, {
-                standardPackingQuantity: "",
-                boxWeight: ""
-            }), n = Ay(e, et.variableName, et.attrName, et.attrId);
-            return t.boxGauge = Iy(n && n.value), t;
-        }(ky(l)), m = p.standardPackingQuantity && p.boxWeight && p.boxGauge.length ? p : await async function(e) {
-            const t = jh(e && e.excelPacking), n = (e && e.files || []).filter(e => e && /\.xlsx$/i.test(e.name || ""));
-            if (!n.length) return t;
-            let r = t;
-            for (const t of n) {
-                const n = await hN(t.key);
-                if (!n) throw new Error("Excel 文件已丢失：" + (t.name || "未命名文件"));
-                const a = await Rh(n, e && e.sku, r);
-                r = a, (a.formulaResultUsed || a.formulaFallbackUsed) && Ch("info", a.formulaFallbackUsed ? "已按 Excel 公式计算箱重" : "已读取 Excel 箱重缓存值", e.sku + " | " + a.sourceName + " | 不使用公式文本");
-            }
-            return e.excelPacking = r, e.updatedAt = Date.now(), Zf(wd.magicUploadQueue), Ch("info", "Excel 装箱信息读取完成", e.sku + " | 装箱数=" + (r.standardPackingQuantity || "空") + " | 箱规=" + (r.cartonSpec || "空") + " | 箱重=" + (r.boxWeight || "空")),
-            r;
-        }(e), g = _y(e, n, a, c, u, d, l, m), f = g._magicUploadChangedFields || [], h = g._magicUploadPackingSummary || {
-            changed: [],
-            retained: []
-        };
-        return delete g._magicUploadChangedFields, delete g._magicUploadPackingSummary,
-        Ch("info", "准备保存商品草稿", e.sku + " | attr_values=" + g.attr_values.length + " | 文件字段=" + f.join("；") + " | 装箱字段=" + (h.changed.join("；") || "无（保留 PLM 原值）") + " | 保留=" + (h.retained.join("；") || "无")),
-        Tm("/api/Product/SaveProductDraftByEdit", g);
+        const n = t || await yy(e);
+        let r = "读取商品基础信息";
+        try {
+            const t = "/api/Product/GetDetailInfoByEdit?product_id=" + encodeURIComponent(n.productId) + "&product_version_id=" + encodeURIComponent(n.productVersionId), a = await Am(t), i = Dy(a), o = i.category_id;
+            if (!i.product_id || !o) throw new Error("商品草稿基础信息不完整，缺少 product_id 或 category_id");
+            Ch("info", "读取商品草稿字段", e.sku + " | product_id=" + n.productId + " | product_version_id=" + n.productVersionId + " | category_id=" + o);
+            const s = e => e + "&product_version_id=" + encodeURIComponent(n.productVersionId);
+            r = "读取商品模板及采购字段";
+            const [l, c, u, d] = await Promise.all([ Am("/api/Product/GetDetailContent?is_edit=true&product_id=" + encodeURIComponent(n.productId) + "&category_id=" + encodeURIComponent(o) + "&product_version_id=" + encodeURIComponent(n.productVersionId)), Am(s("/api/Product/GetProductPriceInfo?type=1")), Am(s("/api/Product/GetProductInvoiceInfo?type=1")), Am("/api/ProductProcureInfo/GetProductProcureInfo?type=1&product_version_id=" + encodeURIComponent(n.productVersionId) + "&code=" + encodeURIComponent(e.sku)) ]);
+            r = "检查现有图片及装箱字段";
+            Xh(e, Wh(e, l), "ready", "");
+            const p = function(e) {
+                const t = $e.reduce((t, n) => {
+                    const r = Ay(e, n.variableName, n.attrName, n.attrId), a = r && r.value;
+                    return t[n.key] = "standardPackingQuantity" === n.key ? _h(a) : Lh(a), t;
+                }, {
+                    standardPackingQuantity: "",
+                    boxWeight: ""
+                }), n = Ay(e, et.variableName, et.attrName, et.attrId);
+                return t.boxGauge = Iy(n && n.value), t;
+            }(ky(l));
+            Ch("info", "商品草稿数据读取完成", e.sku + " | 装箱数=" + (p.standardPackingQuantity || "空") + " | 箱规=" + (p.boxGauge.join(",") || "空") + " | 箱重=" + (p.boxWeight || "空") + " | XLSX=" + (e.files || []).filter(e => e && /\.xlsx$/i.test(e.name || "")).length),
+            r = "读取 Excel 装箱信息";
+            const m = p.standardPackingQuantity && p.boxWeight && p.boxGauge.length ? p : await async function(e) {
+                const t = jh(e && e.excelPacking), n = (e && e.files || []).filter(e => e && /\.xlsx$/i.test(e.name || ""));
+                if (!n.length) return t;
+                let r = t;
+                for (const t of n) {
+                    const n = await hN(t.key);
+                    if (!n) throw new Error("Excel 文件已丢失：" + (t.name || "未命名文件"));
+                    const a = await Rh(n, e && e.sku, r);
+                    r = a, (a.formulaResultUsed || a.formulaFallbackUsed) && Ch("info", a.formulaFallbackUsed ? "已按 Excel 公式计算箱重" : "已读取 Excel 箱重缓存值", e.sku + " | " + a.sourceName + " | 不使用公式文本");
+                }
+                return e.excelPacking = r, e.updatedAt = Date.now(), Zf(wd.magicUploadQueue), Ch("info", "Excel 装箱信息读取完成", e.sku + " | 装箱数=" + (r.standardPackingQuantity || "空") + " | 箱规=" + (r.cartonSpec || "空") + " | 箱重=" + (r.boxWeight || "空")),
+                r;
+            }(e);
+            r = "校验并组装商品草稿";
+            const g = _y(e, n, a, c, u, d, l, m), f = g._magicUploadChangedFields || [], h = g._magicUploadPackingSummary || {
+                changed: [],
+                retained: []
+            };
+            return delete g._magicUploadChangedFields, delete g._magicUploadPackingSummary,
+            Ch("info", "准备保存商品草稿", e.sku + " | attr_values=" + g.attr_values.length + " | 文件字段=" + f.join("；") + " | 装箱字段=" + (h.changed.join("；") || "无（保留 PLM 原值）") + " | 保留=" + (h.retained.join("；") || "无")),
+            r = "调用商品草稿保存接口", await Tm("/api/Product/SaveProductDraftByEdit", g);
+        } catch (t) {
+            throw Ch("warn", "商品草稿处理失败", e.sku + " | " + r + " | " + aP(t)), new Error(r + "失败：" + rP(t));
+        }
     }
     async function Uy(e) {
         if (!e.sku) throw new Error("缺少 SKU 编码，请先编辑任务");
