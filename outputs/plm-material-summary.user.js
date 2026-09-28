@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.5
+// @version      2.9.6
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.5';
+  const SCRIPT_VERSION = '2.9.6';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -46324,7 +46324,7 @@ self.onmessage = async function(event) {
   }
 
   function getCloudBackupStatusText() {
-    return state.cloudBackupStatus || state.settings.cloudBackupStatus || L.cloudBackupReady;
+    return redactCloudBackupOwnerMismatch(state.cloudBackupStatus || state.settings.cloudBackupStatus || L.cloudBackupReady);
   }
 
   function getInsightAiModelSetting() {
@@ -46431,7 +46431,7 @@ self.onmessage = async function(event) {
       return true;
     } catch (error) {
       const errorMessage = formatCloudBackupSaveError(error);
-      console.warn('PLM floating helper cloud backup save failed:', error);
+      console.warn('PLM floating helper cloud backup save failed:', errorMessage);
       setCloudBackupStatus(L.cloudBackupFailed + '\uff1a' + errorMessage);
       addLog('error', '\u4e91\u5907\u4efd\u4e0a\u4f20\u5931\u8d25', errorMessage);
       if (!(options && options.silent)) showToast(L.cloudBackupFailed + '\uff1a' + errorMessage);
@@ -46444,9 +46444,7 @@ self.onmessage = async function(event) {
   function formatCloudBackupSaveError(error) {
     const cloudData = error && error.cloudData ? error.cloudData : {};
     if (cloudData.error === 'backup owner mismatch') {
-      const ownerName = String(cloudData.ownerName || '').trim() || '\u5176\u4ed6\u7528\u6237';
-      const currentName = String(cloudData.currentOwnerName || getCloudBackupOwnerName() || '').trim();
-      return '\u8be5\u5907\u4efd\u5bc6\u94a5\u5df2\u7ed1\u5b9a\u300c' + ownerName + '\u300d' + (currentName ? '\uff0c\u5f53\u524d PLM \u7528\u6237\u4e3a\u300c' + currentName + '\u300d' : '') + '\uff0c\u5df2\u963b\u6b62\u8986\u76d6';
+      return '该备份密钥不可用于当前账号，请更换备份密钥';
     }
     if (cloudData.error === 'payload too large' || (error && error.message === 'payload too large')) {
       return '\u4e91\u5907\u4efd\u5206\u7ea7\u5feb\u7167\u5747\u8d85\u8fc7\u4e0a\u9650';
@@ -47388,10 +47386,25 @@ self.onmessage = async function(event) {
   function loadLogs() {
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(LOG_KEY, null) : JSON.parse(localStorage.getItem(LOG_KEY) || 'null');
-      return Array.isArray(saved) ? saved : [];
+      const sanitized = Array.isArray(saved) ? saved.map((item) => ({
+        ...item,
+        message: redactCloudBackupOwnerMismatch(item && item.message),
+      })) : [];
+      if (Array.isArray(saved) && sanitized.some((item, index) => item.message !== (saved[index] && saved[index].message))) {
+        if (typeof GM_setValue === 'function') GM_setValue(LOG_KEY, sanitized);
+        else localStorage.setItem(LOG_KEY, JSON.stringify(sanitized));
+      }
+      return sanitized;
     } catch (error) {
       return [];
     }
+  }
+
+  function redactCloudBackupOwnerMismatch(value) {
+    const text = String(value || '');
+    return text.includes('该备份密钥已绑定') || text.includes('backup owner mismatch')
+      ? '云备份上传失败 | 该备份密钥不可用于当前账号，请更换备份密钥'
+      : text;
   }
 
   function saveLogs() {
@@ -47959,6 +47972,8 @@ self.onmessage = async function(event) {
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       const settings = { ...defaults, ...(saved || {}) };
+      const previousBackupStatus = settings.cloudBackupStatus;
+      settings.cloudBackupStatus = redactCloudBackupOwnerMismatch(previousBackupStatus);
       const needsThemeMigration = Number(saved && saved.themeSkinVersion || 0) < THEME_SKIN_VERSION;
       if (needsThemeMigration && (!saved || !saved.theme)) settings.theme = DEFAULT_THEME_ID;
       settings.themeSkinVersion = THEME_SKIN_VERSION;
@@ -47968,7 +47983,7 @@ self.onmessage = async function(event) {
       settings.homeFeatureGroups = normalizeHomeFeatureGroups(settings.homeFeatureGroups);
       settings.productDevelopmentFeatureGroups = normalizeProductDevelopmentFeatureGroups(settings.productDevelopmentFeatureGroups);
       const needsSkuMigration = Number(saved && saved.skuListPreferenceVersion || 0) < SKU_LIST_PREFERENCE_VERSION;
-      if (needsSkuMigration || needsThemeMigration) {
+      if (needsSkuMigration || needsThemeMigration || settings.cloudBackupStatus !== previousBackupStatus) {
         if (needsSkuMigration) {
           settings.skuListMode = 'waterfall';
           settings.skuListSort = 'assigned';

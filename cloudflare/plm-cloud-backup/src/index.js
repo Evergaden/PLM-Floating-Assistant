@@ -895,11 +895,7 @@ async function handleBackupSave(request, env) {
   }
   const existingOwnerName = getBackupOwnerNameFromPayload(existing && existing.payload);
   if (existingOwnerName && existingOwnerName !== backupOwnerName) {
-    return json({
-      error: 'backup owner mismatch',
-      ownerName: existingOwnerName,
-      currentOwnerName: backupOwnerName,
-    }, 409);
+    return json({ error: 'backup owner mismatch' }, 409);
   }
   await env.DB.prepare(`
     INSERT INTO user_backups (user_id, payload, version, updated_at)
