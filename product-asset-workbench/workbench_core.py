@@ -914,11 +914,12 @@ def generate_size_image(record: ProductRecord, output: Path, source_image: Image
 
 def _assistant_excel_dimension(*parts: str) -> str:
     values = [_assistant_number_text(part) for part in parts if _assistant_number(part)]
-    return "*".join(values) + "CM" if len(values) >= 2 else ""
+    return "*".join(values) + "cm" if len(values) >= 2 else ""
 
 
 def _assistant_excel_unit(value: str) -> str:
-    return clean_text(value).replace(" ", "").upper()
+    text = clean_text(value).replace(" ", "")
+    return re.sub(r"(kg|mg|mcg|ug|g|ml|cl|dl|l|floz|oz|lbs?)$", lambda match: match.group(1).lower(), text, flags=re.I)
 
 
 def _assistant_excel_image(folder: Path, record: ProductRecord) -> Image.Image | None:
@@ -936,7 +937,7 @@ def generate_excel(record: ProductRecord, output: Path, folder: Path | None = No
     sheet["B4"] = record.name
     sheet["C4"] = ""
     pack_qty = clean_text(record.pack_qty).replace(" ", "")
-    sheet["E4"] = pack_qty.upper() if pack_qty.upper().endswith("PCS") else pack_qty + "PCS" if pack_qty else ""
+    sheet["E4"] = re.sub(r"pcs$", "pcs", pack_qty, flags=re.I) if pack_qty.lower().endswith("pcs") else pack_qty + "pcs" if pack_qty else ""
     sheet["G4"] = record.sku
     sheet["H4"] = "瓶装" if record.single_bottle else '=IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"盒装",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"袋装",""))'
     sheet["I4"] = "" if record.omit_product_size else _assistant_excel_dimension(record.product_length, record.product_width, record.product_height)

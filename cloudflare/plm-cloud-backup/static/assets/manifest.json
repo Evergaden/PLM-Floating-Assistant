@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "dataVersion": "2.5.273",
+  "dataVersion": "2.5.276",
   "minimumClientVersion": "2.5.105",
   "assets": {
     "runtimeData": {
@@ -10,8 +10,8 @@
     },
     "excelTemplate": {
       "path": "v1/excel-template.xlsx",
-      "bytes": 11773,
-      "sha256": "870126d1c5f4b38d3d2808a94fcfedaafc44701ec2fbfdc696e1bc8d932fd75c"
+      "bytes": 8519,
+      "sha256": "43aba3eb52e46a27810d87049b99d4e08c2d3892d421d7654d5f6f65ba77c54a"
     },
     "icons": {
       "path": "v1/icons.json",

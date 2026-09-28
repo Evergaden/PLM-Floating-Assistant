@@ -567,8 +567,7 @@
       ingredients: extra.ingredients || getPreferredExcelIngredients(excelData),
     });
 
-    const workbook = new window.ExcelJS.Workbook();
-    await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
+    const workbook = await loadCloudExcelTemplateWorkbook(window.ExcelJS);
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
     removeUnusedExcelTemplateRow(sheet);
     const excelImageSource = getExcelImageSource(excelData, extra);
@@ -605,17 +604,18 @@
     if (shouldOmitToyProductSize(excelData)) {
       sheet.spliceColumns(9, 1);
       sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"盒装",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"袋装",""))' };
-      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
-      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))' };
+      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","净重",IF(RIGHT(L4,2)="ml","容量","规格"))' };
     } else if (shouldRemoveExcelPackageSizeColumn(excelData)) {
       sheet.spliceColumns(10, 1);
-      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
-      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))' };
+      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","净重",IF(RIGHT(L4,2)="ml","容量","规格"))' };
     }
     if (imageInfo) {
       const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
       sheet.addImage(imageId, getExcelImageAnchor(imageInfo));
     }
+    applyExcelTraceWatermark(workbook);
     const buffer = await workbook.xlsx.writeBuffer();
     const bytes = new Uint8Array(buffer);
     const assets = message.transparentImageDataUrl

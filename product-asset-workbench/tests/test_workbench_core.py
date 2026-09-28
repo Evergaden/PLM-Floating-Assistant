@@ -24,8 +24,8 @@ class WorkbenchCoreTests(unittest.TestCase):
             product_length="11",
             product_width="5",
             product_height="17",
-            net_content="200 g",
-            gross_weight="240 g",
+            net_content="200 G",
+            gross_weight="240 G",
             ingredients="Water, Glycerin",
             package_code="PKG-001",
         )
@@ -53,6 +53,10 @@ class WorkbenchCoreTests(unittest.TestCase):
             workbook = load_workbook(workbook_path, data_only=False)
             self.assertEqual(workbook.active["A4"].value, "Soothing Body Cream")
             self.assertEqual(workbook.active["G4"].value, "SKU00044974")
+            self.assertEqual(workbook.active["I4"].value, "11*5*17cm")
+            self.assertEqual(workbook.active["J4"].value, "12*6*18cm")
+            self.assertEqual(workbook.active["M4"].value, "200g")
+            self.assertEqual(workbook.active["N4"].value, "240g")
             with Image.open(english_path) as english_image:
                 self.assertEqual(english_image.size, (1600, 1600))
             with Image.open(size_path) as size_image:

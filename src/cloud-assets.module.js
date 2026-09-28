@@ -1,5 +1,5 @@
 
-  const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v2';
+  const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v3';
   const CLOUD_RECOVERY_SESSION_KEY = 'plm-floating-helper:cloud-recovery:v1';
   const CLOUD_RECOVERY_REFRESH_MAX_AGE_MS = 10 * 60 * 1000;
   const CLOUD_ASSET_CACHE_SCHEMA = 1;
@@ -392,4 +392,23 @@
       addLog('warn', '\u4e91\u7aef Excel \u6a21\u677f\u52a0\u8f7d\u5931\u8d25', formatErrorMessage(error));
     }
     return Boolean(TEMPLATE_XLSX_BASE64);
+  }
+
+  async function loadCloudExcelTemplateWorkbook(Excel) {
+    if (!Excel || typeof Excel.Workbook !== 'function') throw new Error('ExcelJS 尚未加载');
+    if (!await ensureExcelTemplateLoaded()) throw new Error('Excel 模板尚未缓存，请联网后重试');
+    const load = async () => {
+      const workbook = new Excel.Workbook();
+      await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
+      return workbook;
+    };
+    try {
+      return await load();
+    } catch (error) {
+      addLog('warn', 'Excel 模板缓存损坏，正在重新下载', formatErrorMessage(error));
+      TEMPLATE_XLSX_BASE64 = '';
+      await refreshCloudAssets(true);
+      if (!TEMPLATE_XLSX_BASE64) throw error;
+      return load();
+    }
   }

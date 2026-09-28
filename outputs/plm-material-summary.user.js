@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.2
+// @version      2.9.4
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.2';
+  const SCRIPT_VERSION = '2.9.4';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -3153,7 +3153,7 @@
   }
   // <cloud-assets-module>
 
-  const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v2';
+  const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v3';
   const CLOUD_RECOVERY_SESSION_KEY = 'plm-floating-helper:cloud-recovery:v1';
   const CLOUD_RECOVERY_REFRESH_MAX_AGE_MS = 10 * 60 * 1000;
   const CLOUD_ASSET_CACHE_SCHEMA = 1;
@@ -3546,6 +3546,25 @@
       addLog('warn', '\u4e91\u7aef Excel \u6a21\u677f\u52a0\u8f7d\u5931\u8d25', formatErrorMessage(error));
     }
     return Boolean(TEMPLATE_XLSX_BASE64);
+  }
+
+  async function loadCloudExcelTemplateWorkbook(Excel) {
+    if (!Excel || typeof Excel.Workbook !== 'function') throw new Error('ExcelJS 尚未加载');
+    if (!await ensureExcelTemplateLoaded()) throw new Error('Excel 模板尚未缓存，请联网后重试');
+    const load = async () => {
+      const workbook = new Excel.Workbook();
+      await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
+      return workbook;
+    };
+    try {
+      return await load();
+    } catch (error) {
+      addLog('warn', 'Excel 模板缓存损坏，正在重新下载', formatErrorMessage(error));
+      TEMPLATE_XLSX_BASE64 = '';
+      await refreshCloudAssets(true);
+      if (!TEMPLATE_XLSX_BASE64) throw error;
+      return load();
+    }
   }
   // </cloud-assets-module>
   // <icon-assets-module>
@@ -4444,7 +4463,7 @@
     const sku = String(message && message.sku || '').toUpperCase();
     const jobId = String(message && message.jobId || '');
     if (!/^SKU\d{8}$/.test(sku) || !jobId) throw new Error('Excel 任务参数无效');
-    const Excel = await ensureExcelJsLoaded();
+    if (!window.ExcelJS) throw new Error('ExcelJS 尚未加载');
     if (!await ensureExcelTemplateLoaded()) throw new Error('Excel 模板尚未缓存，请联网后重试');
     const cachedData = normalizeData(loadData(sku) || state.index.find((item) => item.sku === sku) || {});
     const ledgerData = normalizeData(
@@ -4500,8 +4519,7 @@
       ingredients: extra.ingredients || getPreferredExcelIngredients(excelData),
     });
 
-    const workbook = new Excel.Workbook();
-    await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
+    const workbook = await loadCloudExcelTemplateWorkbook(window.ExcelJS);
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
     removeUnusedExcelTemplateRow(sheet);
     const excelImageSource = getExcelImageSource(excelData, extra);
@@ -4538,17 +4556,18 @@
     if (shouldOmitToyProductSize(excelData)) {
       sheet.spliceColumns(9, 1);
       sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"盒装",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"袋装",""))' };
-      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
-      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))' };
+      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","净重",IF(RIGHT(L4,2)="ml","容量","规格"))' };
     } else if (shouldRemoveExcelPackageSizeColumn(excelData)) {
       sheet.spliceColumns(10, 1);
-      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
-      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))' };
+      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","净重",IF(RIGHT(L4,2)="ml","容量","规格"))' };
     }
     if (imageInfo) {
       const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
       sheet.addImage(imageId, getExcelImageAnchor(imageInfo));
     }
+    applyExcelTraceWatermark(workbook);
     const buffer = await workbook.xlsx.writeBuffer();
     const bytes = new Uint8Array(buffer);
     const assets = message.transparentImageDataUrl
@@ -39197,6 +39216,38 @@ self.onmessage = async function(event) {
     row.height = Math.max(Number(template && template.height) || 0, 96);
   }
 
+  function abbreviateExcelTraceName(value) {
+    const name = String(value || '').trim().replace(/\s+/g, ' ');
+    if (!name) return 'U';
+    const chinese = Array.from(name.replace(/\s+/g, '')).filter((char) => /[\u3400-\u9fff]/.test(char));
+    if (chinese.length === 2) return chinese[0] + '\uff0a';
+    if (chinese.length > 2) return chinese[0] + '\uff0a' + chinese[chinese.length - 1];
+    const initials = name.split(/[\s._-]+/).filter(Boolean).map((part) => Array.from(part)[0] || '').join('').toUpperCase();
+    return initials.slice(0, 6) || 'U';
+  }
+
+  function buildExcelTraceWatermark(exportedAt) {
+    const date = exportedAt instanceof Date && !Number.isNaN(exportedAt.getTime()) ? exportedAt : new Date();
+    const pad = (value) => String(value).padStart(2, '0');
+    const timestamp = pad(date.getFullYear() % 100) + pad(date.getMonth() + 1) + pad(date.getDate()) + '-' + pad(date.getHours()) + pad(date.getMinutes());
+    const actor = abbreviateExcelTraceName(findCurrentPlmUserName() || state.sizeImageAccessName || (state.settings && state.settings.cloudBackupOwnerName));
+    return 'PFH\u00b7' + actor + '\u00b7' + timestamp + '\u00b7V' + String(SCRIPT_VERSION || '').replace(/\D/g, '');
+  }
+
+  function applyExcelTraceWatermark(workbook, exportedAt) {
+    if (!workbook) return '';
+    const date = exportedAt instanceof Date && !Number.isNaN(exportedAt.getTime()) ? exportedAt : new Date();
+    const watermark = buildExcelTraceWatermark(date);
+    workbook.creator = watermark;
+    workbook.lastModifiedBy = watermark;
+    workbook.created = date;
+    workbook.modified = date;
+    workbook.subject = watermark;
+    workbook.keywords = watermark;
+    workbook.description = watermark;
+    return watermark;
+  }
+
   function writeExcelBatchRow(sheet, rowNumber, data, extra, packQty, purchasePrice) {
     const cell = (column, value) => setCell(sheet, column + rowNumber, value);
     const productSize = formatExcelDimFromParts([data.productLength, data.productWidth, data.productHeight]) || formatExcelDim(data.productNums, []);
@@ -39230,7 +39281,7 @@ self.onmessage = async function(event) {
   function buildExcelBatchWeightFormula(rowNumber, grossWeightColumn) {
     const grossCell = grossWeightColumn + rowNumber;
     const packCell = 'E' + rowNumber;
-    return { formula: 'IF(OR(' + packCell + '="",' + grossCell + '=""),"",IFERROR(TEXT(VALUE(LEFT(' + packCell + ',LEN(' + packCell + ')-3))*(VALUE(LEFT(' + grossCell + ',LEN(' + grossCell + ')-1))/1000)+0.75,"0.00")&"KG",""))' };
+    return { formula: 'IF(OR(' + packCell + '="",' + grossCell + '=""),"",IFERROR(TEXT(VALUE(LEFT(' + packCell + ',LEN(' + packCell + ')-3))*(VALUE(LEFT(' + grossCell + ',LEN(' + grossCell + ')-1))/1000)+0.75,"0.00")&"kg",""))' };
   }
 
   function applyExcelBatchSingleColumnLayout(sheet, data) {
@@ -39238,12 +39289,12 @@ self.onmessage = async function(event) {
       sheet.spliceColumns(9, 1);
       sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"\u76d2\u88c5",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"\u888b\u88c5",""))' };
       sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'M');
-      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","\u51c0\u91cd",IF(RIGHT(L4,2)="ML","\u5bb9\u91cf","\u89c4\u683c"))' };
+      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","\u51c0\u91cd",IF(RIGHT(L4,2)="ml","\u5bb9\u91cf","\u89c4\u683c"))' };
     } else if (shouldRemoveExcelPackageSizeColumn(data)) {
       sheet.spliceColumns(10, 1);
       sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"\u76d2\u88c5",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"\u888b\u88c5",""))' };
       sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'M');
-      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","\u51c0\u91cd",IF(RIGHT(L4,2)="ML","\u5bb9\u91cf","\u89c4\u683c"))' };
+      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","\u51c0\u91cd",IF(RIGHT(L4,2)="ml","\u5bb9\u91cf","\u89c4\u683c"))' };
     }
   }
 
@@ -39262,7 +39313,7 @@ self.onmessage = async function(event) {
         : { formula: 'IF(LEN(I' + rowNumber + ')-LEN(SUBSTITUTE(I' + rowNumber + ',"*",""))=2,"\u76d2\u88c5",IF(LEN(I' + rowNumber + ')-LEN(SUBSTITUTE(I' + rowNumber + ',"*",""))=1,"\u888b\u88c5",""))' };
       sheet.getCell('F' + rowNumber).value = buildExcelBatchWeightFormula(rowNumber, 'M');
     }
-    sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","\u51c0\u91cd",IF(RIGHT(L4,2)="ML","\u5bb9\u91cf","\u89c4\u683c"))' };
+    sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","\u51c0\u91cd",IF(RIGHT(L4,2)="ml","\u5bb9\u91cf","\u89c4\u683c"))' };
   }
 
   async function getExcelBatchImageInfo(item) {
@@ -39276,8 +39327,7 @@ self.onmessage = async function(event) {
 
   async function buildExcelBatchSingleBuffer(item) {
     const Excel = await ensureExcelJsLoaded();
-    const workbook = new Excel.Workbook();
-    await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
+    const workbook = await loadCloudExcelTemplateWorkbook(Excel);
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
     removeUnusedExcelTemplateRow(sheet);
     const imageInfo = await getExcelBatchImageInfo(item);
@@ -39287,13 +39337,13 @@ self.onmessage = async function(event) {
       const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
       sheet.addImage(imageId, getExcelImageAnchor(imageInfo));
     }
+    applyExcelTraceWatermark(workbook);
     return workbook.xlsx.writeBuffer();
   }
 
   async function buildExcelBatchMergedBuffer(items) {
     const Excel = await ensureExcelJsLoaded();
-    const workbook = new Excel.Workbook();
-    await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
+    const workbook = await loadCloudExcelTemplateWorkbook(Excel);
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
     removeUnusedExcelTemplateRow(sheet);
     const template = captureExcelTemplateRow(sheet, 4);
@@ -39310,6 +39360,7 @@ self.onmessage = async function(event) {
       }
     }
     applyExcelBatchMergedColumnLayout(sheet, items);
+    applyExcelTraceWatermark(workbook);
     return workbook.xlsx.writeBuffer();
   }
 
@@ -39569,8 +39620,7 @@ self.onmessage = async function(event) {
         return;
       }
       showToast(L.excelGenerating);
-      const workbook = new Excel.Workbook();
-      await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
+      const workbook = await loadCloudExcelTemplateWorkbook(Excel);
       const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
       state.excelStatus = L.excelImageLoading;
       renderShell();
@@ -39600,12 +39650,12 @@ self.onmessage = async function(event) {
       if (shouldOmitToyProductSize(excelData)) {
         sheet.spliceColumns(9, 1);
         sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"\u76d2\u88c5",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"\u888b\u88c5",""))' };
-        sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
-        sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","\u51c0\u91cd",IF(RIGHT(L4,2)="ML","\u5bb9\u91cf","\u89c4\u683c"))' };
+        sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+        sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","\u51c0\u91cd",IF(RIGHT(L4,2)="ml","\u5bb9\u91cf","\u89c4\u683c"))' };
       } else if (shouldRemoveExcelPackageSizeColumn(excelData)) {
         sheet.spliceColumns(10, 1);
-        sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
-        sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))' };
+        sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+        sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","净重",IF(RIGHT(L4,2)="ml","容量","规格"))' };
       }
 
       if (imageInfo) {
@@ -39614,6 +39664,7 @@ self.onmessage = async function(event) {
         const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
         sheet.addImage(imageId, getExcelImageAnchor(imageInfo));
       }
+      applyExcelTraceWatermark(workbook);
       const buffer = await workbook.xlsx.writeBuffer();
       state.excelStatus = L.excelDownloading + ' ' + fileName;
       renderShell();
@@ -40565,12 +40616,12 @@ self.onmessage = async function(event) {
   function formatExcelDim(nums, fallbackParts) {
     const parts = (Array.isArray(nums) && nums.length >= 3 ? nums.slice(0, 3).map(trimNumber) : fallbackParts.map(extractCmValue))
       .filter((part) => part !== '');
-    return parts.length >= 2 ? parts.join('*') + 'CM' : '';
+    return parts.length >= 2 ? parts.join('*') + 'cm' : '';
   }
 
   function formatExcelDimFromParts(parts) {
     const values = (parts || []).map(extractCmValue).filter((part) => part !== '');
-    return values.length >= 2 ? values.join('*') + 'CM' : '';
+    return values.length >= 2 ? values.join('*') + 'cm' : '';
   }
 
   function extractCmValue(value) {
@@ -40581,7 +40632,7 @@ self.onmessage = async function(event) {
   function normalizeExcelUnit(value) {
     const text = compactText(value).replace(/\s+/g, '');
     if (!text || text === L.unknown) return '';
-    return text.replace(/g\b/i, 'G').replace(/ml\b/i, 'ML');
+    return text.replace(/(kg|mg|mcg|ug|g|ml|cl|dl|l|floz|oz|lbs?)$/i, (unit) => unit.toLowerCase());
   }
 
   function formatIngredientsForExcel(value) {
@@ -40598,7 +40649,7 @@ self.onmessage = async function(event) {
   function normalizePackQty(value) {
     const text = compactText(value).replace(/\s+/g, '');
     if (!text) return '';
-    return /pcs$/i.test(text) ? text.toUpperCase() : text + 'PCS';
+    return /pcs$/i.test(text) ? text.replace(/pcs$/i, 'pcs') : text + 'pcs';
   }
 
   async function fillRecommendedPackQty(data) {
