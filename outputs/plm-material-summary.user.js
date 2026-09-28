@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.8
+// @version      2.9.9
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -33,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.8';
+  const SCRIPT_VERSION = '2.9.9';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -24277,6 +24277,14 @@
     return /请刷新 PLM 页面后重试/.test(message) ? message : message + ' | 请刷新 PLM 页面后重试';
   }
 
+  function getMagicUploadTaskErrorMessage(error) {
+    const message = formatErrorMessage(error);
+    if (/属性\[设计人员\].*已停用/.test(message)) {
+      return '商品原有设计人员已停用。请先在 PLM 商品编辑页改选有效设计人员并保存，再点击“开始上传”重试；已上传文件会复用。';
+    }
+    return message;
+  }
+
   function startMagicUploadQueue() {
     if (magicUploadQueueRunPromise) return magicUploadQueueRunPromise;
     if (state.magicUploadRunning) return Promise.resolve();
@@ -24325,7 +24333,7 @@
               task.updatedAt = Date.now();
               recordMagicUploadHistory(task);
             } catch (error) {
-              const message = formatErrorMessage(error);
+              const message = getMagicUploadTaskErrorMessage(error);
               if (isMagicUploadAuthError(error)) {
                 const firstAuthPause = !magicUploadAuthPaused;
                 magicUploadAuthPaused = true;
@@ -25087,6 +25095,7 @@
       invoice_category: invoiceCategory,
       product_procure_infos: sanitizeMagicUploadProcureInfos(getMagicUploadProcureList(procurePayload, procureFallback)),
       is_need_to_process_product_procure_infos: true,
+      product_version_id: Number(info.product_version_id || productContext.productVersionId) || info.product_version_id || productContext.productVersionId,
       product_id: Number(productContext.productId) || productContext.productId,
       code: field('code', productContext.productCode),
       language_config: field('language_config', []),
