@@ -11,6 +11,87 @@
   ]);
   const BACKEND_UPDATE_PROMPTED_KEY = 'plm-floating-helper:backend-update-prompted-id';
   const GREASYFORK_SCRIPT_URL = 'https://greasyfork.org/zh-CN/scripts/582138-plm%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B';
+  const SCRIPT_UPDATE_META_URL = 'https://update.greasyfork.org/scripts/582138/PLM%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B.meta.js';
+  const SCRIPT_UPDATE_CACHE_KEY = 'plm-floating-helper:script-update:v1';
+  const SCRIPT_UPDATE_REFRESH_MS = 60 * 60 * 1000;
+  let scriptUpdateCache = loadScriptUpdateCache();
+  let scriptUpdateChecking = false;
+  let scriptUpdateError = '';
+
+  function loadScriptUpdateCache() {
+    try {
+      const saved = typeof GM_getValue === 'function'
+        ? GM_getValue(SCRIPT_UPDATE_CACHE_KEY, null)
+        : JSON.parse(localStorage.getItem(SCRIPT_UPDATE_CACHE_KEY) || 'null');
+      return {
+        version: /^\d+(?:\.\d+)*$/.test(String(saved && saved.version || '')) ? String(saved.version) : '',
+        checkedAt: Number(saved && saved.checkedAt || 0) || 0,
+      };
+    } catch (error) {
+      return { version: '', checkedAt: 0 };
+    }
+  }
+
+  function compareScriptVersions(left, right) {
+    const a = String(left || '').split('.').map(Number);
+    const b = String(right || '').split('.').map(Number);
+    for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+      const difference = (a[index] || 0) - (b[index] || 0);
+      if (difference) return Math.sign(difference);
+    }
+    return 0;
+  }
+
+  function isScriptUpdateAvailable() {
+    return Boolean(scriptUpdateCache.version && compareScriptVersions(scriptUpdateCache.version, SCRIPT_VERSION) > 0);
+  }
+
+  function refreshScriptUpdateUi() {
+    const panel = document.getElementById(PANEL_ID);
+    if (!panel) return;
+    updateSettingsNotice(panel);
+    const card = panel.querySelector('.pfh-script-update-card');
+    if (card) card.outerHTML = renderScriptUpdateCard();
+  }
+
+  async function checkScriptUpdate(force) {
+    if (scriptUpdateChecking) return;
+    if (!force && Date.now() - scriptUpdateCache.checkedAt < SCRIPT_UPDATE_REFRESH_MS) return;
+    scriptUpdateChecking = true;
+    scriptUpdateError = '';
+    refreshScriptUpdateUi();
+    try {
+      const response = await new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url: SCRIPT_UPDATE_META_URL + '?_=' + Date.now(),
+          timeout: 12000,
+          onload: resolve,
+          onerror: () => reject(new Error('网络请求失败')),
+          ontimeout: () => reject(new Error('请求超时')),
+        });
+      });
+      if (response.status !== 200) throw new Error('HTTP ' + response.status);
+      const match = String(response.responseText || '').match(/^\s*\/\/\s*@version\s+(\d+(?:\.\d+)*)\s*$/m);
+      if (!match) throw new Error('未找到有效版本号');
+      scriptUpdateCache = { version: match[1], checkedAt: Date.now() };
+      try {
+        if (typeof GM_setValue === 'function') GM_setValue(SCRIPT_UPDATE_CACHE_KEY, scriptUpdateCache);
+        else localStorage.setItem(SCRIPT_UPDATE_CACHE_KEY, JSON.stringify(scriptUpdateCache));
+      } catch (error) {}
+    } catch (error) {
+      scriptUpdateError = String(error && error.message || error);
+    } finally {
+      scriptUpdateChecking = false;
+      refreshScriptUpdateUi();
+    }
+  }
+
+  function scheduleScriptUpdateRefresh(delay) {
+    window.setTimeout(() => {
+      checkScriptUpdate(false).finally(() => scheduleScriptUpdateRefresh(SCRIPT_UPDATE_REFRESH_MS));
+    }, delay);
+  }
 
   function normalizeHomeGreetingTime(value, fallback) {
     const text = String(value || '').trim();

@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.10
+// @version      2.9.11
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -24,6 +24,7 @@
 // @connect      plm.westmonth.com
 // @connect      velvet.qzz.io
 // @connect      plm-cloud-backup.wt196731.workers.dev
+// @connect      update.greasyfork.org
 // @connect      127.0.0.1
 // @run-at       document-idle
 // ==/UserScript==
@@ -33,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.10';
+  const SCRIPT_VERSION = '2.9.11';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -3631,6 +3632,87 @@
   ]);
   const BACKEND_UPDATE_PROMPTED_KEY = 'plm-floating-helper:backend-update-prompted-id';
   const GREASYFORK_SCRIPT_URL = 'https://greasyfork.org/zh-CN/scripts/582138-plm%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B';
+  const SCRIPT_UPDATE_META_URL = 'https://update.greasyfork.org/scripts/582138/PLM%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B.meta.js';
+  const SCRIPT_UPDATE_CACHE_KEY = 'plm-floating-helper:script-update:v1';
+  const SCRIPT_UPDATE_REFRESH_MS = 60 * 60 * 1000;
+  let scriptUpdateCache = loadScriptUpdateCache();
+  let scriptUpdateChecking = false;
+  let scriptUpdateError = '';
+
+  function loadScriptUpdateCache() {
+    try {
+      const saved = typeof GM_getValue === 'function'
+        ? GM_getValue(SCRIPT_UPDATE_CACHE_KEY, null)
+        : JSON.parse(localStorage.getItem(SCRIPT_UPDATE_CACHE_KEY) || 'null');
+      return {
+        version: /^\d+(?:\.\d+)*$/.test(String(saved && saved.version || '')) ? String(saved.version) : '',
+        checkedAt: Number(saved && saved.checkedAt || 0) || 0,
+      };
+    } catch (error) {
+      return { version: '', checkedAt: 0 };
+    }
+  }
+
+  function compareScriptVersions(left, right) {
+    const a = String(left || '').split('.').map(Number);
+    const b = String(right || '').split('.').map(Number);
+    for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+      const difference = (a[index] || 0) - (b[index] || 0);
+      if (difference) return Math.sign(difference);
+    }
+    return 0;
+  }
+
+  function isScriptUpdateAvailable() {
+    return Boolean(scriptUpdateCache.version && compareScriptVersions(scriptUpdateCache.version, SCRIPT_VERSION) > 0);
+  }
+
+  function refreshScriptUpdateUi() {
+    const panel = document.getElementById(PANEL_ID);
+    if (!panel) return;
+    updateSettingsNotice(panel);
+    const card = panel.querySelector('.pfh-script-update-card');
+    if (card) card.outerHTML = renderScriptUpdateCard();
+  }
+
+  async function checkScriptUpdate(force) {
+    if (scriptUpdateChecking) return;
+    if (!force && Date.now() - scriptUpdateCache.checkedAt < SCRIPT_UPDATE_REFRESH_MS) return;
+    scriptUpdateChecking = true;
+    scriptUpdateError = '';
+    refreshScriptUpdateUi();
+    try {
+      const response = await new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url: SCRIPT_UPDATE_META_URL + '?_=' + Date.now(),
+          timeout: 12000,
+          onload: resolve,
+          onerror: () => reject(new Error('网络请求失败')),
+          ontimeout: () => reject(new Error('请求超时')),
+        });
+      });
+      if (response.status !== 200) throw new Error('HTTP ' + response.status);
+      const match = String(response.responseText || '').match(/^\s*\/\/\s*@version\s+(\d+(?:\.\d+)*)\s*$/m);
+      if (!match) throw new Error('未找到有效版本号');
+      scriptUpdateCache = { version: match[1], checkedAt: Date.now() };
+      try {
+        if (typeof GM_setValue === 'function') GM_setValue(SCRIPT_UPDATE_CACHE_KEY, scriptUpdateCache);
+        else localStorage.setItem(SCRIPT_UPDATE_CACHE_KEY, JSON.stringify(scriptUpdateCache));
+      } catch (error) {}
+    } catch (error) {
+      scriptUpdateError = String(error && error.message || error);
+    } finally {
+      scriptUpdateChecking = false;
+      refreshScriptUpdateUi();
+    }
+  }
+
+  function scheduleScriptUpdateRefresh(delay) {
+    window.setTimeout(() => {
+      checkScriptUpdate(false).finally(() => scheduleScriptUpdateRefresh(SCRIPT_UPDATE_REFRESH_MS));
+    }, delay);
+  }
 
   function normalizeHomeGreetingTime(value, fallback) {
     const text = String(value || '').trim();
@@ -16222,6 +16304,7 @@
   scheduleLuluThemeAccessRefresh(540);
   scheduleUserHeartbeat(800);
   scheduleNotificationRefresh(1600);
+  scheduleScriptUpdateRefresh(2400);
   scheduleHomeGreetingRefresh(700 + Math.floor(Math.random() * 4500));
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
   startDrawerWatcher();
@@ -21224,7 +21307,8 @@
   function updateSettingsNotice(panel) {
     const button = panel && panel.querySelector('[data-action="about"]');
     if (!button) return;
-    button.classList.toggle('has-notice', !state.settings.backgroundNoticeSeen);
+    button.classList.toggle('has-notice', !state.settings.backgroundNoticeSeen || isScriptUpdateAvailable());
+    button.setAttribute('aria-label', isScriptUpdateAvailable() ? '设置，有新版本可更新' : TOOLTIP.about);
   }
 
   function updateCollectionSwitch(panel) {
@@ -21654,6 +21738,20 @@
     return '<div class="pfh-settings-card' + (extraClass ? ' ' + extraClass : '') + '"><div class="pfh-settings-card-head"><strong>' + escapeHtml(title) + '</strong>' + (badge ? '<span>' + escapeHtml(badge) + '</span>' : '') + '</div>' + body + '</div>';
   }
 
+  function renderScriptUpdateCard() {
+    const hasUpdate = isScriptUpdateAvailable();
+    const status = scriptUpdateChecking ? '正在检查 Greasy Fork…'
+      : scriptUpdateError ? '检查失败：' + scriptUpdateError + (scriptUpdateCache.version ? '；上次查到 v' + scriptUpdateCache.version : '')
+        : hasUpdate ? '发现新版本 v' + scriptUpdateCache.version + '，当前为 v' + SCRIPT_VERSION
+          : scriptUpdateCache.version ? '已是最新版本 v' + SCRIPT_VERSION
+            : '尚未检查更新';
+    const checkedAt = scriptUpdateCache.checkedAt ? ' · 上次检查：' + formatNotificationTime(scriptUpdateCache.checkedAt) : '';
+    const body = '<div class="pfh-about-note">' + escapeHtml(status + checkedAt) + '</div>' +
+      '<div class="pfh-about-actions"><button type="button" data-action="script-update-check"' + (scriptUpdateChecking ? ' disabled' : '') + '>检查更新</button>' +
+      (hasUpdate ? '<button type="button" data-action="script-update-open">前往更新</button>' : '') + '</div>';
+    return settingsCardHtml('检查更新', hasUpdate ? '有新版本' : '当前 v' + SCRIPT_VERSION, body, 'pfh-script-update-card');
+  }
+
   function renderSettingsPageStyle() {
     const P = '#plm-floating-helper .pfh-settings-page ';
     return '<style>' +
@@ -21741,6 +21839,7 @@
       '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section pfh-settings-page">',
       renderSettingsPageStyle(),
       heroHtml,
+      settingsGroupHtml('cloud', '版本更新', renderScriptUpdateCard()),
       settingsGroupHtml('appearance', '\u5916\u89c2', themeBody),
       settingsGroupHtml('export', '\u5bfc\u51fa\u504f\u597d', exportCard),
       settingsGroupHtml('data', '\u6570\u636e\u4e0e\u5907\u4efd', cloudBackupCard + cacheCard),
@@ -33597,6 +33696,14 @@ self.onmessage = async function(event) {
     }
     if (action === 'notification-refresh') {
       refreshNotifications(true);
+      return;
+    }
+    if (action === 'script-update-check') {
+      checkScriptUpdate(true);
+      return;
+    }
+    if (action === 'script-update-open') {
+      window.open(GREASYFORK_SCRIPT_URL, '_blank', 'noopener,noreferrer');
       return;
     }
     if (action === 'notification-read') {
