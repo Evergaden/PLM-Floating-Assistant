@@ -183,6 +183,10 @@
     if (!isCustomSelectEligible(select, panel)) return;
     event.preventDefault();
     event.stopPropagation();
+    if (customSelectState && customSelectState.select === select) {
+      closeCustomSelect();
+      return;
+    }
     openCustomSelect(select);
   }
 
@@ -199,6 +203,10 @@
     if (!['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) return;
     event.preventDefault();
     event.stopPropagation();
+    if ((event.key === 'Enter' || event.key === ' ') && customSelectState && customSelectState.select === select) {
+      closeCustomSelect();
+      return;
+    }
     openCustomSelect(select);
   }
 

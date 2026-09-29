@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.12
+// @version      2.9.13
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.12';
+  const SCRIPT_VERSION = '2.9.13';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -5360,6 +5360,10 @@
     if (!isCustomSelectEligible(select, panel)) return;
     event.preventDefault();
     event.stopPropagation();
+    if (customSelectState && customSelectState.select === select) {
+      closeCustomSelect();
+      return;
+    }
     openCustomSelect(select);
   }
 
@@ -5376,6 +5380,10 @@
     if (!['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) return;
     event.preventDefault();
     event.stopPropagation();
+    if ((event.key === 'Enter' || event.key === ' ') && customSelectState && customSelectState.select === select) {
+      closeCustomSelect();
+      return;
+    }
     openCustomSelect(select);
   }
 
