@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.14
+// @version      2.9.15
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.14';
+  const SCRIPT_VERSION = '2.9.15';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.280';
+  const UI_ASSET_VERSION = '2.5.281';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -25892,7 +25892,7 @@
       rowHtml('printSizeText', state.data.printSizeLabel || L.printSize, formatPrintSizeDisplay(state.data) || L.noPrint),
       '</div>',
       '</section>',
-      '<section class="pfh-section pfh-graphic-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + escapeHtml(L.graphicSection) + '</h3>' + toyCopywritingButtonHtml(state.data) + excelTriggerHtml() + '</div>' + toyCopywritingFeedbackHtml(state.data) + '<div class="pfh-excel-options-row">' + excelOptionsHtml() + '</div>',
+      '<section class="pfh-section pfh-graphic-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + escapeHtml(L.graphicSection) + '</h3>' + toyCopywritingButtonHtml(state.data) + excelTriggerHtml() + '</div>' + toyCopywritingFeedbackHtml(state.data),
       '<div class="pfh-graphic-table pfh-info-grid">',
       rowHtml('packageLength', L.cartonLength, state.data.packageLength || L.noDimension),
       rowHtml('productLength', state.data.isTubePrint ? L.tailSealLength : L.productLength, state.data.isTubePrint ? (state.data.productLength || L.noDimension) : (state.data.productLength || L.noDimension), { editable: state.data.isTubePrint }),
@@ -26354,6 +26354,19 @@
     const isIngredientOnly = !isToy && !isFoodEntry;
     const label = isFoodEntry ? '\u667a\u80fd\u8865\u5145\u98df\u54c1\u6587\u6848' : (isToy ? '\u667a\u80fd\u8865\u5145\u73a9\u5177\u6587\u6848' : '\u8865\u5168\u6210\u5206');
     const hasError = Boolean(data && data.sku && state.toyCopywritingErrorSku === data.sku && state.toyCopywritingError);
+    if (!isToy) {
+      const source = normalizeData(loadData(data.sku) || data);
+      const missing = [];
+      if (!(isFoodEntry ? source.ingredientChinese : getCleanedWordIngredientValue(source, 'chinese'))) missing.push('中文成分');
+      if (!(isFoodEntry ? source.ingredientEnglish : getCleanedWordIngredientValue(source, 'english'))) missing.push('英文成分');
+      if (isFoodEntry && !getCachedCopywritingSectionValue(source, 'directionsChinese')) missing.push('中文使用方法');
+      if (isFoodEntry && !getCachedCopywritingSectionValue(source, 'directions')) missing.push('英文使用方法');
+      const loading = state.toyCopywritingBusy || state.ingredientHydratingSkus.has(data.sku) || state.copywritingHydratingSkus.has(data.sku);
+      const drawerReady = Boolean(getToyCopywritingDrawerForSku(data.sku));
+      const ready = !missing.length;
+      const hint = loading ? '正在读取 / 补充…' : missing.length ? '缺' + missing.join('、') + ' · 去详情获取' : drawerReady ? '资料齐全 · 可直接补充' : '资料齐全 · 打开详情后补充';
+      return '<button type="button" class="pfh-source-readiness" data-action="' + (ready && drawerReady ? 'toy-copywriting-fill' : 'open-detail') + '" title="' + escapeHtml(hint) + '"' + (loading ? ' disabled' : '') + '>' + readinessMarkHtml(ready && !loading) + '<span><span>' + label + '</span><small>' + escapeHtml(hint) + '</small></span></button>';
+    }
     return '<button type="button" class="pfh-toy-copywriting-button' + (state.toyCopywritingBusy ? ' is-busy' : '') + (hasError ? ' is-error' : '') + '" data-action="toy-copywriting-fill"' + (state.toyCopywritingBusy ? ' disabled' : '') + '>' +
       (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner pfh-loading-ring" aria-hidden="true"></span>' + (isIngredientOnly ? '\u6210\u5206\u8865\u5145\u4e2d' : '\u667a\u80fd\u8865\u5145\u4e2d') : (hasError && !isToy ? '\u26a0 ' + (isFoodEntry ? '\u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25' : '\u6210\u5206\u8865\u5145\u5931\u8d25') : sparkleEntranceIconHtml() + '<span>' + label + '</span>')) + '</button>';
   }
@@ -31233,35 +31246,38 @@ self.onmessage = async function(event) {
   }
 
   function excelTriggerHtml() {
-    return '<div class="pfh-excel-controls"><button type="button" data-action="excel-prepare">' + iconHtml('download') + '<span>' + escapeHtml(L.excel) + '</span></button></div>';
+    const readiness = getCurrentExportReadiness();
+    const option = (type, label, missing) => '<button type="button" class="pfh-export-choice' + (state.exportType === type ? ' is-active' : '') + '" data-action="export-type" data-export-type="' + type + '">' + readinessMarkHtml(!missing.length) + '<span><b>' + escapeHtml(label) + '</b><small>' + escapeHtml(missing.length ? '缺' + missing.join('、') + (type === 'excel' ? ' · 可缺项导出' : ' · 需获取') : '资料齐全 · 可直接导出') + '</small></span></button>';
+    return '<div class="pfh-readiness-menu' + (state.exportMenuOpen ? ' is-open' : '') + '"><button type="button" class="pfh-readiness-trigger" data-action="export-menu-toggle" aria-expanded="' + String(state.exportMenuOpen) + '">' + iconHtml('download') + '<span>导出</span><span aria-hidden="true">⌄</span></button><div class="pfh-readiness-dropdown">' + option('excel', L.exportTypeExcel, readiness.excelMissing) + option('toy-label', L.exportTypeToyLabel, readiness.toyMissing) + excelOptionsHtml() + '<p class="pfh-readiness-legend">' + readinessMarkHtml(true) + '资料齐全（按当前缓存判断）</p></div></div>';
+  }
+
+  function readinessMarkHtml(ready) {
+    return '<svg class="pfh-readiness-mark' + (ready ? ' is-ready' : ' is-missing') + '" viewBox="0 0 24 24" aria-hidden="true"><path class="pfh-readiness-crystal" d="M12 2 21 9 12 22 3 9Z"/><path class="pfh-readiness-facet" d="m3 9 9 3 9-3M12 2v10l-3-3m3 3v10"/></svg>';
+  }
+
+  function getCurrentExportReadiness() {
+    const current = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null) || {});
+    const prepared = state.excelExtra && state.excelExtra.excelData && state.excelExtra.excelData.sku === current.sku ? state.excelExtra : null;
+    const data = prepared ? prepared.excelData : current;
+    const extra = prepared ? prepared.extra : buildCachedExcelExtraData(data);
+    const image = getToyLabelImageSource(data, extra);
+    return { data, extra, excelMissing: (data.sku ? [] : ['SKU']).concat(getExcelMissingFields(data, extra)), toyMissing: (data.sku ? [] : ['SKU']).concat(image.imageUrl || image.imageFallbackUrl ? [] : ['产品图']) };
   }
 
   function excelOptionsHtml() {
-    if (!state.excelPanelOpen) {
-      return '';
-    }
-    const status = state.excelStatus || formatExcelMissingStatus(state.excelMissing);
-    const statusClass = state.excelMissing.length || !state.excelExtra ? ' is-bad' : ' is-good';
+    const readiness = getCurrentExportReadiness();
+    const missing = state.exportType === 'toy-label' ? readiness.toyMissing : readiness.excelMissing;
+    const statusClass = missing.length ? ' is-bad' : ' is-good';
     const priceValue = state.excelPurchasePrice === '' ? '6' : state.excelPurchasePrice;
-    const exportLabel = state.exportType === 'toy-label' ? L.exportTypeToyLabel : L.exportTypeExcel;
-    const excelGenerateLabel = state.exportType === 'excel' && state.excelMissing.length ? '缺项导出' : L.excel;
-    const excelGenerateTitle = state.exportType === 'excel' && state.excelMissing.length
-      ? '缺少' + state.excelMissing.join('、') + '；仍会立即导出，缺失单元格留空'
+    const excelGenerateLabel = missing.length ? (state.exportType === 'excel' ? '缺项导出 Excel' : '获取图片并导出') : '导出' + (state.exportType === 'toy-label' ? '玩具标签' : ' Excel');
+    const excelGenerateTitle = state.exportType === 'excel' && missing.length
+      ? '缺少' + missing.join('、') + '；仍会立即导出，缺失单元格留空'
       : '';
-    return '<div class="pfh-excel-form is-open">' +
-      '<div class="pfh-export-menu' + (state.exportMenuOpen ? ' is-open' : '') + '">' +
-        '<button type="button" class="pfh-export-menu-button" data-action="export-menu-toggle" aria-expanded="' + (state.exportMenuOpen ? 'true' : 'false') + '">' +
-          '<span>' + escapeHtml(exportLabel) + '</span><i></i>' +
-        '</button>' +
-        '<div class="pfh-export-menu-list">' +
-          '<button type="button" data-action="export-type" data-export-type="excel" class="' + (state.exportType === 'excel' ? 'is-active' : '') + '">' + escapeHtml(L.exportTypeExcel) + '</button>' +
-          '<button type="button" data-action="export-type" data-export-type="toy-label" class="' + (state.exportType === 'toy-label' ? 'is-active' : '') + '">' + escapeHtml(L.exportTypeToyLabel) + '</button>' +
-        '</div>' +
-      '</div>' +
-      '<input type="number" min="0" step="1" class="pfh-excel-price" placeholder="' + escapeHtml(L.excelPurchasePrice) + '" value="' + escapeHtml(priceValue) + '">' +
-      '<button type="button" data-action="excel-prepare" title="' + escapeHtml(L.excelRefresh) + '">' + iconHtml('refresh') + '</button>' +
-      '<button type="button" data-action="excel-generate"' + (excelGenerateTitle ? ' title="' + escapeHtml(excelGenerateTitle) + '"' : '') + '>' + escapeHtml(excelGenerateLabel) + '</button>' +
-      '<span class="pfh-excel-status' + statusClass + '">' + escapeHtml(status) + '</span>' +
+    return '<div class="pfh-export-readiness-controls">' +
+      (state.exportType === 'toy-label' ? '' : '<label class="pfh-export-price-label">采购价<input type="number" min="0" step="1" class="pfh-excel-price" placeholder="' + escapeHtml(L.excelPurchasePrice) + '" value="' + escapeHtml(priceValue) + '"></label>') +
+      (state.exportType === 'toy-label' ? '' : '<button type="button" data-action="excel-prepare" title="补全 Excel 数据">' + iconHtml('refresh') + '补全资料</button>') +
+      '<button type="button" data-action="excel-generate"' + (excelGenerateTitle ? ' title="' + escapeHtml(excelGenerateTitle) + '"' : '') + '>' + (!missing.length ? readinessMarkHtml(true) : '') + escapeHtml(excelGenerateLabel) + '</button>' +
+      '<span class="pfh-excel-status' + statusClass + '">' + escapeHtml(state.excelStatus || (missing.length ? '缺' + missing.join('、') : '资料齐全')) + '</span>' +
       '</div>';
   }
 
@@ -33994,7 +34010,8 @@ self.onmessage = async function(event) {
       showSkuCacheEditor(sku);
       return;
     }
-    if (state.exportMenuOpen && !(event.target && event.target.closest && event.target.closest('.pfh-export-menu'))) {
+    if (state.exportMenuOpen && !(event.target && event.target.closest && event.target.closest('.pfh-export-menu, .pfh-readiness-menu'))) {
+      syncExcelInputs();
       state.exportMenuOpen = false;
       renderShell();
       return;
@@ -34447,18 +34464,21 @@ self.onmessage = async function(event) {
       return;
     }
     if (action === 'excel-generate') {
-      if (state.exportType === 'toy-label') generateToyLabelFromCurrent();
+      if (state.exportType === 'toy-label') generateToyLabelFromCurrent({ skipExcelPrepare: true });
       else generateExcelFromCurrent();
       return;
     }
     if (action === 'export-menu-toggle') {
+      syncExcelInputs();
       state.exportMenuOpen = !state.exportMenuOpen;
       renderShell();
       return;
     }
     if (action === 'export-type') {
+      syncExcelInputs();
       state.exportType = actionTarget.getAttribute('data-export-type') === 'toy-label' ? 'toy-label' : 'excel';
-      state.exportMenuOpen = false;
+      state.excelStatus = '';
+      state.exportMenuOpen = true;
       renderShell();
       return;
     }
@@ -39248,6 +39268,7 @@ self.onmessage = async function(event) {
   }
 
   function resetExcelState() {
+    state.exportMenuOpen = false;
     state.excelPanelOpen = false;
     state.excelExtra = null;
     state.excelMissing = [];
