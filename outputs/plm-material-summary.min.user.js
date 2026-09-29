@@ -1,4 +1,4 @@
-﻿// ==UserScript==
+// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
 // @version      2.9.16
