@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.15
+// @version      2.9.16
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.15';
+  const SCRIPT_VERSION = '2.9.16';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.281';
+  const UI_ASSET_VERSION = '2.5.282';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -26365,7 +26365,7 @@
       const drawerReady = Boolean(getToyCopywritingDrawerForSku(data.sku));
       const ready = !missing.length;
       const hint = loading ? '正在读取 / 补充…' : missing.length ? '缺' + missing.join('、') + ' · 去详情获取' : drawerReady ? '资料齐全 · 可直接补充' : '资料齐全 · 打开详情后补充';
-      return '<button type="button" class="pfh-source-readiness" data-action="' + (ready && drawerReady ? 'toy-copywriting-fill' : 'open-detail') + '" title="' + escapeHtml(hint) + '"' + (loading ? ' disabled' : '') + '>' + readinessMarkHtml(ready && !loading) + '<span><span>' + label + '</span><small>' + escapeHtml(hint) + '</small></span></button>';
+      return '<button type="button" class="pfh-source-readiness' + (ready && !loading ? ' is-ready' : '') + '" data-action="' + (ready && drawerReady ? 'toy-copywriting-fill' : 'open-detail') + '" title="' + escapeHtml(hint) + '"' + (loading ? ' disabled' : '') + '><span><span>' + label + '</span><small>' + escapeHtml(hint) + '</small></span></button>';
     }
     return '<button type="button" class="pfh-toy-copywriting-button' + (state.toyCopywritingBusy ? ' is-busy' : '') + (hasError ? ' is-error' : '') + '" data-action="toy-copywriting-fill"' + (state.toyCopywritingBusy ? ' disabled' : '') + '>' +
       (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner pfh-loading-ring" aria-hidden="true"></span>' + (isIngredientOnly ? '\u6210\u5206\u8865\u5145\u4e2d' : '\u667a\u80fd\u8865\u5145\u4e2d') : (hasError && !isToy ? '\u26a0 ' + (isFoodEntry ? '\u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25' : '\u6210\u5206\u8865\u5145\u5931\u8d25') : sparkleEntranceIconHtml() + '<span>' + label + '</span>')) + '</button>';
@@ -31247,12 +31247,8 @@ self.onmessage = async function(event) {
 
   function excelTriggerHtml() {
     const readiness = getCurrentExportReadiness();
-    const option = (type, label, missing) => '<button type="button" class="pfh-export-choice' + (state.exportType === type ? ' is-active' : '') + '" data-action="export-type" data-export-type="' + type + '">' + readinessMarkHtml(!missing.length) + '<span><b>' + escapeHtml(label) + '</b><small>' + escapeHtml(missing.length ? '缺' + missing.join('、') + (type === 'excel' ? ' · 可缺项导出' : ' · 需获取') : '资料齐全 · 可直接导出') + '</small></span></button>';
-    return '<div class="pfh-readiness-menu' + (state.exportMenuOpen ? ' is-open' : '') + '"><button type="button" class="pfh-readiness-trigger" data-action="export-menu-toggle" aria-expanded="' + String(state.exportMenuOpen) + '">' + iconHtml('download') + '<span>导出</span><span aria-hidden="true">⌄</span></button><div class="pfh-readiness-dropdown">' + option('excel', L.exportTypeExcel, readiness.excelMissing) + option('toy-label', L.exportTypeToyLabel, readiness.toyMissing) + excelOptionsHtml() + '<p class="pfh-readiness-legend">' + readinessMarkHtml(true) + '资料齐全（按当前缓存判断）</p></div></div>';
-  }
-
-  function readinessMarkHtml(ready) {
-    return '<svg class="pfh-readiness-mark' + (ready ? ' is-ready' : ' is-missing') + '" viewBox="0 0 24 24" aria-hidden="true"><path class="pfh-readiness-crystal" d="M12 2 21 9 12 22 3 9Z"/><path class="pfh-readiness-facet" d="m3 9 9 3 9-3M12 2v10l-3-3m3 3v10"/></svg>';
+    const option = (type, label, missing) => '<button type="button" class="pfh-export-choice' + (!missing.length ? ' is-ready' : '') + (state.exportType === type ? ' is-active' : '') + '" data-action="export-type" data-export-type="' + type + '" aria-pressed="' + String(state.exportType === type) + '"><span><b>' + escapeHtml(label) + '</b><small>' + escapeHtml(missing.length ? '缺' + missing.join('、') + (type === 'excel' ? ' · 可缺项导出' : ' · 需获取') : '资料齐全 · 可直接导出') + '</small></span></button>';
+    return '<div class="pfh-readiness-menu' + (state.exportMenuOpen ? ' is-open' : '') + '"><button type="button" class="pfh-readiness-trigger" data-action="export-menu-toggle" aria-expanded="' + String(state.exportMenuOpen) + '">' + iconHtml('download') + '<span>导出</span><span aria-hidden="true">⌄</span></button><div class="pfh-readiness-dropdown">' + option('excel', L.exportTypeExcel, readiness.excelMissing) + option('toy-label', L.exportTypeToyLabel, readiness.toyMissing) + excelOptionsHtml() + '</div></div>';
   }
 
   function getCurrentExportReadiness() {
@@ -31275,9 +31271,9 @@ self.onmessage = async function(event) {
       : '';
     return '<div class="pfh-export-readiness-controls">' +
       (state.exportType === 'toy-label' ? '' : '<label class="pfh-export-price-label">采购价<input type="number" min="0" step="1" class="pfh-excel-price" placeholder="' + escapeHtml(L.excelPurchasePrice) + '" value="' + escapeHtml(priceValue) + '"></label>') +
-      (state.exportType === 'toy-label' ? '' : '<button type="button" data-action="excel-prepare" title="补全 Excel 数据">' + iconHtml('refresh') + '补全资料</button>') +
-      '<button type="button" data-action="excel-generate"' + (excelGenerateTitle ? ' title="' + escapeHtml(excelGenerateTitle) + '"' : '') + '>' + (!missing.length ? readinessMarkHtml(true) : '') + escapeHtml(excelGenerateLabel) + '</button>' +
-      '<span class="pfh-excel-status' + statusClass + '">' + escapeHtml(state.excelStatus || (missing.length ? '缺' + missing.join('、') : '资料齐全')) + '</span>' +
+      (state.exportType === 'toy-label' ? '' : '<button type="button" data-action="excel-prepare" title="补全 Excel 数据">补全资料</button>') +
+      '<button type="button" class="pfh-export-submit' + (!missing.length ? ' is-ready' : '') + '" data-action="excel-generate"' + (excelGenerateTitle ? ' title="' + escapeHtml(excelGenerateTitle) + '"' : '') + '>' + escapeHtml(excelGenerateLabel) + '</button>' +
+      (state.excelStatus ? '<span role="status" class="pfh-export-feedback' + statusClass + '">' + escapeHtml(state.excelStatus) + '</span>' : '') +
       '</div>';
   }
 
