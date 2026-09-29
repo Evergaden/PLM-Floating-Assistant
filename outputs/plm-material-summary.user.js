@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.17
+// @version      2.9.18
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.17';
+  const SCRIPT_VERSION = '2.9.18';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.283';
+  const UI_ASSET_VERSION = '2.5.284';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -31273,7 +31273,7 @@ self.onmessage = async function(event) {
     return '<div class="pfh-export-readiness-controls">' +
       (state.exportType === 'toy-label' ? '' : '<label class="pfh-export-price-label">采购价<input type="number" min="0" step="1" class="pfh-excel-price" placeholder="' + escapeHtml(L.excelPurchasePrice) + '" value="' + escapeHtml(priceValue) + '"></label>') +
       (state.exportType === 'toy-label' ? '' : '<button type="button" data-action="excel-prepare" title="补全 Excel 数据">补全资料</button>') +
-      '<button type="button" class="pfh-export-submit' + (!missing.length ? ' is-ready' : '') + '" data-action="excel-generate"' + (excelGenerateTitle ? ' title="' + escapeHtml(excelGenerateTitle) + '"' : '') + '>' + escapeHtml(excelGenerateLabel) + '</button>' +
+      '<button type="button" class="pfh-export-submit" data-action="export-submit"' + (excelGenerateTitle ? ' title="' + escapeHtml(excelGenerateTitle) + '"' : '') + '>' + escapeHtml(excelGenerateLabel) + '</button>' +
       (state.excelStatus ? '<span role="status" class="pfh-export-feedback' + statusClass + '">' + escapeHtml(state.excelStatus) + '</span>' : '') +
       '</div>';
   }
@@ -34460,7 +34460,7 @@ self.onmessage = async function(event) {
       prepareExcelInfo();
       return;
     }
-    if (action === 'excel-generate') {
+    if (action === 'excel-generate' || action === 'export-submit') {
       if (state.exportType === 'toy-label') generateToyLabelFromCurrent({ skipExcelPrepare: true });
       else generateExcelFromCurrent();
       return;
