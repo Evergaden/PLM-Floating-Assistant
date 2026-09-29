@@ -1,0 +1,82 @@
+#plm-floating-helper .pfh-sku-filter-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  margin: 0 0 9px;
+}
+
+#plm-floating-helper .pfh-sku-filter-toolbar button {
+  flex: 0 0 auto;
+  min-height: 27px;
+  padding: 0 11px;
+  border: 1px solid var(--pfh-theme-border, #d8deea);
+  border-radius: 999px;
+  background: var(--pfh-theme-surface, #fff);
+  color: var(--pfh-theme-text, #253047);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+#plm-floating-helper .pfh-sku-filter-toolbar button.is-active,
+#plm-floating-helper .pfh-sku-filter-toolbar button[aria-expanded="true"] {
+  border-color: var(--pfh-theme-primary, #7c3aed);
+  background: var(--pfh-theme-primary-soft, #f3efff);
+  color: var(--pfh-theme-primary-hover, #5b21b6);
+}
+
+#plm-floating-helper .pfh-sku-filter-toolbar span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--pfh-theme-muted, #7a82a0);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#plm-floating-helper .pfh-sku-filter-panel {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid var(--pfh-theme-border, #d8deea);
+  border-radius: 12px;
+  background: var(--pfh-theme-surface-alt, #fbfaff);
+}
+
+#plm-floating-helper .pfh-sku-filter-panel label {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  color: var(--pfh-theme-muted, #7a82a0);
+  font-size: 11px;
+}
+
+#plm-floating-helper .pfh-sku-filter-panel select {
+  width: 100%;
+  min-width: 0;
+  height: 29px;
+  padding: 0 7px;
+  border: 1px solid var(--pfh-theme-border, #d8deea);
+  border-radius: 8px;
+  background: var(--pfh-theme-surface, #fff);
+  color: var(--pfh-theme-text, #253047);
+  font-size: 11px;
+}
+
+#plm-floating-helper .pfh-sku-filter-panel > button {
+  justify-self: end;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 0;
+  background: transparent;
+  color: var(--pfh-theme-primary-hover, #5b21b6);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+#plm-floating-helper .pfh-sku-filter-loading {
+  color: var(--pfh-theme-muted, #7a82a0);
+  font-size: 11px;
+}

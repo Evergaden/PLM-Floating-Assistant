@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.11
+// @version      2.9.12
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.11';
+  const SCRIPT_VERSION = '2.9.12';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.279';
+  const UI_ASSET_VERSION = '2.5.280';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -15992,6 +15992,8 @@
     settingsReturnView: '',
     detailReturnScroll: null,
     searchQuery: '',
+    skuFilters: { developer: '', brand: '', status: '' },
+    skuFilterOpen: false,
     view: firstTutorial ? 'home' : 'home',
     settings: loadSettings(),
     workMode: 'daily',
@@ -22165,6 +22167,76 @@
     return mode === 'toy-label' || mode === 'copyright';
   }
 
+  const skuSearchFacetCache = new Map();
+  let skuSearchFacetsReady = false;
+  let skuSearchFacetsLoading = false;
+
+  function getSkuSearchFacet(item) {
+    if (!item || !item.sku) return { developer: '', brand: '', status: '' };
+    const cached = skuSearchFacetCache.get(item.sku);
+    if (cached) return cached;
+    const data = loadData(item.sku) || {};
+    const facet = {
+      developer: cleanName(item.developerName || data.developerName || extractDeveloperName(data.developerText || '') || ''),
+      brand: cleanName(item.brand || data.brand || ''),
+      status: cleanName(item.projectStatus || data.projectStatus || ''),
+    };
+    skuSearchFacetCache.set(item.sku, facet);
+    return facet;
+  }
+
+  function loadSkuSearchFacets() {
+    if (skuSearchFacetsReady || skuSearchFacetsLoading) return;
+    skuSearchFacetsLoading = true;
+    const items = state.index.slice();
+    let offset = 0;
+    const next = () => {
+      items.slice(offset, offset + 24).forEach(getSkuSearchFacet);
+      offset += 24;
+      if (offset < items.length) {
+        window.setTimeout(next, 0);
+        return;
+      }
+      skuSearchFacetsReady = true;
+      skuSearchFacetsLoading = false;
+      const panel = document.getElementById(PANEL_ID);
+      if (panel && panel.querySelector('.pfh-sku-filter-panel')) renderSkuList(panel);
+    };
+    window.setTimeout(next, 0);
+  }
+
+  function hasSkuFilters() {
+    return Object.values(state.skuFilters).some(Boolean);
+  }
+
+  function getFilteredSearchMatches(tokens) {
+    const matches = getSearchMatches(tokens);
+    if (!hasSkuFilters()) return matches;
+    return matches.filter((item) => {
+      const facet = getSkuSearchFacet(item);
+      return (!state.skuFilters.developer || facet.developer === state.skuFilters.developer)
+        && (!state.skuFilters.brand || facet.brand === state.skuFilters.brand)
+        && (!state.skuFilters.status || facet.status === state.skuFilters.status);
+    });
+  }
+
+  function skuFilterOptionsHtml(field, label) {
+    const values = Array.from(new Set(state.index.map((item) => getSkuSearchFacet(item)[field]).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+    const selected = state.skuFilters[field] || '';
+    return '<label><span>' + escapeHtml(label) + '</span><select data-sku-filter="' + field + '"' + (skuSearchFacetsReady ? '' : ' disabled') + '><option value="">全部</option>' +
+      values.map((value) => '<option value="' + escapeHtml(value) + '"' + (value === selected ? ' selected' : '') + '>' + escapeHtml(value) + '</option>').join('') + '</select></label>';
+  }
+
+  function renderSkuFilterPanel() {
+    if (!state.skuFilterOpen) return '';
+    if (!skuSearchFacetsReady) return '<div class="pfh-sku-filter-panel"><span class="pfh-sku-filter-loading">正在读取 SKU 筛选项…</span></div>';
+    return '<div class="pfh-sku-filter-panel">' +
+      skuFilterOptionsHtml('developer', '开发人员') +
+      skuFilterOptionsHtml('brand', '品牌') +
+      skuFilterOptionsHtml('status', '项目状态') +
+      '<button type="button" data-action="sku-filter-clear"' + (hasSkuFilters() ? '' : ' disabled') + '>清除筛选</button></div>';
+  }
+
   function getUploadSkuPickerContext() {
     return [state.skuPage || 1, state.searchQuery.trim(), getSkuListMode(), getSkuListSort()].join('|');
   }
@@ -22245,7 +22317,7 @@
   function renderSkuListHtml() {
     const query = state.searchQuery.trim();
     const searchTokens = parseSearchTokens(query);
-    const allItems = sortSkuListItems(getSearchMatches(searchTokens));
+    const allItems = sortSkuListItems(getFilteredSearchMatches(searchTokens));
     const listMode = getSkuListMode();
     const pageSize = listMode === 'waterfall' ? 20 : 10;
     const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
@@ -22253,7 +22325,7 @@
     const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
     const listTitle = 'SKU\u5217\u8868';
     const listSort = getSkuListSort();
-    const skuScrollContext = ['sku', state.view, listMode, listSort, state.skuPage, query].join('|');
+    const skuScrollContext = ['sku', state.view, listMode, listSort, state.skuPage, query, ...Object.values(state.skuFilters)].join('|');
     const listSortLabel = listSort === 'acquired' ? '\u83b7\u53d6\u65f6\u95f4' : '\u5206\u914d\u65f6\u95f4';
     const listSortMenu = '<div class="pfh-export-menu pfh-sku-sort-menu' + (state.skuSortMenuOpen ? ' is-open' : '') + '">' +
       '<button type="button" class="pfh-export-menu-button" data-action="sku-sort-toggle" aria-expanded="' + (state.skuSortMenuOpen ? 'true' : 'false') + '"><span>' + escapeHtml(listSortLabel) + '</span><i></i></button>' +
@@ -22265,12 +22337,14 @@
       '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">\u5217\u8868</button>' +
       '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">\u7011\u5e03\u6d41</button></div>' +
       '<label class="pfh-sku-sort"><span>\u6392\u5e8f</span>' + listSortMenu + '</label></div>';
-    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span><button type="button" class="pfh-sku-add-button" data-action="sku-manual-add-open" title="批量添加 SKU" aria-label="批量添加 SKU">+</button></div>' + listTools;
+    const activeFilterCount = Object.values(state.skuFilters).filter(Boolean).length;
+    const filterTools = '<div class="pfh-sku-filter-toolbar"><button type="button" data-action="sku-filter-toggle" aria-expanded="' + String(state.skuFilterOpen) + '" class="' + (activeFilterCount ? 'is-active' : '') + '">筛选' + (activeFilterCount ? ' · ' + activeFilterCount : '') + '</button><span>' + (activeFilterCount ? '已按条件筛选' : '可按开发人员、品牌、项目状态筛选') + '</span></div>' + renderSkuFilterPanel();
+    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span><button type="button" class="pfh-sku-add-button" data-action="sku-manual-add-open" title="批量添加 SKU" aria-label="批量添加 SKU">+</button></div>' + listTools + filterTools;
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
-      return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll" data-scroll-context="' + escapeHtml(skuScrollContext) + '"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager + '</div>';
+      return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll" data-scroll-context="' + escapeHtml(skuScrollContext) + '"><div class="pfh-empty">' + escapeHtml(searchTokens.length || activeFilterCount ? L.noSearchResult : L.emptyList) + '</div></div>' + pager + '</div>';
     }
-    const searchToolbar = searchTokens.length
+    const searchToolbar = searchTokens.length || activeFilterCount
       ? '<div class="pfh-search-result-toolbar"><button type="button" data-action="pin-search-results">全部置顶</button><span>' + escapeHtml(L.searchResult + ': ' + allItems.length) + '</span></div>'
       : '';
     const cards = items.map((item) => skuListCardHtml(item, listMode, state.selectedSku)).join('');
@@ -34055,6 +34129,18 @@ self.onmessage = async function(event) {
       clearSearch();
       return;
     }
+    if (action === 'sku-filter-toggle') {
+      state.skuFilterOpen = !state.skuFilterOpen;
+      if (state.skuFilterOpen) loadSkuSearchFacets();
+      renderSkuList(ensurePanel());
+      return;
+    }
+    if (action === 'sku-filter-clear') {
+      state.skuFilters = { developer: '', brand: '', status: '' };
+      state.skuPage = 1;
+      renderSkuList(ensurePanel());
+      return;
+    }
     if (action === 'sku-list-mode') {
       const mode = actionTarget.getAttribute('data-mode') === 'waterfall' ? 'waterfall' : 'list';
       state.settings.skuListMode = mode;
@@ -35500,6 +35586,13 @@ self.onmessage = async function(event) {
 
   function handlePanelChange(event) {
     if (productDevelopmentHandleChange(event)) return;
+    const skuFilterField = event.target && event.target.getAttribute && event.target.getAttribute('data-sku-filter');
+    if (skuFilterField && Object.prototype.hasOwnProperty.call(state.skuFilters, skuFilterField)) {
+      state.skuFilters[skuFilterField] = event.target.value || '';
+      state.skuPage = 1;
+      renderSkuList(ensurePanel());
+      return;
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-cache-value-type')) {
       updateSkuCacheEditorValueControl(event.target);
       return;
@@ -38562,7 +38655,7 @@ self.onmessage = async function(event) {
     state.searchQuery = input ? input.value.trim() : '';
     state.skuPage = 1;
     updateSearchClear();
-    const matches = parseSearchTokens(state.searchQuery).length ? getSearchMatches(state.searchQuery) : [];
+    const matches = parseSearchTokens(state.searchQuery).length || hasSkuFilters() ? getFilteredSearchMatches(state.searchQuery) : [];
     if (matches.length) {
       const target = matches[0];
       const data = loadData(target.sku);
@@ -38743,7 +38836,7 @@ self.onmessage = async function(event) {
   }
 
   function pinCurrentSearchResults() {
-    const matches = getSearchMatches(state.searchQuery);
+    const matches = getFilteredSearchMatches(state.searchQuery);
     if (!matches.length) return;
     matches.forEach((match, index) => {
       const item = state.index.find((entry) => entry.sku === match.sku);
@@ -42137,10 +42230,10 @@ self.onmessage = async function(event) {
   function matchesSearchItem(item, tokens) {
     const queryTokens = Array.isArray(tokens) ? tokens : parseSearchTokens(tokens);
     if (!queryTokens.length) return true;
-    if ([item.sku, item.brand, item.name, item.packageCode, item.printCode].some((value) => queryTokens.some((token) => String(value || '').toLowerCase().includes(token)))) return true;
+    if ([item.sku, item.brand, item.name, item.packageCode, item.printCode, item.developerName, item.projectStatus].some((value) => queryTokens.some((token) => String(value || '').toLowerCase().includes(token)))) return true;
     const data = loadData(item.sku);
     if (!data) return false;
-    return [data.brand, data.name, data.packageCode, data.printCode].some((value) => queryTokens.some((token) => String(value || '').toLowerCase().includes(token)));
+    return [data.brand, data.name, data.packageCode, data.printCode, data.developerName, data.projectStatus].some((value) => queryTokens.some((token) => String(value || '').toLowerCase().includes(token)));
   }
 
   function getSearchMatches(tokens) {
@@ -48946,6 +49039,8 @@ self.onmessage = async function(event) {
       name: cleanName(data.name || ''),
       packageCode: data.packageCode || '',
       printCode: data.printCode || '',
+      developerName: cleanName(data.developerName || ''),
+      projectStatus: cleanName(data.projectStatus || ''),
       designAssignedAt: data.designAssignedAt || '',
       projectCreatedAt: data.projectCreatedAt || '',
       skuImageUrl: data.skuImageUrl || '',
@@ -48970,6 +49065,7 @@ self.onmessage = async function(event) {
     }
     state.index = state.index.filter((entry) => entry.sku !== data.sku);
     state.index.unshift(item);
+    skuSearchFacetCache.set(item.sku, { developer: item.developerName, brand: item.brand, status: item.projectStatus });
     saveIndex();
   }
 
