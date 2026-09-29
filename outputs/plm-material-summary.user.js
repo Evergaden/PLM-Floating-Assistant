@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.13
+// @version      2.9.14
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.13';
+  const SCRIPT_VERSION = '2.9.14';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -16000,7 +16000,7 @@
     settingsReturnView: '',
     detailReturnScroll: null,
     searchQuery: '',
-    skuFilters: { developer: '', brand: '', status: '' },
+    skuFilters: { developer: '', brand: '', status: '', designType: '' },
     skuFilterOpen: false,
     view: firstTutorial ? 'home' : 'home',
     settings: loadSettings(),
@@ -22180,7 +22180,7 @@
   let skuSearchFacetsLoading = false;
 
   function getSkuSearchFacet(item) {
-    if (!item || !item.sku) return { developer: '', brand: '', status: '' };
+    if (!item || !item.sku) return { developer: '', brand: '', status: '', designType: '' };
     const cached = skuSearchFacetCache.get(item.sku);
     if (cached) return cached;
     const data = loadData(item.sku) || {};
@@ -22188,6 +22188,7 @@
       developer: cleanName(item.developerName || data.developerName || extractDeveloperName(data.developerText || '') || ''),
       brand: cleanName(item.brand || data.brand || ''),
       status: cleanName(item.projectStatus || data.projectStatus || ''),
+      designType: cleanName(item.designType || data.designType || ''),
     };
     skuSearchFacetCache.set(item.sku, facet);
     return facet;
@@ -22224,7 +22225,8 @@
       const facet = getSkuSearchFacet(item);
       return (!state.skuFilters.developer || facet.developer === state.skuFilters.developer)
         && (!state.skuFilters.brand || facet.brand === state.skuFilters.brand)
-        && (!state.skuFilters.status || facet.status === state.skuFilters.status);
+        && (!state.skuFilters.status || facet.status === state.skuFilters.status)
+        && (!state.skuFilters.designType || facet.designType === state.skuFilters.designType);
     });
   }
 
@@ -22242,6 +22244,7 @@
       skuFilterOptionsHtml('developer', '开发人员') +
       skuFilterOptionsHtml('brand', '品牌') +
       skuFilterOptionsHtml('status', '项目状态') +
+      skuFilterOptionsHtml('designType', '设计类型') +
       '<button type="button" data-action="sku-filter-clear"' + (hasSkuFilters() ? '' : ' disabled') + '>清除筛选</button></div>';
   }
 
@@ -22346,7 +22349,7 @@
       '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">\u7011\u5e03\u6d41</button></div>' +
       '<label class="pfh-sku-sort"><span>\u6392\u5e8f</span>' + listSortMenu + '</label></div>';
     const activeFilterCount = Object.values(state.skuFilters).filter(Boolean).length;
-    const filterTools = '<div class="pfh-sku-filter-toolbar"><button type="button" data-action="sku-filter-toggle" aria-expanded="' + String(state.skuFilterOpen) + '" class="' + (activeFilterCount ? 'is-active' : '') + '">筛选' + (activeFilterCount ? ' · ' + activeFilterCount : '') + '</button><span>' + (activeFilterCount ? '已按条件筛选' : '可按开发人员、品牌、项目状态筛选') + '</span></div>' + renderSkuFilterPanel();
+    const filterTools = '<div class="pfh-sku-filter-toolbar"><button type="button" data-action="sku-filter-toggle" aria-expanded="' + String(state.skuFilterOpen) + '" class="' + (activeFilterCount ? 'is-active' : '') + '">筛选' + (activeFilterCount ? ' · ' + activeFilterCount : '') + '</button><span>' + (activeFilterCount ? '已按条件筛选' : '开发人员、品牌、状态、设计类型') + '</span></div>' + renderSkuFilterPanel();
     const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span><button type="button" class="pfh-sku-add-button" data-action="sku-manual-add-open" title="批量添加 SKU" aria-label="批量添加 SKU">+</button></div>' + listTools + filterTools;
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
@@ -34144,7 +34147,7 @@ self.onmessage = async function(event) {
       return;
     }
     if (action === 'sku-filter-clear') {
-      state.skuFilters = { developer: '', brand: '', status: '' };
+      state.skuFilters = { developer: '', brand: '', status: '', designType: '' };
       state.skuPage = 1;
       renderSkuList(ensurePanel());
       return;
@@ -42238,10 +42241,10 @@ self.onmessage = async function(event) {
   function matchesSearchItem(item, tokens) {
     const queryTokens = Array.isArray(tokens) ? tokens : parseSearchTokens(tokens);
     if (!queryTokens.length) return true;
-    if ([item.sku, item.brand, item.name, item.packageCode, item.printCode, item.developerName, item.projectStatus].some((value) => queryTokens.some((token) => String(value || '').toLowerCase().includes(token)))) return true;
+    if ([item.sku, item.brand, item.name, item.packageCode, item.printCode, item.developerName, item.projectStatus, item.designType].some((value) => queryTokens.some((token) => String(value || '').toLowerCase().includes(token)))) return true;
     const data = loadData(item.sku);
     if (!data) return false;
-    return [data.brand, data.name, data.packageCode, data.printCode, data.developerName, data.projectStatus].some((value) => queryTokens.some((token) => String(value || '').toLowerCase().includes(token)));
+    return [data.brand, data.name, data.packageCode, data.printCode, data.developerName, data.projectStatus, data.designType].some((value) => queryTokens.some((token) => String(value || '').toLowerCase().includes(token)));
   }
 
   function getSearchMatches(tokens) {
@@ -49049,6 +49052,7 @@ self.onmessage = async function(event) {
       printCode: data.printCode || '',
       developerName: cleanName(data.developerName || ''),
       projectStatus: cleanName(data.projectStatus || ''),
+      designType: cleanName(data.designType || ''),
       designAssignedAt: data.designAssignedAt || '',
       projectCreatedAt: data.projectCreatedAt || '',
       skuImageUrl: data.skuImageUrl || '',
@@ -49073,7 +49077,7 @@ self.onmessage = async function(event) {
     }
     state.index = state.index.filter((entry) => entry.sku !== data.sku);
     state.index.unshift(item);
-    skuSearchFacetCache.set(item.sku, { developer: item.developerName, brand: item.brand, status: item.projectStatus });
+    skuSearchFacetCache.set(item.sku, { developer: item.developerName, brand: item.brand, status: item.projectStatus, designType: item.designType });
     saveIndex();
   }
 
