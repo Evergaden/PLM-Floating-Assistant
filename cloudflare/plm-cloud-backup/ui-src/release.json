@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.284",
+  "version": "2.5.285",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 295710,
+      "maxBytes": 295410,
       "maxImportant": 2171,
       "forbidSelectorFragments": [
         ".pfh-toast",
@@ -60,6 +60,10 @@
     },
     {
       "path": "modules/export-readiness.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/settings-update-indicator.css",
       "mode": "module"
     },
     {

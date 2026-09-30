@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.18
+// @version      2.9.19
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.18';
+  const SCRIPT_VERSION = '2.9.19';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.284';
+  const UI_ASSET_VERSION = '2.5.285';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -3634,10 +3634,11 @@
   const GREASYFORK_SCRIPT_URL = 'https://greasyfork.org/zh-CN/scripts/582138-plm%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B';
   const SCRIPT_UPDATE_META_URL = 'https://update.greasyfork.org/scripts/582138/PLM%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B.meta.js';
   const SCRIPT_UPDATE_CACHE_KEY = 'plm-floating-helper:script-update:v1';
-  const SCRIPT_UPDATE_REFRESH_MS = 60 * 60 * 1000;
+  const SCRIPT_UPDATE_REFRESH_MS = 15 * 60 * 1000;
   let scriptUpdateCache = loadScriptUpdateCache();
   let scriptUpdateChecking = false;
   let scriptUpdateError = '';
+  let stopScriptUpdateConfetti = null;
 
   function loadScriptUpdateCache() {
     try {
@@ -3675,7 +3676,64 @@
     if (card) card.outerHTML = renderScriptUpdateCard();
   }
 
-  async function checkScriptUpdate(force) {
+  function celebrateScriptUpdate() {
+    showToast('已是最新版本 v' + SCRIPT_VERSION);
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (stopScriptUpdateConfetti) stopScriptUpdateConfetti();
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-hidden', 'true');
+    canvas.style.cssText = 'position:fixed;inset:0;display:block;width:100vw;height:100vh;background:transparent!important;pointer-events:none;z-index:2147483647;';
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(window.innerWidth * pixelRatio);
+    canvas.height = Math.round(window.innerHeight * pixelRatio);
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.scale(pixelRatio, pixelRatio);
+    document.documentElement.appendChild(canvas);
+    const button = document.querySelector('#' + PANEL_ID + ' [data-action="about"]');
+    const bounds = button && button.getBoundingClientRect();
+    const originX = bounds ? bounds.left + bounds.width / 2 : window.innerWidth / 2;
+    const originY = bounds ? bounds.top + bounds.height / 2 : 80;
+    const colors = ['#7c3aed', '#a78bfa', '#22c55e', '#38bdf8', '#fbbf24', '#fb7185'];
+    const particles = Array.from({ length: 84 }, () => ({
+      velocityX: (Math.random() - .5) * .72,
+      velocityY: .03 + Math.random() * .15,
+      gravity: .00014 + Math.random() * .0001,
+      width: 4 + Math.random() * 5,
+      height: 7 + Math.random() * 8,
+      rotation: Math.random() * Math.PI,
+      spin: (Math.random() - .5) * .014,
+      color: colors[Math.floor(Math.random() * colors.length)],
+    }));
+    const startedAt = performance.now();
+    let frameId = 0;
+    const cleanup = () => {
+      window.cancelAnimationFrame(frameId);
+      canvas.remove();
+      if (stopScriptUpdateConfetti === cleanup) stopScriptUpdateConfetti = null;
+    };
+    stopScriptUpdateConfetti = cleanup;
+    const draw = (now) => {
+      const elapsed = now - startedAt;
+      if (elapsed >= 2200) { cleanup(); return; }
+      context.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      context.globalAlpha = Math.min(1, (2200 - elapsed) / 500);
+      particles.forEach((particle) => {
+        const x = originX + particle.velocityX * elapsed;
+        const y = originY + particle.velocityY * elapsed + particle.gravity * elapsed * elapsed / 2;
+        context.save();
+        context.translate(x, y);
+        context.rotate(particle.rotation + particle.spin * elapsed);
+        context.fillStyle = particle.color;
+        context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height);
+        context.restore();
+      });
+      frameId = window.requestAnimationFrame(draw);
+    };
+    frameId = window.requestAnimationFrame(draw);
+  }
+
+  async function checkScriptUpdate(force, celebrateIfLatest) {
     if (scriptUpdateChecking) return;
     if (!force && Date.now() - scriptUpdateCache.checkedAt < SCRIPT_UPDATE_REFRESH_MS) return;
     scriptUpdateChecking = true;
@@ -3700,6 +3758,9 @@
         if (typeof GM_setValue === 'function') GM_setValue(SCRIPT_UPDATE_CACHE_KEY, scriptUpdateCache);
         else localStorage.setItem(SCRIPT_UPDATE_CACHE_KEY, JSON.stringify(scriptUpdateCache));
       } catch (error) {}
+      if (celebrateIfLatest && !isScriptUpdateAvailable()) {
+        try { celebrateScriptUpdate(); } catch (error) { console.warn('PLM update celebration failed:', error); }
+      }
     } catch (error) {
       scriptUpdateError = String(error && error.message || error);
     } finally {
@@ -3708,9 +3769,9 @@
     }
   }
 
-  function scheduleScriptUpdateRefresh(delay) {
+  function scheduleScriptUpdateRefresh(delay, bypassCache) {
     window.setTimeout(() => {
-      checkScriptUpdate(false).finally(() => scheduleScriptUpdateRefresh(SCRIPT_UPDATE_REFRESH_MS));
+      checkScriptUpdate(Boolean(bypassCache)).finally(() => scheduleScriptUpdateRefresh(SCRIPT_UPDATE_REFRESH_MS, false));
     }, delay);
   }
 
@@ -16314,7 +16375,7 @@
   scheduleLuluThemeAccessRefresh(540);
   scheduleUserHeartbeat(800);
   scheduleNotificationRefresh(1600);
-  scheduleScriptUpdateRefresh(2400);
+  scheduleScriptUpdateRefresh(2400, true);
   scheduleHomeGreetingRefresh(700 + Math.floor(Math.random() * 4500));
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
   startDrawerWatcher();
@@ -21159,7 +21220,7 @@
     panel.querySelector('.pfh-search-clear').title = L.clearSearch;
     panel.querySelector('[data-action="search"]').innerHTML = '<span class="pfh-btn-text">' + escapeHtml(L.search) + '</span>';
     panel.querySelector('[data-action="search"]').title = TOOLTIP.search;
-    panel.querySelector('[data-action="about"]').innerHTML = iconHtml('settings') + '<span>\u8bbe\u7f6e</span>';
+    panel.querySelector('[data-action="about"]').innerHTML = iconHtml('settings') + '<span>\u8bbe\u7f6e</span><i class="pfh-settings-notice-dot" aria-hidden="true"></i>';
     panel.querySelector('[data-action="about"]').removeAttribute('title');
     panel.querySelector('[data-action="about"]').setAttribute('aria-label', TOOLTIP.about);
     panel.querySelector('[data-action="about"]').setAttribute('data-tooltip', TOOLTIP.about);
@@ -21317,8 +21378,11 @@
   function updateSettingsNotice(panel) {
     const button = panel && panel.querySelector('[data-action="about"]');
     if (!button) return;
-    button.classList.toggle('has-notice', !state.settings.backgroundNoticeSeen || isScriptUpdateAvailable());
-    button.setAttribute('aria-label', isScriptUpdateAvailable() ? '设置，有新版本可更新' : TOOLTIP.about);
+    const hasUpdate = isScriptUpdateAvailable();
+    button.classList.toggle('has-settings-notice', !state.settings.backgroundNoticeSeen || hasUpdate);
+    button.classList.toggle('has-script-update', hasUpdate);
+    button.setAttribute('aria-label', hasUpdate ? '设置，有新版本可更新' : TOOLTIP.about);
+    button.setAttribute('data-tooltip', hasUpdate ? '有新版本' : TOOLTIP.about);
   }
 
   function updateCollectionSwitch(panel) {
@@ -33797,7 +33861,7 @@ self.onmessage = async function(event) {
       return;
     }
     if (action === 'script-update-check') {
-      checkScriptUpdate(true);
+      checkScriptUpdate(true, true);
       return;
     }
     if (action === 'script-update-open') {

@@ -1,0 +1,21 @@
+#plm-floating-helper .pfh-header .pfh-actions button[data-action="about"] .pfh-settings-notice-dot {
+  display: none;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 1;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--pfh-theme-primary, #7c3aed);
+  box-shadow: 0 0 0 2px var(--pfh-theme-surface, #fff);
+  pointer-events: none;
+}
+
+#plm-floating-helper .pfh-header .pfh-actions button.has-settings-notice .pfh-settings-notice-dot {
+  display: block;
+}
+
+#plm-floating-helper .pfh-header .pfh-actions button.has-script-update .pfh-settings-notice-dot {
+  background: #ef4444;
+}
