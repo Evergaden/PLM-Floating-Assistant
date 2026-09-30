@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.19
+// @version      2.9.20
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.19';
+  const SCRIPT_VERSION = '2.9.20';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -3680,25 +3680,30 @@
     showToast('已是最新版本 v' + SCRIPT_VERSION);
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     if (stopScriptUpdateConfetti) stopScriptUpdateConfetti();
+    const panel = document.getElementById(PANEL_ID);
+    const host = panel && panel.querySelector(':scope > .pfh-full');
+    if (!host || !host.clientWidth || !host.clientHeight) return;
+    const width = host.clientWidth;
+    const height = host.clientHeight;
     const canvas = document.createElement('canvas');
     canvas.setAttribute('aria-hidden', 'true');
-    canvas.style.cssText = 'position:fixed;inset:0;display:block;width:100vw;height:100vh;background:transparent!important;pointer-events:none;z-index:2147483647;';
+    canvas.style.cssText = 'position:absolute;inset:0;display:block;width:100%;height:100%;background:transparent!important;pointer-events:none;z-index:300;';
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(window.innerWidth * pixelRatio);
-    canvas.height = Math.round(window.innerHeight * pixelRatio);
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
     const context = canvas.getContext('2d');
     if (!context) return;
     context.scale(pixelRatio, pixelRatio);
-    document.documentElement.appendChild(canvas);
-    const button = document.querySelector('#' + PANEL_ID + ' [data-action="about"]');
-    const bounds = button && button.getBoundingClientRect();
-    const originX = bounds ? bounds.left + bounds.width / 2 : window.innerWidth / 2;
-    const originY = bounds ? bounds.top + bounds.height / 2 : 80;
+    host.appendChild(canvas);
     const colors = ['#7c3aed', '#a78bfa', '#22c55e', '#38bdf8', '#fbbf24', '#fb7185'];
-    const particles = Array.from({ length: 84 }, () => ({
-      velocityX: (Math.random() - .5) * .72,
-      velocityY: .03 + Math.random() * .15,
-      gravity: .00014 + Math.random() * .0001,
+    const spread = Math.min(width / 700, 1);
+    const particles = Array.from({ length: 88 }, (_, index) => ({
+      originX: index < 44 ? width * .08 : width * .92,
+      originY: height - 18,
+      delay: Math.random() * 380,
+      velocityX: (index < 44 ? 1 : -1) * (.03 + Math.random() * .2) * spread,
+      velocityY: -(.56 + Math.random() * .34),
+      gravity: .0003 + Math.random() * .00013,
       width: 4 + Math.random() * 5,
       height: 7 + Math.random() * 8,
       rotation: Math.random() * Math.PI,
@@ -3715,15 +3720,17 @@
     stopScriptUpdateConfetti = cleanup;
     const draw = (now) => {
       const elapsed = now - startedAt;
-      if (elapsed >= 2200) { cleanup(); return; }
-      context.clearRect(0, 0, window.innerWidth, window.innerHeight);
-      context.globalAlpha = Math.min(1, (2200 - elapsed) / 500);
+      if (elapsed >= 2500) { cleanup(); return; }
+      context.clearRect(0, 0, width, height);
       particles.forEach((particle) => {
-        const x = originX + particle.velocityX * elapsed;
-        const y = originY + particle.velocityY * elapsed + particle.gravity * elapsed * elapsed / 2;
+        const age = elapsed - particle.delay;
+        if (age < 0) return;
+        const x = particle.originX + particle.velocityX * age;
+        const y = particle.originY + particle.velocityY * age + particle.gravity * age * age / 2;
         context.save();
+        context.globalAlpha = Math.max(0, Math.min(1, age / 120, (2200 - age) / 420));
         context.translate(x, y);
-        context.rotate(particle.rotation + particle.spin * elapsed);
+        context.rotate(particle.rotation + particle.spin * age);
         context.fillStyle = particle.color;
         context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height);
         context.restore();
