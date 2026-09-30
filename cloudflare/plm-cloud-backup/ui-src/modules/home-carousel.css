@@ -36,7 +36,7 @@
 #plm-floating-helper[data-view="home"] .pfh-home-clock{
   display:block;
   color:var(--pfh-theme-text);
-  font-family:"Arial Black","SF Pro Display","PingFang SC",sans-serif;
+  font-family:inherit;
   font-size:clamp(36px,4.7cqw,52px);
   font-weight:700;
   font-variant-numeric:lining-nums tabular-nums;
