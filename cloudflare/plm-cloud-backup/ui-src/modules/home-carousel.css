@@ -23,7 +23,7 @@
 #plm-floating-helper[data-view="home"] .pfh-home-clock-date{
   color:var(--pfh-theme-muted);
   font-size:clamp(11px,1.4cqw,15px);
-  font-weight:700;
+  font-weight:400;
   letter-spacing:.02em;
   white-space:nowrap;
 }
@@ -38,7 +38,7 @@
   color:var(--pfh-theme-text);
   font-family:inherit;
   font-size:clamp(36px,4.7cqw,52px);
-  font-weight:700;
+  font-weight:400;
   font-variant-numeric:lining-nums tabular-nums;
   letter-spacing:-.025em;
   line-height:1;
@@ -48,14 +48,14 @@
   display:block;
   color:var(--pfh-theme-text);
   font-size:clamp(21px,3cqw,34px);
-  font-weight:700;
+  font-weight:400;
   letter-spacing:-.02em;
   line-height:1.2;
 }
 #plm-floating-helper[data-view="home"] .pfh-home-goal{
   color:var(--pfh-theme-muted);
   font-size:clamp(13px,1.8cqw,19px);
-  font-weight:700;
+  font-weight:400;
   line-height:1.4;
 }
 #plm-floating-helper .pfh-home-carousel{
@@ -71,13 +71,16 @@
   border-radius:17px;
   touch-action:pan-y;
   cursor:grab;
+  user-select:none;
+  -webkit-user-select:none;
 }
+#plm-floating-helper .pfh-home-carousel-viewport :is(input,textarea,[contenteditable="true"]){user-select:text;-webkit-user-select:text;}
 #plm-floating-helper .pfh-home-carousel-viewport:active{cursor:grabbing;}
 #plm-floating-helper .pfh-home-carousel-track{
   display:flex;
   height:100%;
   min-width:0;
-  transition:transform .45s cubic-bezier(.25,.9,.3,1);
+  transition:transform .6s cubic-bezier(.25,1.2,.35,1);
 }
 #plm-floating-helper .pfh-home-carousel-slide{
   display:flex;
