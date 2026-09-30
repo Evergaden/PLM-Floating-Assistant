@@ -1,18 +1,25 @@
 #plm-floating-helper .pfh-home-welcome-main{
   display:flex;
-  align-items:center;
+  align-items:stretch;
   gap:14px;
   min-width:0;
 }
-#plm-floating-helper .pfh-home-welcome-copy{min-width:0;}
+#plm-floating-helper .pfh-home-welcome-copy{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-width:0;
+}
 #plm-floating-helper .pfh-home-clock{
+  display:flex;
+  align-items:center;
   flex:0 0 auto;
   color:var(--pfh-theme-text);
-  font-family:"DIN Alternate","SF Pro Display","PingFang SC",sans-serif;
-  font-size:24px;
+  font-family:"Arial Black","SF Pro Display","PingFang SC",sans-serif;
+  font-size:30px;
   font-weight:700;
-  font-variant-numeric:tabular-nums;
-  letter-spacing:.035em;
+  font-variant-numeric:lining-nums tabular-nums;
+  letter-spacing:-.025em;
   line-height:1;
   white-space:nowrap;
 }
