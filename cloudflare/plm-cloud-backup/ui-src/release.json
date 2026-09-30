@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.293",
+  "version": "2.5.294",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -88,6 +88,10 @@
     },
     {
       "path": "modules/home-carousel.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/unit-converter.css",
       "mode": "module"
     },
     {

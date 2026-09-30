@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.29
+// @version      2.9.30
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.29';
+  const SCRIPT_VERSION = '2.9.30';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.293';
+  const UI_ASSET_VERSION = '2.5.294';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -16302,7 +16302,6 @@
     sizeImageAccessLoading: true,
     sizeImageAccessTimer: 0,
     cmConverterInput: '',
-    cmInchLineInput: '',
     codeFormatterInput: '',
     toolsActiveTool: 'unit',
     supplementFactsDraft: loadSupplementFactsDraft(),
@@ -27541,14 +27540,15 @@
   }
 
   function unitConverterToolPanelHtml() {
-    const result = convertCmInputToInches(state.cmConverterInput);
-    const lineResult = formatCmInchLines(state.cmInchLineInput);
-    return '<section class="pfh-mini-tool-card pfh-tools-panel"><div class="pfh-tools-panel-head"><small>UNIT CONVERTER</small><h3>厘米换算英寸</h3><p>支持单个数值或多个尺寸，例如 3.3 × 3.3 × 12.6。</p></div><label>厘米（cm）</label><textarea class="pfh-unit-converter-input" placeholder="例如：3.3 × 3.3 × 12.6">' + escapeHtml(state.cmConverterInput || '') + '</textarea>' +
-      '<div class="pfh-mini-tool-result"><span>英寸（inch）</span><strong class="pfh-unit-converter-result">' + escapeHtml(result || '等待输入') + '</strong></div>' +
-      '<div class="pfh-mini-tool-actions"><button type="button" data-action="unit-converter-clear">清空</button><button type="button" data-action="unit-converter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div>' +
-      '<label>厘米批量输入（空格分隔）</label><textarea class="pfh-cm-inch-line-input" rows="1" style="min-height:42px;height:42px" placeholder="例如：3.3 161">' + escapeHtml(state.cmInchLineInput || '') + '</textarea>' +
-      '<div class="pfh-mini-tool-result"><span>厘米/英寸（每个尺寸一行）</span><strong class="pfh-cm-inch-line-result">' + escapeHtml(lineResult || '等待输入') + '</strong></div>' +
-      '<div class="pfh-mini-tool-actions"><button type="button" data-action="cm-inch-line-clear">清空</button><button type="button" data-action="cm-inch-line-copy"' + (lineResult ? '' : ' disabled') + '>复制结果</button></div></section>';
+    const result = formatCmInchLines(state.cmConverterInput);
+    return '<section class="pfh-mini-tool-card pfh-tools-panel"><div class="pfh-tools-panel-head"><small>UNIT CONVERTER</small><h3>厘米换算英寸</h3><p>输入厘米数值，空格或 × 分隔多个尺寸。</p></div><label>厘米（cm）</label><textarea class="pfh-unit-converter-input" placeholder="例如：3.3 11.56 或 3.3 × 3.3 × 12.6">' + escapeHtml(state.cmConverterInput || '') + '</textarea>' +
+      '<div class="pfh-mini-tool-result"><span>厘米/英寸（点击单行复制）</span><div class="pfh-unit-converter-result">' + unitConverterResultRowsHtml(result) + '</div></div>' +
+      '<div class="pfh-mini-tool-actions"><button type="button" data-action="unit-converter-clear">清空</button><button type="button" data-action="unit-converter-copy"' + (result ? '' : ' disabled') + '>复制全部</button></div></section>';
+  }
+
+  function unitConverterResultRowsHtml(result) {
+    if (!result) return '<span class="pfh-unit-converter-empty">等待输入</span>';
+    return result.split('\n').map((line) => '<button type="button" class="pfh-unit-converter-row" data-action="unit-converter-copy-line" data-unit-line="' + escapeHtml(line) + '" aria-label="复制 ' + escapeHtml(line) + '"><span>' + escapeHtml(line) + '</span><small>复制</small></button>').join('');
   }
 
   function codeFormatterToolPanelHtml() {
@@ -28570,14 +28570,8 @@
     return advanceToyCopywritingDrawerToFields(drawer, sku);
   }
 
-  function convertCmInputToInches(value) {
-    const numbers = String(value || '').match(/-?\d+(?:\.\d+)?/g) || [];
-    if (!numbers.length) return '';
-    return numbers.map((item) => formatToolNumber(Number(item) * CM_TO_INCH)).join(' × ') + ' inch';
-  }
-
   function formatCmInchLines(value) {
-    const values = String(value || '').trim().split(/\s+/).filter((item) => /^\d+(?:\.\d+)?(?:cm)?$/i.test(item));
+    const values = String(value || '').trim().split(/[\s×xX*、,，;；]+/).filter((item) => /^\d+(?:\.\d+)?(?:cm)?$/i.test(item));
     return values.map((item) => {
       const cm = Number(item.replace(/cm$/i, ''));
       return cm + 'cm/' + formatToolNumber(cm * CM_TO_INCH) + 'inch';
@@ -34791,23 +34785,18 @@ self.onmessage = async function(event) {
       return;
     }
     if (action === 'unit-converter-copy') {
-      const result = convertCmInputToInches(state.cmConverterInput);
+      const result = formatCmInchLines(state.cmConverterInput);
       if (result) {
         copyText(result);
-        showToast('换算结果已复制');
+        showToast('全部换算结果已复制');
       }
       return;
     }
-    if (action === 'cm-inch-line-clear') {
-      state.cmInchLineInput = '';
-      renderShell();
-      return;
-    }
-    if (action === 'cm-inch-line-copy') {
-      const result = formatCmInchLines(state.cmInchLineInput);
-      if (result) {
-        copyText(result);
-        showToast('换算结果已复制');
+    if (action === 'unit-converter-copy-line') {
+      const line = actionTarget.getAttribute('data-unit-line') || '';
+      if (line) {
+        copyText(line);
+        showToast('该尺寸已复制');
       }
       return;
     }
@@ -35581,21 +35570,11 @@ self.onmessage = async function(event) {
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-unit-converter-input')) {
       state.cmConverterInput = event.target.value;
-      const result = convertCmInputToInches(state.cmConverterInput);
+      const result = formatCmInchLines(state.cmConverterInput);
       const panel = ensurePanel();
       const output = panel.querySelector('.pfh-unit-converter-result');
       const copyButton = panel.querySelector('[data-action="unit-converter-copy"]');
-      if (output) output.textContent = result || '等待输入';
-      if (copyButton) copyButton.disabled = !result;
-      return;
-    }
-    if (event.target && event.target.classList && event.target.classList.contains('pfh-cm-inch-line-input')) {
-      state.cmInchLineInput = event.target.value;
-      const result = formatCmInchLines(state.cmInchLineInput);
-      const panel = ensurePanel();
-      const output = panel.querySelector('.pfh-cm-inch-line-result');
-      const copyButton = panel.querySelector('[data-action="cm-inch-line-copy"]');
-      if (output) output.textContent = result || '等待输入';
+      if (output) output.innerHTML = unitConverterResultRowsHtml(result);
       if (copyButton) copyButton.disabled = !result;
       return;
     }
