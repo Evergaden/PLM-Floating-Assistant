@@ -95,3 +95,15 @@
 #plm-floating-helper .pfh-readiness-menu button.pfh-export-choice.is-ready.is-active { border-color: #7fba92; box-shadow: inset 0 0 0 1px #7fba92; }
 #plm-floating-helper .pfh-source-readiness.is-ready small,
 #plm-floating-helper .pfh-export-choice.is-ready small { color: #5d7b67; }
+#plm-floating-helper .pfh-graphic-title button.pfh-source-readiness.is-missing,
+#plm-floating-helper .pfh-readiness-menu button.pfh-export-choice.is-missing {
+  border-color: #f3c5cd;
+  background: #fff1f2;
+  color: #9f3547;
+}
+#plm-floating-helper .pfh-readiness-menu button.pfh-export-choice.is-missing.is-active {
+  border-color: #df8d9b;
+  box-shadow: inset 0 0 0 1px #df8d9b;
+}
+#plm-floating-helper .pfh-source-readiness.is-missing small,
+#plm-floating-helper .pfh-export-choice.is-missing small { color: #b35b6a; }
