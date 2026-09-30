@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.30
+// @version      2.9.31
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.30';
+  const SCRIPT_VERSION = '2.9.31';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.294';
+  const UI_ASSET_VERSION = '2.5.295';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -31493,7 +31493,8 @@ self.onmessage = async function(event) {
 
   function excelTriggerHtml() {
     const readiness = getCurrentExportReadiness();
-    const option = (type, label, missing) => '<button type="button" class="pfh-export-choice' + (missing.length ? ' is-missing' : ' is-ready') + (state.exportType === type ? ' is-active' : '') + '" data-action="export-type" data-export-type="' + type + '" aria-pressed="' + String(state.exportType === type) + '"><span><b>' + escapeHtml(label) + '</b><small>' + escapeHtml(missing.length ? '缺' + missing.join('、') + (type === 'excel' ? ' · 可缺项导出' : ' · 需获取') : '资料齐全 · 可直接导出') + '</small></span></button>';
+    const exportIcon = (type) => '<img class="pfh-export-choice-icon" src="' + escapeHtml(CLOUD_BACKUP_API_BASE + '/assets/export-icons/' + (type === 'excel' ? 'excel-glass-v1.png' : 'toy-label-glass-v1.png')) + '" alt="" width="36" height="36" decoding="async">';
+    const option = (type, label, missing) => '<button type="button" class="pfh-export-choice' + (missing.length ? ' is-missing' : ' is-ready') + (state.exportType === type ? ' is-active' : '') + '" data-action="export-type" data-export-type="' + type + '" aria-pressed="' + String(state.exportType === type) + '">' + exportIcon(type) + '<span class="pfh-export-choice-copy"><b>' + escapeHtml(label) + '</b><small>' + escapeHtml(missing.length ? '缺' + missing.join('、') + (type === 'excel' ? ' · 可缺项导出' : ' · 需获取') : '资料齐全 · 可直接导出') + '</small></span></button>';
     return '<div class="pfh-readiness-menu' + (state.exportMenuOpen ? ' is-open' : '') + '"><button type="button" class="pfh-readiness-trigger" data-action="export-menu-toggle" aria-expanded="' + String(state.exportMenuOpen) + '" title="选择导出类型">导出</button><div class="pfh-readiness-dropdown">' + option('excel', L.exportTypeExcel, readiness.excelMissing) + option('toy-label', L.exportTypeToyLabel, readiness.toyMissing) + excelOptionsHtml() + '</div></div>';
   }
 
