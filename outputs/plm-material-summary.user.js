@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.37
+// @version      2.9.38
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.37';
+  const SCRIPT_VERSION = '2.9.38';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.297';
+  const UI_ASSET_VERSION = '2.5.298';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -1403,14 +1403,14 @@
           context.render();
         }
       });
-      if (!data || !data.sku) return '<div class="pfh-parameter-scroll">' + context.detailViewTabs('parameterImage') + '<div class="pfh-parameter-status is-error">请先从左侧选择 SKU。</div></div>';
+      if (!data || !data.sku) return '<div class="pfh-detail-view-frame">' + context.detailViewTabs('parameterImage') + '<div class="pfh-parameter-scroll"><div class="pfh-parameter-status is-error">请先从左侧选择 SKU。</div></div></div>';
       const session = ensureSession(data);
       const topologyHint = session.topologyMessage ? ' · ' + session.topologyMessage + (session.topologyRuleVersion ? '（' + session.topologyRuleVersion + '）' : '') : '';
       const status = session.error ? '<div class="pfh-parameter-status is-error">' + context.escapeHtml(session.error) + '</div>' : (session.productResult ? '<div class="pfh-parameter-status">已生成产品尺寸图和英文参数图' + context.escapeHtml(topologyHint) + '。</div>' : '');
       const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入透明 PNG 后显示预览</span>') + '</div>';
       const heroImage = preferredImageUrl(data);
       const heroThumb = heroImage ? '<span class="pfh-parameter-hero-thumb"><img src="' + context.escapeHtml(heroImage) + '" alt=""></span>' : '<span class="pfh-parameter-hero-thumb is-empty">' + context.escapeHtml(data.sku) + '</span>';
-      const html = '<div class="pfh-parameter-scroll">' + context.detailViewTabs('parameterImage') + '<section class="pfh-parameter-page">' +
+      const html = '<div class="pfh-detail-view-frame">' + context.detailViewTabs('parameterImage') + '<div class="pfh-parameter-scroll"><section class="pfh-parameter-page">' +
         '<header class="pfh-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
           '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '>' + (session.busy ? '<i class="pfh-loading-scan" aria-hidden="true"></i>' : '') + '<strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>仅支持透明 PNG（JPG / WebP 请先导出为透明 PNG）</span><span>一张图可同时包含纸盒与产品</span></button>' +
@@ -1423,7 +1423,7 @@
           '<div class="pfh-parameter-actions" style="grid-template-columns:repeat(3,minmax(0,1fr))"><button type="button" data-action="parameter-editor-open"' + (!session.file || session.busy ? ' disabled' : '') + '>手动修改</button><button type="button" data-action="parameter-image-regenerate"' + (!session.file || session.busy ? ' disabled' : '') + '>重新生成</button><button type="button" data-action="parameter-image-save"' + (!session.productResult || session.busy ? ' disabled' : '') + '>保存图片</button></div>' +
           '<input type="file" class="pfh-parameter-file" accept="image/png,.png" hidden>' + status +
         '</div><div class="pfh-parameter-previews">' + preview('产品尺寸图', session.productResult) + preview('英文参数图', session.englishResult) + '</div></div>' +
-        '</section></div>';
+        '</section></div></div>';
       return html;
     }
 
@@ -15943,7 +15943,7 @@
     importFailed: '\u5bfc\u5165\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u6587\u4ef6',
     cloudBackupTitle: '\u4e91\u5907\u4efd',
     cloudBackupKey: '\u5907\u4efd\u5bc6\u94a5',
-    cloudBackupPlaceholder: '\u8f93\u5165\u81ea\u5df1\u7684\u5907\u4efd\u5bc6\u94a5',
+    cloudBackupPlaceholder: '自行设置个人专用密钥，不要填写 0000',
     cloudBackupSave: '\u4e0a\u4f20\u5907\u4efd',
     cloudBackupRestore: '\u6062\u590d\u5907\u4efd',
     cloudBackupSaving: '\u6b63\u5728\u4e0a\u4f20\u4e91\u5907\u4efd...',
@@ -15957,7 +15957,7 @@
     cloudBackupOwnerMissing: '\u672a\u8bfb\u53d6\u5230\u5f53\u524d PLM \u59d3\u540d\uff0c\u5df2\u53d6\u6d88\u4e0a\u4f20',
     cloudBackupNotFound: '\u672a\u627e\u5230\u8fd9\u4e2a\u5bc6\u94a5\u7684\u4e91\u5907\u4efd',
     cloudBackupFailed: '\u4e91\u5907\u4efd\u5931\u8d25',
-    cloudBackupHint: '\u586b\u5199\u540e\u4f1a\u4fdd\u5b58\u5728\u672c\u5730 PLM \u811a\u672c\u91cc\uff0c\u6bcf\u6b21\u65b0\u589e/\u66f4\u65b0\u7f16\u7801\u540e\u81ea\u52a8\u5907\u4efd\u4e00\u6b21\u3002',
+    cloudBackupHint: '没有默认密钥。请自行设置并记住个人专用密钥，建议使用较长的字母与数字组合；不要填写 0000、1234 或与他人共用。更换电脑时使用同一密钥恢复自己的备份。填写后保存在本地，新增或更新产品时自动备份。',
     excel: '\u5bfc\u51fa',
     excelPackQty: '\u88c5\u7bb1\u6570',
     excelPurchasePrice: '\u4ef7\u683c',
@@ -22024,7 +22024,7 @@
         '<li><b>1</b><p>\u6253\u5f00\u4efb\u610f\u4ea7\u54c1\u8be6\u60c5\u9875\uff0c\u6b63\u5f0f\u542f\u52a8\u7a0b\u5e8f\u3002</p></li>' +
         '<li><b>2</b><p>\u62d6\u52a8\u7a97\u53e3\u8c03\u6574\u5230\u5408\u9002\u4f4d\u7f6e\uff0c\u8ba9\u5b83\u4fdd\u6301\u8212\u670d\u7684\u5de5\u4f5c\u59ff\u52bf\u3002</p></li>' +
         '<li><b>3</b><div><p>\u5728\u6d4f\u89c8\u5668\u5c5e\u6027\u300c\u76ee\u6807\u300d\u680f\u672b\u5c3e\u6dfb\u52a0\u53c2\u6570\uff1a</p><code>--disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding</code><p>\u907f\u514d\u6d4f\u89c8\u5668\u9000\u5230\u540e\u53f0\u540e\u6682\u505c\u4efb\u52a1\uff0c\u8ba9\u81ea\u52a8\u4e0a\u4f20\u5b89\u9759\u5730\u7ee7\u7eed\u5de5\u4f5c\u3002</p></div></li>' +
-        '<li><b>4</b><div><p>\u5148\u8bbe\u7f6e\u4e00\u4e32\u4ec5\u4f60\u77e5\u9053\u7684\u4e91\u5907\u4efd\u5bc6\u94a5\uff08\u81f3\u5c11 4 \u4f4d\uff09\u3002\u5b83\u7528\u6765\u533a\u5206\u548c\u627e\u56de\u4f60\u81ea\u5df1\u7684\u5907\u4efd\u3002</p><label class="pfh-tutorial-key"><span>\u5907\u4efd\u5bc6\u94a5</span><input type="text" class="pfh-tutorial-cloud-key" value="' + escapeHtml(state.settings.cloudBackupKey || '') + '" placeholder="\u8bf7\u8f93\u5165\u81f3\u5c11 4 \u4f4d\u5bc6\u94a5" minlength="4" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label></div></li>' +
+        '<li><b>4</b><div><p>请自行设置并记住一个个人专用的云备份密钥（至少 4 位，建议使用较长的字母与数字组合）。没有默认密钥，请不要填写 0000、1234，也不要照抄或与同事共用，否则可能与他人的备份冲突。以后换电脑时，填写同一密钥恢复自己的备份。</p><label class="pfh-tutorial-key"><span>备份密钥</span><input type="text" class="pfh-tutorial-cloud-key" value="' + escapeHtml(state.settings.cloudBackupKey || '') + '" placeholder="' + escapeHtml(L.cloudBackupPlaceholder) + '" minlength="4" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label></div></li>' +
       '</ol>' +
       '<button type="button" data-action="first-run-tutorial-done"' + (getCloudBackupKey().length >= 4 ? '' : ' aria-disabled="true"') + '>\u5f00\u59cb\u4f7f\u7528</button>' +
     '</section>';
@@ -26131,8 +26131,8 @@
     return '<div class="pfh-copywriting-hero-controls"><label><span>查看方式</span><select class="pfh-copywriting-view-select" aria-label="选择文案查看方式">' +
       '<option value="file"' + (view === 'file' ? ' selected' : '') + '>文件视图</option>' +
       '<option value="full"' + (view === 'full' ? ' selected' : '') + '>全文视图</option>' +
-      '</select></label>' + collapseButton +
-      '<div class="pfh-copywriting-hero-action-row"><button type="button" data-action="copywriting-refresh"' + (state.copywritingLoading || state.copywritingChecking ? ' disabled' : '') + '>' + iconHtml('refresh') + '重新获取</button>' +
+      '</select></label>' +
+      '<div class="pfh-copywriting-hero-action-row">' + collapseButton + '<button type="button" data-action="copywriting-refresh"' + (state.copywritingLoading || state.copywritingChecking ? ' disabled' : '') + '>' + iconHtml('refresh') + '重新获取</button>' +
       (record && record.fullText ? '<button type="button" data-action="copywriting-copy">' + copywritingCopyIconHtml() + '复制全文</button>' : '') +
       '</div></div>';
   }
@@ -26504,7 +26504,6 @@
     if (!data || !data.sku) return '';
     const isToy = isToyCopywritingProduct(data);
     const isFoodEntry = isFoodEntryCopywritingProduct(data);
-    const isIngredientOnly = !isToy && !isFoodEntry;
     const label = isFoodEntry ? '\u667a\u80fd\u8865\u5145\u98df\u54c1\u6587\u6848' : (isToy ? '\u667a\u80fd\u8865\u5145\u73a9\u5177\u6587\u6848' : '\u8865\u5168\u6210\u5206');
     const hasError = Boolean(data && data.sku && state.toyCopywritingErrorSku === data.sku && state.toyCopywritingError);
     if (!isToy) {
@@ -26521,8 +26520,7 @@
       const shortStatus = loading ? '读取中' : !ready ? '需获取' : drawerReady ? '可补充' : '去详情补充';
       return '<button type="button" class="pfh-source-readiness' + (loading ? '' : ready ? ' is-ready' : ' is-missing') + '" data-action="' + (ready && drawerReady ? 'toy-copywriting-fill' : 'open-detail') + '" title="' + escapeHtml(hint) + '"' + (loading ? ' disabled' : '') + '><span><span>' + label + '</span><small>' + shortStatus + '</small></span></button>';
     }
-    return '<button type="button" class="pfh-toy-copywriting-button' + (state.toyCopywritingBusy ? ' is-busy' : '') + (hasError ? ' is-error' : '') + '" data-action="toy-copywriting-fill"' + (state.toyCopywritingBusy ? ' disabled' : '') + '>' +
-      (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner pfh-loading-ring" aria-hidden="true"></span>' + (isIngredientOnly ? '\u6210\u5206\u8865\u5145\u4e2d' : '\u667a\u80fd\u8865\u5145\u4e2d') : (hasError && !isToy ? '\u26a0 ' + (isFoodEntry ? '\u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25' : '\u6210\u5206\u8865\u5145\u5931\u8d25') : sparkleEntranceIconHtml() + '<span>' + label + '</span>')) + '</button>';
+    return '<button type="button" class="pfh-source-readiness' + (state.toyCopywritingBusy ? '' : hasError ? ' is-missing' : ' is-ready') + '" data-action="toy-copywriting-fill" title="' + escapeHtml(hasError ? state.toyCopywritingError : '智能补充玩具文案') + '"' + (state.toyCopywritingBusy ? ' disabled' : '') + '><span><span>' + label + '</span><small>' + (state.toyCopywritingBusy ? '补充中' : hasError ? '重试' : '可补充') + '</small></span></button>';
   }
 
   function sparkleEntranceIconHtml() {
@@ -28849,7 +28847,7 @@
   function sizeImageViewHtml() {
     const data = getActiveSizeImageData();
     if (!data || !data.sku) {
-      return '<div class="pfh-detail-scroll pfh-size-image-scroll">' + detailViewTabsHtml('sizeImage') + '<section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>选择一个 SKU 或自定义尺寸</strong><p>缓存中没有 SKU 时，也可以直接填写 SKU、尺寸、标题和备注，再上传底图生成尺寸图。</p><button type="button" class="pfh-size-image-custom-button" data-action="size-image-custom-open">自定义尺寸图</button></div></section>' + sizeImageCustomModalHtml() + '</div>';
+      return '<div class="pfh-detail-view-frame">' + detailViewTabsHtml('sizeImage') + '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>选择一个 SKU 或自定义尺寸</strong><p>缓存中没有 SKU 时，也可以直接填写 SKU、尺寸、标题和备注，再上传底图生成尺寸图。</p><button type="button" class="pfh-size-image-custom-button" data-action="size-image-custom-open">自定义尺寸图</button></div></section></div>' + sizeImageCustomModalHtml() + '</div>';
     }
     const cartonSpec = getSizeImageSpec(data);
     const labelSpecs = getLabelSizeImageSpecs(data);
@@ -28901,7 +28899,7 @@
       }),
     ].filter(Boolean).join('');
     const pendingMatch = session.pendingLabelMatches.length ? '<div class="pfh-size-image-match-list"><strong>\u8bf7\u9009\u62e9\u56fe\u7247\u5bf9\u5e94\u7684\u5c3a\u5bf8</strong>' + session.pendingLabelMatches.map((pending) => '<div><span>' + escapeHtml(pending.file.name || '\u5f85\u5339\u914d\u56fe\u7247') + '</span><select class="pfh-size-image-match-select" data-pending-id="' + escapeHtml(pending.id) + '">' + labelSpecs.map((spec) => '<option value="' + escapeHtml(spec.key) + '">' + escapeHtml((spec.kind === 'print' ? '\u5370\u5237 ' : '\u6807\u7b7e ') + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm') + '</option>').join('') + '</select><button type="button" data-action="size-image-confirm-match" data-pending-id="' + escapeHtml(pending.id) + '">\u786e\u8ba4\u751f\u6210</button></div>').join('') + '</div>' : '';
-    return '<div class="pfh-detail-scroll pfh-size-image-scroll">' + detailViewTabsHtml('sizeImage') + '<section class="pfh-size-image-page">' +
+    return '<div class="pfh-detail-view-frame">' + detailViewTabsHtml('sizeImage') + '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
       '<header class="pfh-size-image-hero"><div class="pfh-size-image-hero-media">' + productThumbHtml(data) + '</div><div class="pfh-size-image-hero-copy"><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || (data.isCustomSizeImage ? '自定义数据' : '\u9009\u4e2d\u4ea7\u54c1')) + '</p></div><div class="pfh-size-image-hero-actions"><button type="button" class="pfh-size-image-custom-button" data-action="size-image-custom-open">自定义尺寸图</button></div></header>' +
       (!(cartonSpec || labelSpec) ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
       '<div class="pfh-size-image-workspace' + (busy ? ' is-busy' : '') + '"><div class="pfh-size-image-controls">' +
@@ -28913,7 +28911,7 @@
         '<div class="pfh-size-image-actions"><button type="button" class="is-secondary" data-action="size-image-regenerate"' + (canRegenerate && !busy ? '' : ' disabled') + '>' + iconHtml('refresh') + '\u91cd\u65b0\u751f\u6210</button><button type="button" class="is-primary" data-action="size-image-save-all"' + (resultCount && !busy ? '' : ' disabled') + '>' + iconHtml('download') + '\u53e6\u5b58\u5c3a\u5bf8\u56fe JPG</button></div>' +
         pendingMatch + '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + status +
       '</div>' + preview + '</div>' +
-    '</section>' + sizeImageCustomModalHtml() + '</div>';
+    '</section></div>' + sizeImageCustomModalHtml() + '</div>';
   }
 
   function ensureSizeImageSession(sku) {

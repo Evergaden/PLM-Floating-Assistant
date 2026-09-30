@@ -1,4 +1,11 @@
 /*  Copywriting layout and interaction rules migrated from the legacy cascade.  */
+      #plm-floating-helper .pfh-copywriting-parameter-hero {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr);
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+      }
       #plm-floating-helper .pfh-copywriting-parameter-hero .pfh-parameter-hero-copy {
         flex: 1 1 auto;
         min-width: 0;
@@ -11,18 +18,20 @@
         white-space: nowrap;
       }
       #plm-floating-helper .pfh-copywriting-hero-controls {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        display: flex;
+        grid-column: 1 / -1;
+        flex-wrap: wrap;
         align-items: center;
-        gap: 5px 6px;
-        width: 242px;
-        flex: 0 0 242px;
-        margin-left: auto;
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
       }
       #plm-floating-helper .pfh-copywriting-hero-controls label {
         display: inline-flex;
         align-items: center;
         gap: 6px;
+        margin-right: auto;
         min-width: 0;
         color: var(--pfh-theme-text, #30285e);
         font-size: 11px;
@@ -32,22 +41,26 @@
         width: 100px;
         min-width: 100px;
         max-width: 100px;
-        height: 28px;
+        height: 32px;
+        box-sizing: border-box;
         padding-left: 8px;
         font-size: 11px;
       }
       #plm-floating-helper .pfh-copywriting-hero-action-row {
         display: flex;
-        grid-column: 1 / -1;
+        flex-wrap: wrap;
         justify-content: flex-end;
         gap: 6px;
+        min-width: 0;
       }
       #plm-floating-helper .pfh-copywriting-hero-controls button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 4px;
-        min-height: 28px;
+        height: 32px;
+        min-height: 32px;
+        box-sizing: border-box;
         padding: 0 8px;
         border: 1px solid var(--pfh-theme-border, #d8deea);
         border-radius: 8px;
@@ -73,6 +86,15 @@
         width: 13px;
         height: 13px;
         flex: 0 0 13px;
+        min-width: 0;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        color: inherit;
         fill: none;
         stroke: currentColor;
         stroke-width: 1.8;
@@ -80,6 +102,9 @@
       #plm-floating-helper .pfh-copywriting-scroll {
         display: grid;
         grid-template-rows: auto auto minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
+        box-sizing: border-box;
+        width: 100%;
         height: 100%;
         min-width: 0;
         min-height: 0;
@@ -124,6 +149,8 @@
       }
       #plm-floating-helper .pfh-copywriting-page {
         align-content: start;
+        box-sizing: border-box;
+        max-width: 100%;
         min-width: 0;
         min-height: 0;
         height: 100%;
@@ -131,6 +158,9 @@
       }
       #plm-floating-helper .pfh-copywriting-content {
         min-width: 0;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 100%;
         min-height: 0;
         overflow: auto;
         scrollbar-width: thin;
