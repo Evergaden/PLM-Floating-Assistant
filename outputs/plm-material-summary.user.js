@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.36
+// @version      2.9.37
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.36';
+  const SCRIPT_VERSION = '2.9.37';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -4109,13 +4109,17 @@
   // </notifications-module>
   // <observability-module>
   const DIAGNOSTIC_QUEUE_KEY = 'plm-floating-helper:diagnostics:v1';
-  const DIAGNOSTIC_QUEUE_LIMIT = 30;
+  const DIAGNOSTIC_QUEUE_LIMIT = 200;
   const DIAGNOSTIC_DEDUP_MS = 5 * 60 * 1000;
   const diagnosticRecent = Object.create(null);
   let diagnosticFlushPromise = null;
   let diagnosticInstalled = false;
+  let diagnosticRetryTimer = 0;
+  let diagnosticRetryCount = 0;
+  let diagnosticMemoryQueue = null;
 
   function diagnosticStoreGet() {
+    if (diagnosticMemoryQueue) return diagnosticMemoryQueue.slice();
     try {
       const saved = typeof GM_getValue === 'function'
         ? GM_getValue(DIAGNOSTIC_QUEUE_KEY, [])
@@ -4128,11 +4132,12 @@
 
   function diagnosticStoreSet(items) {
     const queue = (Array.isArray(items) ? items : []).slice(-DIAGNOSTIC_QUEUE_LIMIT);
+    diagnosticMemoryQueue = queue;
     try {
       if (typeof GM_setValue === 'function') GM_setValue(DIAGNOSTIC_QUEUE_KEY, queue);
       else localStorage.setItem(DIAGNOSTIC_QUEUE_KEY, JSON.stringify(queue));
     } catch (_) {
-      // The report still remains visible in the runtime log when storage is full.
+      // Keep reports in memory for immediate delivery when persistent storage is full.
     }
   }
 
@@ -4164,13 +4169,24 @@
 
   function inferDiagnosticFeature(message) {
     const text = String(message || '');
-    if (/Excel|表格|Workbook|worksheet|sheets/i.test(text)) return 'excel';
-    if (/上传|提审|图包|标签/i.test(text)) return 'upload';
+    if (/Excel|XLSX|表格|Workbook|worksheet|sheets/i.test(text)) return 'excel';
     if (/备份|恢复/i.test(text)) return 'backup';
     if (/参数图|尺寸图/i.test(text)) return 'image';
-    if (/AI|文案|成分表/i.test(text)) return 'ai-content';
-    if (/云端|同步|网络|请求/i.test(text)) return 'cloud';
+    if (/上传|提审|图包|标签|OSS/i.test(text)) return 'upload';
+    if (/AI|文案|成分|翻译/i.test(text)) return 'ai-content';
+    if (/缓存|存储|配额|QuotaExceeded/i.test(text)) return 'storage';
+    if (/建品|BOM|开发任务/i.test(text)) return 'product-development';
+    if (/条码|导出|下载|剪贴板|复制/i.test(text)) return 'export';
+    if (/权限|鉴权|登录|401|403/i.test(text)) return 'auth';
+    if (/读取|抓取|物料|数据缺失/i.test(text)) return 'data-read';
+    if (/云端|同步|网络|请求|HTTP|timeout|fetch/i.test(text)) return 'cloud';
     return 'runtime';
+  }
+
+  function shouldReportDiagnosticLog(level, message, detail) {
+    const severity = String(level || '').toLowerCase();
+    if (severity === 'error') return true;
+    return severity === 'warn' && /失败|错误|异常|超时|不可用|无法|拦截|未找到|未获取|缺失|缺少|超过.*上限|超过入口限制|失效|未加载|未就绪|中断|拒绝|timeout|network|error|HTTP\s*[45]\d\d/i.test([message, detail && detail.message || detail].filter(Boolean).join(' '));
   }
 
   function currentDiagnosticSku(message) {
@@ -4179,12 +4195,12 @@
   }
 
   function createDiagnosticEvent(error, options) {
-    const source = error instanceof Error ? error : new Error(String(error || '未知错误'));
+    const source = error && typeof error === 'object' && error.message ? error : { message: String(error || '未知错误') };
     const message = sanitizeDiagnosticText(source.message || error, 600) || '未知错误';
     const stack = sanitizeDiagnosticText(source.stack || '', 3000);
     const feature = sanitizeDiagnosticText(options && options.feature || inferDiagnosticFeature(message), 60);
     const action = sanitizeDiagnosticText(options && options.action || 'runtime', 80);
-    const fingerprint = diagnosticHash([feature, action, message.replace(/\d+/g, '#'), stack.split(/\r?\n/)[1] || ''].join('|'));
+    const fingerprint = diagnosticHash([feature, action, message.replace(/SKU\d+/gi, 'SKU#').replace(/\b\d{8,}\b/g, '#'), stack.split(/\r?\n/)[1] || ''].join('|'));
     const errorCode = makeDiagnosticCode(fingerprint);
     const eventId = typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
@@ -4202,7 +4218,7 @@
       uiVersion: typeof UI_ASSET_VERSION === 'undefined' ? '' : String(UI_ASSET_VERSION || '').slice(0, 80),
       userName: typeof findCurrentPlmUserName === 'function' ? String(findCurrentPlmUserName() || '').slice(0, 80) : '',
       instanceId: typeof getClientInstanceId === 'function' ? String(getClientInstanceId() || '').slice(0, 120) : '',
-      sku: currentDiagnosticSku([message, options && options.detail].filter(Boolean).join(' ')),
+      sku: String(options && options.sku || currentDiagnosticSku([message, options && options.detail].filter(Boolean).join(' '))).slice(0, 80),
       pagePath: String(location && location.pathname || '').slice(0, 240),
       occurredAt: new Date().toISOString(),
       context: {
@@ -4222,6 +4238,8 @@
 
   function flushDiagnosticQueue() {
     if (diagnosticFlushPromise || typeof cloudRequest !== 'function') return diagnosticFlushPromise;
+    window.clearTimeout(diagnosticRetryTimer);
+    diagnosticRetryTimer = 0;
     const queue = diagnosticStoreGet();
     if (!queue.length) return null;
     const event = queue[0];
@@ -4231,12 +4249,15 @@
       body: event,
       headers: { 'x-plm-request-id': event.eventId },
     }).then(() => {
+      diagnosticRetryCount = 0;
       const current = diagnosticStoreGet();
       diagnosticStoreSet(current.filter((item) => item && item.eventId !== event.eventId));
       diagnosticFlushPromise = null;
       if (diagnosticStoreGet().length) window.setTimeout(flushDiagnosticQueue, 120);
     }).catch(() => {
       diagnosticFlushPromise = null;
+      diagnosticRetryCount += 1;
+      diagnosticRetryTimer = window.setTimeout(flushDiagnosticQueue, Math.min(60000, 2000 * Math.pow(2, Math.min(diagnosticRetryCount - 1, 5))));
     });
     return diagnosticFlushPromise;
   }
@@ -4244,9 +4265,13 @@
   function reportDiagnostic(error, options) {
     try {
       const event = createDiagnosticEvent(error, options || {});
-      const recent = diagnosticRecent[event.fingerprint];
+      const dedupKey = [event.fingerprint, event.sku, event.severity].join('|');
+      const recent = diagnosticRecent[dedupKey];
       if (recent && Date.now() - recent.at < DIAGNOSTIC_DEDUP_MS) return recent.code;
-      diagnosticRecent[event.fingerprint] = { at: Date.now(), code: event.errorCode };
+      Object.keys(diagnosticRecent).forEach((key) => {
+        if (Date.now() - diagnosticRecent[key].at >= DIAGNOSTIC_DEDUP_MS) delete diagnosticRecent[key];
+      });
+      diagnosticRecent[dedupKey] = { at: Date.now(), code: event.errorCode };
       enqueueDiagnostic(event);
       return event.errorCode;
     } catch (_) {
@@ -4254,13 +4279,35 @@
     }
   }
 
-  function reportDiagnosticFromLog(message, detail) {
-    const error = detail instanceof Error ? detail : new Error([message, detail].filter(Boolean).join(' | '));
+  function reportDiagnosticFromLog(message, detail, severity) {
+    const error = { message: [message, detail && detail.message || detail].filter(Boolean).join(' | '), stack: detail && detail.stack || '' };
     return reportDiagnostic(error, {
-      feature: inferDiagnosticFeature(message),
+      feature: inferDiagnosticFeature(error.message),
       action: sanitizeDiagnosticText(message, 80),
+      severity: severity || 'error',
       detail,
     });
+  }
+
+  function runDiagnosticAction(handler, event) {
+    const target = event && event.target;
+    const button = target && target.closest && target.closest('[data-action]');
+    const action = button && button.getAttribute('data-action') || handler.name || 'panel-action';
+    const sku = button && button.getAttribute('data-sku') || '';
+    const failed = (error) => {
+      if (error && error.name === 'AbortError') return;
+      const code = reportDiagnostic(error, { feature: inferDiagnosticFeature(action), action, sku });
+      showToast('操作失败：' + formatErrorMessage(error) + (code ? ' · 错误编号 ' + code : ''), { diagnostic: false });
+    };
+    try {
+      const result = handler(event);
+      if (result && typeof result.then === 'function') result.catch(failed);
+    } catch (error) { failed(error); }
+  }
+
+  function reportDiagnosticRequest(error, url, feature, method) {
+    const endpoint = String(url || '').split(/[?#]/)[0].replace(/^https?:\/\/[^/]+/i, '').slice(0, 160);
+    return reportDiagnostic(error, { feature, action: method + ' ' + endpoint, sku: typeof findSku === 'function' ? findSku(String(url || '')) : '' });
   }
 
   function isUserscriptDiagnostic(error, filename) {
@@ -4275,9 +4322,15 @@
     if (diagnosticInstalled) return;
     diagnosticInstalled = true;
     window.addEventListener('error', (event) => {
+      const target = event.target;
+      const resource = target && (target.src || target.href) || '';
+      if (resource && /exceljs|jszip|ali-oss|plm-material-summary|plm-floating-helper/i.test(resource)) {
+        reportDiagnostic('依赖资源加载失败', { feature: 'resource', action: sanitizeDiagnosticText(resource, 120), severity: 'error' });
+        return;
+      }
       if (!isUserscriptDiagnostic(event.error, event.filename)) return;
       reportDiagnostic(event.error || event.message, { feature: 'runtime', action: 'window-error' });
-    });
+    }, true);
     window.addEventListener('unhandledrejection', (event) => {
       const reason = event && event.reason;
       if (!isUserscriptDiagnostic(reason, '')) return;
@@ -19640,6 +19693,14 @@
   }
 
   async function fetchPlmJson(url) {
+    try { return await fetchPlmJsonRequest(url); }
+    catch (error) {
+      reportDiagnosticRequest(error, url, 'plm-api', 'GET');
+      throw error;
+    }
+  }
+
+  async function fetchPlmJsonRequest(url) {
     const baseRequestHeaders = {
       Accept: 'application/json, text/plain, */*',
       'x-app-code': 'PLM',
@@ -19728,6 +19789,14 @@
   }
 
   async function fetchPlmApiJson(url, body, options) {
+    try { return await fetchPlmApiJsonRequest(url, body, options); }
+    catch (error) {
+      reportDiagnosticRequest(error, url, 'plm-api', 'POST');
+      throw error;
+    }
+  }
+
+  async function fetchPlmApiJsonRequest(url, body, options) {
     const opts = options || {};
     const timeout = Math.max(1000, Number(opts.timeout) || 30000);
     const request = {
@@ -21252,12 +21321,12 @@
     panel.querySelector('[data-action="collapse"]').setAttribute('data-action', 'panel-close');
     panel.addEventListener('click', handleLedgerMoreClickCapture, true);
     panel.addEventListener('click', handleHomeFeatureRailClickCapture, true);
-    panel.addEventListener('click', handlePanelClick);
+    panel.addEventListener('click', (event) => runDiagnosticAction(handlePanelClick, event));
     panel.addEventListener('contextmenu', handlePanelContextMenu);
-    panel.addEventListener('keydown', handlePanelKeydown);
-    panel.addEventListener('input', handlePanelInput);
-    panel.addEventListener('paste', handlePanelPaste);
-    panel.addEventListener('change', handlePanelChange);
+    panel.addEventListener('keydown', (event) => runDiagnosticAction(handlePanelKeydown, event));
+    panel.addEventListener('input', (event) => runDiagnosticAction(handlePanelInput, event));
+    panel.addEventListener('paste', (event) => runDiagnosticAction(handlePanelPaste, event));
+    panel.addEventListener('change', (event) => runDiagnosticAction(handlePanelChange, event));
     panel.addEventListener('pointerdown', handleLedgerTableSkuPointerDown);
     panel.addEventListener('pointermove', handleLedgerTableSkuPointerMove);
     panel.addEventListener('pointerup', handleLedgerTableSkuPointerEnd);
@@ -31814,7 +31883,8 @@ self.onmessage = async function(event) {
     menu.className = 'pfh-sku-context-menu';
     menu.setAttribute('role', 'menu');
     menu.innerHTML = searchHtml + cacheHtml +
-      '<button type="button" data-action="sku-context-barcode" data-sku="' + escapeHtml(sku) + '">生成条码</button>';
+      '<button type="button" data-action="sku-context-barcode" data-sku="' + escapeHtml(sku) + '">生成条码</button>' +
+      '<button type="button" data-action="sku-context-delete" data-sku="' + escapeHtml(sku) + '" title="从助手列表删除该产品及其本地缓存">删除产品</button>';
     panel.appendChild(menu);
     state.skuContextMenuSku = sku;
     panel.querySelectorAll('[data-action="sku-detail-more"]').forEach((button) => {
@@ -34250,7 +34320,15 @@ self.onmessage = async function(event) {
         || { sku };
       const data = normalizeData(source);
       closeSkuWaterfallContextMenu(ensurePanel());
-      try { downloadSkuBarcode(sku, data.name); } catch (error) { showToast(formatErrorMessage(error)); }
+      try { downloadSkuBarcode(sku, data.name); } catch (error) { addLog('error', '生成条码失败', error); showToast(formatErrorMessage(error)); }
+      return;
+    }
+    if (action === 'sku-context-delete') {
+      const sku = actionTarget.getAttribute('data-sku') || '';
+      closeSkuWaterfallContextMenu(ensurePanel());
+      closeSkuCacheEditor();
+      deleteSkuFromList(sku);
+      renderShell();
       return;
     }
     if (action === 'sku-context-cache') {
@@ -47849,6 +47927,14 @@ self.onmessage = async function(event) {
   }
 
   async function cloudRequest(path, options) {
+    try { return await authenticatedCloudRequest(path, options); }
+    catch (error) {
+      if (!/^\/diagnostics(?:\/|$)/.test(path)) reportDiagnosticRequest(error, path, 'cloud', options && options.method || 'GET');
+      throw error;
+    }
+  }
+
+  async function authenticatedCloudRequest(path, options) {
     const requestOptions = options || {};
     const token = await ensureCloudAuthToken(Boolean(requestOptions.forceAuth));
     try {
@@ -48010,6 +48096,9 @@ self.onmessage = async function(event) {
   }
 
   function showToast(text, options) {
+    if (!(options && options.diagnostic === false) && shouldReportDiagnosticLog('warn', text)) {
+      reportDiagnosticFromLog(text, '', 'warn');
+    }
     const message = neutralizeTechnicalTerms(text);
     if (!message) return;
     const quiet = Boolean(options && options.quiet);
@@ -48062,8 +48151,8 @@ self.onmessage = async function(event) {
   }
 
   function addLog(level, message, detail) {
-    const diagnosticCode = String(level || '').toLowerCase() === 'error'
-      ? reportDiagnosticFromLog(message, detail)
+    const diagnosticCode = shouldReportDiagnosticLog(level, message, detail)
+      ? reportDiagnosticFromLog(message, detail, String(level).toLowerCase())
       : '';
     const text = neutralizeTechnicalTerms([message, detail, diagnosticCode && ('错误编号 ' + diagnosticCode)].filter(Boolean).join(' | '));
     const item = {
@@ -48111,6 +48200,7 @@ self.onmessage = async function(event) {
       else localStorage.setItem(LOG_KEY, JSON.stringify(state.logs || []));
     } catch (error) {
       console.warn('PLM floating helper log save failed:', error);
+      reportDiagnostic(error, { feature: 'storage', action: 'save-logs' });
     }
   }
 
@@ -48654,6 +48744,7 @@ self.onmessage = async function(event) {
       else localStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify(state.index));
     } catch (error) {
       console.warn('PLM floating helper index save failed:', error);
+      reportDiagnostic(error, { feature: 'storage', action: 'save-index' });
     }
     const notifyFrontendCatalogChanged = typeof window !== 'undefined' && window.notifyFrontendV2CatalogChanged;
     if (typeof notifyFrontendCatalogChanged === 'function') {
@@ -48706,6 +48797,7 @@ self.onmessage = async function(event) {
       else localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch (error) {
       console.warn('PLM floating helper settings save failed:', error);
+      reportDiagnostic(error, { feature: 'storage', action: 'save-settings' });
     }
   }
 
@@ -48755,6 +48847,7 @@ self.onmessage = async function(event) {
       else localStorage.setItem(EXCEL_BATCH_QUEUE_KEY, JSON.stringify(snapshot));
     } catch (error) {
       console.warn('PLM floating helper Excel batch queue save failed:', error);
+      reportDiagnostic(error, { feature: 'storage', action: 'save-excel-queue' });
     }
   }
 
@@ -48786,6 +48879,7 @@ self.onmessage = async function(event) {
       else localStorage.setItem(MANUAL_SKU_ADD_QUEUE_KEY, JSON.stringify(snapshot));
     } catch (error) {
       console.warn('PLM floating helper manual SKU queue save failed:', error);
+      reportDiagnostic(error, { feature: 'storage', action: 'save-manual-sku-queue' });
     }
   }
 
@@ -48870,6 +48964,7 @@ self.onmessage = async function(event) {
       else localStorage.setItem(TOY_COPYWRITING_BATCH_KEY, JSON.stringify(snapshot));
     } catch (error) {
       console.warn('PLM floating helper toy copywriting batch queue save failed:', error);
+      reportDiagnostic(error, { feature: 'storage', action: 'save-copywriting-queue' });
     }
   }
 
@@ -48879,6 +48974,7 @@ self.onmessage = async function(event) {
       else localStorage.setItem(UPLOAD_QUEUE_KEY, JSON.stringify(state.uploadQueue));
     } catch (error) {
       console.warn('PLM floating helper upload queue save failed:', error);
+      reportDiagnostic(error, { feature: 'storage', action: 'save-upload-queue' });
     }
   }
 
@@ -48897,6 +48993,7 @@ self.onmessage = async function(event) {
       else localStorage.setItem(UPLOAD_HISTORY_KEY, JSON.stringify(state.uploadHistory));
     } catch (error) {
       console.warn('PLM floating helper upload history save failed:', error);
+      reportDiagnostic(error, { feature: 'storage', action: 'save-upload-history' });
     }
   }
 
@@ -48915,6 +49012,7 @@ self.onmessage = async function(event) {
       }
     } catch (error) {
       console.warn('PLM floating helper upload state save failed:', error);
+      reportDiagnostic(error, { feature: 'storage', action: 'save-upload-state' });
     }
     state.uploadQueue = queueSnapshot;
     state.uploadHistory = historySnapshot;
@@ -49122,6 +49220,7 @@ self.onmessage = async function(event) {
       }
     } catch (error) {
       console.warn('PLM floating helper upload worker save failed:', error);
+      reportDiagnostic(error, { feature: 'storage', action: 'save-upload-worker' });
     }
   }
 
@@ -49415,6 +49514,9 @@ self.onmessage = async function(event) {
       else localStorage.removeItem(STORAGE_PREFIX + sku);
     } catch (error) {
       console.warn('PLM floating helper SKU delete failed:', error);
+      addLog('error', '删除产品缓存失败', error);
+      showToast('删除产品失败：' + formatErrorMessage(error), { diagnostic: false });
+      return;
     }
     state.index = state.index.filter((entry) => entry.sku !== sku);
     saveIndex();
@@ -49441,6 +49543,7 @@ self.onmessage = async function(event) {
       const raw = localStorage.getItem(STORAGE_PREFIX + sku);
       return raw ? JSON.parse(raw) : null;
     } catch (error) {
+      reportDiagnostic(error, { feature: 'storage', action: 'load-sku-cache', sku });
       return null;
     }
   }
