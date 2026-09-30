@@ -76,7 +76,8 @@
 }
 
 #plm-floating-helper .pfh-home-welcome > .pfh-work-mode-switch {
-  align-self: flex-end;
+  flex: 0 0 auto;
+  align-self: center;
   margin: 0;
 }
 
