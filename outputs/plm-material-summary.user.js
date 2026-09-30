@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.34
+// @version      2.9.35
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.34';
+  const SCRIPT_VERSION = '2.9.35';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -27185,7 +27185,7 @@
       '<span class="pfh-home-task-icon">' + iconHtml(task.icon) + '</span>' +
       '<span class="pfh-home-task-main"><span class="pfh-home-task-name"><b title="' + escapeHtml(task.title) + '">' + escapeHtml(task.title) + '</b><em>' + task.progress + '%</em></span><span class="pfh-home-task-progress"><i style="width:' + task.progress + '%"></i></span><small>' + escapeHtml(task.status) + '</small></span>' +
       '<i class="pfh-home-task-status"></i></button>').join('') + '</div>' :
-      '<div class="pfh-home-task-empty"><span>' + iconHtml('taskPlan') + '</span><strong>暂时没有进行中的任务</strong><p>任务中心位置已预留，后续会集中显示上传、生成和提审进度。</p><div><i>上传队列</i><i>生成进度</i><i>提审状态</i></div></div>';
+      '<div class="pfh-home-task-empty"><img src="' + escapeHtml(CLOUD_BACKUP_API_BASE + '/assets/export-icons/task-empty-glass-v1.png') + '" alt="" width="56" height="56" decoding="async"><strong>暂时没有进行中的任务</strong><p>任务中心位置已预留，后续会集中显示上传、生成和提审进度。</p><div><i>上传队列</i><i>生成进度</i><i>提审状态</i></div></div>';
     return '<section class="pfh-home-panel pfh-home-task-panel"><div class="pfh-home-panel-title"><h3>任务动态</h3>' + previewBadge + '</div>' + body + '<footer><span>最多展示最近 4 项</span>' + (tasks.length ? '<button type="button" data-action="upload-toggle">查看上传队列 →</button>' : '') + '</footer></section>';
   }
 
