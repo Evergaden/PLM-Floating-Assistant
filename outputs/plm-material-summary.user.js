@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.35
+// @version      2.9.36
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.35';
+  const SCRIPT_VERSION = '2.9.36';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -2914,6 +2914,7 @@
   const MAGIC_TOY_LABEL_HISTORY_KEY = 'plm-floating-helper:magic-toy-label-history:v1';
   const MAGIC_UPLOAD_CONCURRENCY = 3;
   const MAGIC_UPLOAD_MAX_FILE_BYTES = 100 * 1024 * 1024;
+  const MAGIC_UPLOAD_XLSX_MAX_FILE_BYTES = 50 * 1024 * 1024;
   const MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES = 150 * 1024 * 1024;
   const MAGIC_UPLOAD_IMAGE_MAX_FILE_BYTES = 50 * 1024 * 1024;
   const MAGIC_UPLOAD_MEDIA_MAX_FILE_BYTES = 200 * 1024 * 1024;
@@ -23927,16 +23928,16 @@
     }
     const sourceFiles = (files || []).filter((file) => {
       if (!file || !/\.(?:zip|xlsx)$/i.test(file.name || '')) return false;
-      const maxBytes = /\.zip$/i.test(file.name || '') ? MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES : MAGIC_UPLOAD_MAX_FILE_BYTES;
+      const maxBytes = /\.zip$/i.test(file.name || '') ? MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES : MAGIC_UPLOAD_XLSX_MAX_FILE_BYTES;
       return Number(file.size || 0) <= maxBytes;
     })
       .sort((a, b) => Number(/\.xlsx$/i.test(b.name || '')) - Number(/\.xlsx$/i.test(a.name || '')));
     const oversizedFiles = (files || []).filter((file) => {
       if (!file || !/\.(?:zip|xlsx)$/i.test(file.name || '')) return false;
-      const maxBytes = /\.zip$/i.test(file.name || '') ? MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES : MAGIC_UPLOAD_MAX_FILE_BYTES;
+      const maxBytes = /\.zip$/i.test(file.name || '') ? MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES : MAGIC_UPLOAD_XLSX_MAX_FILE_BYTES;
       return Number(file.size || 0) > maxBytes;
     });
-    if (oversizedFiles.length) magicUploadLog('warn', '文件超过入口限制', oversizedFiles.map((file) => file.name + '|' + Math.round(Number(file.size || 0) / 1024 / 1024) + 'MB').join('；') + ' | ZIP 上限=150MB');
+    if (oversizedFiles.length) magicUploadLog('warn', '文件超过入口限制', oversizedFiles.map((file) => file.name + '|' + Math.round(Number(file.size || 0) / 1024 / 1024) + 'MB').join('；') + ' | ZIP 上限=150MB；XLSX 上限=50MB');
     if (!sourceFiles.length) {
       magicUploadLog('warn', '没有识别到可处理文件', (files || []).map((file) => (file && ((file.name || '无文件名') + '|' + (file.type || '无类型'))) || '空').join('；'));
       showToast('请选择 ZIP 图包或 XLSX');
@@ -25640,12 +25641,13 @@
       if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到 OSS 临时授权');
       const declaredMaxBytes = Number(secret.max_file_size) || 0;
       // 按文件类型设置上传上限：OSS 授权接口的 max_file_size(20MB) 是通用默认回复，
-      // 不代表 PLM 对图片/视频等大文件的真实限制，按类型放宽：图片 50MB、动图/视频 200MB、图包素材 150MB。
+      // 按类型设置助手上限：XLSX/图片 50MB、动图/视频 200MB、图包素材 150MB。
       const extension = getMagicUploadFileExtension(file.name || entry.name);
       const isImageFile = /\.(?:jpe?g|png|webp|bmp)$/i.test(extension);
       const isMediaFile = category === '视频' || category === '动图' || /\.(?:mp4|mov|avi|webm|gif)$/i.test(extension);
       let uploadMaxBytes;
       if (category === '图包素材') uploadMaxBytes = MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES;
+      else if (/\.xlsx$/i.test(extension)) uploadMaxBytes = MAGIC_UPLOAD_XLSX_MAX_FILE_BYTES;
       else if (isMediaFile) uploadMaxBytes = MAGIC_UPLOAD_MEDIA_MAX_FILE_BYTES;
       else if (isImageFile) uploadMaxBytes = MAGIC_UPLOAD_IMAGE_MAX_FILE_BYTES;
       else uploadMaxBytes = declaredMaxBytes || MAGIC_UPLOAD_MAX_FILE_BYTES;
