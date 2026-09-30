@@ -4,6 +4,9 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
+  flex: 0 0 auto;
+  width: auto;
+  height: 28px;
   min-height: 28px;
   padding: 0 9px;
   border: 1px solid var(--pfh-theme-border);
@@ -28,6 +31,7 @@
   width: 14px;
   height: 14px;
   min-width: 14px;
+  flex: 0 0 14px;
   padding: 0;
   border: 0;
   background: transparent;
