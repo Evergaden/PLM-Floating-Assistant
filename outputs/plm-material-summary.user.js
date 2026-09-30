@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.25
+// @version      2.9.26
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.25';
+  const SCRIPT_VERSION = '2.9.26';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.289';
+  const UI_ASSET_VERSION = '2.5.290';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -27015,11 +27015,19 @@
     return new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(Date.now() + homeClockOffsetMs));
   }
 
+  function homeClockDateText() {
+    const parts = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: 'numeric', day: 'numeric', weekday: 'long' }).formatToParts(new Date(Date.now() + homeClockOffsetMs));
+    const value = (type) => (parts.find((part) => part.type === type) || {}).value || '';
+    return Number(value('month')) + '月' + Number(value('day')) + '日 ' + value('weekday');
+  }
+
   function updateHomeClock() {
     const clock = document.querySelector('#plm-floating-helper .pfh-home-clock');
     if (!clock) return;
     clock.textContent = homeClockText();
     clock.setAttribute('aria-label', '汕头时间 ' + clock.textContent);
+    const date = clock.parentElement && clock.parentElement.querySelector('.pfh-home-clock-date');
+    if (date) date.textContent = homeClockDateText();
   }
 
   function syncHomeClock() {
@@ -27475,10 +27483,9 @@
     const period = Number(state.homeChartPeriod) === 30 ? 30 : 7;
     const stats = homeDashboardStats(period);
     const chart = homeChartGeometry(stats.values);
-    const now = new Date();
-    const weekNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    const now = new Date(Date.now() + homeClockOffsetMs);
     const greeting = currentHomeGreeting(now);
-    const dateText = (now.getMonth() + 1) + '月' + now.getDate() + '日 ' + weekNames[now.getDay()];
+    const dateText = homeClockDateText();
     const delta = stats.today - stats.yesterday;
     const deltaPercent = stats.yesterday ? Math.round(Math.abs(delta) / stats.yesterday * 100) : 0;
     const compareClass = delta > 0 ? ' is-up' : (delta < 0 ? ' is-down' : '');
@@ -27512,7 +27519,7 @@
     const status = statusText || greeting.subtitle || '常用功能与今日进度集中在这里';
     const modeSwitch = productDevelopmentModeSwitchHtml();
     return '<div class="pfh-detail-scroll pfh-home-scroll"><section class="pfh-home-dashboard">' +
-      '<header class="pfh-home-welcome"><div class="pfh-home-welcome-main"><time class="pfh-home-clock" role="timer" aria-label="汕头时间">' + escapeHtml(homeClockText()) + '</time><div class="pfh-home-welcome-copy"><h2>' + escapeHtml(greeting.title) + '</h2><p>' + escapeHtml(dateText) + ' · ' + escapeHtml(status) + '</p></div></div>' + modeSwitch + '</header>' +
+      '<header class="pfh-home-welcome"><div class="pfh-home-welcome-main"><div class="pfh-home-clock-block"><span class="pfh-home-clock-date">' + escapeHtml(dateText) + '</span><time class="pfh-home-clock" role="timer" aria-label="汕头时间">' + escapeHtml(homeClockText()) + '</time></div><div class="pfh-home-welcome-copy"><h2><span class="pfh-home-greeting-title">' + escapeHtml(greeting.title) + '</span></h2><p><span class="pfh-home-goal">' + escapeHtml(status) + '</span></p></div></div>' + modeSwitch + '</header>' +
       cloudRecoveryNoticeHtml() +
       '<div class="pfh-home-analytics">' +
         '<article class="pfh-home-metric"><small>今日新分配</small><div><strong>' + stats.today + '</strong><span>个任务</span></div><p class="pfh-home-compare' + compareClass + '"><b>' + escapeHtml(compareBadge) + '</b><span>' + escapeHtml(compareText) + '</span></p><footer><span><small>昨日</small><b>' + stats.yesterday + '</b></span><span><small>今日已定稿</small><b>' + stats.finalizedToday + '</b></span><span><small>完成率</small><b>' + (stats.today ? stats.completionRate + '%' : '--') + '</b></span></footer></article>' +
