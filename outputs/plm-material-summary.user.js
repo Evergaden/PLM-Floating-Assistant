@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.32
+// @version      2.9.33
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.32';
+  const SCRIPT_VERSION = '2.9.33';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -27287,7 +27287,6 @@
       '<span class="pfh-home-entry-icon">' + iconHtml(entry.icon) + '</span>' +
       '<span class="pfh-home-entry-copy"><strong>' + escapeHtml(entry.title) + '</strong><small>' + escapeHtml(entry.description) + '</small></span>' +
       (entry.badge ? '<i class="pfh-home-entry-badge">' + escapeHtml(entry.badge) + '</i>' : '') +
-      '<span class="pfh-home-entry-arrow">→</span>' +
       (entry.meta ? '<em class="pfh-home-entry-meta">' + escapeHtml(entry.meta) + '</em>' : '') +
       editHandle +
       '</' + tag + '>';
