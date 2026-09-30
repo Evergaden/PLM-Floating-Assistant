@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.22
+// @version      2.9.23
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.22';
+  const SCRIPT_VERSION = '2.9.23';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.286';
+  const UI_ASSET_VERSION = '2.5.287';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -3623,6 +3623,14 @@
   const NOTIFICATION_CACHE_KEY = 'plm-floating-helper:notifications:v1';
   const NOTIFICATION_REFRESH_MS = 5 * 60 * 1000;
   const HOME_GREETING_CACHE_KEY = 'plm-floating-helper:home-greetings:v1';
+  const HOME_TODO_KEY = 'plm-floating-helper:home-todos:v1';
+  let homeCarouselTimer = 0;
+  let homeClockTimer = 0;
+  let homeClockSyncTimer = 0;
+  let homeClockOffsetMs = 0;
+  let homeClockSyncedAt = 0;
+  let homeClockSyncing = false;
+  let homeClockNetworkStatus = '正在校时';
   const HOME_GREETING_REFRESH_MS = 15 * 60 * 1000;
   const DEFAULT_HOME_GREETINGS = Object.freeze([
     Object.freeze({ greetingId: 'morning', label: '早上', startTime: '05:00', endTime: '11:00', title: '早上好，今天也一起推进吧', subtitle: '常用功能与今日进度集中在这里', enabled: true, sortOrder: 10 }),
@@ -16324,6 +16332,9 @@
     notificationTab: 'new',
     notificationRefreshTimer: 0,
     homeGreetings: initialHomeGreetingCache.items,
+    homeTodos: loadHomeTodos(),
+    homeTodoDraft: '',
+    homeCarouselIndex: 0,
     homeGreetingCheckedAt: initialHomeGreetingCache.checkedAt,
     homeGreetingsLoading: false,
     homeGreetingRefreshTimer: 0,
@@ -22532,6 +22543,8 @@
     detail.classList.remove('is-loading');
     detail.innerHTML = homeViewHtml(statusText);
     setupHomeChartInteraction(detail);
+    setupHomeCarousel(detail);
+    setupHomeClock();
   }
 
   function renderStandaloneTool(panel, html) {
@@ -26970,6 +26983,153 @@
     });
   }
 
+  function loadHomeTodos() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(HOME_TODO_KEY, []) : JSON.parse(localStorage.getItem(HOME_TODO_KEY) || '[]');
+      return Array.isArray(saved) ? saved.filter((item) => item && typeof item.text === 'string' && item.id).slice(0, 30) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveHomeTodos() {
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(HOME_TODO_KEY, state.homeTodos);
+      else localStorage.setItem(HOME_TODO_KEY, JSON.stringify(state.homeTodos));
+    } catch (error) {
+      console.warn('PLM floating helper todo save failed:', error);
+    }
+  }
+
+  function homeTodoCardHtml() {
+    const todos = state.homeTodos || [];
+    return '<article class="pfh-home-todo"><header><div><h3>待办项</h3><p>可以简短记录一些待办</p></div><span>' + todos.filter((item) => !item.done).length + ' 项未完成</span></header>' +
+      '<div class="pfh-home-todo-entry"><input class="pfh-home-todo-input" type="text" maxlength="120" placeholder="写下一件待办，按回车添加" value="' + escapeHtml(state.homeTodoDraft || '') + '"><button type="button" data-action="home-todo-add">添加</button></div>' +
+      '<div class="pfh-home-todo-list">' + (todos.length ? todos.map((item) => '<div class="pfh-home-todo-item' + (item.done ? ' is-done' : '') + '"><button type="button" class="pfh-home-todo-check" data-action="home-todo-toggle" data-todo-id="' + escapeHtml(item.id) + '" aria-label="' + (item.done ? '标记为未完成' : '标记为完成') + '">' + (item.done ? '✓' : '') + '</button><span title="' + escapeHtml(item.text) + '">' + escapeHtml(item.text) + '</span><button type="button" class="pfh-home-todo-remove" data-action="home-todo-remove" data-todo-id="' + escapeHtml(item.id) + '" aria-label="删除待办">×</button></div>').join('') : '<p class="pfh-home-todo-empty">还没有待办，写下第一件事吧。</p>') + '</div></article>';
+  }
+
+  function homeTrendCardHtml(stats, chart, period, chartSummary) {
+    return '<article class="pfh-home-chart"><header><div><h3>新任务趋势</h3><p>' + escapeHtml(chartSummary) + '</p></div><div class="pfh-home-period-tabs"><button type="button" data-action="home-chart-period" data-period="7" class="' + (period === 7 ? 'is-active' : '') + '">7日</button><button type="button" data-action="home-chart-period" data-period="30" class="' + (period === 30 ? 'is-active' : '') + '">30日</button></div></header><div class="pfh-home-chart-canvas"><div class="pfh-home-chart-plot"><svg viewBox="0 0 620 130" preserveAspectRatio="none" role="img" aria-label="新任务趋势图"><defs><linearGradient id="pfh-home-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pfh-theme-primary)" stop-opacity=".25"></stop><stop offset="1" stop-color="var(--pfh-theme-primary)" stop-opacity="0"></stop></linearGradient></defs><line x1="0" y1="26" x2="620" y2="26"></line><line x1="0" y1="68" x2="620" y2="68"></line><line x1="0" y1="110" x2="620" y2="110"></line><path class="pfh-home-chart-area" d="' + chart.area + '"></path><path class="pfh-home-chart-line" d="' + chart.line + '"></path></svg><div class="pfh-home-chart-points">' + homeChartPointsHtml(stats, chart) + '</div><div class="pfh-home-chart-tooltip" role="status"><strong></strong><span></span></div></div><div class="pfh-home-chart-labels">' + homeChartLabelsHtml(stats.days, period) + '</div></div></article>';
+  }
+
+  function homeClockText() {
+    return new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(new Date(Date.now() + homeClockOffsetMs));
+  }
+
+  function updateHomeClock() {
+    const clock = document.querySelector('#plm-floating-helper .pfh-home-clock');
+    if (!clock) return;
+    const time = clock.querySelector('strong');
+    const status = clock.querySelector('small');
+    if (time) time.textContent = homeClockText();
+    if (status) status.textContent = '汕头时间 · ' + homeClockNetworkStatus;
+  }
+
+  function syncHomeClock() {
+    if (homeClockSyncing) return;
+    homeClockSyncing = true;
+    const startedAt = Date.now();
+    const onSuccess = (dateHeader) => {
+      const serverTime = Date.parse(dateHeader || '');
+      if (!Number.isFinite(serverTime)) throw new Error('Missing server date');
+      homeClockOffsetMs = serverTime - (startedAt + Date.now()) / 2;
+      homeClockSyncedAt = Date.now();
+      homeClockNetworkStatus = '已联网校时';
+      homeClockSyncing = false;
+      updateHomeClock();
+    };
+    const onFailure = () => {
+      homeClockNetworkStatus = homeClockSyncedAt ? '上次校时' : '本机时间';
+      homeClockSyncing = false;
+      updateHomeClock();
+    };
+    if (typeof GM_xmlhttpRequest === 'function') {
+      GM_xmlhttpRequest({
+        method: 'GET', url: cloudApiBase + '/health?clock=' + startedAt, timeout: 8000,
+        onload: (response) => {
+          try {
+            if (response.status < 200 || response.status >= 300) throw new Error('Network time unavailable');
+            onSuccess((response.responseHeaders || '').match(/^date:\s*(.+)$/im)?.[1]);
+          } catch (_) { onFailure(); }
+        },
+        onerror: onFailure, ontimeout: onFailure,
+      });
+      return;
+    }
+    fetch(cloudApiBase + '/health?clock=' + startedAt, { cache: 'no-store' })
+      .then((response) => { if (!response.ok) throw new Error('Network time unavailable'); onSuccess(response.headers.get('date')); })
+      .catch(onFailure);
+  }
+
+  function setupHomeClock() {
+    updateHomeClock();
+    if (!homeClockTimer) homeClockTimer = window.setInterval(updateHomeClock, 1000);
+    if (!homeClockSyncTimer) homeClockSyncTimer = window.setInterval(() => {
+      if (state.view === 'home') syncHomeClock();
+    }, 5 * 60 * 1000);
+    if (!homeClockSyncedAt || Date.now() - homeClockSyncedAt > 5 * 60 * 1000) syncHomeClock();
+  }
+
+  function setupHomeCarousel(root) {
+    const carousel = root.querySelector('.pfh-home-carousel');
+    if (!carousel) return;
+    const viewport = carousel.querySelector('.pfh-home-carousel-viewport');
+    const track = carousel.querySelector('.pfh-home-carousel-track');
+    const slider = carousel.querySelector('.pfh-home-carousel-slider');
+    const slides = Array.from(carousel.querySelectorAll('.pfh-home-carousel-slide'));
+    const count = slides.length;
+    let pointer = null;
+    let pauseUntil = 0;
+    const show = (index, animate = true) => {
+      state.homeCarouselIndex = Math.max(0, Math.min(count - 1, Number(index) || 0));
+      track.style.transition = animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? '' : 'none';
+      track.style.transform = 'translate3d(-' + (state.homeCarouselIndex * 100) + '%,0,0)';
+      slider.value = String(state.homeCarouselIndex);
+      slider.setAttribute('aria-valuetext', slides[state.homeCarouselIndex].getAttribute('data-module-label') || '主页模块');
+      slides.forEach((slide, slideIndex) => {
+        slide.setAttribute('aria-hidden', slideIndex === state.homeCarouselIndex ? 'false' : 'true');
+        slide.inert = slideIndex !== state.homeCarouselIndex;
+      });
+    };
+    show(state.homeCarouselIndex, false);
+    slider.addEventListener('input', () => { pauseUntil = Date.now() + 12000; show(slider.value); });
+    viewport.addEventListener('pointerdown', (event) => {
+      if (event.target.closest('button,input,textarea')) return;
+      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, startIndex: state.homeCarouselIndex };
+      track.style.transition = 'none';
+      pauseUntil = Date.now() + 12000;
+      if (!event.target.closest('.pfh-home-chart-plot')) {
+        try { viewport.setPointerCapture(event.pointerId); } catch (_) {}
+      }
+    });
+    viewport.addEventListener('pointermove', (event) => {
+      if (!pointer || pointer.id !== event.pointerId) return;
+      const deltaX = event.clientX - pointer.x;
+      const deltaY = event.clientY - pointer.y;
+      if (Math.abs(deltaX) < Math.abs(deltaY)) return;
+      const edgeLimited = pointer.startIndex === 0 && deltaX > 0 || pointer.startIndex === count - 1 && deltaX < 0;
+      track.style.transform = 'translate3d(calc(-' + (pointer.startIndex * 100) + '% + ' + (edgeLimited ? deltaX * 0.25 : deltaX) + 'px),0,0)';
+    });
+    const finishDrag = (event) => {
+      if (!pointer || pointer.id !== event.pointerId) return;
+      const deltaX = event.clientX - pointer.x;
+      const deltaY = event.clientY - pointer.y;
+      const next = Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) ? pointer.startIndex + (deltaX < 0 ? 1 : -1) : pointer.startIndex;
+      pointer = null;
+      show(next);
+      try { if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId); } catch (_) {}
+    };
+    viewport.addEventListener('pointerup', finishDrag);
+    viewport.addEventListener('pointercancel', finishDrag);
+    carousel.addEventListener('pointerenter', () => { pauseUntil = Date.now() + 2000; });
+    carousel.addEventListener('focusin', () => { pauseUntil = Date.now() + 12000; });
+    if (homeCarouselTimer) window.clearInterval(homeCarouselTimer);
+    homeCarouselTimer = window.setInterval(() => {
+      if (!carousel.isConnected || state.view !== 'home' || document.hidden || pointer || Date.now() < pauseUntil || carousel.matches(':hover') || carousel.contains(document.activeElement)) return;
+      show((state.homeCarouselIndex + 1) % count);
+    }, 8000);
+  }
+
   function homeTaskProgress(status, explicitProgress) {
     if (Number.isFinite(Number(explicitProgress)) && Number(explicitProgress) > 0) {
       const value = Number(explicitProgress) <= 1 ? Number(explicitProgress) * 100 : Number(explicitProgress);
@@ -27349,14 +27509,19 @@
       '</div>';
     const featureTrackClass = 'pfh-home-feature-track ' + (isProductDevelopment ? 'is-product-development' : 'is-daily') + (state.homeModeTransition ? ' is-' + escapeHtml(state.homeModeTransition) : '');
     const chartSummary = '近 ' + period + ' 日共新分配 ' + stats.total + ' 个任务';
+    const carouselModules = [
+      { id: 'trend', label: '新任务趋势', html: homeTrendCardHtml(stats, chart, period, chartSummary) },
+      { id: 'todo', label: '待办项', html: homeTodoCardHtml() },
+    ];
+    const carouselSlides = carouselModules.map((module) => '<div class="pfh-home-carousel-slide" data-module-id="' + module.id + '" data-module-label="' + escapeHtml(module.label) + '">' + module.html + '</div>').join('');
     const status = statusText || greeting.subtitle || '常用功能与今日进度集中在这里';
     const modeSwitch = productDevelopmentModeSwitchHtml();
     return '<div class="pfh-detail-scroll pfh-home-scroll"><section class="pfh-home-dashboard">' +
-      '<header class="pfh-home-welcome"><div><h2>' + escapeHtml(greeting.title) + '</h2><p>' + escapeHtml(dateText) + ' · ' + escapeHtml(status) + '</p></div>' + modeSwitch + '</header>' +
+      '<header class="pfh-home-welcome"><div class="pfh-home-welcome-main"><div class="pfh-home-clock" role="timer" aria-label="汕头时间"><span>' + iconHtml('clock') + '</span><strong>' + escapeHtml(homeClockText()) + '</strong><small>汕头时间 · ' + escapeHtml(homeClockNetworkStatus) + '</small></div><div class="pfh-home-welcome-copy"><h2>' + escapeHtml(greeting.title) + '</h2><p>' + escapeHtml(dateText) + ' · ' + escapeHtml(status) + '</p></div></div>' + modeSwitch + '</header>' +
       cloudRecoveryNoticeHtml() +
       '<div class="pfh-home-analytics">' +
         '<article class="pfh-home-metric"><small>今日新分配</small><div><strong>' + stats.today + '</strong><span>个任务</span></div><p class="pfh-home-compare' + compareClass + '"><b>' + escapeHtml(compareBadge) + '</b><span>' + escapeHtml(compareText) + '</span></p><footer><span><small>昨日</small><b>' + stats.yesterday + '</b></span><span><small>今日已定稿</small><b>' + stats.finalizedToday + '</b></span><span><small>完成率</small><b>' + (stats.today ? stats.completionRate + '%' : '--') + '</b></span></footer></article>' +
-        '<article class="pfh-home-chart"><header><div><h3>新任务趋势</h3><p>' + escapeHtml(chartSummary) + '</p></div><div class="pfh-home-period-tabs"><button type="button" data-action="home-chart-period" data-period="7" class="' + (period === 7 ? 'is-active' : '') + '">7日</button><button type="button" data-action="home-chart-period" data-period="30" class="' + (period === 30 ? 'is-active' : '') + '">30日</button></div></header><div class="pfh-home-chart-canvas"><div class="pfh-home-chart-plot"><svg viewBox="0 0 620 130" preserveAspectRatio="none" role="img" aria-label="新任务趋势图"><defs><linearGradient id="pfh-home-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pfh-theme-primary)" stop-opacity=".25"></stop><stop offset="1" stop-color="var(--pfh-theme-primary)" stop-opacity="0"></stop></linearGradient></defs><line x1="0" y1="26" x2="620" y2="26"></line><line x1="0" y1="68" x2="620" y2="68"></line><line x1="0" y1="110" x2="620" y2="110"></line><path class="pfh-home-chart-area" d="' + chart.area + '"></path><path class="pfh-home-chart-line" d="' + chart.line + '"></path></svg><div class="pfh-home-chart-points">' + homeChartPointsHtml(stats, chart) + '</div><div class="pfh-home-chart-tooltip" role="status"><strong></strong><span></span></div></div><div class="pfh-home-chart-labels">' + homeChartLabelsHtml(stats.days, period) + '</div></div></article>' +
+        '<div class="pfh-home-carousel"><div class="pfh-home-carousel-viewport"><div class="pfh-home-carousel-track">' + carouselSlides + '</div></div><input class="pfh-home-carousel-slider" type="range" min="0" max="' + (carouselModules.length - 1) + '" step="1" value="' + state.homeCarouselIndex + '" aria-label="主页模块切换"></div>' +
       '</div>' +
       '<div class="pfh-home-lower">' +
         '<section class="pfh-home-panel pfh-home-feature-panel' + (state.homeFeatureEditMode ? ' is-editing' : '') + (isProductDevelopment ? ' is-product-development' : '') + '"><div class="pfh-home-panel-title"><h3 data-work-mode-title>' + (isProductDevelopment ? '开发功能' : '常用功能') + '</h3>' + featureEditActions + '</div>' +
@@ -34479,6 +34644,26 @@ self.onmessage = async function(event) {
       renderShell();
       return;
     }
+    if (action === 'home-todo-add') {
+      const text = String(state.homeTodoDraft || '').trim().slice(0, 120);
+      if (!text) return;
+      state.homeTodos.unshift({ id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8), text, done: false });
+      state.homeTodos = state.homeTodos.slice(0, 30);
+      state.homeTodoDraft = '';
+      saveHomeTodos();
+      renderShell();
+      const input = ensurePanel().querySelector('.pfh-home-todo-input');
+      if (input) input.focus();
+      return;
+    }
+    if (action === 'home-todo-toggle' || action === 'home-todo-remove') {
+      const id = actionTarget.getAttribute('data-todo-id');
+      if (action === 'home-todo-remove') state.homeTodos = state.homeTodos.filter((item) => item.id !== id);
+      else state.homeTodos = state.homeTodos.map((item) => item.id === id ? { ...item, done: !item.done } : item);
+      saveHomeTodos();
+      renderShell();
+      return;
+    }
     if (action === 'home-size-image') {
       if (!state.sizeImageAccessEnabled) {
         showToast(state.sizeImageAccessLoading ? '正在准备功能' : '该功能暂未开放，敬请期待');
@@ -35265,6 +35450,12 @@ self.onmessage = async function(event) {
   }
 
   function handlePanelKeydown(event) {
+    if (state.view === 'home' && event.key === 'Enter' && !event.isComposing && event.target && event.target.classList && event.target.classList.contains('pfh-home-todo-input')) {
+      event.preventDefault();
+      const addButton = ensurePanel().querySelector('[data-action="home-todo-add"]');
+      if (addButton) addButton.click();
+      return;
+    }
     if (state.ledgerPerformanceGroupOpen && event.key === 'Escape') {
       event.preventDefault();
       closeLedgerPerformanceGroupModal();
@@ -35325,6 +35516,10 @@ self.onmessage = async function(event) {
   }
 
   function handlePanelInput(event) {
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-home-todo-input')) {
+      state.homeTodoDraft = event.target.value;
+      return;
+    }
     if (productDevelopmentHandleInput(event)) return;
     if (event.target && event.target.classList && event.target.classList.contains('pfh-cache-editor-search')) {
       filterSkuCacheEditorFields(event.target.value);

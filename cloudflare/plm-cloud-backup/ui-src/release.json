@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.286",
+  "version": "2.5.287",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -84,6 +84,10 @@
     },
     {
       "path": "modules/home-typography.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/home-carousel.css",
       "mode": "module"
     },
     {
