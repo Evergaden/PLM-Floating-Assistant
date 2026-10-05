@@ -24,6 +24,8 @@ use uuid::Uuid;
 use zip::ZipArchive;
 
 mod parameter_box_analysis;
+mod main_image_lookup;
+use main_image_lookup::{scan_main_images, export_main_images};
 use parameter_box_analysis::{analyze_parameter_box_annotations, fetch_parameter_rule_package};
 
 const BRIDGE_ADDRESS: &str = "127.0.0.1:37191";
@@ -5135,6 +5137,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            scan_main_images,
+            export_main_images,
             bridge_info,
             get_products,
             request_snapshot,

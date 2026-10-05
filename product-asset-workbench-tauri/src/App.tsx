@@ -11,6 +11,7 @@ import {
   ScanLine, Sparkles, Trash2, Undo2, Unplug, Upload, RotateCw, X,
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
+import MainImageLookup from "./MainImageLookup";
 
 const APP_VERSION = "0.2.0";
 
@@ -42,7 +43,7 @@ const PARAMETER_RULE_CACHE_KEY = "plm-workbench.parameter-rule-cache-v1";
 const DEFAULT_PARAMETER_RULE_MANIFEST_URL = "https://velvet.qzz.io/assets/v1/parameter-layout-rules.manifest.json";
 const DEFAULT_LABEL_CHECK_TARGET = "03 纸盒标签";
 const LEGACY_LABEL_CHECK_TARGET = "03 纸盒标签文件夹";
-type WorkspaceView = "assets" | "packs" | "videos" | "upload" | "random" | "organize" | "parameter-samples" | "label-check";
+type WorkspaceView = "assets" | "packs" | "videos" | "upload" | "random" | "organize" | "parameter-samples" | "label-check" | "main-images";
 
 interface RemoteTask {
   taskId: string;
@@ -51,7 +52,7 @@ interface RemoteTask {
   payload: { sku?: string; overwrite?: boolean; autoStart?: boolean; note?: string };
   status: string;
 }
-const DEFAULT_WORKSPACE_ORDER: WorkspaceView[] = ["assets", "packs", "random", "organize", "parameter-samples", "label-check", "upload", "videos"];
+const DEFAULT_WORKSPACE_ORDER: WorkspaceView[] = ["assets", "main-images", "packs", "random", "organize", "parameter-samples", "label-check", "upload", "videos"];
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
 ^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2
@@ -1977,6 +1978,7 @@ export default function App() {
   }
 
   const workspaceTabDefinitions = {
+    "main-images": { label: "主图填表", icon: <FileImage size={16} /> },
     assets: { label: "定稿资产", icon: <FileSpreadsheet size={16} /> },
     packs: { label: "图包归档", icon: <Archive size={16} /> },
     random: { label: "随机组合", icon: <RotateCw size={16} /> },
@@ -2044,6 +2046,8 @@ export default function App() {
             {compactTop ? "展开概览" : "收起概览"}
           </button>
         </nav>
+
+        <div className={workspaceView !== "main-images" ? "is-hidden" : ""}><MainImageLookup root={workspaceRoots["main-images"] || ""} chooseRoot={chooseRoot} /></div>
 
         <section className={`metrics ${workspaceView !== "assets" || compactTop ? "is-hidden" : ""}`}>
           <article><span>全部定稿</span><strong>{rows.length}</strong><small>来自悬浮助手</small></article>
