@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.39
+// @version      2.9.40
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -31,7 +31,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.9.39", r = Object.freeze({
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.9.40", r = Object.freeze({
         exceljs: Object.freeze({
             url: "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js",
             global: "ExcelJS",
@@ -133,7 +133,7 @@
             }
         }, 0);
     }
-    const u = "2.5.298", d = Object.freeze({
+    const u = "2.5.299", d = Object.freeze({
         id: "design",
         label: "测试版",
         code: "TEST"
@@ -1365,19 +1365,19 @@
                 try {
                     "function" == typeof GM_setValue ? GM_setValue(bn, wn) : localStorage.setItem(bn, JSON.stringify(wn));
                 } catch (e) {}
-                if (r && !An()) try {
+                if (r) try {
                     !function() {
-                        if (tN("已是最新版本 v" + n), window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+                        if (tN(An() ? "发现新版本 v" + wn.version + "，请前往更新" : "已是最新版本 v" + n), window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
                         xn && xn();
-                        const t = document.getElementById(e), r = t && t.querySelector(":scope > .pfh-full");
-                        if (!r || !r.clientWidth || !r.clientHeight) return;
-                        const a = r.clientWidth, i = r.clientHeight, o = document.createElement("canvas");
-                        o.setAttribute("aria-hidden", "true"), o.style.cssText = "position:absolute;inset:0;display:block;width:100%;height:100%;background:transparent!important;pointer-events:none;z-index:300;";
+                        const t = document.getElementById(e), r = t && t.getBoundingClientRect();
+                        if (!r || !r.width || !r.height || "none" === t.style.display) return;
+                        const a = r.width, i = r.height, o = document.createElement("canvas");
+                        o.setAttribute("aria-hidden", "true"), o.className = "pfh-update-confetti", o.style.cssText = "position:fixed;left:" + r.left + "px;top:" + r.top + "px;width:" + a + "px;height:" + i + "px;display:block;background:transparent!important;pointer-events:none!important;z-index:2147483647;";
                         const s = Math.min(window.devicePixelRatio || 1, 2);
                         o.width = Math.round(a * s), o.height = Math.round(i * s);
                         const l = o.getContext("2d");
                         if (!l) return;
-                        l.scale(s, s), r.appendChild(o);
+                        l.scale(s, s), document.documentElement.appendChild(o);
                         const c = [ "#7c3aed", "#a78bfa", "#22c55e", "#38bdf8", "#fbbf24", "#fb7185" ], u = Math.min(a / 700, 1), d = Array.from({
                             length: 88
                         }, (e, t) => ({
@@ -1412,7 +1412,10 @@
                         m = window.requestAnimationFrame(f);
                     }();
                 } catch (e) {
-                    console.warn("PLM update celebration failed:", e);
+                    nr(e, {
+                        feature: "settings",
+                        action: "update-confetti"
+                    });
                 }
             } catch (e) {
                 kn = String(e && e.message || e);
@@ -16046,8 +16049,8 @@
         return '<div class="pfh-settings-card' + (r ? " " + r : "") + '"><div class="pfh-settings-card-head"><strong>' + U_(e) + "</strong>" + (t ? "<span>" + U_(t) + "</span>" : "") + "</div>" + n + "</div>";
     }
     function Kf() {
-        const e = An(), t = '<div class="pfh-about-note">' + U_((Sn ? "正在检查 Greasy Fork…" : kn ? "检查失败：" + kn + (wn.version ? "；上次查到 v" + wn.version : "") : e ? "发现新版本 v" + wn.version + "，当前为 v" + n : wn.version ? "已是最新版本 v" + n : "尚未检查更新") + (wn.checkedAt ? " · 上次检查：" + Ln(wn.checkedAt) : "")) + '</div><div class="pfh-about-actions"><button type="button" data-action="script-update-check"' + (Sn ? " disabled" : "") + ">检查更新</button>" + (e ? '<button type="button" data-action="script-update-open">前往更新</button>' : "") + "</div>";
-        return Hf("检查更新", e ? "有新版本" : "当前 v" + n, t, "pfh-script-update-card");
+        const e = An(), t = '<div class="pfh-about-note">' + U_((Sn ? "正在检查 Greasy Fork…" : kn ? "检查失败：" + kn + (wn.version ? "；上次查到 v" + wn.version : "") : e ? "发现新版本 v" + wn.version + "，当前为 v" + n : wn.version ? "已是最新版本 v" + n : "尚未检查更新") + (wn.checkedAt ? " · 上次检查：" + Ln(wn.checkedAt) : "")) + '</div><div class="pfh-about-actions"><button type="button" data-action="script-update-check"' + (Sn ? " disabled" : "") + ">检查更新</button>" + (e ? '<button type="button" data-action="script-update-open">前往更新 →</button>' : "") + "</div>" + (e ? '<p class="pfh-script-update-guide" role="status">新版本已准备好，点击「前往更新」安装后刷新 PLM。</p>' : "");
+        return Hf("检查更新", e ? "有新版本" : "当前 v" + n, t, "pfh-script-update-card" + (e ? " is-update-available" : ""));
     }
     function Gf() {
         const e = "#plm-floating-helper .pfh-settings-page ";
@@ -23780,7 +23783,13 @@
         if ("about" === u) return Kd.settings.backgroundNoticeSeen || (Kd.settings.backgroundNoticeSeen = !0,
         AN(Kd.settings)), "about" === Kd.view ? (Kd.view = Kd.settingsReturnView || (Kd.data ? "detail" : "home"),
         Kd.settingsReturnView = "") : (Kd.settingsReturnView = Kd.view || (Kd.data ? "detail" : "home"),
-        Kd.view = "about"), bf(), void Pf();
+        Kd.view = "about"), bf(), Pf(), void ("about" === Kd.view && An() && window.requestAnimationFrame(() => {
+            const t = document.getElementById(e)?.querySelector(".pfh-script-update-card");
+            "about" === Kd.view && t && t.scrollIntoView({
+                block: "nearest",
+                behavior: "auto"
+            });
+        }));
         if ("first-run-tutorial-done" === u) {
             const e = hf().querySelector(".pfh-tutorial-cloud-key");
             if (e && (Kd.settings.cloudBackupKey = e.value.trim(), AN(Kd.settings)), oP()) Kd.tutorialEmptyKeyClickCount = 0; else if (Kd.tutorialEmptyKeyClickCount = (Kd.tutorialEmptyKeyClickCount || 0) + 1,

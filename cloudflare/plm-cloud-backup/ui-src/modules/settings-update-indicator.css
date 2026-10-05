@@ -19,3 +19,36 @@
 #plm-floating-helper .pfh-header .pfh-actions button.has-script-update .pfh-settings-notice-dot {
   background: #ef4444;
 }
+
+#plm-floating-helper .pfh-settings-page .pfh-script-update-card.is-update-available {
+  --pfh-theme-border: var(--pfh-theme-primary, #7c3aed);
+  --pfh-theme-border-strong: var(--pfh-theme-primary, #7c3aed);
+  --pfh-theme-surface: var(--pfh-theme-primary-soft, #f3efff);
+  --pfh-theme-surface-alt: var(--pfh-theme-primary-soft, #f3efff);
+}
+
+#plm-floating-helper .pfh-settings-page .pfh-script-update-card.is-update-available .pfh-settings-card-head > span {
+  --pfh-theme-card: #ef4444;
+  --pfh-theme-border: #ef4444;
+  --pfh-theme-primary-hover: #fff;
+}
+
+#plm-floating-helper .pfh-settings-page .pfh-script-update-card.is-update-available button[data-action="script-update-open"] {
+  --pfh-theme-surface: var(--pfh-theme-primary, #7c3aed);
+  --pfh-theme-primary-soft: var(--pfh-theme-primary, #7c3aed);
+  --pfh-theme-primary-hover: #fff;
+  --pfh-theme-text: #fff;
+}
+
+#plm-floating-helper .pfh-script-update-guide {
+  margin: 10px 0 0;
+  color: var(--pfh-theme-primary, #7c3aed);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #plm-floating-helper .pfh-settings-page .pfh-script-update-card.is-update-available button[data-action="script-update-open"]:not(:disabled) {
+    animation: pfh-home-pulse 1.8s ease-in-out infinite;
+  }
+}

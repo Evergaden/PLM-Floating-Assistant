@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.39
+// @version      2.9.40
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.39';
+  const SCRIPT_VERSION = '2.9.40';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.298';
+  const UI_ASSET_VERSION = '2.5.299';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -3685,24 +3685,25 @@
   }
 
   function celebrateScriptUpdate() {
-    showToast('已是最新版本 v' + SCRIPT_VERSION);
+    showToast(isScriptUpdateAvailable() ? '发现新版本 v' + scriptUpdateCache.version + '，请前往更新' : '已是最新版本 v' + SCRIPT_VERSION);
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     if (stopScriptUpdateConfetti) stopScriptUpdateConfetti();
     const panel = document.getElementById(PANEL_ID);
-    const host = panel && panel.querySelector(':scope > .pfh-full');
-    if (!host || !host.clientWidth || !host.clientHeight) return;
-    const width = host.clientWidth;
-    const height = host.clientHeight;
+    const bounds = panel && panel.getBoundingClientRect();
+    if (!bounds || !bounds.width || !bounds.height || panel.style.display === 'none') return;
+    const width = bounds.width;
+    const height = bounds.height;
     const canvas = document.createElement('canvas');
     canvas.setAttribute('aria-hidden', 'true');
-    canvas.style.cssText = 'position:absolute;inset:0;display:block;width:100%;height:100%;background:transparent!important;pointer-events:none;z-index:300;';
+    canvas.className = 'pfh-update-confetti';
+    canvas.style.cssText = 'position:fixed;left:' + bounds.left + 'px;top:' + bounds.top + 'px;width:' + width + 'px;height:' + height + 'px;display:block;background:transparent!important;pointer-events:none!important;z-index:2147483647;';
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(width * pixelRatio);
     canvas.height = Math.round(height * pixelRatio);
     const context = canvas.getContext('2d');
     if (!context) return;
     context.scale(pixelRatio, pixelRatio);
-    host.appendChild(canvas);
+    document.documentElement.appendChild(canvas);
     const colors = ['#7c3aed', '#a78bfa', '#22c55e', '#38bdf8', '#fbbf24', '#fb7185'];
     const spread = Math.min(width / 700, 1);
     const particles = Array.from({ length: 88 }, (_, index) => ({
@@ -3748,7 +3749,7 @@
     frameId = window.requestAnimationFrame(draw);
   }
 
-  async function checkScriptUpdate(force, celebrateIfLatest) {
+  async function checkScriptUpdate(force, celebrateOnSuccess) {
     if (scriptUpdateChecking) return;
     if (!force && Date.now() - scriptUpdateCache.checkedAt < SCRIPT_UPDATE_REFRESH_MS) return;
     scriptUpdateChecking = true;
@@ -3773,8 +3774,8 @@
         if (typeof GM_setValue === 'function') GM_setValue(SCRIPT_UPDATE_CACHE_KEY, scriptUpdateCache);
         else localStorage.setItem(SCRIPT_UPDATE_CACHE_KEY, JSON.stringify(scriptUpdateCache));
       } catch (error) {}
-      if (celebrateIfLatest && !isScriptUpdateAvailable()) {
-        try { celebrateScriptUpdate(); } catch (error) { console.warn('PLM update celebration failed:', error); }
+      if (celebrateOnSuccess) {
+        try { celebrateScriptUpdate(); } catch (error) { reportDiagnostic(error, { feature: 'settings', action: 'update-confetti' }); }
       }
     } catch (error) {
       scriptUpdateError = String(error && error.message || error);
@@ -21909,8 +21910,9 @@
     const checkedAt = scriptUpdateCache.checkedAt ? ' · 上次检查：' + formatNotificationTime(scriptUpdateCache.checkedAt) : '';
     const body = '<div class="pfh-about-note">' + escapeHtml(status + checkedAt) + '</div>' +
       '<div class="pfh-about-actions"><button type="button" data-action="script-update-check"' + (scriptUpdateChecking ? ' disabled' : '') + '>检查更新</button>' +
-      (hasUpdate ? '<button type="button" data-action="script-update-open">前往更新</button>' : '') + '</div>';
-    return settingsCardHtml('检查更新', hasUpdate ? '有新版本' : '当前 v' + SCRIPT_VERSION, body, 'pfh-script-update-card');
+      (hasUpdate ? '<button type="button" data-action="script-update-open">前往更新 →</button>' : '') + '</div>' +
+      (hasUpdate ? '<p class="pfh-script-update-guide" role="status">新版本已准备好，点击「前往更新」安装后刷新 PLM。</p>' : '');
+    return settingsCardHtml('检查更新', hasUpdate ? '有新版本' : '当前 v' + SCRIPT_VERSION, body, 'pfh-script-update-card' + (hasUpdate ? ' is-update-available' : ''));
   }
 
   function renderSettingsPageStyle() {
@@ -34577,6 +34579,12 @@ self.onmessage = async function(event) {
       }
       expandPanel();
       renderShell();
+      if (state.view === 'about' && isScriptUpdateAvailable()) {
+        window.requestAnimationFrame(() => {
+          const card = document.getElementById(PANEL_ID)?.querySelector('.pfh-script-update-card');
+          if (state.view === 'about' && card) card.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+        });
+      }
       return;
     }
     if (action === 'first-run-tutorial-done') {

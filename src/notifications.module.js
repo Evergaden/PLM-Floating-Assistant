@@ -2,6 +2,13 @@
   const NOTIFICATION_CACHE_KEY = 'plm-floating-helper:notifications:v1';
   const NOTIFICATION_REFRESH_MS = 5 * 60 * 1000;
   const HOME_GREETING_CACHE_KEY = 'plm-floating-helper:home-greetings:v1';
+  const HOME_TODO_KEY = 'plm-floating-helper:home-todos:v1';
+  let homeCarouselTimer = 0;
+  let homeClockTimer = 0;
+  let homeClockSyncTimer = 0;
+  let homeClockOffsetMs = 0;
+  let homeClockSyncedAt = 0;
+  let homeClockSyncing = false;
   const HOME_GREETING_REFRESH_MS = 15 * 60 * 1000;
   const DEFAULT_HOME_GREETINGS = Object.freeze([
     Object.freeze({ greetingId: 'morning', label: '早上', startTime: '05:00', endTime: '11:00', title: '早上好，今天也一起推进吧', subtitle: '常用功能与今日进度集中在这里', enabled: true, sortOrder: 10 }),
@@ -13,10 +20,11 @@
   const GREASYFORK_SCRIPT_URL = 'https://greasyfork.org/zh-CN/scripts/582138-plm%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B';
   const SCRIPT_UPDATE_META_URL = 'https://update.greasyfork.org/scripts/582138/PLM%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B.meta.js';
   const SCRIPT_UPDATE_CACHE_KEY = 'plm-floating-helper:script-update:v1';
-  const SCRIPT_UPDATE_REFRESH_MS = 60 * 60 * 1000;
+  const SCRIPT_UPDATE_REFRESH_MS = 15 * 60 * 1000;
   let scriptUpdateCache = loadScriptUpdateCache();
   let scriptUpdateChecking = false;
   let scriptUpdateError = '';
+  let stopScriptUpdateConfetti = null;
 
   function loadScriptUpdateCache() {
     try {
@@ -54,7 +62,72 @@
     if (card) card.outerHTML = renderScriptUpdateCard();
   }
 
-  async function checkScriptUpdate(force) {
+  function celebrateScriptUpdate() {
+    showToast(isScriptUpdateAvailable() ? '发现新版本 v' + scriptUpdateCache.version + '，请前往更新' : '已是最新版本 v' + SCRIPT_VERSION);
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (stopScriptUpdateConfetti) stopScriptUpdateConfetti();
+    const panel = document.getElementById(PANEL_ID);
+    const bounds = panel && panel.getBoundingClientRect();
+    if (!bounds || !bounds.width || !bounds.height || panel.style.display === 'none') return;
+    const width = bounds.width;
+    const height = bounds.height;
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-hidden', 'true');
+    canvas.className = 'pfh-update-confetti';
+    canvas.style.cssText = 'position:fixed;left:' + bounds.left + 'px;top:' + bounds.top + 'px;width:' + width + 'px;height:' + height + 'px;display:block;background:transparent!important;pointer-events:none!important;z-index:2147483647;';
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.scale(pixelRatio, pixelRatio);
+    document.documentElement.appendChild(canvas);
+    const colors = ['#7c3aed', '#a78bfa', '#22c55e', '#38bdf8', '#fbbf24', '#fb7185'];
+    const spread = Math.min(width / 700, 1);
+    const particles = Array.from({ length: 88 }, (_, index) => ({
+      originX: index < 44 ? width * .08 : width * .92,
+      originY: height - 18,
+      delay: Math.random() * 380,
+      velocityX: (index < 44 ? 1 : -1) * (.03 + Math.random() * .2) * spread,
+      velocityY: -(.56 + Math.random() * .34),
+      gravity: .0003 + Math.random() * .00013,
+      width: 4 + Math.random() * 5,
+      height: 7 + Math.random() * 8,
+      rotation: Math.random() * Math.PI,
+      spin: (Math.random() - .5) * .014,
+      color: colors[Math.floor(Math.random() * colors.length)],
+    }));
+    const startedAt = performance.now();
+    let frameId = 0;
+    const cleanup = () => {
+      window.cancelAnimationFrame(frameId);
+      canvas.remove();
+      if (stopScriptUpdateConfetti === cleanup) stopScriptUpdateConfetti = null;
+    };
+    stopScriptUpdateConfetti = cleanup;
+    const draw = (now) => {
+      const elapsed = now - startedAt;
+      if (elapsed >= 2500) { cleanup(); return; }
+      context.clearRect(0, 0, width, height);
+      particles.forEach((particle) => {
+        const age = elapsed - particle.delay;
+        if (age < 0) return;
+        const x = particle.originX + particle.velocityX * age;
+        const y = particle.originY + particle.velocityY * age + particle.gravity * age * age / 2;
+        context.save();
+        context.globalAlpha = Math.max(0, Math.min(1, age / 120, (2200 - age) / 420));
+        context.translate(x, y);
+        context.rotate(particle.rotation + particle.spin * age);
+        context.fillStyle = particle.color;
+        context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height);
+        context.restore();
+      });
+      frameId = window.requestAnimationFrame(draw);
+    };
+    frameId = window.requestAnimationFrame(draw);
+  }
+
+  async function checkScriptUpdate(force, celebrateOnSuccess) {
     if (scriptUpdateChecking) return;
     if (!force && Date.now() - scriptUpdateCache.checkedAt < SCRIPT_UPDATE_REFRESH_MS) return;
     scriptUpdateChecking = true;
@@ -79,6 +152,9 @@
         if (typeof GM_setValue === 'function') GM_setValue(SCRIPT_UPDATE_CACHE_KEY, scriptUpdateCache);
         else localStorage.setItem(SCRIPT_UPDATE_CACHE_KEY, JSON.stringify(scriptUpdateCache));
       } catch (error) {}
+      if (celebrateOnSuccess) {
+        try { celebrateScriptUpdate(); } catch (error) { reportDiagnostic(error, { feature: 'settings', action: 'update-confetti' }); }
+      }
     } catch (error) {
       scriptUpdateError = String(error && error.message || error);
     } finally {
@@ -87,9 +163,9 @@
     }
   }
 
-  function scheduleScriptUpdateRefresh(delay) {
+  function scheduleScriptUpdateRefresh(delay, bypassCache) {
     window.setTimeout(() => {
-      checkScriptUpdate(false).finally(() => scheduleScriptUpdateRefresh(SCRIPT_UPDATE_REFRESH_MS));
+      checkScriptUpdate(Boolean(bypassCache)).finally(() => scheduleScriptUpdateRefresh(SCRIPT_UPDATE_REFRESH_MS, false));
     }, delay);
   }
 
