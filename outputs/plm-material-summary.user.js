@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.45
+// @version      2.9.46
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.45';
+  const SCRIPT_VERSION = '2.9.46';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -16282,6 +16282,8 @@
     projectListPrefetchSignature: '',
     assignedDesignTaskSyncPromise: null,
     assignedDesignTaskSyncLastStartedAt: 0,
+    assignedDesignTaskSyncUser: '',
+    assignedDesignTaskAutoSyncTimer: 0,
     uploadGuideOpen: false,
     uploadClearConfirmOpen: false,
     uploadPage: 1,
@@ -16477,6 +16479,7 @@
   handleDrawerState();
   ensurePageToyCopywritingButton();
   scheduleProjectListPrefetch();
+  scheduleAssignedDesignTaskAutoSync(1400);
   scheduleLegacyManualSkuLedgerMigration(1800);
   scheduleMissingManualSkuImageRefresh(2600);
   window.setTimeout(() => startManualSkuAddQueue(), 700);
@@ -16600,6 +16603,7 @@
   }
 
   function scheduleProjectListPrefetch() {
+    scheduleAssignedDesignTaskAutoSync(1400);
     if (!state.settings.collectionEnabled || !/\/projectManagementChemicalNew/.test(location.pathname)) return;
     window.clearTimeout(state.projectListPrefetchTimer);
     state.projectListPrefetchTimer = window.setTimeout(prefetchProjectAllListData, 360);
@@ -16774,10 +16778,32 @@
     return Number(data.total || payload && payload.total || 0) || 0;
   }
 
+  function scheduleAssignedDesignTaskAutoSync(delay) {
+    if (state.assignedDesignTaskAutoSyncTimer) return;
+    state.assignedDesignTaskAutoSyncTimer = window.setTimeout(async () => {
+      state.assignedDesignTaskAutoSyncTimer = 0;
+      let nextDelay = ASSIGNED_DESIGN_TASK_SYNC_COOLDOWN_MS;
+      try {
+        if (state.settings.collectionEnabled && state.workMode !== 'product-development'
+          && /\/projectManagementChemicalNew/.test(location.pathname)) {
+          await syncAssignedDesignTasksFromApi();
+        }
+      } catch (error) {
+        nextDelay = 60000;
+        addLog('warn', '设计任务自动读取失败，保留已有任务并稍后重试', formatErrorMessage(error));
+      } finally {
+        scheduleAssignedDesignTaskAutoSync(nextDelay);
+      }
+    }, Math.max(0, Number(delay) || 0));
+  }
+
   async function fetchAssignedDesignTaskRows() {
+    const currentUserName = String(findCurrentPlmUserName() || '').replace(/\s+/g, '').toLowerCase();
+    if (!currentUserName) throw new Error('暂时无法识别当前 PLM 用户，请确认已登录');
     const rows = [];
+    const pageSignatures = new Set();
     let total = 0;
-    for (let page = 1; page <= 100; page += 1) {
+    for (let page = 1; ; page += 1) {
       const payload = await fetchPlmJson(ASSIGNED_DESIGN_TASK_ENDPOINT + '?page=' + page + '&pageSize=' + ASSIGNED_DESIGN_TASK_PAGE_SIZE
         + '&sort_field=' + encodeURIComponent(ASSIGNED_DESIGN_TASK_SORT_FIELD)
         + '&sort_asc=' + String(ASSIGNED_DESIGN_TASK_SORT_ASC));
@@ -16786,16 +16812,31 @@
       }
       const pageRows = getApiListItems(payload);
       total = getApiListTotal(payload) || total;
+      if (!pageRows.length) {
+        if (total && rows.length < total) throw new Error('设计任务分页未读取完整，请稍后重试');
+        break;
+      }
+      const signature = JSON.stringify(pageRows.map((item) => [item.id || item.project_id || '', item.product_code || item.productCode || item.code || '']));
+      if (pageSignatures.has(signature)) throw new Error('设计任务接口返回重复分页，已停止读取并保留已有缓存');
+      pageSignatures.add(signature);
       rows.push(...pageRows);
-      if (!pageRows.length || (total && rows.length >= total) || pageRows.length < ASSIGNED_DESIGN_TASK_PAGE_SIZE) break;
+      if ((total && rows.length >= total) || (!total && pageRows.length < ASSIGNED_DESIGN_TASK_PAGE_SIZE)) break;
+    }
+    if (String(findCurrentPlmUserName() || '').replace(/\s+/g, '').toLowerCase() !== currentUserName) {
+      throw new Error('读取期间登录用户发生变化，请重新读取设计任务');
     }
     const deduped = new Map();
+    let unknownOwnerCount = 0;
     rows.forEach((item) => {
+      const owner = String(item.design_work_user_name || item.design_user_name || '').replace(/\s+/g, '').toLowerCase();
+      if (!owner) { unknownOwnerCount += 1; return; }
+      if (owner !== currentUserName) return;
       const row = normalizeAssignedDesignTaskRow(item);
-      if (!row || !row.designAssignedAt) return;
+      if (!row) return;
       const previous = deduped.get(row.sku);
       if (!previous || parseSkuListTime(row.designAssignedAt) >= parseSkuListTime(previous.designAssignedAt)) deduped.set(row.sku, row);
     });
+    if (unknownOwnerCount) addLog('warn', '部分设计任务缺少设计人员信息，未自动加入', unknownOwnerCount + ' 条，请检查 PLM 设计人员字段');
     return Array.from(deduped.values());
   }
 
@@ -16803,9 +16844,10 @@
     if (!state.settings.collectionEnabled) return Promise.resolve({ fetchedCount: 0, changedCount: 0, addedCount: 0, ledgerChangedCount: 0, ledgerAddedCount: 0, disabled: true });
     if (state.assignedDesignTaskSyncPromise) return state.assignedDesignTaskSyncPromise;
     const now = Date.now();
+    const currentUser = String(findCurrentPlmUserName() || '').replace(/\s+/g, '').toLowerCase();
     const lastStartedAt = Number(state.assignedDesignTaskSyncLastStartedAt || 0);
     const elapsed = now - lastStartedAt;
-    if (lastStartedAt > 0 && elapsed >= 0 && elapsed < ASSIGNED_DESIGN_TASK_SYNC_COOLDOWN_MS) {
+    if (state.assignedDesignTaskSyncUser === currentUser && lastStartedAt > 0 && elapsed >= 0 && elapsed < ASSIGNED_DESIGN_TASK_SYNC_COOLDOWN_MS) {
       return Promise.resolve({
         fetchedCount: 0,
         changedCount: 0,
@@ -16817,8 +16859,10 @@
       });
     }
     state.assignedDesignTaskSyncLastStartedAt = now;
+    state.assignedDesignTaskSyncUser = currentUser;
     const request = (async () => {
       const rows = await fetchAssignedDesignTaskRows();
+      if (!state.settings.collectionEnabled) return { fetchedCount: 0, disabled: true };
       return syncProjectListRowsToCache(rows, {
         source: 'assigned-design-api',
         ledgerNote: '\u6211\u7684\u8be6\u60c5 API \u81ea\u52a8\u52a0\u5165',
@@ -16827,7 +16871,10 @@
         render: options && options.deferRender ? false : undefined,
       });
     })();
-    const task = request.finally(() => {
+    const task = request.catch((error) => {
+      state.assignedDesignTaskSyncLastStartedAt = 0;
+      throw error;
+    }).finally(() => {
       if (state.assignedDesignTaskSyncPromise === task) state.assignedDesignTaskSyncPromise = null;
     });
     state.assignedDesignTaskSyncPromise = task;
@@ -34706,6 +34753,9 @@ self.onmessage = async function(event) {
         stopMaterialWatch();
         stopManualTabRead();
       } else {
+        window.clearTimeout(state.assignedDesignTaskAutoSyncTimer);
+        state.assignedDesignTaskAutoSyncTimer = 0;
+        scheduleAssignedDesignTaskAutoSync(0);
         state.observedDrawer = getProjectDrawer();
         state.observedSku = state.observedDrawer ? findSku(getVisibleText(state.observedDrawer)) : '';
         state.observedTab = state.observedDrawer ? getActiveTabText(state.observedDrawer) : '';
