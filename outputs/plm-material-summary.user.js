@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.40
+// @version      2.9.41
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.40';
+  const SCRIPT_VERSION = '2.9.41';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -40523,6 +40523,7 @@ self.onmessage = async function(event) {
   }
 
   async function generateExcelFromCurrent() {
+    let generationToastToken = 0;
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) {
       showToast(L.excelNeedData);
@@ -40582,7 +40583,7 @@ self.onmessage = async function(event) {
         showToast(L.excelSaveCanceled);
         return;
       }
-      showToast(L.excelGenerating);
+      generationToastToken = showToast(L.excelGenerating, { tone: 'info' });
       const workbook = await loadCloudExcelTemplateWorkbook(Excel);
       const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
       state.excelStatus = L.excelImageLoading;
@@ -40633,6 +40634,7 @@ self.onmessage = async function(event) {
       renderShell();
       console.info('PLM floating helper Excel filename:', fileName);
       await saveExcelBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName, saveTarget);
+      dismissToast(generationToastToken);
       syncInsightEvent('excel_generated', { sku: excelData.sku || '', name: excelData.name || '', source: 'excel-generation' });
       recordCommerceInsight(excelData, extra, {
         price: purchasePrice,
@@ -40657,6 +40659,8 @@ self.onmessage = async function(event) {
       addLog('error', 'Excel 生成失败', data.sku + ' | ' + message);
       renderShell();
       showToast(state.excelStatus);
+    } finally {
+      dismissToast(generationToastToken);
     }
   }
 
@@ -48129,6 +48133,22 @@ self.onmessage = async function(event) {
     }, duration);
   }
 
+  function dismissToast(token) {
+    if (!token || token !== state.toastToken) return;
+    ++state.toastToken;
+    window.clearTimeout(state.toastTimer);
+    window.clearTimeout(state.toastExitTimer);
+    state.toastTimer = 0;
+    state.toastExitTimer = 0;
+    if (state.toastSwapAnimation) {
+      try { state.toastSwapAnimation.cancel(); } catch (_) {}
+      state.toastSwapAnimation = null;
+    }
+    const panel = document.getElementById(PANEL_ID);
+    const toast = panel && panel.querySelector('.pfh-toast');
+    if (toast) toast.remove();
+  }
+
   function showToast(text, options) {
     if (!(options && options.diagnostic === false) && shouldReportDiagnosticLog('warn', text)) {
       reportDiagnosticFromLog(text, '', 'warn');
@@ -48165,7 +48185,7 @@ self.onmessage = async function(event) {
       && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     if (!shouldTransition) {
       presentToast(toast, item, token);
-      return;
+      return token;
     }
     const startOpacity = Number.parseFloat(getComputedStyle(toast).opacity);
     const animation = toast.animate([
@@ -48182,6 +48202,7 @@ self.onmessage = async function(event) {
       try { animation.cancel(); } catch (_) {}
       presentToast(toast, item, token);
     };
+    return token;
   }
 
   function addLog(level, message, detail) {
