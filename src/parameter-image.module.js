@@ -1972,6 +1972,7 @@
     function generateProductImage(image, analysis, session) {
       const { canvas, ctx } = baseCanvas();
       drawProductModule(ctx, image, analysis, session, { x: 380, y: 230, width: 840, height: 1080 });
+      if (context.applyTraceWatermark) context.applyTraceWatermark(canvas);
       return canvas.toDataURL('image/jpeg', .96);
     }
 
@@ -2105,6 +2106,7 @@
       });
       const rightArea = { x: 960, y: 300, width: 470, height: 1040, clipLeft: 815 };
       drawProductModule(ctx, image, analysis, session, rightArea);
+      if (context.applyTraceWatermark) context.applyTraceWatermark(canvas);
       return canvas.toDataURL('image/jpeg', .96);
     }
 

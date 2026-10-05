@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.46
+// @version      2.9.47
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.46';
+  const SCRIPT_VERSION = '2.9.47';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -2186,6 +2186,7 @@
     function generateProductImage(image, analysis, session) {
       const { canvas, ctx } = baseCanvas();
       drawProductModule(ctx, image, analysis, session, { x: 380, y: 230, width: 840, height: 1080 });
+      if (context.applyTraceWatermark) context.applyTraceWatermark(canvas);
       return canvas.toDataURL('image/jpeg', .96);
     }
 
@@ -2319,6 +2320,7 @@
       });
       const rightArea = { x: 960, y: 300, width: 470, height: 1040, clipLeft: 815 };
       drawProductModule(ctx, image, analysis, session, rightArea);
+      if (context.applyTraceWatermark) context.applyTraceWatermark(canvas);
       return canvas.toDataURL('image/jpeg', .96);
     }
 
@@ -16437,6 +16439,7 @@
     collectExtra: collectExcelExtraData,
     getSaveFilePicker,
     saveImageFiles,
+    applyTraceWatermark: (canvas) => drawImageTraceWatermark(canvas.getContext('2d'), canvas.width, canvas.height, buildImageTraceWatermark()),
     showToast,
     applyTheme: applyThemeToView,
     render: () => { if (state.view === 'parameterImage') renderShell(); },
@@ -29942,7 +29945,7 @@
         cursorX = nextX;
       });
     }
-    return renderOptions && renderOptions.returnCanvas ? canvas : canvas.toDataURL('image/jpeg', 0.96);
+    return exportSizeImageCanvas(canvas, renderOptions);
   }
 
   function getCartonBodyWidths(spec) {
@@ -30107,6 +30110,12 @@
     } else {
       context.fillText(formatSizeImageNumber(spec.width) + 'cm', artX + artWidth / 2, bottomY + 34);
     }
+    return exportSizeImageCanvas(canvas, renderOptions);
+  }
+
+  function exportSizeImageCanvas(canvas, renderOptions) {
+    const trace = renderOptions && renderOptions.traceWatermark || buildImageTraceWatermark();
+    drawImageTraceWatermark(canvas.getContext('2d'), canvas.width, canvas.height, trace);
     return renderOptions && renderOptions.returnCanvas ? canvas : canvas.toDataURL('image/jpeg', 0.96);
   }
 
@@ -30119,6 +30128,8 @@
       'const trimNumber = ' + trimNumber.toString() + ';',
       'const formatSizeImageNumber = ' + formatSizeImageNumber.toString() + ';',
       createSizeImageCanvas,
+      drawImageTraceWatermark,
+      exportSizeImageCanvas,
       getSizeImageSourceDimensions,
       getCartonBodyWidths,
       drawSizeImageLine,
@@ -30199,6 +30210,7 @@ self.onmessage = async function(event) {
     const renderOptions = detectedType === 'carton'
       ? ((payload.renderMeta && payload.renderMeta.carton) || {})
       : ((payload.renderMeta && payload.renderMeta.labels && payload.renderMeta.labels[key]) || {});
+    renderOptions.traceWatermark = payload.traceWatermark;
     if (detectedType === 'label' && isDoubleSidedPrintedBagSizeImage(matchedLabelSpec, geometry) && productImage) {
       renderOptions.productImage = productImage;
     }
@@ -30284,6 +30296,7 @@ self.onmessage = async function(event) {
           transparentLabelKeys,
           productImageDataUrl: productImageDataUrl || '',
           renderMeta,
+          traceWatermark: buildImageTraceWatermark(),
         });
       });
       if (result.status === 'pending') return { worker: true, status: 'pending', matches: result.matches || [] };
@@ -40438,6 +40451,33 @@ self.onmessage = async function(event) {
     if (chinese.length > 2) return chinese[0] + '\uff0a' + chinese[chinese.length - 1];
     const initials = name.split(/[\s._-]+/).filter(Boolean).map((part) => Array.from(part)[0] || '').join('').toUpperCase();
     return initials.slice(0, 6) || 'U';
+  }
+
+  function buildImageTraceWatermark(generatedAt) {
+    const date = generatedAt instanceof Date && !Number.isNaN(generatedAt.getTime()) ? generatedAt : new Date();
+    const pad = (value) => String(value).padStart(2, '0');
+    const timestamp = String(date.getFullYear()) + pad(date.getMonth() + 1) + pad(date.getDate()) + '-' + pad(date.getHours()) + pad(date.getMinutes()) + pad(date.getSeconds());
+    const actor = abbreviateExcelTraceName(findCurrentPlmUserName() || state.sizeImageAccessName || state.parameterImageAccessName || '');
+    return 'PFH · ' + actor + ' · ' + timestamp + ' · v' + SCRIPT_VERSION;
+  }
+
+  function drawImageTraceWatermark(context, width, height, trace) {
+    if (!context || !trace) return;
+    const fontSize = Math.max(12, Math.round(Math.min(width, height) * 0.0075));
+    const margin = Math.max(12, Math.round(Math.min(width, height) * 0.008));
+    context.save();
+    try {
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.globalCompositeOperation = 'source-over';
+      context.globalAlpha = 0.2;
+      context.fillStyle = '#c8c8c8';
+      context.font = '400 ' + fontSize + 'px "Microsoft YaHei", "PingFang SC", sans-serif';
+      context.textAlign = 'center';
+      context.textBaseline = 'bottom';
+      context.fillText(String(trace), width / 2, height - margin, width - margin * 2);
+    } finally {
+      context.restore();
+    }
   }
 
   function buildExcelTraceWatermark(exportedAt) {
