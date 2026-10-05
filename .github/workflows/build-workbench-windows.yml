@@ -38,9 +38,11 @@ jobs:
         run: npm ci
       - name: Test code order parsing
         run: npm test
+      - name: Build frontend
+        run: npm run build
       - name: Test desktop core
         working-directory: product-asset-workbench-tauri/src-tauri
-        run: cargo test --locked
+        run: cargo test --release --locked
       - name: Build Windows installer
         run: npm run tauri -- build --bundles nsis
       - name: Upload Windows installer
