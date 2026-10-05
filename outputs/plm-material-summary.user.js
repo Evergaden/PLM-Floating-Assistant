@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.43
+// @version      2.9.44
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.43';
+  const SCRIPT_VERSION = '2.9.44';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -22130,8 +22130,6 @@
       return;
     }
     if (item.id === 'excel') {
-      if (!state.data?.sku || state.excelExtra?.excelData?.sku !== state.data.sku) return showToast('请先打开产品并补全表格数据');
-      syncExcelInputs();
       return generateExcelFromCurrent();
     }
     const button = document.createElement('button');

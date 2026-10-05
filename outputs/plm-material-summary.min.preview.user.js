@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.43
+// @version      2.9.44
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -31,7 +31,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.9.43", r = Object.freeze({
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.9.44", r = Object.freeze({
         exceljs: Object.freeze({
             url: "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js",
             global: "ExcelJS",
@@ -13028,8 +13028,7 @@
                 const e = Wd.selectedSku || Wd.data?.sku || "";
                 return e ? (cN(e), void pN("已复制 SKU：" + e)) : pN("请先选择产品");
             }
-            if ("excel" === e.id) return Wd.data?.sku && Wd.excelExtra?.excelData?.sku === Wd.data.sku ? (qT(),
-            yC()) : pN("请先打开产品并补全表格数据");
+            if ("excel" === e.id) return yC();
             const t = document.createElement("button");
             t.setAttribute("data-action", e.action), Wd.exportMenuOpen && (qT(), Wd.exportMenuOpen = !1);
             Jx({

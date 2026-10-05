@@ -102,10 +102,14 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
   }
   context.state.selectedSku = 'SKU123';
   context.handleShortcutKeydown(event('C')); await flush(); assert.equal(copied, 'SKU123');
-  context.handleShortcutKeydown(event('E')); await flush(); assert.equal(generated, 0);
-  context.state.data = { sku: 'SKU123' }; context.state.excelExtra = { excelData: { sku: 'SKU123' } };
+  context.handleShortcutKeydown(event('E')); await flush(); assert.equal(generated, 1, 'exporter handles missing data itself');
+  context.state.data = { sku: 'SKU123' }; context.state.excelExtra = null;
+  context.handleShortcutKeydown(event('E')); await flush(); assert.equal(generated, 2, 'cached product exports without a prepared snapshot');
+  context.state.excelExtra = { excelData: { sku: 'SKU456' } };
+  context.handleShortcutKeydown(event('E')); await flush(); assert.equal(generated, 3, 'stale snapshot does not block export');
+  context.state.excelExtra = { excelData: { sku: 'SKU123' } };
   context.handleShortcutKeydown(event('E')); context.handleShortcutKeydown(event('E')); await flush();
-  assert.equal(generated, 1);
+  assert.equal(generated, 4);
   let finishExport;
   context.generateExcelFromCurrent = () => new Promise(resolve => { finishExport = resolve; });
   context.handleShortcutKeydown(event('E')); await flush();
