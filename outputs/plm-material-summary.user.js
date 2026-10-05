@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.44
+// @version      2.9.45
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.44';
+  const SCRIPT_VERSION = '2.9.45';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.300';
+  const UI_ASSET_VERSION = '2.5.301';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -21616,6 +21616,10 @@
     renderNotificationModal(panel);
     renderExcelExportResultModal(panel);
     if (state.view !== 'ledger') {
+      if (state.ledgerTabResizeObserver) {
+        state.ledgerTabResizeObserver.disconnect();
+        state.ledgerTabResizeObserver = null;
+      }
       closeLedgerAiImageRetouchComposer();
       state.ledgerAiImageViewer = null;
       renderLedgerAiImageViewer(panel);
@@ -26065,13 +26069,25 @@
     const indicator = tabs.querySelector('.pfh-ledger-tab-indicator');
     const activeButton = tabs.querySelector('button.is-active,button.active');
     if (indicator && activeButton) {
-      indicator.style.setProperty('left', activeButton.offsetLeft + 'px', 'important');
-      indicator.style.setProperty('width', activeButton.offsetWidth + 'px', 'important');
+      alignLedgerTabIndicator(tabs, indicator, activeButton);
     }
     return true;
   }
 
+  function alignLedgerTabIndicator(tabs, indicator, button) {
+    if (!tabs || !indicator || !button) return;
+    indicator.style.setProperty('left', (button.offsetLeft - tabs.clientLeft) + 'px', 'important');
+    indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
+    indicator.style.setProperty('top', (button.offsetTop - tabs.clientTop) + 'px', 'important');
+    indicator.style.setProperty('height', button.offsetHeight + 'px', 'important');
+    indicator.style.setProperty('bottom', 'auto', 'important');
+  }
+
   function setupLedgerTabFusion(detail) {
+    if (state.ledgerTabResizeObserver) {
+      state.ledgerTabResizeObserver.disconnect();
+      state.ledgerTabResizeObserver = null;
+    }
     const tabs = detail && detail.querySelector('.pfh-ledger-tabs');
     const indicator = tabs && tabs.querySelector('.pfh-ledger-tab-indicator');
     if (!tabs || !indicator) return;
@@ -26079,9 +26095,7 @@
     indicator.style.setProperty('transition', indicatorTransition, 'important');
     const buttons = Array.from(tabs.querySelectorAll('button[data-action^="ledger-view-"]'));
     const moveIndicator = (button) => {
-      if (!button) return;
-      indicator.style.setProperty('left', button.offsetLeft + 'px', 'important');
-      indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
+      alignLedgerTabIndicator(tabs, indicator, button);
     };
     buttons.forEach((button) => {
       button.addEventListener('mousemove', (event) => {
@@ -26101,6 +26115,14 @@
     const activeButton = tabs.querySelector('button.is-active,button.active') || buttons[0];
     if (!activeButton) return;
     moveIndicator(activeButton);
+    if (typeof ResizeObserver === 'function') {
+      state.ledgerTabResizeObserver = new ResizeObserver(() => {
+        const button = tabs.querySelector('button.is-active,button.active') || buttons[0];
+        moveIndicator(button);
+      });
+      state.ledgerTabResizeObserver.observe(tabs);
+      buttons.forEach((button) => state.ledgerTabResizeObserver.observe(button));
+    }
   }
 
   function skuDataChangeAlertHtml(data) {
