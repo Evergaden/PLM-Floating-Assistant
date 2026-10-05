@@ -1,17 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
+import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import {
   Archive, Check, ChevronDown, ChevronRight, ChevronUp, CircleAlert, Copy, FileArchive, FileImage, FileSpreadsheet, Film,
-  Eye, FolderOpen, Link2, LoaderCircle, Pencil, Play, RefreshCw, RotateCcw, Save, Search, Settings2,
+  Eye, FolderOpen, GripVertical, Link2, LoaderCircle, Pencil, Play, RefreshCw, RotateCcw, Save, Search, Settings2,
   ScanLine, Sparkles, Trash2, Undo2, Unplug, Upload, RotateCw, X,
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
+import MainImageLookup from "./MainImageLookup";
+
+const APP_VERSION = "0.2.1";
 
 const ROOT_KEY = "plm-workbench.asset-root";
+const WORKSPACE_ROOTS_KEY = "plm-workbench.workspace-roots-v1";
+const WORKSPACE_ORDER_KEY = "plm-workbench.workspace-order-v1";
 const MAP_KEY = "plm-workbench.folder-mappings";
 const AUTO_DONE_KEY = "plm-workbench.auto-finalized-done";
 const PACK_RULES_KEY = "plm-workbench.pack-rules";
@@ -27,6 +33,26 @@ const VIDEO_LOSSY_KEY = "plm-workbench.video-lossy";
 const VIDEO_THREADS_KEY = "plm-workbench.video-threads";
 const COMPACT_TOP_KEY = "plm-workbench.compact-top";
 const RANDOM_OUTPUT_KEY = "plm-workbench.random-output-dir";
+const LABEL_CHECK_TARGET_KEY = "plm-workbench.label-check-target-folder";
+const REMOTE_API_BASE = "https://velvet.qzz.io";
+const REMOTE_SESSION_KEY = "plm-workbench.remote-session-v1";
+const REMOTE_USER_KEY = "plm-workbench.remote-user-v1";
+const REMOTE_DEVICE_KEY = "plm-workbench.remote-device-v1";
+const PARAMETER_RULE_MANIFEST_URL_KEY = "plm-workbench.parameter-rule-manifest-url";
+const PARAMETER_RULE_CACHE_KEY = "plm-workbench.parameter-rule-cache-v1";
+const DEFAULT_PARAMETER_RULE_MANIFEST_URL = "https://velvet.qzz.io/assets/v1/parameter-layout-rules.manifest.json";
+const DEFAULT_LABEL_CHECK_TARGET = "03 纸盒标签";
+const LEGACY_LABEL_CHECK_TARGET = "03 纸盒标签文件夹";
+type WorkspaceView = "assets" | "packs" | "videos" | "upload" | "random" | "organize" | "parameter-samples" | "label-check" | "main-images";
+
+interface RemoteTask {
+  taskId: string;
+  type: "generate-assets" | "sync-products" | "scan-upload" | "note" | string;
+  title: string;
+  payload: { sku?: string; overwrite?: boolean; autoStart?: boolean; note?: string };
+  status: string;
+}
+const DEFAULT_WORKSPACE_ORDER: WorkspaceView[] = ["assets", "main-images", "packs", "random", "organize", "parameter-samples", "label-check", "upload", "videos"];
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
 ^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2
@@ -59,6 +85,279 @@ interface ArchivePacksResult {
 interface EmptyRecycleResult {
   deletedFiles: number;
   deletedFolders: number;
+  recycleRoot: string;
+}
+
+interface FileOrganizeItem {
+  kind: "sku-image" | "product-folder" | string;
+  sourcePath: string;
+  targetPath: string;
+  sourceName: string;
+  targetName: string;
+  sku: string;
+  status: "ready" | "conflict" | "skipped" | string;
+  message: string;
+}
+
+interface FileOrganizeScanResult {
+  root: string;
+  items: FileOrganizeItem[];
+}
+
+interface FileOrganizeResult {
+  logs: string[];
+  renamed: number;
+  skipped: number;
+  failed: number;
+}
+
+interface ParameterSampleItem {
+  sku: string;
+  productName: string;
+  productPath: string;
+  transparentPath: string | null;
+  parameterPath: string | null;
+  excelPath: string | null;
+  transparentHasAlpha: boolean;
+  transparentCandidates: number;
+  transparentPlaceholders: number;
+  parameterCandidates: number;
+  excelCandidates: number;
+  status: "ready" | "missing" | "ambiguous" | string;
+  message: string;
+}
+
+interface ParameterSampleScanResult {
+  root: string;
+  indexPath: string;
+  items: ParameterSampleItem[];
+  ready: number;
+  incomplete: number;
+  ambiguous: number;
+  logs: string[];
+}
+
+interface NormalizedRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface NormalizedPoint {
+  x: number;
+  y: number;
+}
+
+interface NormalizedEdge {
+  start: NormalizedPoint;
+  end: NormalizedPoint;
+}
+
+interface TransparentBoxGeometryEvidence {
+  analysisVersion: number;
+  method: string;
+  boxPosition: "left" | "right" | "middle" | "single" | string;
+  sideFace: "left" | "right" | "none" | string;
+  confidence: number;
+  boxBounds: NormalizedRect;
+  frontCorners: NormalizedPoint[];
+  sideCorners: NormalizedPoint[];
+  heightEdge: NormalizedEdge;
+  frontEdge: NormalizedEdge;
+  depthEdge: NormalizedEdge | null;
+  frontAxis: string;
+  depthAxis: string;
+  verticalAxis: string;
+  axisMappingVerified: boolean;
+}
+
+interface BoxDimensionMarkAnalysis {
+  kind: string;
+  orientation: string;
+  placement: string;
+  lineBounds: NormalizedRect;
+  labelBounds: NormalizedRect | null;
+  lineGapRatio: number;
+  labelOffsetRatio: number | null;
+  angleDegrees: number;
+}
+
+interface ParameterBoxSampleAnalysis {
+  sku: string;
+  productName: string;
+  parameterPath: string;
+  transparentPath: string | null;
+  status: "confident" | "low-confidence" | "skipped" | string;
+  confidence: number;
+  boxBounds: NormalizedRect | null;
+  lengthMark: BoxDimensionMarkAnalysis | null;
+  heightMark: BoxDimensionMarkAnalysis | null;
+  depthMark: BoxDimensionMarkAnalysis | null;
+  selectionMethod: string;
+  excelDimensions: {
+    excelPath: string;
+    product: { raw: string; lengthCm: number; widthCm: number; heightCm: number } | null;
+    package: { raw: string; lengthCm: number; widthCm: number; heightCm: number } | null;
+    message: string;
+  } | null;
+  ocrDimensionMatch: {
+    engine: string;
+    lengthText: string;
+    heightText: string;
+    lengthAxis: string;
+    heightAxis: string;
+    packageError: number | null;
+    productError: number | null;
+    verifiedAsPackage: boolean;
+  } | null;
+  transparentGeometry: TransparentBoxGeometryEvidence | null;
+  message: string;
+}
+
+interface DimensionPlacementSummary {
+  count: number;
+  primaryPlacement: string;
+  placementCounts: Record<string, number>;
+  medianLineGapRatio: number;
+  medianLabelOffsetRatio: number | null;
+  medianAngleDegrees: number;
+}
+
+interface ParameterBoxAnalysisResult {
+  reportPath: string;
+  batchReportPath: string;
+  libraryPath: string;
+  runtimeRulePath: string;
+  ruleVersion: string;
+  sourceIndexPath: string;
+  batchAnalyzed: number;
+  globalSamples: number;
+  addedSamples: number;
+  updatedSamples: number;
+  unchangedSamples: number;
+  removedSamples: number;
+  migratedSamples: number;
+  sourceCount: number;
+  analyzed: number;
+  confident: number;
+  lowConfidence: number;
+  skipped: number;
+  ocrAvailable: boolean;
+  excelParsed: number;
+  ocrVerified: number;
+  excelOcrSelected: number;
+  dimensionMismatches: number;
+  geometryAnalyzed: number;
+  sideFaceDetected: number;
+  axisMappingVerified: number;
+  lengthRule: DimensionPlacementSummary;
+  heightRule: DimensionPlacementSummary;
+  depthRule: DimensionPlacementSummary;
+  items: ParameterBoxSampleAnalysis[];
+  runtimeRule: ParameterRuntimeRule;
+  logs: string[];
+}
+
+interface ParameterRuntimeRuleProfile {
+  id: string;
+  label: string;
+  sampleCount: number;
+  match: { perspectiveDepth: boolean };
+  length: DimensionPlacementSummary;
+  height: DimensionPlacementSummary;
+  depth: DimensionPlacementSummary;
+  edgeTopology?: {
+    analysisVersion: number;
+    count: number;
+    axisMappingVerified: number;
+    medianConfidence: number;
+    templates: unknown[];
+  };
+}
+
+interface ParameterRuntimeRule {
+  schemaVersion: number;
+  ruleVersion: string;
+  minAppVersion: string;
+  generatedAtMs: number;
+  coordinateMode: string;
+  selection: { primary: string; fallback: string; supportsBoxOnEitherSide: boolean; usesExcelDimensions?: boolean; usesLocalOcr?: boolean; analyzesTransparentGeometry?: boolean; mapsDimensionsToDetectedEdges?: boolean };
+  profiles: ParameterRuntimeRuleProfile[];
+  confidence: { minimum: number; manualReviewBelow: number };
+}
+
+interface ParameterRuleManifest {
+  schemaVersion: number;
+  channel: string;
+  ruleVersion: string;
+  ruleUrl: string;
+  minAppVersion: string;
+  publishedAt: string;
+}
+
+interface CloudParameterRulePackage {
+  manifestUrl: string;
+  ruleUrl: string;
+  manifest: ParameterRuleManifest;
+  rule: ParameterRuntimeRule;
+}
+
+interface CachedParameterRule {
+  source: "local" | "cloud";
+  manifestUrl: string;
+  fetchedAtMs: number;
+  rule: ParameterRuntimeRule;
+}
+
+interface LabelCheckFile {
+  name: string;
+  path: string;
+  extension: string;
+  size: number;
+}
+
+interface LabelCheckItem {
+  sku: string;
+  brand: string;
+  productName: string;
+  productPath: string;
+  sourcePath: string;
+  sourceName: string;
+  targetPath: string;
+  previewImages: LabelCheckFile[];
+  uploadFiles: LabelCheckFile[];
+  psdFiles: LabelCheckFile[];
+  otherFiles: LabelCheckFile[];
+  status: "ready" | "missing-upload" | "missing-preview" | "conflict" | string;
+  message: string;
+}
+
+interface LabelCheckRecord {
+  sku: string;
+  brand: string;
+  productName: string;
+  productPath: string;
+  sourcePath: string;
+  targetPath: string;
+  confirmedAtMs: number;
+  movedFiles: string[];
+  movedPsdFiles: string[];
+}
+
+interface LabelCheckScanResult {
+  root: string;
+  targetFolderName: string;
+  historyPath: string;
+  pending: LabelCheckItem[];
+  confirmed: LabelCheckRecord[];
+  confirmedItems: LabelCheckItem[];
+  logs: string[];
+}
+
+interface LabelCheckConfirmResult {
+  record: LabelCheckRecord;
+  logs: string[];
 }
 
 interface ComposePackResult {
@@ -99,9 +398,7 @@ function isWorktableOperationDone(state: string, done: boolean) {
 
 function isWorktableComplete(row: ProductPreview) {
   const product = row.product;
-  return isWorktableOperationDone(product.boxFileState, product.boxFileDone)
-    && isWorktableOperationDone(product.labelFileState, product.labelFileDone)
-    && isWorktableOperationDone(product.imagePackState, product.imagePackDone);
+  return isWorktableOperationDone(product.imagePackState, product.imagePackDone);
 }
 
 function readMappings(): Record<string, string> {
@@ -112,6 +409,51 @@ function readMappings(): Record<string, string> {
   }
 }
 
+function readWorkspaceRoots(): Record<WorkspaceView, string> {
+  const legacyRoot = localStorage.getItem(ROOT_KEY) || "";
+  const roots = Object.fromEntries(DEFAULT_WORKSPACE_ORDER.map((view) => [view, legacyRoot])) as Record<WorkspaceView, string>;
+  try {
+    const saved = JSON.parse(localStorage.getItem(WORKSPACE_ROOTS_KEY) || "{}");
+    DEFAULT_WORKSPACE_ORDER.forEach((view) => {
+      if (typeof saved?.[view] === "string") roots[view] = saved[view];
+    });
+  } catch {
+    // Keep the legacy directory as the initial value for every page.
+  }
+  return roots;
+}
+
+function readWorkspaceOrder(): WorkspaceView[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WORKSPACE_ORDER_KEY) || "[]");
+    if (!Array.isArray(saved)) return [...DEFAULT_WORKSPACE_ORDER];
+    const valid = saved.filter((view): view is WorkspaceView => DEFAULT_WORKSPACE_ORDER.includes(view));
+    return [...new Set([...valid, ...DEFAULT_WORKSPACE_ORDER])];
+  } catch {
+    return [...DEFAULT_WORKSPACE_ORDER];
+  }
+}
+
+function readCachedParameterRule(): CachedParameterRule | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(PARAMETER_RULE_CACHE_KEY) || "null") as CachedParameterRule | null;
+    if (!value?.rule || value.rule.schemaVersion !== 1 || !value.rule.ruleVersion || !Array.isArray(value.rule.profiles) || !appSupportsRule(value.rule.minAppVersion)) return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+function appSupportsRule(minAppVersion: string) {
+  const parts = (value: string) => value.split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const current = parts(APP_VERSION);
+  const minimum = parts(minAppVersion);
+  for (let index = 0; index < Math.max(current.length, minimum.length); index += 1) {
+    if ((current[index] || 0) !== (minimum[index] || 0)) return (current[index] || 0) > (minimum[index] || 0);
+  }
+  return true;
+}
+
 function statusFor(row: ProductPreview, job?: RowJob) {
   if (job?.state === "running" || job?.state === "queued") return { label: job.message || "生成中", tone: "working" };
   if (job?.state === "done") return { label: "生成完成", tone: "success" };
@@ -119,8 +461,40 @@ function statusFor(row: ProductPreview, job?: RowJob) {
   if (row.ambiguousFolders.length > 1) return { label: `同名目录 ${row.ambiguousFolders.length} 个，请手动选择`, tone: "warning" };
   if (!row.folder) return { label: "待指定目录", tone: "danger" };
   if (row.missing.length) return { label: `缺少 ${row.missing.join("、")}`, tone: "warning" };
-  if (isWorktableComplete(row)) return { label: "三项操作完成，已收纳", tone: "neutral" };
+  if (isWorktableComplete(row)) return { label: "图包已完成，已收纳", tone: "neutral" };
   return { label: "可以生成", tone: "success" };
+}
+
+function labelCheckStatusLabel(status: string) {
+  if (status === "ready") return "可确认";
+  if (status === "missing-upload") return "缺少可上传文件";
+  if (status === "missing-preview") return "缺少 JPG/PNG 预览";
+  if (status === "conflict") return "目标文件冲突";
+  return status;
+}
+
+function formatLabelCheckTime(value: number) {
+  if (!value) return "未知时间";
+  return new Date(value).toLocaleString("zh-CN", { hour12: false });
+}
+
+function localFileName(path: string | null) {
+  return path ? path.split(/[\\/]/).filter(Boolean).pop() || path : "未找到";
+}
+
+function dimensionPlacementLabel(value: string) {
+  return ({ top: "纸盒上方", bottom: "纸盒下方", left: "纸盒左侧", right: "纸盒右侧", "top-left": "纸盒左上方", "top-right": "纸盒右上方" } as Record<string, string>)[value] || "未识别";
+}
+
+function percentRatio(value: number | null) {
+  return value === null || !Number.isFinite(value) ? "—" : `${Math.round(value * 100)}%`;
+}
+
+function needsParameterReview(item: ParameterBoxSampleAnalysis) {
+  return item.status !== "confident"
+    || (item.ocrDimensionMatch?.packageError ?? 0) > 0.2
+    || !item.transparentGeometry
+    || item.transparentGeometry.confidence < 0.64;
 }
 
 function ProductThumbnail({ row }: { row: ProductPreview }) {
@@ -346,11 +720,159 @@ function AssetPreviewModal({ initialKind, row, onClose, notify }: {
   );
 }
 
+function labelPreviewGroups(item: LabelCheckItem) {
+  const box = item.previewImages.filter((file) => file.name.includes("纸盒"));
+  const label = item.previewImages.filter((file) => !file.name.includes("纸盒") && (file.name.includes("标签") || file.name.includes("印刷")));
+  return { box, label };
+}
+
+function labelCheckProductFolder(item: LabelCheckItem) {
+  const sourcePath = item.sourcePath.replace(/[\\/]+$/, "");
+  const separatorIndex = Math.max(sourcePath.lastIndexOf("\\"), sourcePath.lastIndexOf("/"));
+  return separatorIndex > 0 ? sourcePath.slice(0, separatorIndex) : item.productPath;
+}
+
+function ZoomableLabelImage({ dataUrl, fileName }: { dataUrl: string; fileName: string }) {
+  const [scale, setScale] = useState(1);
+  const [maxScale, setMaxScale] = useState(8);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+
+  function reset() {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+  }
+
+  function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    const factor = event.deltaY < 0 ? 1.16 : 1 / 1.16;
+    setScale((current) => Math.min(maxScale, Math.max(1, current * factor)));
+  }
+
+  function handleImageLoad(event: React.SyntheticEvent<HTMLImageElement>) {
+    const viewport = viewportRef.current?.getBoundingClientRect();
+    const image = event.currentTarget;
+    if (!viewport || !image.naturalWidth || !image.naturalHeight) return;
+    const fitScale = Math.min(viewport.width / image.naturalWidth, viewport.height / image.naturalHeight);
+    setMaxScale(Math.max(1, Math.min(12, 1 / fitScale)));
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setOffset((current) => ({ x: current.x + event.clientX - drag.x, y: current.y + event.clientY - drag.y }));
+    dragRef.current = { ...drag, x: event.clientX, y: event.clientY };
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
+  return (
+    <div
+      ref={viewportRef}
+      className={`label-check-zoom-viewport ${scale > 1 ? "is-zoomed" : ""}`}
+      onWheel={handleWheel}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onDoubleClick={reset}
+      title="滚轮放大/缩小；按住鼠标抓手移动；双击复位"
+    >
+      <img
+        src={dataUrl}
+        alt={fileName}
+        draggable={false}
+        onLoad={handleImageLoad}
+        style={{
+          width: `${scale * 100}%`,
+          height: `${scale * 100}%`,
+          left: `calc(50% + ${offset.x}px)`,
+          top: `calc(50% + ${offset.y}px)`,
+        }}
+      />
+      <span>{scale > 1 ? `${Math.round(scale * 100)}% · 抓手移动 · 双击复位` : "滚轮放大 · 抓手移动"}</span>
+    </div>
+  );
+}
+
+function LabelCheckPreviewModal({ item, onClose }: { item: LabelCheckItem; onClose: () => void }) {
+  const groups = useMemo(() => labelPreviewGroups(item), [item]);
+  const files = useMemo(() => [...groups.box, ...groups.label], [groups]);
+  const [dataUrls, setDataUrls] = useState<Record<string, string>>({});
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setDataUrls({});
+    setError("");
+    Promise.all(files.map(async (file) => [file.path, await invoke<string>("read_image_data_url", { path: file.path })] as const))
+      .then((entries) => {
+        if (!active) return;
+        setDataUrls(Object.fromEntries(entries));
+      })
+      .catch((reason) => {
+        if (active) setError(String(reason));
+      });
+    return () => { active = false; };
+  }, [files]);
+
+  function renderSide(title: string, sideFiles: LabelCheckFile[]) {
+    return (
+      <section className="label-check-preview-pane">
+        <header><strong>{title}</strong><span>{sideFiles.length} 张预览</span></header>
+        <div className="label-check-preview-grid">
+          {sideFiles.map((file) => (
+            <div className="label-check-preview-item" key={file.path}>
+              {dataUrls[file.path] ? <ZoomableLabelImage dataUrl={dataUrls[file.path]} fileName={file.name} /> : <div className="label-check-image-loading"><LoaderCircle size={22} className="spin" /></div>}
+              <span title={file.name}>{file.name}</span>
+            </div>
+          ))}
+          {!sideFiles.length && <div className="label-check-preview-empty"><FileImage size={22} /><span>没有识别到此类 JPG/PNG</span></div>}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <div className="modal-backdrop asset-preview-backdrop" onMouseDown={onClose}>
+      <section className="asset-preview-modal label-check-preview-modal" onMouseDown={(event) => event.stopPropagation()}>
+        <header>
+          <div><strong>纸盒 / 标签 / 印刷并列核对</strong><span title={item.productPath}>{item.sku} · {item.productName}</span></div>
+          <button className="modal-close" onClick={onClose}><X size={19} /></button>
+        </header>
+        {error && <div className="preview-error label-check-preview-error"><CircleAlert size={22} /><strong>{error}</strong></div>}
+        <div className="label-check-preview-split">
+          {renderSide("纸盒", groups.box)}
+          {renderSide("标签 / 印刷", groups.label)}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function App() {
   const [bridge, setBridge] = useState<BridgeInfo>({ url: "ws://127.0.0.1:37191", token: "", connected: false, scriptVersion: "" });
   const [products, setProducts] = useState<FinalizedProduct[]>([]);
   const [rows, setRows] = useState<ProductPreview[]>([]);
-  const [root, setRoot] = useState(() => localStorage.getItem(ROOT_KEY) || "");
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("assets");
+  const [workspaceRoots, setWorkspaceRoots] = useState<Record<WorkspaceView, string>>(readWorkspaceRoots);
+  const [workspaceOrder, setWorkspaceOrder] = useState<WorkspaceView[]>(readWorkspaceOrder);
+  const [draggingWorkspaceTab, setDraggingWorkspaceTab] = useState<WorkspaceView | null>(null);
+  const [workspaceDropTarget, setWorkspaceDropTarget] = useState<WorkspaceView | null>(null);
+  const root = workspaceRoots[workspaceView] || "";
+  const assetRoot = workspaceRoots.assets || "";
   const [mappings, setMappings] = useState<Record<string, string>>(readMappings);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -358,8 +880,13 @@ export default function App() {
   const [syncing, setSyncing] = useState(false);
   const [overwrite, setOverwrite] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
+  const [remoteToken, setRemoteToken] = useState(() => localStorage.getItem(REMOTE_SESSION_KEY) || "");
+  const [remoteUser, setRemoteUser] = useState(() => localStorage.getItem(REMOTE_USER_KEY) || "");
+  const [remotePassword, setRemotePassword] = useState("");
+  const [remoteBusy, setRemoteBusy] = useState(false);
+  const [remoteOnline, setRemoteOnline] = useState(false);
+  const [remoteLastTask, setRemoteLastTask] = useState("");
   const [toast, setToast] = useState("");
-  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos" | "upload" | "random">("assets");
   const [queueView, setQueueView] = useState<"active" | "complete">("active");
   const [zipPaths, setZipPaths] = useState<string[]>([]);
   const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
@@ -392,11 +919,59 @@ export default function App() {
   const [randomCompress, setRandomCompress] = useState(true);
   const [randomBusy, setRandomBusy] = useState(false);
   const [randomLogs, setRandomLogs] = useState<string[]>(["等待导入主图或详情图 ZIP。"]);
+  const [organizeItems, setOrganizeItems] = useState<FileOrganizeItem[]>([]);
+  const [organizeRenameImages, setOrganizeRenameImages] = useState(true);
+  const [organizeRenameFolders, setOrganizeRenameFolders] = useState(true);
+  const [organizeBusy, setOrganizeBusy] = useState(false);
+  const [organizeLogs, setOrganizeLogs] = useState<string[]>(["请选择工作目录并扫描待整理文件。"]);
+  const [parameterSamples, setParameterSamples] = useState<ParameterSampleItem[]>([]);
+  const [parameterSampleIndexPath, setParameterSampleIndexPath] = useState("");
+  const [parameterSampleBusy, setParameterSampleBusy] = useState(false);
+  const [parameterSampleLogs, setParameterSampleLogs] = useState<string[]>(["请选择工作目录，工作台会自动配对透明图、正确尺寸图和 Excel。"]);
+  const [parameterBoxAnalysis, setParameterBoxAnalysis] = useState<ParameterBoxAnalysisResult | null>(null);
+  const [parameterBoxAnalysisBusy, setParameterBoxAnalysisBusy] = useState(false);
+  const [parameterRuleManifestUrl, setParameterRuleManifestUrl] = useState(() => localStorage.getItem(PARAMETER_RULE_MANIFEST_URL_KEY) || DEFAULT_PARAMETER_RULE_MANIFEST_URL);
+  const [cachedParameterRule, setCachedParameterRule] = useState<CachedParameterRule | null>(readCachedParameterRule);
+  const [parameterCloudRuleBusy, setParameterCloudRuleBusy] = useState(false);
+  const [labelCheckItems, setLabelCheckItems] = useState<LabelCheckItem[]>([]);
+  const [labelCheckRecords, setLabelCheckRecords] = useState<LabelCheckRecord[]>([]);
+  const [labelCheckConfirmedItems, setLabelCheckConfirmedItems] = useState<LabelCheckItem[]>([]);
+  const [labelCheckFilter, setLabelCheckFilter] = useState<"pending" | "confirmed" | "all">("pending");
+  const [labelCheckTargetFolder, setLabelCheckTargetFolder] = useState(() => {
+    const saved = localStorage.getItem(LABEL_CHECK_TARGET_KEY);
+    return !saved || saved === LEGACY_LABEL_CHECK_TARGET ? DEFAULT_LABEL_CHECK_TARGET : saved;
+  });
+  const [labelCheckHistoryPath, setLabelCheckHistoryPath] = useState("");
+  const [labelCheckBusy, setLabelCheckBusy] = useState(false);
+  const [labelCheckDraggingSku, setLabelCheckDraggingSku] = useState("");
+  const [labelCheckLogs, setLabelCheckLogs] = useState<string[]>(["请选择工作目录并扫描待检查的纸盒标签文件。"]);
+  const [labelCheckPreviewItem, setLabelCheckPreviewItem] = useState<LabelCheckItem | null>(null);
   const [assetPreview, setAssetPreview] = useState<{ row: ProductPreview; kind: PreviewKind } | null>(null);
   const [packLogs, setPackLogs] = useState<string[]>(["等待添加图包 ZIP。"]);
   const autoRunning = useRef(new Set<string>());
   const autoAttempts = useRef(new Map<string, string>());
+  const manualSnapshotPending = useRef(false);
+  const manualSnapshotTimeout = useRef<number | null>(null);
+  const remoteAssetTasks = useRef(new Map<string, string>());
+  const remoteDeviceId = useRef((() => {
+    const saved = localStorage.getItem(REMOTE_DEVICE_KEY);
+    if (saved) return saved;
+    const created = crypto.randomUUID().replace(/-/g, "");
+    localStorage.setItem(REMOTE_DEVICE_KEY, created);
+    return created;
+  })());
   const bridgeRef = useRef(bridge);
+  const workspaceOrderRef = useRef(workspaceOrder);
+  const workspaceTabPressRef = useRef<{
+    view: WorkspaceView;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    timer: number;
+    dragging: boolean;
+    target: WorkspaceView;
+  } | null>(null);
+  const suppressWorkspaceClickRef = useRef(false);
 
   const notify = useCallback((message: string) => {
     setToast(message);
@@ -405,6 +980,10 @@ export default function App() {
 
   const addZipPaths = useCallback((paths: string[]) => {
     setZipPaths((current) => [...new Set([...current, ...paths.filter((path) => path.toLowerCase().endsWith(".zip"))])]);
+  }, []);
+
+  const addRandomZipPaths = useCallback((paths: string[]) => {
+    setRandomZipPaths((current) => [...new Set([...current, ...paths.filter((path) => path.toLowerCase().endsWith(".zip"))])]);
   }, []);
 
   const refreshPreview = useCallback(async (
@@ -433,6 +1012,7 @@ export default function App() {
       const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
       result.filter((row) =>
         row.product.finalizedDate === today
+        && !isWorktableComplete(row)
         && row.folder
         && !row.missing.length
         && !(row.excelExists && row.skuImageExists)
@@ -482,9 +1062,18 @@ export default function App() {
         setBridge(event.payload);
         if (event.payload.connected) notify("PLM 悬浮助手已连接");
       }),
-      listen("snapshot-updated", () => loadProducts()),
+      listen("snapshot-updated", () => {
+        if (!manualSnapshotPending.current) return;
+        manualSnapshotPending.current = false;
+        if (manualSnapshotTimeout.current) window.clearTimeout(manualSnapshotTimeout.current);
+        manualSnapshotTimeout.current = null;
+        loadProducts().catch(console.error);
+        setSyncing(false);
+        notify("定稿数据已刷新");
+      }),
       listen<{ sku: string; state: string; message: string }>("asset-job", (event) => {
         const { sku, state, message } = event.payload;
+        const remoteTaskId = remoteAssetTasks.current.get(sku.toUpperCase());
         setJobs((current) => ({ ...current, [sku]: { state: state as RowJob["state"], message } }));
         if (state === "done") {
           const wasAuto = autoRunning.current.has(sku);
@@ -500,27 +1089,100 @@ export default function App() {
             completed[sku] = completedSignature;
             localStorage.setItem(AUTO_DONE_KEY, JSON.stringify(completed));
           }
+          if (remoteTaskId) {
+            remoteAssetTasks.current.delete(sku.toUpperCase());
+            reportRemoteTask(remoteTaskId, "succeeded", `${sku} 资产生成完成`, { sku }).catch(console.error);
+          }
           loadProducts().catch(console.error);
         } else if (state === "error") {
           autoRunning.current.delete(sku);
+          if (remoteTaskId) {
+            remoteAssetTasks.current.delete(sku.toUpperCase());
+            reportRemoteTask(remoteTaskId, "failed", message || `${sku} 资产生成失败`, { sku }).catch(console.error);
+          }
           loadProducts().catch(console.error);
         }
       }),
     ]).then((items) => cleaners.push(...items));
-    return () => cleaners.forEach((clean) => clean());
-  }, [loadProducts, notify]);
+    return () => {
+      cleaners.forEach((clean) => clean());
+      if (manualSnapshotTimeout.current) window.clearTimeout(manualSnapshotTimeout.current);
+      manualSnapshotTimeout.current = null;
+      manualSnapshotPending.current = false;
+    };
+  }, [loadProducts, notify, remoteToken]);
+
+  useEffect(() => {
+    if (!remoteToken) return;
+    let active = true;
+    let polling = false;
+    const poll = async () => {
+      if (!active || polling) return;
+      polling = true;
+      try {
+        const data = await remoteRequest<{ task: RemoteTask | null }>("/remote-api/device/poll", {
+          method: "POST",
+          body: {
+            deviceId: remoteDeviceId.current,
+            deviceName: "PLM 产品资产工作台",
+            appVersion: APP_VERSION,
+            acceptTasks: remoteAssetTasks.current.size === 0,
+            capabilities: {
+              bridgeConnected: bridge.connected,
+              assetRootReady: Boolean(assetRoot),
+              productCount: products.length,
+              taskTypes: ["generate-assets", "sync-products", "scan-upload", "note"],
+            },
+          },
+        });
+        if (!active) return;
+        setRemoteOnline(true);
+        if (data.task) {
+          try {
+            await executeRemoteTask(data.task);
+          } catch (error) {
+            const message = String(error instanceof Error ? error.message : error);
+            await reportRemoteTask(data.task.taskId, "failed", message);
+            notify(`手机任务失败：${message}`);
+          }
+        }
+      } catch (error) {
+        if (!active) return;
+        setRemoteOnline(false);
+        if ((error as Error & { status?: number }).status === 401) {
+          setRemoteToken("");
+          localStorage.removeItem(REMOTE_SESSION_KEY);
+          notify("手机远程会话已过期，请重新启用");
+        }
+      } finally {
+        polling = false;
+      }
+    };
+    poll();
+    const timer = window.setInterval(poll, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [assetRoot, bridge.connected, products.length, remoteToken, rows]);
 
   useEffect(() => {
     let clean: (() => void) | undefined;
     getCurrentWebview().onDragDropEvent((event) => {
-      if (event.payload.type === "drop") addZipPaths(event.payload.paths);
+      if (event.payload.type !== "drop") return;
+      if (workspaceView === "random") addRandomZipPaths(event.payload.paths);
+      else if (workspaceView === "packs") addZipPaths(event.payload.paths);
     }).then((unlisten) => { clean = unlisten; });
     return () => clean?.();
-  }, [addZipPaths]);
+  }, [addRandomZipPaths, addZipPaths, workspaceView]);
 
   useEffect(() => {
-    refreshPreview(products, root, mappings).catch(console.error);
-  }, [bridge.connected, mappings, products, refreshPreview, root]);
+    refreshPreview(products, assetRoot, mappings).catch(console.error);
+  }, [assetRoot, bridge.connected, mappings, products, refreshPreview]);
+
+  useEffect(() => {
+    workspaceOrderRef.current = workspaceOrder;
+  }, [workspaceOrder]);
 
   const matchingRows = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -538,11 +1200,117 @@ export default function App() {
     complete: rows.filter(isWorktableComplete).length,
   }), [rows]);
 
+  const visibleLabelCheckItems = useMemo(() => {
+    if (labelCheckFilter === "confirmed") return labelCheckConfirmedItems;
+    if (labelCheckFilter === "all") return [...labelCheckItems, ...labelCheckConfirmedItems];
+    return labelCheckItems;
+  }, [labelCheckConfirmedItems, labelCheckFilter, labelCheckItems]);
+
   async function chooseRoot() {
-    const value = await open({ directory: true, multiple: false, title: "选择产品文件夹根目录" });
+    const view = workspaceView;
+    const value = await open({ directory: true, multiple: false, defaultPath: workspaceRoots[view] || undefined, title: "选择当前页面的工作目录" });
     if (typeof value !== "string") return;
-    setRoot(value);
-    localStorage.setItem(ROOT_KEY, value);
+    setWorkspaceRoots((current) => {
+      const next = { ...current, [view]: value };
+      localStorage.setItem(WORKSPACE_ROOTS_KEY, JSON.stringify(next));
+      if (view === "assets") localStorage.setItem(ROOT_KEY, value);
+      return next;
+    });
+  }
+
+  function beginWorkspaceTabPress(event: ReactPointerEvent<HTMLButtonElement>, view: WorkspaceView) {
+    if (event.button !== 0) return;
+    const previous = workspaceTabPressRef.current;
+    if (previous?.timer) window.clearTimeout(previous.timer);
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is best-effort. */ }
+    const press = {
+      view,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      timer: 0,
+      dragging: false,
+      target: view,
+    };
+    press.timer = window.setTimeout(() => {
+      const current = workspaceTabPressRef.current;
+      if (!current || current.pointerId !== event.pointerId || current.view !== view) return;
+      current.dragging = true;
+      setDraggingWorkspaceTab(view);
+      setWorkspaceDropTarget(view);
+      notify("已进入按钮排序，拖到目标位置后松开");
+    }, 380);
+    workspaceTabPressRef.current = press;
+  }
+
+  function moveWorkspaceTab(event: ReactPointerEvent<HTMLButtonElement>) {
+    const press = workspaceTabPressRef.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    const distance = Math.hypot(event.clientX - press.startX, event.clientY - press.startY);
+    if (!press.dragging) {
+      if (distance > 9 && press.timer) {
+        window.clearTimeout(press.timer);
+        press.timer = 0;
+      }
+      return;
+    }
+    event.preventDefault();
+    const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-workspace-tab]"));
+    const target = buttons.map((button) => {
+      const rect = button.getBoundingClientRect();
+      const dx = event.clientX - (rect.left + rect.width / 2);
+      const dy = event.clientY - (rect.top + rect.height / 2);
+      return { view: button.dataset.workspaceTab as WorkspaceView, distance: dx * dx + dy * dy };
+    }).sort((left, right) => left.distance - right.distance)[0]?.view;
+    if (!target || target === press.target) return;
+    press.target = target;
+    setWorkspaceDropTarget(target);
+    if (target === press.view) return;
+    setWorkspaceOrder((current) => {
+      const from = current.indexOf(press.view);
+      const to = current.indexOf(target);
+      if (from < 0 || to < 0 || from === to) return current;
+      const next = [...current];
+      next.splice(from, 1);
+      next.splice(to, 0, press.view);
+      workspaceOrderRef.current = next;
+      return next;
+    });
+  }
+
+  function finishWorkspaceTabPress(event: ReactPointerEvent<HTMLButtonElement>) {
+    const press = workspaceTabPressRef.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    if (press.timer) window.clearTimeout(press.timer);
+    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* Pointer capture may already be released. */ }
+    if (press.dragging) {
+      event.preventDefault();
+      event.stopPropagation();
+      localStorage.setItem(WORKSPACE_ORDER_KEY, JSON.stringify(workspaceOrderRef.current));
+      suppressWorkspaceClickRef.current = true;
+      window.setTimeout(() => { suppressWorkspaceClickRef.current = false; }, 0);
+    }
+    workspaceTabPressRef.current = null;
+    setDraggingWorkspaceTab(null);
+    setWorkspaceDropTarget(null);
+  }
+
+  function cancelWorkspaceTabPress(event: ReactPointerEvent<HTMLButtonElement>) {
+    const press = workspaceTabPressRef.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    if (press.timer) window.clearTimeout(press.timer);
+    if (press.dragging) localStorage.setItem(WORKSPACE_ORDER_KEY, JSON.stringify(workspaceOrderRef.current));
+    workspaceTabPressRef.current = null;
+    setDraggingWorkspaceTab(null);
+    setWorkspaceDropTarget(null);
+  }
+
+  function activateWorkspaceTab(event: ReactMouseEvent<HTMLButtonElement>, view: WorkspaceView) {
+    if (suppressWorkspaceClickRef.current) {
+      event.preventDefault();
+      return;
+    }
+    setWorkspaceView(view);
   }
 
   async function chooseZipPacks() {
@@ -564,7 +1332,7 @@ export default function App() {
       filters: [{ name: "ZIP 图包", extensions: ["zip"] }],
     });
     const paths = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
-    setRandomZipPaths((current) => [...new Set([...current, ...paths.filter((path) => path.toLowerCase().endsWith(".zip"))])]);
+    addRandomZipPaths(paths);
   }
 
   async function chooseRandomOutputDir() {
@@ -755,6 +1523,7 @@ export default function App() {
       if (result.missingSlots.length) {
         notify(`素材不完整，缺少：${result.missingSlots.join("、")}`);
       } else {
+        setRandomZipPaths([]);
         notify(`随机组合完成：${result.selectedCount} 张${result.photoshopStarted ? "，Photoshop 已压缩" : ""}`);
       }
     } catch (error) {
@@ -779,7 +1548,7 @@ export default function App() {
         autoStart: uploadAutoStart,
       });
       setSelectedUploadSkus(new Set());
-      notify(`已提交 ${count} 个上传任务${uploadAutoStart ? "，已请求自动开始" : "，请在悬浮助手中开始"}`);
+      notify(`已提交 ${count} 个魔法上传图包任务${uploadAutoStart ? "，已请求自动开始" : "，请在悬浮助手中开始"}`);
     } catch (error) {
       notify(String(error));
     } finally {
@@ -794,8 +1563,8 @@ export default function App() {
     try {
       const result = await invoke<EmptyRecycleResult>("empty_pack_recycle", { root });
       const message = result.deletedFolders
-        ? `已清空 ${result.deletedFolders} 个回收站，永久删除 ${result.deletedFiles} 个文件`
-        : "没有找到需要清空的“套图/回收站”";
+        ? `已清空外部回收站，永久删除 ${result.deletedFiles} 个文件（位置：${result.recycleRoot}）`
+        : `外部回收站没有待清理文件（位置：${result.recycleRoot}）`;
       setPackLogs((current) => [...current, message]);
       notify(message);
     } catch (error) {
@@ -805,12 +1574,334 @@ export default function App() {
     }
   }
 
+  async function scanOrganizer() {
+    if (!root) return notify("请先选择工作目录");
+    if (!organizeRenameImages && !organizeRenameFolders) return notify("请至少选择一种整理规则");
+    setOrganizeBusy(true);
+    try {
+      const result = await invoke<FileOrganizeScanResult>("scan_file_organizer", {
+        root,
+        renameSkuImages: organizeRenameImages,
+        renameProductFolders: organizeRenameFolders,
+      });
+      setOrganizeItems(result.items);
+      setOrganizeLogs([
+        `扫描完成：发现 ${result.items.length} 项；可执行 ${result.items.filter((item) => item.status === "ready").length} 项`,
+        ...result.items.filter((item) => item.status !== "ready").map((item) => `${item.status === "conflict" ? "冲突" : "跳过"}：${item.sourcePath} · ${item.message}`),
+      ]);
+      notify(`扫描完成：${result.items.filter((item) => item.status === "ready").length} 项可整理`);
+    } catch (error) {
+      setOrganizeLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setOrganizeBusy(false);
+    }
+  }
+
+  async function applyOrganizer() {
+    if (!root) return notify("请先选择工作目录");
+    const targets = organizeItems.filter((item) => item.status === "ready");
+    if (!targets.length) return notify("请先扫描出可整理项目");
+    if (!window.confirm(`将批量重命名 ${targets.length} 项文件/目录，目标已存在的项目会跳过。是否继续？`)) return;
+    setOrganizeBusy(true);
+    try {
+      const result = await invoke<FileOrganizeResult>("organize_files", {
+        root,
+        operations: targets.map((item) => ({ sourcePath: item.sourcePath, targetPath: item.targetPath })),
+      });
+      setOrganizeLogs(result.logs);
+      notify(`文件整理完成：成功 ${result.renamed}，跳过 ${result.skipped}，失败 ${result.failed}`);
+      const refreshed = await invoke<FileOrganizeScanResult>("scan_file_organizer", {
+        root,
+        renameSkuImages: organizeRenameImages,
+        renameProductFolders: organizeRenameFolders,
+      });
+      setOrganizeItems(refreshed.items);
+    } catch (error) {
+      setOrganizeLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setOrganizeBusy(false);
+    }
+  }
+
+  async function scanParameterSamples() {
+    if (!root) return notify("请先选择工作目录");
+    setParameterSampleBusy(true);
+    setParameterBoxAnalysis(null);
+    setParameterSampleLogs(["正在递归扫描产品目录并自动配对样本…"]);
+    try {
+      const result = await invoke<ParameterSampleScanResult>("scan_parameter_samples", { root });
+      setParameterSamples(result.items);
+      setParameterSampleIndexPath(result.indexPath);
+      setParameterSampleLogs(result.logs);
+      notify(`样本整理完成：完整 ${result.ready} 组，待补全 ${result.incomplete} 组，需核对 ${result.ambiguous} 组`);
+    } catch (error) {
+      setParameterSampleLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setParameterSampleBusy(false);
+    }
+  }
+
+  async function analyzeParameterBoxAnnotations() {
+    if (!root) return notify("请先选择工作目录");
+    setParameterBoxAnalysisBusy(true);
+    setParameterSampleLogs(["正在联合读取 Excel 尺寸、执行本地 OCR，并分析纸盒长、高、宽/深标注位置；精细模式可能需要几分钟…"]);
+    try {
+      const result = await invoke<ParameterBoxAnalysisResult>("analyze_parameter_box_annotations", { root });
+      setParameterBoxAnalysis(result);
+      setParameterSampleIndexPath(result.sourceIndexPath);
+      const cached: CachedParameterRule = { source: "local", manifestUrl: parameterRuleManifestUrl.trim(), fetchedAtMs: Date.now(), rule: result.runtimeRule };
+      localStorage.setItem(PARAMETER_RULE_CACHE_KEY, JSON.stringify(cached));
+      setCachedParameterRule(cached);
+      setParameterSampleLogs(result.logs);
+      notify(`纸盒标注分析完成：高置信度 ${result.confident} 组，低置信度 ${result.lowConfidence} 组`);
+    } catch (error) {
+      setParameterSampleLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setParameterBoxAnalysisBusy(false);
+    }
+  }
+
+  async function refreshCloudParameterRules() {
+    const manifestUrl = parameterRuleManifestUrl.trim();
+    if (!/^https:\/\//i.test(manifestUrl)) return notify("云端规则清单必须使用 HTTPS 地址");
+    localStorage.setItem(PARAMETER_RULE_MANIFEST_URL_KEY, manifestUrl);
+    setParameterCloudRuleBusy(true);
+    try {
+      const result = await invoke<CloudParameterRulePackage>("fetch_parameter_rule_package", { manifestUrl });
+      const { manifest, rule } = result;
+      if (manifest.schemaVersion !== 1 || !manifest.ruleVersion || !manifest.ruleUrl) throw new Error("云端规则清单格式不正确");
+      if (rule.schemaVersion !== 1 || !rule.ruleVersion || !Array.isArray(rule.profiles) || rule.ruleVersion !== manifest.ruleVersion) throw new Error("云端规则包版本或结构不匹配");
+      const minimumVersion = rule.minAppVersion || manifest.minAppVersion;
+      if (!appSupportsRule(minimumVersion)) throw new Error(`规则要求工作台 ${minimumVersion} 或更高版本，当前为 ${APP_VERSION}`);
+      const cached: CachedParameterRule = { source: "cloud", manifestUrl: result.manifestUrl, fetchedAtMs: Date.now(), rule };
+      localStorage.setItem(PARAMETER_RULE_CACHE_KEY, JSON.stringify(cached));
+      setCachedParameterRule(cached);
+      notify(`云端纸盒规则已更新：${rule.ruleVersion}`);
+    } catch (error) {
+      notify(`云端规则更新失败，继续使用本地缓存：${String(error)}`);
+    } finally {
+      setParameterCloudRuleBusy(false);
+    }
+  }
+
+  async function scanLabelCheck() {
+    if (!root) return notify("请先选择工作目录");
+    const targetFolderName = labelCheckTargetFolder.trim();
+    if (!targetFolderName) return notify("请输入 03 纸盒标签名称");
+    localStorage.setItem(LABEL_CHECK_TARGET_KEY, targetFolderName);
+    setLabelCheckTargetFolder(targetFolderName);
+    setLabelCheckBusy(true);
+    try {
+      const result = await invoke<LabelCheckScanResult>("scan_label_check", { root, targetFolderName });
+      setLabelCheckItems(result.pending);
+      setLabelCheckRecords(result.confirmed);
+      setLabelCheckConfirmedItems(result.confirmedItems);
+      setLabelCheckHistoryPath(result.historyPath);
+      setLabelCheckLogs(result.logs);
+      notify(`扫描完成：待检查 ${result.pending.length} 个，已确认 ${result.confirmed.length} 个`);
+    } catch (error) {
+      setLabelCheckLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setLabelCheckBusy(false);
+    }
+  }
+
+  async function confirmLabelCheck(item: LabelCheckItem) {
+    if (item.status !== "ready") return notify(item.message);
+    const targetFolderName = labelCheckTargetFolder.trim();
+    if (!targetFolderName) return notify("请输入 03 纸盒标签名称");
+    if (!window.confirm(`确认 ${item.sku} 的纸盒标签文件？\n\nJPG/PNG 仅用于检查预览；印刷 PSD 会移到产品根目录，其余正确文件会移入“${targetFolderName}”。`)) return;
+    setLabelCheckBusy(true);
+    try {
+      const result = await invoke<LabelCheckConfirmResult>("confirm_label_check", {
+        root,
+        targetFolderName,
+        sourcePath: item.sourcePath,
+        sku: item.sku,
+      });
+      const refreshed = await invoke<LabelCheckScanResult>("scan_label_check", { root, targetFolderName });
+      setLabelCheckItems(refreshed.pending);
+      setLabelCheckRecords(refreshed.confirmed);
+      setLabelCheckConfirmedItems(refreshed.confirmedItems);
+      setLabelCheckHistoryPath(refreshed.historyPath);
+      setLabelCheckLogs([...result.logs, ...refreshed.logs]);
+      notify(`已确认 ${result.record.sku}，正确文件已移入 ${targetFolderName}`);
+    } catch (error) {
+      setLabelCheckLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setLabelCheckBusy(false);
+    }
+  }
+
+  async function dragLabelCheckProduct(item: LabelCheckItem, iconPath: string) {
+    if (labelCheckDraggingSku) return;
+    const uploadFolder = item.sourcePath;
+    setLabelCheckDraggingSku(item.sku);
+    setLabelCheckLogs((current) => [...current, `开始拖动待上传文件夹：${uploadFolder}`]);
+    try {
+      await startDrag({ item: [uploadFolder], icon: iconPath, mode: "copy" }, (payload) => {
+        const message = payload.result === "Dropped"
+          ? `已把 ${item.sku} 交给目标应用`
+          : `已取消拖动 ${item.sku}`;
+        setLabelCheckLogs((current) => [...current, message]);
+      });
+    } catch (error) {
+      const message = `拖动失败：${String(error)}`;
+      setLabelCheckLogs((current) => [...current, message]);
+      notify(message);
+    } finally {
+      setLabelCheckDraggingSku("");
+    }
+  }
+
+  async function openLabelCheckFolder(path: string, label: string) {
+    try {
+      await invoke("open_local_folder", { path });
+      setLabelCheckLogs((current) => [...current, `已打开${label}：${path}`]);
+    } catch (error) {
+      const message = `无法打开${label}：${String(error)}`;
+      setLabelCheckLogs((current) => [...current, message]);
+      notify(message);
+    }
+  }
+
+  async function openParameterSampleFolder(path: string) {
+    try {
+      await invoke("open_local_folder", { path });
+      setParameterSampleLogs((current) => [...current, `已打开产品目录：${path}`]);
+    } catch (error) {
+      const message = `无法打开产品目录：${String(error)}`;
+      setParameterSampleLogs((current) => [...current, message]);
+      notify(message);
+    }
+  }
+
+  async function copyLabelCheckCodes() {
+    if (!labelCheckRecords.length) return notify("还没有已确认的产品编码");
+    await navigator.clipboard.writeText(labelCheckRecords.map((record) => record.sku).join("\n"));
+    notify(`已复制 ${labelCheckRecords.length} 个已确认编码`);
+  }
+
   async function assignFolder(row: ProductPreview) {
-    const value = await open({ directory: true, multiple: false, defaultPath: root || undefined, title: `为 ${row.product.sku} 指定产品目录` });
+    const value = await open({ directory: true, multiple: false, defaultPath: assetRoot || undefined, title: `为 ${row.product.sku} 指定产品目录` });
     if (typeof value !== "string") return;
     const next = { ...mappings, [row.product.sku]: value };
     setMappings(next);
     localStorage.setItem(MAP_KEY, JSON.stringify(next));
+  }
+
+  async function remoteRequest<T>(path: string, options: { method?: string; body?: unknown; token?: string } = {}): Promise<T> {
+    const token = options.token ?? remoteToken;
+    const response = await fetch(`${REMOTE_API_BASE}${path}`, {
+      method: options.method || "GET",
+      headers: {
+        ...(options.body ? { "content-type": "application/json" } : {}),
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+    const data = await response.json().catch(() => ({})) as T & { error?: string };
+    if (!response.ok) {
+      const error = new Error(data.error || `远程服务请求失败 (${response.status})`);
+      (error as Error & { status?: number }).status = response.status;
+      throw error;
+    }
+    return data;
+  }
+
+  async function connectRemoteWorkbench() {
+    if (!remoteUser.trim() || remotePassword.length < 4) return notify("请输入姓名和备份密码");
+    setRemoteBusy(true);
+    try {
+      const data = await remoteRequest<{ token: string; user: { name: string } }>("/remote-api/login", {
+        method: "POST",
+        token: "",
+        body: { name: remoteUser.trim(), backupKey: remotePassword },
+      });
+      setRemoteToken(data.token);
+      setRemoteUser(data.user.name);
+      setRemotePassword("");
+      localStorage.setItem(REMOTE_SESSION_KEY, data.token);
+      localStorage.setItem(REMOTE_USER_KEY, data.user.name);
+      notify("手机远程工作台已启用");
+    } catch (error) {
+      notify(String(error).includes("incorrect") ? "姓名或备份密码不正确" : String(error));
+    } finally {
+      setRemoteBusy(false);
+    }
+  }
+
+  function disconnectRemoteWorkbench() {
+    setRemoteToken("");
+    setRemoteOnline(false);
+    setRemoteLastTask("");
+    remoteAssetTasks.current.clear();
+    localStorage.removeItem(REMOTE_SESSION_KEY);
+    notify("已停用手机远程连接");
+  }
+
+  async function reportRemoteTask(taskId: string, status: "succeeded" | "failed", message: string, result: Record<string, unknown> = {}) {
+    if (!remoteToken) return;
+    try {
+      await remoteRequest("/remote-api/device/result", {
+        method: "POST",
+        body: { taskId, deviceId: remoteDeviceId.current, status, message, result: { ...result, message } },
+      });
+      setRemoteLastTask(message);
+    } catch (error) {
+      console.error("Remote task result failed", error);
+    }
+  }
+
+  async function executeRemoteTask(task: RemoteTask) {
+    const sku = String(task.payload && task.payload.sku || "").toUpperCase();
+    setRemoteLastTask(`正在执行：${task.title}`);
+    if (task.type === "note") {
+      const note = String(task.payload && task.payload.note || "").trim();
+      notify(note ? `手机指令：${note}` : "收到一条手机指令");
+      await reportRemoteTask(task.taskId, "succeeded", "电脑工作台已收到文字指令");
+      return;
+    }
+    if (task.type === "sync-products") {
+      if (!bridge.connected) throw new Error("PLM 悬浮助手未连接，无法刷新定稿数据");
+      await invoke("request_snapshot");
+      await reportRemoteTask(task.taskId, "succeeded", "已请求悬浮助手刷新定稿产品");
+      return;
+    }
+    if (task.type === "generate-assets") {
+      if (!bridge.connected) throw new Error("PLM 悬浮助手未连接，无法生成资产");
+      const row = rows.find((item) => item.product.sku.toUpperCase() === sku);
+      if (!row) throw new Error(`电脑工作台没有找到 ${sku}`);
+      if (!row.folder) throw new Error(`${sku} 尚未匹配本机产品目录`);
+      remoteAssetTasks.current.set(sku, task.taskId);
+      try {
+        await invoke("request_excel", { product: row.product, folder: row.folder, overwrite: Boolean(task.payload.overwrite), auto: false });
+      } catch (error) {
+        remoteAssetTasks.current.delete(sku);
+        throw error;
+      }
+      return;
+    }
+    if (task.type === "scan-upload") {
+      if (!bridge.connected) throw new Error("PLM 悬浮助手未连接，无法加入魔法上传");
+      if (!assetRoot) throw new Error("电脑工作台尚未配置定稿资产根目录");
+      const pairs = await invoke<UploadPair[]>("scan_upload_pairs", { root: assetRoot });
+      const targets = pairs.filter((item) => item.status === "ready" && (!sku || item.sku.toUpperCase() === sku) && item.xlsxPath && item.zipPath);
+      if (!targets.length) throw new Error(sku ? `${sku} 没有找到完整的 XLSX + ZIP` : "没有找到新的完整 XLSX + ZIP");
+      const count = await invoke<number>("queue_upload_pairs", {
+        pairs: targets.map((item) => ({ sku: item.sku, xlsxPath: item.xlsxPath, zipPath: item.zipPath, signature: item.signature })),
+        autoStart: task.payload.autoStart !== false,
+      });
+      await reportRemoteTask(task.taskId, "succeeded", `已找到并提交 ${count} 个图包上传任务`, { count, skus: targets.map((item) => item.sku) });
+      return;
+    }
+    throw new Error(`当前版本不支持远程任务：${task.type}`);
   }
 
   async function requestSnapshot() {
@@ -819,12 +1910,24 @@ export default function App() {
       notify("请先连接 PLM 悬浮助手");
       return;
     }
+    if (manualSnapshotPending.current) return;
+    manualSnapshotPending.current = true;
     setSyncing(true);
     try {
       await invoke("request_snapshot");
-      notify("已向悬浮助手请求最新定稿数据");
-    } finally {
-      window.setTimeout(() => setSyncing(false), 800);
+      notify("正在刷新定稿数据…");
+      if (manualSnapshotTimeout.current) window.clearTimeout(manualSnapshotTimeout.current);
+      manualSnapshotTimeout.current = window.setTimeout(() => {
+        if (!manualSnapshotPending.current) return;
+        manualSnapshotPending.current = false;
+        manualSnapshotTimeout.current = null;
+        setSyncing(false);
+        notify("刷新请求未收到响应，请确认悬浮助手页面已打开");
+      }, 8000);
+    } catch (error) {
+      manualSnapshotPending.current = false;
+      setSyncing(false);
+      notify(String(error));
     }
   }
 
@@ -874,11 +1977,24 @@ export default function App() {
     });
   }
 
+  const workspaceTabDefinitions = {
+    "main-images": { label: "主图填表", icon: <FileImage size={16} /> },
+    assets: { label: "定稿资产", icon: <FileSpreadsheet size={16} /> },
+    packs: { label: "图包归档", icon: <Archive size={16} /> },
+    random: { label: "随机组合", icon: <RotateCw size={16} /> },
+    organize: { label: "文件整理", icon: <Pencil size={16} /> },
+    "parameter-samples": { label: "参数样本", icon: <FileImage size={16} /> },
+    "label-check": { label: "纸盒标签检查", icon: <Eye size={16} /> },
+    upload: { label: "检查上传", icon: <Upload size={16} /> },
+    videos: { label: "视频转动图", icon: <Film size={16} /> },
+  };
+
   return (
     <div className={`app-shell ${compactTop ? "top-collapsed" : ""}`}>
       <header className="topbar">
         <div className="brand-mark"><Sparkles size={20} /></div>
         <div className="brand-copy">
+          <small className="app-version">v{APP_VERSION}</small>
           <strong>PLM 产品资产工作台</strong>
           <span>定稿资料一站式生成与归档</span>
         </div>
@@ -886,6 +2002,10 @@ export default function App() {
           <button className={`connection-pill ${bridge.connected ? "online" : ""}`} onClick={() => setShowConnect(true)}>
             {bridge.connected ? <Link2 size={15} /> : <Unplug size={15} />}
             {bridge.connected ? `助手已连接 ${bridge.scriptVersion || ""}` : "连接悬浮助手"}
+          </button>
+          <button className={`connection-pill remote-pill ${remoteToken && remoteOnline ? "online" : ""}`} onClick={() => setShowConnect(true)}>
+            {remoteToken && remoteOnline ? <Check size={15} /> : <Unplug size={15} />}
+            {remoteToken ? (remoteOnline ? "手机远程在线" : "手机远程重连中") : "启用手机远程"}
           </button>
           <button className="icon-button" onClick={() => setShowConnect(true)} aria-label="连接设置"><Settings2 size={19} /></button>
         </div>
@@ -900,30 +2020,40 @@ export default function App() {
           </div>
           <div className="hero-actions">
             <button className="secondary" onClick={chooseRoot}><FolderOpen size={17} />{root ? "更换产品根目录" : "选择产品根目录"}</button>
-            <button className="primary" onClick={requestSnapshot} disabled={syncing}>
-              <RefreshCw size={17} className={syncing ? "spin" : ""} />同步已定稿产品
-            </button>
           </div>
           {root && <button className="path-chip" onClick={() => openPath(root)} title={root}><FolderOpen size={14} />{root}</button>}
         </section>}
 
-        <nav className="workspace-tabs">
-          <button className={workspaceView === "assets" ? "active" : ""} onClick={() => setWorkspaceView("assets")}><FileSpreadsheet size={16} />定稿资产</button>
-          <button className={workspaceView === "packs" ? "active" : ""} onClick={() => setWorkspaceView("packs")}><Archive size={16} />图包归档</button>
-          <button className={workspaceView === "random" ? "active" : ""} onClick={() => setWorkspaceView("random")}><RotateCw size={16} />随机组合</button>
-          <button className={workspaceView === "upload" ? "active" : ""} onClick={() => setWorkspaceView("upload")}><Upload size={16} />检查上传</button>
-          <button className={workspaceView === "videos" ? "active" : ""} onClick={() => setWorkspaceView("videos")}><Film size={16} />视频转动图</button>
+        <nav className={`workspace-tabs ${draggingWorkspaceTab ? "is-reordering" : ""}`}>
+          {workspaceOrder.map((view) => {
+            const tab = workspaceTabDefinitions[view];
+            return <button
+              key={view}
+              type="button"
+              data-workspace-tab={view}
+              className={[workspaceView === view ? "active" : "", draggingWorkspaceTab === view ? "is-dragging" : "", workspaceDropTarget === view && draggingWorkspaceTab !== view ? "is-drop-target" : ""].filter(Boolean).join(" ")}
+              title={`${tab.label} · 长按可拖拽排序`}
+              onClick={(event) => activateWorkspaceTab(event, view)}
+              onPointerDown={(event) => beginWorkspaceTabPress(event, view)}
+              onPointerMove={moveWorkspaceTab}
+              onPointerUp={finishWorkspaceTabPress}
+              onPointerCancel={cancelWorkspaceTabPress}
+              onContextMenu={(event) => event.preventDefault()}
+            >{tab.icon}{tab.label}</button>;
+          })}
           <button className="collapse-top" onClick={toggleCompactTop} title={compactTop ? "展开顶部概览" : "收起顶部概览"}>
             {compactTop ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
             {compactTop ? "展开概览" : "收起概览"}
           </button>
         </nav>
 
+        <div className={workspaceView !== "main-images" ? "is-hidden" : ""}><MainImageLookup root={workspaceRoots["main-images"] || ""} chooseRoot={chooseRoot} /></div>
+
         <section className={`metrics ${workspaceView !== "assets" || compactTop ? "is-hidden" : ""}`}>
           <article><span>全部定稿</span><strong>{rows.length}</strong><small>来自悬浮助手</small></article>
           <article className="green"><span>可以生成</span><strong>{counts.ready}</strong><small>资料与目录已就绪</small></article>
           <article className="amber"><span>需要确认</span><strong>{counts.missing}</strong><small>缺图、参数或目录</small></article>
-          <article className="violet"><span>已完成收纳</span><strong>{counts.complete}</strong><small>纸盒、标签、图包均已操作</small></article>
+          <article className="violet"><span>已完成收纳</span><strong>{counts.complete}</strong><small>脚本今日工作台图包已完成</small></article>
         </section>
 
         <section className={`work-panel ${workspaceView !== "assets" ? "is-hidden" : ""}`}>
@@ -931,9 +2061,12 @@ export default function App() {
             <div>
               <span className="eyebrow">FINALIZED QUEUE</span>
               <h2>定稿生产队列</h2>
-              <p>先预览目录与缺失项，再选择本次需要生成的产品。</p>
+              <p>按悬浮助手今日工作台的图包完成状态显示；图包完成后自动收纳。</p>
             </div>
             <div className="panel-controls">
+              <button className="primary refresh-products-button" onClick={requestSnapshot} disabled={syncing}>
+                <RefreshCw size={17} className={syncing ? "spin" : ""} />刷新定稿数据
+              </button>
               <label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索 SKU、品牌或产品名" /></label>
               <label className="toggle"><input type="checkbox" checked={overwrite} onChange={(event) => setOverwrite(event.target.checked)} /><span />覆盖已有文件</label>
             </div>
@@ -994,7 +2127,7 @@ export default function App() {
               <div className="empty-state">
                 {queueView === "complete" ? <Check size={28} /> : <CircleAlert size={28} />}
                 <strong>{queueView === "complete" ? "还没有已完成产品" : (root ? "待处理队列已清空" : "请先选择产品文件夹根目录")}</strong>
-                <span>{queueView === "complete" ? "今日工作台中的纸盒、标签和图包都操作过后会自动收纳到这里" : (root ? "纸盒、标签、图包三项都完成的产品已移入“已完成收纳”" : "工作台会扫描其中的 SKU 产品文件夹")}</span>
+                <span>{queueView === "complete" ? "脚本今日工作台中标记图包已完成的产品会自动收纳到这里" : (root ? "图包已完成的产品已移入“已完成收纳”" : "工作台会扫描其中的 SKU 产品文件夹")}</span>
               </div>
             )}
           </div>
@@ -1025,6 +2158,11 @@ export default function App() {
               <label className="toggle"><input type="checkbox" checked={randomCompress} onChange={(event) => setRandomCompress(event.target.checked)} /><span />组合后用 Photoshop 压缩</label>
               <button className="primary" onClick={composeRandomPack} disabled={randomBusy || !randomZipPaths.length}>{randomBusy ? <LoaderCircle size={16} className="spin" /> : <RotateCw size={16} />}开始随机组合</button>
             </div>
+            <div className="random-pack-drop" onClick={chooseRandomZipPacks} role="button" tabIndex={0}>
+              <Archive size={25} />
+              <strong>{randomZipPaths.length ? `已添加 ${randomZipPaths.length} 个 ZIP，可继续拖入` : "拖入主图或详情图 ZIP"}</strong>
+              <span>支持从资源管理器直接拖入；文件名或 ZIP 内部文件名需要能识别主图/详情图编号</span>
+            </div>
             {randomCompress && <div className="random-pack-photoshop"><span>Photoshop</span><input value={photoshopPath} onChange={(event) => setPhotoshopPath(event.target.value)} placeholder="Photoshop.exe 路径" /><button onClick={choosePhotoshop}>选择 Photoshop</button><small>压缩后直接写入主图、详情图文件夹，原始 ZIP 不会删除。</small></div>}
             <div className="random-pack-list">
               {!randomZipPaths.length && <div className="empty-state"><Archive size={28} /><strong>还没有导入 ZIP</strong><span>主图 ZIP 和详情图 ZIP 可以混合导入。</span></div>}
@@ -1034,13 +2172,250 @@ export default function App() {
           </section>
         )}
 
+        {workspaceView === "organize" && (
+          <section className="organize-panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">FILE ORGANIZER</span>
+                <h2>文件整理</h2>
+                <p>扫描工作目录下的产品文件夹，预览并批量规范 SKU 图片与产品目录名称。</p>
+              </div>
+              <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择工作目录"}</button>
+            </div>
+            <div className="organize-toolbar">
+              <label className="toggle"><input type="checkbox" checked={organizeRenameImages} onChange={(event) => setOrganizeRenameImages(event.target.checked)} /><span />SKU.jpg → 编码.jpg</label>
+              <label className="toggle"><input type="checkbox" checked={organizeRenameFolders} onChange={(event) => setOrganizeRenameFolders(event.target.checked)} /><span />填充产品子目录名称</label>
+              <button className="secondary" onClick={scanOrganizer} disabled={organizeBusy}><ScanLine size={16} />{organizeBusy ? "处理中…" : "扫描预览"}</button>
+              <button className="primary" onClick={applyOrganizer} disabled={organizeBusy || !organizeItems.some((item) => item.status === "ready")}><Pencil size={16} />执行批量整理</button>
+            </div>
+            <div className="organize-examples">
+              <div><strong>SKU 图片</strong><span><code>Feimuko 舒适义齿套装 SKU00047352\SKU.jpg</code> → <code>SKU00047352.jpg</code></span></div>
+              <div><strong>产品子目录</strong><span><code>Feimuko 夜间睡眠牙套 SKU00049129\品牌 产品名-编码</code> → <code>Feimuko 夜间睡眠牙套-SKU00049129</code></span></div>
+            </div>
+            <div className="organize-summary"><span>扫描到 {organizeItems.length} 项</span><span>可执行 {organizeItems.filter((item) => item.status === "ready").length} 项</span><span>冲突/跳过 {organizeItems.filter((item) => item.status !== "ready").length} 项</span></div>
+            <div className="organize-list">
+              {!organizeItems.length && <div className="empty-state"><Pencil size={28} /><strong>点击“扫描预览”开始</strong><span>工作台只会在当前工作目录内操作，不覆盖已存在的目标名称。</span></div>}
+              {organizeItems.map((item) => (
+                <div className={`organize-row ${item.status}`} key={`${item.kind}:${item.sourcePath}`}>
+                  <span className="organize-kind">{item.kind === "sku-image" ? "SKU 图片" : "产品子目录"}</span>
+                  <div><strong title={item.sourcePath}>{item.sourceName}</strong><small title={item.sourcePath}>{item.sourcePath}</small></div>
+                  <div><strong title={item.targetPath}>{item.targetName}</strong><small title={item.targetPath}>{item.targetPath}</small></div>
+                  <span className={`status ${item.status === "ready" ? "success" : item.status === "conflict" ? "danger" : "neutral"}`}>{item.status === "ready" ? "待整理" : item.status === "conflict" ? "目标冲突" : "已符合"}</span>
+                </div>
+              ))}
+            </div>
+            <div className="organize-console"><strong>整理日志</strong><pre>{organizeLogs.join("\n")}</pre></div>
+          </section>
+        )}
+
+        {workspaceView === "parameter-samples" && (
+          <section className="parameter-sample-panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">PARAMETER SAMPLE INDEX</span>
+                <h2>参数图学习样本</h2>
+                <p>按产品根目录自动配对透明 PNG、正确尺寸图和 Excel；旧目录可从内部文件推断 SKU，不使用品类，也不会移动原文件。</p>
+              </div>
+              <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择工作目录"}</button>
+            </div>
+            <div className="parameter-sample-toolbar">
+              <button className="primary" onClick={scanParameterSamples} disabled={parameterSampleBusy || parameterBoxAnalysisBusy}>
+                {parameterSampleBusy ? <LoaderCircle size={16} className="spin" /> : <ScanLine size={16} />}
+                {parameterSampleBusy ? "正在整理…" : "扫描并整理样本"}
+              </button>
+              <button onClick={analyzeParameterBoxAnnotations} disabled={parameterSampleBusy || parameterBoxAnalysisBusy || !root}>
+                {parameterBoxAnalysisBusy ? <LoaderCircle size={16} className="spin" /> : <Sparkles size={16} />}
+                {parameterBoxAnalysisBusy ? "正在分析纸盒…" : "提取纸盒标注规则"}
+              </button>
+              <span>每个月只分析当前目录，结果自动去重并累计到全局样本库；Excel、OCR 和图片都在本机处理</span>
+              {parameterSampleIndexPath && <button onClick={() => openPath(parameterSampleIndexPath)}><FileSpreadsheet size={15} />打开样本索引</button>}
+              {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.libraryPath)}><FileSpreadsheet size={15} />打开累计样本库</button>}
+              {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.batchReportPath)}><FileSpreadsheet size={15} />打开本月报告</button>}
+              {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.reportPath)}><FileSpreadsheet size={15} />打开累计规则报告</button>}
+              {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.runtimeRulePath)}><FileSpreadsheet size={15} />打开运行规则</button>}
+            </div>
+            <div className="parameter-sample-summary">
+              <span>产品目录 {parameterSamples.length}</span>
+              <span>完整样本 {parameterSamples.filter((item) => item.status === "ready").length}</span>
+              <span>待补全 {parameterSamples.filter((item) => item.status === "missing").length}</span>
+              <span>需核对 {parameterSamples.filter((item) => item.status === "ambiguous").length}</span>
+              <small title={parameterSampleIndexPath}>{parameterSampleIndexPath || "扫描后会在工作目录生成“参数图学习样本索引.json”"}</small>
+            </div>
+            <div className="parameter-rule-cloud">
+              <label><span>云端规则清单</span><input value={parameterRuleManifestUrl} onChange={(event) => setParameterRuleManifestUrl(event.target.value)} onBlur={() => localStorage.setItem(PARAMETER_RULE_MANIFEST_URL_KEY, parameterRuleManifestUrl.trim() || DEFAULT_PARAMETER_RULE_MANIFEST_URL)} /></label>
+              <button onClick={refreshCloudParameterRules} disabled={parameterCloudRuleBusy}>{parameterCloudRuleBusy ? <LoaderCircle size={15} className="spin" /> : <RefreshCw size={15} />}{parameterCloudRuleBusy ? "正在检查…" : "检查云端规则"}</button>
+              <div className={cachedParameterRule ? "ready" : ""}>
+                <strong>{cachedParameterRule ? `${cachedParameterRule.source === "cloud" ? "云端" : "本地"}规则 ${cachedParameterRule.rule.ruleVersion}` : "尚未缓存运行规则"}</strong>
+                <small>{cachedParameterRule ? `${cachedParameterRule.rule.profiles.length} 套版式 · 支持纸盒左右两侧 · ${new Date(cachedParameterRule.fetchedAtMs).toLocaleString("zh-CN", { hour12: false })}` : "本地分析或云端更新成功后自动缓存；网络失败时继续使用最后一版"}</small>
+              </div>
+            </div>
+            {parameterBoxAnalysis && <div className="parameter-rule-analysis">
+              <div className="parameter-rule-overview">
+                <div className="success"><span>累计样本</span><strong>{parameterBoxAnalysis.globalSamples}</strong><small>{parameterBoxAnalysis.sourceCount} 个工作目录</small></div>
+                <div><span>本次识别</span><strong>{parameterBoxAnalysis.batchAnalyzed}</strong><small>新增 {parameterBoxAnalysis.addedSamples} · 更新 {parameterBoxAnalysis.updatedSamples} · 清理 {parameterBoxAnalysis.removedSamples}</small></div>
+                <div><span>识别纸盒</span><strong>{parameterBoxAnalysis.analyzed}</strong><small>从完整样本中检测</small></div>
+                <div className="success"><span>高置信度</span><strong>{parameterBoxAnalysis.confident}</strong><small>可纳入规则统计</small></div>
+                <div className="warning"><span>低置信度</span><strong>{parameterBoxAnalysis.lowConfidence}</strong><small>建议人工抽检</small></div>
+                <div><span>未读取</span><strong>{parameterBoxAnalysis.skipped}</strong><small>图片损坏或缺失</small></div>
+                <div><span>Excel 包装尺寸</span><strong>{parameterBoxAnalysis.excelParsed}</strong><small>成功解析长、宽、高</small></div>
+                <div className={parameterBoxAnalysis.ocrAvailable ? "success" : "warning"}><span>OCR 数值验证</span><strong>{parameterBoxAnalysis.ocrVerified}</strong><small>{parameterBoxAnalysis.ocrAvailable ? "Tesseract 就绪 · cm/inch 与 Excel 一致" : "未检测到 OCR，当前为几何模式"}</small></div>
+                <div><span>Excel+OCR 选盒</span><strong>{parameterBoxAnalysis.excelOcrSelected}</strong><small>覆盖左右位置猜测</small></div>
+                <div className="warning"><span>尺寸疑点</span><strong>{parameterBoxAnalysis.dimensionMismatches}</strong><small>误差超过 20%，进入复核</small></div>
+                <div className="success"><span>透明图角点</span><strong>{parameterBoxAnalysis.geometryAnalyzed}</strong><small>识别纸盒正面四角与边</small></div>
+                <div><span>左右侧面</span><strong>{parameterBoxAnalysis.sideFaceDetected}</strong><small>独立判断侧面朝左或右</small></div>
+                <div className="success"><span>边语义验证</span><strong>{parameterBoxAnalysis.axisMappingVerified}</strong><small>长宽高已映射到透明图边</small></div>
+              </div>
+              <div className="parameter-rule-cards">
+                {[
+                  ["纸盒长（Excel 第 1 项）", parameterBoxAnalysis.lengthRule],
+                  ["纸盒高（Excel 第 3 项）", parameterBoxAnalysis.heightRule],
+                  ["纸盒宽/深（Excel 第 2 项）", parameterBoxAnalysis.depthRule],
+                ].map(([label, rule]) => {
+                  const summary = rule as DimensionPlacementSummary;
+                  return <article key={label as string}>
+                    <span>{label as string}</span>
+                    <strong>{dimensionPlacementLabel(summary.primaryPlacement)}</strong>
+                    <small>{summary.count} 组 · 尺寸线距纸盒中位值 {percentRatio(summary.medianLineGapRatio)} · 文字距线 {percentRatio(summary.medianLabelOffsetRatio)}</small>
+                  </article>;
+                })}
+              </div>
+              {!!parameterBoxAnalysis.items.some(needsParameterReview) && <details className="parameter-rule-review">
+                <summary>查看低置信度、未识别与尺寸疑点（{parameterBoxAnalysis.items.filter(needsParameterReview).length}）</summary>
+                <div>{parameterBoxAnalysis.items.filter(needsParameterReview).map((item) => <button key={`${item.sku}:${item.parameterPath}`} onClick={() => openPath(item.parameterPath)} title={item.parameterPath}>
+                  <span>{item.sku || "未识别 SKU"}</span><strong>{item.productName}</strong><small>{Math.round(item.confidence * 100)}% · {item.message}</small>
+                </button>)}</div>
+              </details>}
+            </div>}
+            <div className="parameter-sample-list">
+              {!parameterSamples.length && <div className="empty-state"><FileImage size={28} /><strong>点击“扫描并整理样本”开始</strong><span>文件保持原位，工作台只建立配对索引。</span></div>}
+              {parameterSamples.map((item) => (
+                <article className={`parameter-sample-row ${item.status}`} key={`${item.sku}:${item.productPath}`}>
+                  <div className="parameter-sample-product">
+                    <strong>{item.sku || "未识别 SKU"}</strong>
+                    <span title={item.productName}>{item.productName}</span>
+                    <small title={item.productPath}>{item.productPath}</small>
+                  </div>
+                  <div className={`parameter-sample-file ${item.transparentPath ? "found" : "missing"}`}>
+                    {item.transparentPath ? <img src={convertFileSrc(item.transparentPath)} alt="透明原图" /> : <FileImage size={24} />}
+                    <div><strong>透明原图</strong><span title={item.transparentPath || ""}>{localFileName(item.transparentPath)}</span><small>{item.transparentCandidates} 个有效候选 · {item.transparentPlaceholders ? `已排除 ${item.transparentPlaceholders} 个占位图` : item.transparentPath ? (item.transparentHasAlpha ? "有透明通道" : "未检测到透明通道") : "未找到"}</small></div>
+                  </div>
+                  <div className={`parameter-sample-file ${item.parameterPath ? "found" : "missing"}`}>
+                    {item.parameterPath ? <img src={convertFileSrc(item.parameterPath)} alt="正确尺寸图" /> : <FileImage size={24} />}
+                    <div><strong>正确尺寸图</strong><span title={item.parameterPath || ""}>{localFileName(item.parameterPath)}</span><small>{item.parameterCandidates} 个候选</small></div>
+                  </div>
+                  <div className={`parameter-sample-file excel ${item.excelPath ? "found" : "missing"}`}>
+                    <FileSpreadsheet size={24} />
+                    <div><strong>尺寸 Excel</strong><span title={item.excelPath || ""}>{localFileName(item.excelPath)}</span><small>{item.excelCandidates} 个候选</small></div>
+                  </div>
+                  <div className="parameter-sample-result">
+                    <span className={`status ${item.status === "ready" ? "success" : item.status === "ambiguous" ? "warning" : "danger"}`}>{item.status === "ready" ? "已配对" : item.status === "ambiguous" ? "需核对" : "待补全"}</span>
+                    <small>{item.message}</small>
+                    <button onClick={() => void openParameterSampleFolder(item.productPath)}><FolderOpen size={14} />打开目录</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="parameter-sample-console"><strong>样本整理日志</strong><pre>{parameterSampleLogs.join("\n")}</pre></div>
+          </section>
+        )}
+
+        {workspaceView === "label-check" && (
+          <section className="label-check-panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">BOX LABEL CHECK</span>
+                <h2>纸盒标签文件检查</h2>
+                <p>逐个查看暂存目录里的印刷预览图，确认后将正确文件归档到 03 文件夹，并把印刷 PSD 单独移回产品根目录。</p>
+              </div>
+              <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择工作目录"}</button>
+            </div>
+            <div className="label-check-toolbar">
+              <label className="label-check-target"><span>归档目标文件夹</span><input value={labelCheckTargetFolder} onChange={(event) => setLabelCheckTargetFolder(event.target.value)} onBlur={() => localStorage.setItem(LABEL_CHECK_TARGET_KEY, labelCheckTargetFolder.trim() || DEFAULT_LABEL_CHECK_TARGET)} /></label>
+              <button className="secondary" onClick={scanLabelCheck} disabled={labelCheckBusy}><ScanLine size={16} />{labelCheckBusy ? "处理中…" : "扫描待检查产品"}</button>
+              <button className="primary" onClick={copyLabelCheckCodes} disabled={labelCheckBusy || !labelCheckRecords.length}><Copy size={16} />复制全部已确认编码</button>
+            </div>
+            <div className="label-check-summary"><span>待检查 {labelCheckItems.length} 个</span><span>已确认 {labelCheckRecords.length} 个</span><span>左右展示纸盒与标签/印刷 JPG/PNG</span><span>印刷 PSD 为副产品；纸盒 PSD 是正确文件</span></div>
+            <div className="label-check-filter-bar">
+              <span className="label-check-filter-title">显示卡片</span>
+              <div className="label-check-filter-buttons">
+                <button className={labelCheckFilter === "pending" ? "active" : ""} onClick={() => setLabelCheckFilter("pending")}>待检查 ({labelCheckItems.length})</button>
+                <button className={labelCheckFilter === "confirmed" ? "active" : ""} onClick={() => setLabelCheckFilter("confirmed")}>已确定 ({labelCheckConfirmedItems.length})</button>
+                <button className={labelCheckFilter === "all" ? "active" : ""} onClick={() => setLabelCheckFilter("all")}>全部 ({labelCheckItems.length + labelCheckConfirmedItems.length})</button>
+              </div>
+              <span className="label-check-drag-note">按住卡片底部的“拖到网盘”把手，拖动当前暂存/入口文件夹；普通卡片区域不会触发拖动。</span>
+            </div>
+            <div className="label-check-list">
+              {!visibleLabelCheckItems.length && <div className="empty-state"><Eye size={28} /><strong>{labelCheckFilter === "confirmed" ? "还没有已确定卡片" : "点击“扫描待检查产品”开始"}</strong><span>{labelCheckFilter === "confirmed" ? "确认并移动后，卡片会保留在“已确定”筛选中。" : "工作台会查找产品目录中尚未归档的纸盒标签暂存文件，并保留历史确认记录。"}</span></div>}
+              {visibleLabelCheckItems.map((item) => {
+                const previewGroups = labelPreviewGroups(item);
+                return (
+                <article
+                  className={`label-check-card ${item.status}`}
+                  key={`${item.status}:${item.sku}:${item.sourcePath}`}
+                >
+                  <header>
+                    <div><span className="eyebrow">{item.sku}</span><strong>{item.productName}</strong><small title={item.sourcePath}>品牌：{item.brand || "未识别"} · {item.sourceName}</small></div>
+                    <span className={`status ${item.status === "ready" ? "success" : item.status === "confirmed" ? "success" : item.status === "conflict" ? "danger" : "warning"}`}>{item.status === "confirmed" ? "已确定" : labelCheckStatusLabel(item.status)}</span>
+                  </header>
+                  <div className="label-check-sides">
+                    {[{ title: "纸盒", files: previewGroups.box }, { title: "标签 / 印刷", files: previewGroups.label }].map((side) => (
+                      <div className="label-check-side" key={side.title}>
+                        <strong>{side.title}</strong>
+                        <div className="label-check-side-images">
+                          {side.files.map((file) => (
+                            <button className="label-check-image" key={file.path} onClick={() => setLabelCheckPreviewItem(item)} title="点击打开左右视图并放大查看细节">
+                              <img src={convertFileSrc(file.path)} alt={file.name} />
+                              <span title={file.name}>{file.name}</span>
+                            </button>
+                          ))}
+                          {!side.files.length && <div className="label-check-no-image"><FileImage size={19} /><span>无 JPG/PNG</span></div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="label-check-file-groups">
+                    <div><strong>正确文件 → {item.targetPath}</strong><span>{item.uploadFiles.length ? item.uploadFiles.map((file) => file.name).join(" · ") : "没有识别到可归档文件"}</span></div>
+                    <div><strong>印刷 PSD 副产品 → 产品根目录</strong><span>{item.psdFiles.length ? item.psdFiles.map((file) => file.name).join(" · ") : "无印刷 PSD"}</span></div>
+                    {item.otherFiles.length > 0 && <div className="label-check-warning"><strong>未识别文件（确认后会留在暂存目录）</strong><span>{item.otherFiles.map((file) => file.name).join(" · ")}</span></div>}
+                  </div>
+                  <p className="label-check-message">{item.message}</p>
+                  <div className="label-check-card-actions"><button className="secondary" onClick={() => void openLabelCheckFolder(item.status === "confirmed" ? item.targetPath : item.sourcePath, item.status === "confirmed" ? " 03 文件夹" : "暂存目录")}><FolderOpen size={15} />{item.status === "confirmed" ? "打开 03 文件夹" : "打开暂存目录"}</button><button className="secondary" onClick={() => void openLabelCheckFolder(labelCheckProductFolder(item), "完整产品文件夹")}><FolderOpen size={15} />打开完整产品文件夹</button><button
+                    className={`label-check-drag-handle ${labelCheckDraggingSku === item.sku ? "dragging" : ""}`}
+                    onPointerDown={(event) => {
+                      if (event.button !== 0) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const iconPath = previewGroups.box[0]?.path || previewGroups.label[0]?.path;
+                      if (!iconPath) return notify("没有可用的拖动预览图");
+                      void dragLabelCheckProduct(item, iconPath);
+                    }}
+                    disabled={Boolean(labelCheckDraggingSku)}
+                    title="按住并拖到网盘应用，传递当前暂存/入口文件夹"
+                  ><GripVertical size={15} />{labelCheckDraggingSku === item.sku ? "拖动中…" : "拖到网盘"}</button>{item.status === "confirmed" ? <span className="label-check-confirmed-note"><Check size={14} />正确文件已归档</span> : <button className="primary" onClick={() => confirmLabelCheck(item)} disabled={labelCheckBusy || item.status !== "ready"}><Check size={15} />确认并移动</button>}</div>
+                </article>
+                );
+              })}
+            </div>
+            <section className="label-check-history">
+              <div className="label-check-history-heading"><div><strong>已确认记录</strong><span>记录会保存在本机应用数据中，重新扫描或重启后仍会保留。</span></div><button className="secondary" onClick={copyLabelCheckCodes} disabled={!labelCheckRecords.length}><Copy size={15} />复制编码</button></div>
+              <textarea readOnly value={labelCheckRecords.map((record) => record.sku).join("\n")} onFocus={(event) => event.currentTarget.select()} placeholder="扫描并确认产品后，这里会生成可全选复制的编码列表" />
+              <small>记录文件：{labelCheckHistoryPath || "扫描后显示"}</small>
+              <div className="label-check-history-list">
+                {labelCheckRecords.map((record) => <div key={`${record.sku}:${record.productPath}`}><strong>{record.sku}</strong><span>{record.productName}</span><small>{formatLabelCheckTime(record.confirmedAtMs)} · 归档 {record.movedFiles.length} 个 · 印刷 PSD {record.movedPsdFiles.length} 个</small></div>)}
+              </div>
+            </section>
+            <div className="label-check-console"><strong>检查日志</strong><pre>{labelCheckLogs.join("\n")}</pre></div>
+          </section>
+        )}
+        {labelCheckPreviewItem && <LabelCheckPreviewModal item={labelCheckPreviewItem} onClose={() => setLabelCheckPreviewItem(null)} />}
+
         {workspaceView === "packs" && (
           <section className="pack-panel">
             <div className="panel-heading">
               <div>
                 <span className="eyebrow">IMAGE PACK ARCHIVE</span>
                 <h2>批量图包处理</h2>
-                <p>从 ZIP 文件名识别 SKU，匹配产品目录，解压并按规则重命名到“套图”。</p>
+                <p>从 ZIP 文件名识别 SKU，匹配产品目录，解压并按规则重命名到“套图”；未匹配图片会按文件名顺序补到缺失编号。</p>
               </div>
               <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择产品根目录"}</button>
             </div>
@@ -1050,7 +2425,7 @@ export default function App() {
                 <div className="zip-drop" onClick={chooseZipPacks}>
                   <FileArchive size={30} />
                   <strong>{zipPaths.length ? `已添加 ${zipPaths.length} 个图包` : "拖入图包 ZIP"}</strong>
-                  <span>文件名需要包含 SKU，例如：主图_SKU00044974.zip</span>
+                  <span>文件名需要包含 SKU，例如：主图_SKU00044974.zip；已命名为主图1/详情图1的文件会直接保留槽位，其他未匹配图片再自动补位</span>
                 </div>
                 <div className="zip-list">
                   {zipPaths.map((path) => (
@@ -1072,8 +2447,8 @@ export default function App() {
                   <label className="toggle recycle-toggle"><input type="checkbox" checked={moveOriginalsToRecycle} disabled={!compressImages} onChange={(event) => {
                     setMoveOriginalsToRecycle(event.target.checked);
                     localStorage.setItem(PHOTOSHOP_RECYCLE_KEY, event.target.checked ? "1" : "0");
-                  }} /><span />压缩成功后将原图移到“套图/回收站”</label>
-                  <small>只在对应 JPG 保存成功后移动；核对完成再永久清空</small>
+                  }} /><span />压缩成功后将原图移到外部回收站</label>
+                  <small>只在对应 JPG 保存成功后移动；回收站位于电脑应用数据目录，不写入原产品目录</small>
                   <div>
                     <input value={photoshopPath} onChange={(event) => setPhotoshopPath(event.target.value)} disabled={!compressImages} placeholder="Photoshop.exe 路径" />
                     <button onClick={choosePhotoshop} disabled={!compressImages}>选择 Photoshop</button>
@@ -1102,21 +2477,21 @@ export default function App() {
             <div className="panel-heading">
               <div>
                 <span className="eyebrow">UPLOAD CHECK</span>
-                <h2>检查新做的图包和表格</h2>
-                <p>按 SKU 扫描本地 XLSX 与 ZIP，并匹配悬浮助手上传历史；已成功上传过的产品会自动排除队列。</p>
+                <h2>检查并提交魔法上传图包</h2>
+                <p>按 SKU 扫描本地 XLSX 与 ZIP，检查后交给悬浮助手的魔法上传 API；不再点击旧的脚本上传页面。</p>
               </div>
               <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择产品根目录"}</button>
             </div>
             <div className="upload-check-toolbar">
               <button className="secondary" onClick={scanUploadPairs} disabled={uploadBusy}><ScanLine size={16} />{uploadBusy ? "检查中…" : "检查新文件"}</button>
-              <button className="primary" onClick={queueUploadPairs} disabled={uploadBusy || !selectedUploadSkus.size}><Upload size={16} />加入上传队列</button>
-              <label className="toggle"><input type="checkbox" checked={uploadAutoStart} onChange={(event) => setUploadAutoStart(event.target.checked)} /><span />加入后自动开始</label>
+              <button className="primary" onClick={queueUploadPairs} disabled={uploadBusy || !selectedUploadSkus.size}><Upload size={16} />加入魔法上传队列</button>
+              <label className="toggle"><input type="checkbox" checked={uploadAutoStart} onChange={(event) => setUploadAutoStart(event.target.checked)} /><span />加入后自动开始魔法上传</label>
               <button onClick={() => setSelectedUploadSkus(new Set(uploadPairs.filter((item) => item.status === "ready").map((item) => item.sku)))}>全选可上传</button>
               <button onClick={() => setSelectedUploadSkus(new Set())}>取消选择</button>
             </div>
             <div className="upload-check-summary"><span>共 {uploadPairs.length} 个 SKU</span><span>可上传 {uploadPairs.filter((item) => item.status === "ready").length}</span><span>历史已上传 {uploadPairs.filter((item) => item.status === "uploaded").length}</span><span>已选择 {selectedUploadSkus.size}</span></div>
             <div className="upload-check-list">
-              {!uploadPairs.length && <div className="empty-state"><ScanLine size={28} /><strong>点击“检查新文件”开始扫描</strong><span>工作台会在产品根目录内寻找带 SKU 的 XLSX 和 ZIP。</span></div>}
+              {!uploadPairs.length && <div className="empty-state"><ScanLine size={28} /><strong>点击“检查新文件”开始扫描</strong><span>工作台会在产品根目录内寻找带 SKU 的 XLSX 和 ZIP，提交后由魔法上传处理。</span></div>}
               {uploadPairs.map((item) => (
                 <div className={`upload-check-row ${item.status}`} key={item.sku}>
                   <button className={`check-button ${selectedUploadSkus.has(item.sku) ? "checked" : ""}`} disabled={item.status !== "ready"} onClick={() => setSelectedUploadSkus((current) => { const next = new Set(current); if (next.has(item.sku)) next.delete(item.sku); else next.add(item.sku); return next; })}>{selectedUploadSkus.has(item.sku) && <Check size={14} />}</button>
@@ -1203,6 +2578,24 @@ export default function App() {
               <div><strong>{bridge.connected ? "已建立安全连接" : "等待悬浮助手连接"}</strong><span>{bridge.url}</span></div>
             </div>
             <small className="privacy-note">连接仅监听本机 127.0.0.1，不读取 PLM 密码、Cookie 或云备份密钥。</small>
+            <div className="remote-link-card">
+              <div className="remote-link-heading">
+                <div><span className="eyebrow">PHONE REMOTE</span><strong>手机远程工作台</strong><small>电脑打开时主动领取手机指令，不开放本机端口</small></div>
+                <span className={`remote-link-status ${remoteToken && remoteOnline ? "online" : ""}`}>{remoteToken ? (remoteOnline ? "在线" : "连接中") : "未启用"}</span>
+              </div>
+              {!remoteToken ? <>
+                <div className="remote-login-fields">
+                  <label><span>姓名</span><input value={remoteUser} onChange={(event) => setRemoteUser(event.target.value)} placeholder="与云备份姓名一致" /></label>
+                  <label><span>备份密码</span><input type="password" value={remotePassword} onChange={(event) => setRemotePassword(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") connectRemoteWorkbench(); }} placeholder="只用于换取安全会话" /></label>
+                </div>
+                <button className="primary remote-enable" onClick={connectRemoteWorkbench} disabled={remoteBusy}>{remoteBusy ? <LoaderCircle size={15} className="spin" /> : <Link2 size={15} />}{remoteBusy ? "正在启用…" : "启用手机远程"}</button>
+              </> : <>
+                <div className="remote-link-summary"><div><span>手机访问地址</span><strong>https://velvet.qzz.io/remote/</strong></div><button onClick={() => navigator.clipboard.writeText("https://velvet.qzz.io/remote/").then(() => notify("手机地址已复制"))}><Copy size={14} />复制</button></div>
+                <div className="remote-last-task"><span>最近状态</span><strong>{remoteLastTask || "等待手机下达任务"}</strong></div>
+                <button className="remote-disable" onClick={disconnectRemoteWorkbench}>停用这台电脑的远程连接</button>
+              </>}
+              <small className="privacy-note">姓名和备份密码只在启用时通过 HTTPS 验证；电脑仅保存 7 天会话令牌，不保存备份密码。</small>
+            </div>
           </section>
         </div>
       )}
