@@ -4,6 +4,15 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const outputPath = path.join(root, 'outputs', 'plm-material-summary.user.js');
 const modules = [
+  {
+    name: 'trace-name-pinyin',
+    file: path.join(root, 'src', 'vendor', 'pinyin-pro-3.29.4.js'),
+    wrapSource: (source) => {
+      const license = fs.readFileSync(path.join(root, 'src', 'vendor', 'pinyin-pro-LICENSE.txt'), 'utf8').trimEnd();
+      return '  /* @license pinyin-pro 3.29.4\n' + license.split(/\r?\n/).map((line) => '   *' + (line ? ' ' + line : '')).join('\n') +
+        '\n   */\n  const traceNamePinyin = (() => {\n    const module = { exports: {} };\n    const exports = module.exports;\n' + source + '\n    return module.exports.pinyin;\n  })();';
+    },
+  },
   { name: 'parameter-logo-assets', file: path.join(root, 'src', 'parameter-logo-assets.module.js') },
   { name: 'parameter-image', file: path.join(root, 'src', 'parameter-image.module.js') },
   { name: 'cloud-assets', file: path.join(root, 'src', 'cloud-assets.module.js') },
@@ -40,7 +49,8 @@ let output = fs.readFileSync(outputPath, 'utf8');
 for (const module of selectedModules) {
   const start = `  // <${module.name}-module>`;
   const end = `  // </${module.name}-module>`;
-  const source = fs.readFileSync(module.file, 'utf8').trimEnd();
+  const rawSource = fs.readFileSync(module.file, 'utf8').trimEnd();
+  const source = module.wrapSource ? module.wrapSource(rawSource) : rawSource;
   if (Array.isArray(module.requiredSourceMarkers)) {
     const missing = module.requiredSourceMarkers.filter((marker) => !source.includes(marker));
     if (missing.length) {

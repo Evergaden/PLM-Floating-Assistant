@@ -15,6 +15,7 @@ const metadataEnd = source.indexOf(metadataEndMarker);
 if (metadataEnd < 0) throw new Error('userscript metadata marker is missing');
 
 const metadata = source.slice(0, metadataEnd + metadataEndMarker.length).trimEnd();
+const licenses = (source.match(/\/\* @license[\s\S]*?\*\//g) || []).join('\n\n');
 const npxCli = path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js');
 const npx = process.platform === 'win32' && fs.existsSync(npxCli) ? process.execPath : 'npx';
 const npxArgs = [
@@ -43,5 +44,5 @@ const minified = String(result.stdout || '')
   .join('\n');
 if (!minified) throw new Error('Terser returned an empty output');
 
-fs.writeFileSync(outputPath, `${metadata}\n\n${minified}\n`, 'utf8');
+fs.writeFileSync(outputPath, `${metadata}\n\n${licenses ? `${licenses}\n\n` : ''}${minified}\n`, 'utf8');
 console.log(`Wrote ${path.relative(root, outputPath)}`);
