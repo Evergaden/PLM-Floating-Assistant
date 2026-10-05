@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.38
+// @version      2.9.39
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.38';
+  const SCRIPT_VERSION = '2.9.39';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -40260,8 +40260,8 @@ self.onmessage = async function(event) {
   function buildExcelBatchFileName(items) {
     const first = items[0] || {};
     const data = first.data || {};
-    const skus = items.map((item) => item.data && item.data.sku).filter(Boolean).join(' ');
-    const parts = [data.brand, data.name || (first.extra && first.extra.chineseName), skus].filter(Boolean);
+    const skuSummary = [data.sku, items.length > 1 ? '等' + items.length + '个SKU' : ''].filter(Boolean).join(' ');
+    const parts = [data.brand, data.name || (first.extra && first.extra.chineseName), skuSummary].filter(Boolean);
     return sanitizeExcelFileName((parts.join(' ').replace(/\s+/g, ' ').trim() || 'PLM\u6279\u91cf\u4ea7\u54c1\u4fe1\u606f') + '.xlsx');
   }
 
@@ -41747,9 +41747,37 @@ self.onmessage = async function(event) {
     return String(value || '').replace(/[\\/:*?"<>|_]+/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
+  const EXCEL_FILE_NAME_MAX_LENGTH = 100;
+  const EXCEL_FILE_NAME_MAX_BYTES = 180;
+
+  function excelFileNameByteLength(value) {
+    return Array.from(value).reduce((total, character) => {
+      const point = character.codePointAt(0);
+      // Browser downloads replace spaces with NBSP; reserve two bytes for each space.
+      return total + (point === 32 ? 2 : point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4);
+    }, 0);
+  }
+
   function sanitizeExcelFileName(filename) {
     const value = String(filename || '').replace(/\.xlsx$/i, '').replace(/[\\/:*?"<>|_]+/g, ' ').replace(/\s+/g, ' ').trim();
-    return (value || 'PLM\u4ea7\u54c1\u4fe1\u606f') + '.xlsx';
+    const stem = value || 'PLM\u4ea7\u54c1\u4fe1\u606f';
+    const extension = '.xlsx';
+    if (stem.length + extension.length <= EXCEL_FILE_NAME_MAX_LENGTH && excelFileNameByteLength(stem + extension) <= EXCEL_FILE_NAME_MAX_BYTES) return stem + extension;
+    const skuMatch = stem.match(/(?:^|\s)(SKU\d{1,32}(?:\s+等\d{1,6}个SKU)?)$/i);
+    const suffix = skuMatch ? ' ' + skuMatch[1] : '';
+    const reserved = '...' + suffix + extension;
+    const maxLength = EXCEL_FILE_NAME_MAX_LENGTH - reserved.length;
+    const maxBytes = EXCEL_FILE_NAME_MAX_BYTES - excelFileNameByteLength(reserved);
+    const source = skuMatch ? stem.slice(0, skuMatch.index) : stem;
+    let shortened = '';
+    let bytes = 0;
+    for (const character of source) {
+      const characterBytes = excelFileNameByteLength(character);
+      if (shortened.length + character.length > maxLength || bytes + characterBytes > maxBytes) break;
+      shortened += character;
+      bytes += characterBytes;
+    }
+    return shortened.trimEnd() + reserved;
   }
 
   function toBrowserDownloadFileName(filename) {
@@ -41863,7 +41891,7 @@ self.onmessage = async function(event) {
       return;
     }
     if (!target || !target.direct) showToast(L.excelSavePickerUnavailable);
-    downloadBlob(blob, filename);
+    downloadBlob(blob, sanitizeExcelFileName(filename));
   }
 
   function base64ToArrayBuffer(base64) {
