@@ -1,0 +1,43 @@
+#plm-floating-helper .pfh-settings-tabs button[aria-pressed="true"],
+#plm-floating-helper .pfh-shortcut-row button[aria-pressed="true"] {
+  --pfh-theme-surface: var(--pfh-theme-primary);
+  --pfh-theme-primary-soft: var(--pfh-theme-primary);
+  --pfh-theme-primary-hover: #fff;
+  --pfh-theme-muted: #fff;
+  --pfh-theme-text: #fff;
+}
+
+#plm-floating-helper .pfh-shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--pfh-theme-border, #e2e0f0);
+}
+
+#plm-floating-helper .pfh-shortcut-row strong {
+  display: block;
+  color: var(--pfh-theme-text, #17153f);
+  font-size: 13px;
+}
+
+#plm-floating-helper .pfh-shortcut-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--pfh-theme-muted, #6b7897);
+  font-size: 11px;
+}
+
+#plm-floating-helper .pfh-shortcut-hint {
+  min-height: 20px;
+  margin: 0 0 10px;
+  color: var(--pfh-theme-primary, #7c3aed);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+#plm-floating-helper .pfh-shortcut-row .pfh-about-actions {
+  flex-wrap: wrap;
+}

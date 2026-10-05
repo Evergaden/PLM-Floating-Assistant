@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.41
+// @version      2.9.42
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.41';
+  const SCRIPT_VERSION = '2.9.42';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -168,7 +168,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.299';
+  const UI_ASSET_VERSION = '2.5.300';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -16085,6 +16085,19 @@
   const initialProductDevelopmentTaskCache = loadProductDevelopmentTaskCache();
   const initialProductDevelopmentTaskMeta = loadProductDevelopmentTaskMeta();
 
+  const SHORTCUT_GUIDE_VERSION = 1;
+  const SHORTCUT_ACTIONS = Object.freeze([
+    { id: 'toggle', label: '显示 / 隐藏助手', key: 'P', global: true },
+    { id: 'search', label: '搜索产品 / SKU', key: 'F', global: true },
+    { id: 'home', label: '返回主页', key: 'H', action: 'home-main' },
+    { id: 'ledger', label: '打开工作台', key: 'W', action: 'ledger-open' },
+    { id: 'batch', label: '批量生成表格', key: 'B', action: 'home-batch-excel' },
+    { id: 'upload', label: '打开魔法上传', key: 'U', action: 'home-magic-upload' },
+    { id: 'copySku', label: '复制当前 SKU', key: 'C' },
+    { id: 'excel', label: '生成当前产品 Excel', key: 'E' },
+    { id: 'settings', label: '打开快捷键设置', key: 'S', global: true },
+  ]);
+
   const state = {
     drawer: null,
     sku: '',
@@ -16128,6 +16141,10 @@
     tutorialModalOpen: firstTutorial,
     tutorialEmptyKeyClickCount: 0,
     settingsReturnView: '',
+    settingsPage: 'general',
+    shortcutRecording: '',
+    shortcutHint: '',
+    shortcutRunning: new Set(),
     detailReturnScroll: null,
     searchQuery: '',
     skuFilters: { developer: '', brand: '', status: '', designType: '' },
@@ -16436,10 +16453,12 @@
     GM_addValueChangeListener(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, () => scheduleProductDevelopmentTranslateCloudBackup());
   }
   document.addEventListener('paste', handleSizeImageHoverPaste, true);
+  document.addEventListener('keydown', handleShortcutKeydown, true);
   document.addEventListener('click', handleUserDrawerTabClick, true);
   document.addEventListener('click', handlePageToyCopywritingClick, true);
   ensureLauncher();
   renderShell(L.noDrawer);
+  guideShortcutUpdate();
   window.setTimeout(() => refreshLoadingTips(false), 500 + Math.floor(Math.random() * 4500));
   scheduleCloudAssetRefresh(50);
   scheduleSizeImageAccessRefresh(300);
@@ -21970,6 +21989,178 @@
       '</style>';
   }
 
+  function normalizeShortcutBindings(saved) {
+    const bindings = {};
+    const used = new Set();
+    SHORTCUT_ACTIONS.forEach((item) => {
+      const value = saved && Object.prototype.hasOwnProperty.call(saved, item.id)
+        ? saved[item.id] : 'Alt+Shift+' + item.key;
+      const valid = typeof value === 'string' && /^(Ctrl\+)?(Alt\+)?(Shift\+)?(Meta\+)?[A-Z0-9]$/.test(value)
+        && /Ctrl\+|Alt\+|Meta\+/.test(value) && !isReservedShortcut(value) && !used.has(value);
+      bindings[item.id] = valid ? value : null;
+      if (valid) used.add(value);
+    });
+    return bindings;
+  }
+
+  function isReservedShortcut(binding) {
+    return /^(Ctrl|Meta)\+(Shift\+)?[ACDFGHJLNOPQRSTUVWXZ]$/.test(binding)
+      || /^Alt\+[DF]$/.test(binding);
+  }
+
+  function shortcutFromEvent(event) {
+    if (event.isComposing || event.keyCode === 229 || (event.getModifierState && event.getModifierState('AltGraph'))) return '';
+    const code = String(event.code || '');
+    const key = /^Key[A-Z]$/.test(code) ? code.slice(3) : /^Digit[0-9]$/.test(code) ? code.slice(5) : String(event.key || '').toUpperCase();
+    if (!/^[A-Z0-9]$/.test(key) || !(event.ctrlKey || event.altKey || event.metaKey)) return '';
+    return [event.ctrlKey && 'Ctrl', event.altKey && 'Alt', event.shiftKey && 'Shift', event.metaKey && 'Meta', key].filter(Boolean).join('+');
+  }
+
+  function openShortcutSettings() {
+    if (state.view !== 'about') state.settingsReturnView = state.view || 'home';
+    state.view = 'about';
+    state.settingsPage = 'shortcuts';
+    state.shortcutRecording = '';
+    state.shortcutHint = '';
+    expandPanel();
+  }
+
+  function guideShortcutUpdate() {
+    if (state.tutorialModalOpen || Number(state.settings.shortcutGuideVersion || 0) >= SHORTCUT_GUIDE_VERSION) return;
+    openShortcutSettings();
+    state.settings.shortcutGuideVersion = SHORTCUT_GUIDE_VERSION;
+    saveSettings(state.settings);
+    showToast('本次更新新增快捷键，可在此修改或删除绑定', { tone: 'info' });
+  }
+
+  function renderShortcutSettings() {
+    const bindings = normalizeShortcutBindings(state.settings.shortcutBindings);
+    const rows = SHORTCUT_ACTIONS.map((item) => {
+      const recording = state.shortcutRecording === item.id;
+      const value = bindings[item.id];
+      return '<div class="pfh-shortcut-row"><div><strong>' + escapeHtml(item.label) + '</strong><small>' +
+        (item.global ? '助手关闭时也可使用' : item.id === 'excel' ? '当前产品数据就绪时可用' : '助手打开时可用') + '</small></div>' +
+        '<div class="pfh-about-actions"><button type="button" data-action="shortcut-record" data-shortcut-id="' + item.id + '" aria-pressed="' + recording + '" aria-label="设置' + escapeHtml(item.label) + '快捷键">' +
+        escapeHtml(recording ? '请按下新组合…' : value ? value.replace('Meta', '⌘') : '未设置 · 点击添加') + '</button>' +
+        '<button type="button" data-action="shortcut-delete" data-shortcut-id="' + item.id + '"' + (value || recording ? '' : ' disabled') + '>删除</button></div></div>';
+    }).join('');
+    return settingsGroupHtml('export', '快捷键', settingsCardHtml('高频操作', '自动保存',
+      '<p class="pfh-about-note">点击组合键按钮后，按下 Ctrl、Alt 或 ⌘ 加字母 / 数字，可搭配 Shift。按 Esc 取消。输入文字、弹窗操作时不会触发快捷键；删除后该操作不再绑定。</p>' +
+      '<p class="pfh-shortcut-hint" role="status" aria-live="polite">' + escapeHtml(state.shortcutHint || '新版本已加入快捷键，你可以保留默认设置，也可以按自己的习惯调整。') + '</p>' + rows));
+  }
+
+  function handleShortcutSettingsAction(action, target) {
+    if (action === 'settings-page') {
+      state.settingsPage = target.getAttribute('data-settings-page') === 'shortcuts' ? 'shortcuts' : 'general';
+      state.shortcutRecording = '';
+      state.shortcutHint = '';
+      renderShell();
+      return true;
+    }
+    if (action !== 'shortcut-record' && action !== 'shortcut-delete') return false;
+    const id = target.getAttribute('data-shortcut-id');
+    if (!SHORTCUT_ACTIONS.some((item) => item.id === id)) return true;
+    state.shortcutRecording = action === 'shortcut-record' ? id : '';
+    state.shortcutHint = action === 'shortcut-record' ? '按下新的组合键，Esc 取消；Tab 退出录入。' : '已删除快捷键，可随时重新添加。';
+    if (action === 'shortcut-delete') {
+      state.settings.shortcutBindings = { ...normalizeShortcutBindings(state.settings.shortcutBindings), [id]: null };
+      saveSettings(state.settings);
+    }
+    renderShell();
+    if (state.shortcutRecording) ensurePanel().querySelector('[data-action="shortcut-record"][data-shortcut-id="' + id + '"]')?.focus();
+    return true;
+  }
+
+  async function executeShortcut(item) {
+    if (item.id === 'toggle') return togglePanelVisible();
+    if (item.id === 'settings') return openShortcutSettings();
+    if (item.id === 'search') {
+      expandPanel();
+      const input = ensurePanel().querySelector('.pfh-search-input');
+      if (input) { input.focus(); input.select(); }
+      return;
+    }
+    if (item.id === 'copySku') {
+      const sku = state.selectedSku || state.data?.sku || '';
+      if (!sku) return showToast('请先选择产品');
+      copyText(sku);
+      showToast('已复制 SKU：' + sku);
+      return;
+    }
+    if (item.id === 'excel') {
+      if (!state.data?.sku || state.excelExtra?.excelData?.sku !== state.data.sku) return showToast('请先打开产品并补全表格数据');
+      syncExcelInputs();
+      return generateExcelFromCurrent();
+    }
+    const button = document.createElement('button');
+    button.setAttribute('data-action', item.action);
+    if (state.exportMenuOpen) {
+      syncExcelInputs();
+      state.exportMenuOpen = false;
+    }
+    handlePanelClick({ target: button, preventDefault() {}, stopPropagation() {} });
+  }
+
+  function handleShortcutKeydown(event) {
+    if (event.isComposing || event.keyCode === 229 || event.repeat) return;
+    if (state.shortcutRecording && state.view === 'about' && state.settingsPage === 'shortcuts') {
+      const recordingId = state.shortcutRecording;
+      if (event.key === 'Tab' || event.key === 'Escape') {
+        state.shortcutRecording = '';
+        state.shortcutHint = '已取消，保留原快捷键。';
+        if (event.key === 'Tab') {
+          const button = ensurePanel().querySelector('[data-action="shortcut-record"][data-shortcut-id="' + recordingId + '"]');
+          const value = normalizeShortcutBindings(state.settings.shortcutBindings)[recordingId];
+          if (button) {
+            button.textContent = value ? value.replace('Meta', '⌘') : '未设置 · 点击添加';
+            button.setAttribute('aria-pressed', 'false');
+          }
+          const hint = ensurePanel().querySelector('.pfh-shortcut-hint');
+          if (hint) hint.textContent = state.shortcutHint;
+          return;
+        }
+      } else {
+        const binding = shortcutFromEvent(event);
+        if (['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) return;
+        const bindings = normalizeShortcutBindings(state.settings.shortcutBindings);
+        const conflict = SHORTCUT_ACTIONS.find((item) => item.id !== state.shortcutRecording && bindings[item.id] === binding);
+        if (!binding) state.shortcutHint = '请使用 Ctrl、Alt 或 ⌘ 加字母 / 数字。';
+        else if (isReservedShortcut(binding)) state.shortcutHint = '此组合为常用浏览器快捷键，请换一个组合。';
+        else if (conflict) state.shortcutHint = '此组合已用于「' + conflict.label + '」，请换一个组合或先删除原绑定。';
+        else {
+          state.settings.shortcutBindings = { ...bindings, [state.shortcutRecording]: binding };
+          saveSettings(state.settings);
+          state.shortcutRecording = '';
+          state.shortcutHint = '已保存，下次打开仍然有效。';
+        }
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      renderShell();
+      ensurePanel().querySelector('[data-action="shortcut-record"][data-shortcut-id="' + recordingId + '"]')?.focus();
+      return;
+    }
+    state.shortcutRecording = '';
+    if (event.defaultPrevented || state.tutorialModalOpen) return;
+    const target = event.target;
+    if (target && (target.isContentEditable || target.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]'))) return;
+    const panel = document.getElementById(PANEL_ID);
+    if (panel && Array.from(panel.querySelectorAll('[role="dialog"]')).some(isVisibleElement)) return;
+    const binding = shortcutFromEvent(event);
+    if (!binding) return;
+    const bindings = normalizeShortcutBindings(state.settings.shortcutBindings);
+    const item = SHORTCUT_ACTIONS.find((action) => bindings[action.id] === binding);
+    if (!item || (!item.global && !state.expanded)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (state.shortcutRunning.has(item.id)) return;
+    state.shortcutRunning.add(item.id);
+    Promise.resolve().then(() => executeShortcut(item)).catch((error) => {
+      reportDiagnostic(error, { feature: 'shortcuts', action: item.id });
+      showToast('快捷键操作失败：' + formatErrorMessage(error));
+    }).finally(() => { state.shortcutRunning.delete(item.id); });
+  }
+
   function renderAbout(panel) {
     const detail = panel.querySelector('.pfh-detail');
     const cloudBody = '<label class="pfh-cloud-key"><span>' + escapeHtml(L.cloudBackupKey) + '</span><input type="text" class="pfh-cloud-backup-key" value="' + escapeHtml(state.settings.cloudBackupKey || '') + '" placeholder="' + escapeHtml(L.cloudBackupPlaceholder) + '" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label>' +
@@ -22002,6 +22193,8 @@
       '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section pfh-settings-page">',
       renderSettingsPageStyle(),
       heroHtml,
+      '<nav class="pfh-about-actions pfh-settings-tabs" aria-label="设置页面"><button type="button" data-action="settings-page" data-settings-page="general" aria-pressed="' + (state.settingsPage !== 'shortcuts') + '">常规设置</button><button type="button" data-action="settings-page" data-settings-page="shortcuts" aria-pressed="' + (state.settingsPage === 'shortcuts') + '">快捷键</button></nav>',
+      ...(state.settingsPage === 'shortcuts' ? [renderShortcutSettings()] : [
       settingsGroupHtml('cloud', '版本更新', renderScriptUpdateCard()),
       settingsGroupHtml('appearance', '\u5916\u89c2', themeBody),
       settingsGroupHtml('export', '\u5bfc\u51fa\u504f\u597d', exportCard),
@@ -22010,6 +22203,7 @@
       settingsGroupHtml('cloud', '\u4e91\u7aef\u8d44\u6e90', renderCloudRuleVersions()),
       settingsGroupHtml('runtime', '\u8fd0\u884c\u4e0e\u8bca\u65ad', runtimeBody),
       state.developerToolsOpen ? renderDeveloperTools() : '',
+      ]),
       '</section></div>',
     ].join('');
   }
@@ -34046,6 +34240,7 @@ self.onmessage = async function(event) {
     if (!namingCard) closePackagingNamingCard(ensurePanel());
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
+    if (handleShortcutSettingsAction(action, actionTarget)) return;
     if (action === 'cloud-recovery-refresh-page') {
       refreshPageForCloudRecovery();
       return;
@@ -34576,6 +34771,7 @@ self.onmessage = async function(event) {
       } else {
         state.settingsReturnView = state.view || (state.data ? 'detail' : 'home');
         state.view = 'about';
+        state.settingsPage = 'general';
       }
       expandPanel();
       renderShell();
@@ -34600,6 +34796,7 @@ self.onmessage = async function(event) {
           state.tutorialModalOpen = false;
           state.tutorialEmptyKeyClickCount = 0;
           renderShell();
+          guideShortcutUpdate();
           return;
         }
       } else {
@@ -34618,6 +34815,7 @@ self.onmessage = async function(event) {
       saveTutorialSeen(true);
       state.tutorialModalOpen = false;
       renderShell();
+      guideShortcutUpdate();
       return;
     }
     if (action === 'home-main') {
@@ -48823,6 +49021,7 @@ self.onmessage = async function(event) {
       settings.themeSkinVersion = THEME_SKIN_VERSION;
       settings.theme = normalizeThemeId(settings.theme);
       settings.copywritingCollapsed = settings.copywritingCollapsed === true;
+      settings.shortcutBindings = normalizeShortcutBindings(settings.shortcutBindings);
       settings.workMode = normalizeProductDevelopmentWorkMode(settings.workMode);
       settings.homeFeatureGroups = normalizeHomeFeatureGroups(settings.homeFeatureGroups);
       settings.productDevelopmentFeatureGroups = normalizeProductDevelopmentFeatureGroups(settings.productDevelopmentFeatureGroups);
