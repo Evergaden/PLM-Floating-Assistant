@@ -14,11 +14,11 @@ let toggled = 0;
 let copied = '';
 const panel = { querySelectorAll: () => modal ? [{}] : [], querySelector: () => ({ focus() {}, select() {}, setAttribute() {} }) };
 const context = {
-  state: { settings: {}, expanded: true, view: 'home', shortcutRunning: new Set() },
+  state: { settings: { shortcutEnabled: true }, expanded: true, view: 'home', shortcutRunning: new Set() },
   PANEL_ID: 'panel',
   document: {
     getElementById: () => panel,
-    createElement: () => ({ setAttribute(name, value) { this[name] = value; } }),
+    createElement: () => ({ setAttribute(name, value) { this[name] = value; }, querySelector: () => ({ focus() {} }) }),
   },
   ensurePanel: () => panel,
   isVisibleElement: () => true,
@@ -81,7 +81,7 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
   assert.equal(tab.prevented, undefined);
   assert.equal(context.state.shortcutRecording, '');
 
-  context.state.settings = {}; context.state.view = 'home';
+  context.state.settings = { shortcutEnabled: true }; context.state.view = 'home';
   for (const extra of [
     { repeat: true }, { isComposing: true }, { defaultPrevented: true },
     { target: { closest: () => ({}) } }, { target: { isContentEditable: true } },
@@ -115,13 +115,35 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
   finishExport(); await flush();
   assert.equal(context.state.shortcutRunning.size, 0);
 
+  context.state.settings.shortcutEnabled = false;
+  const disabled = event('P'); context.handleShortcutKeydown(disabled); await flush();
+  assert.equal(disabled.prevented, undefined);
+  assert.equal(toggled, 2, 'disabled mode does not intercept shortcuts');
+  context.handleShortcutSettingsAction('shortcut-mode-toggle');
+  assert.equal(saved.shortcutEnabled, true);
+  context.handleShortcutSettingsAction('shortcut-mode-toggle');
+  assert.equal(saved.shortcutEnabled, false);
+
   context.state.settings = {}; context.state.tutorialModalOpen = true;
   context.guideShortcutUpdate(); assert.equal(context.state.settings.shortcutGuideVersion, undefined);
   context.state.tutorialModalOpen = false;
   context.guideShortcutUpdate();
+  assert.equal(context.state.shortcutGuideOpen, true);
+  assert.equal(context.state.settings.shortcutEnabled, undefined, 'guidance does not enable shortcuts');
+  assert.equal(context.state.settings.shortcutGuideVersion, undefined, 'unanswered guidance is not marked seen');
+  let overlay;
+  context.renderShortcutGuideModal({ querySelector: () => null, appendChild(el) { overlay = el; } });
+  assert.match(overlay.innerHTML, /是否开启快捷键模式/);
+  assert.match(overlay.innerHTML, /shortcut-guide-disable/);
+  context.handleShortcutSettingsAction('shortcut-guide-enable');
   assert.equal(context.state.view, 'about'); assert.equal(context.state.settingsPage, 'shortcuts');
-  assert.equal(saved.shortcutGuideVersion, 1);
+  assert.equal(saved.shortcutGuideVersion, 2); assert.equal(saved.shortcutEnabled, true);
   context.state.view = 'home'; context.guideShortcutUpdate(); assert.equal(context.state.view, 'home');
+  context.state.settings = { shortcutGuideVersion: 1 };
+  context.guideShortcutUpdate(); assert.equal(context.state.shortcutGuideOpen, true, 'previous automatic guide still asks for opt-in');
+  context.handleShortcutSettingsAction('shortcut-guide-disable');
+  assert.equal(saved.shortcutEnabled, false); assert.equal(saved.shortcutGuideVersion, 2);
+  context.guideShortcutUpdate(); assert.equal(context.state.shortcutGuideOpen, false, 'declined guide does not reappear');
   assert.match(context.renderShortcutSettings(), /shortcut-delete/);
   console.log('Shortcut defaults, persistence, deletion, conflicts, input guards, routes, task deduplication, and update guidance passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

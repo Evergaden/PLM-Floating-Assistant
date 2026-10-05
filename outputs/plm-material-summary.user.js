@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.42
+// @version      2.9.43
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.42';
+  const SCRIPT_VERSION = '2.9.43';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -16085,7 +16085,7 @@
   const initialProductDevelopmentTaskCache = loadProductDevelopmentTaskCache();
   const initialProductDevelopmentTaskMeta = loadProductDevelopmentTaskMeta();
 
-  const SHORTCUT_GUIDE_VERSION = 1;
+  const SHORTCUT_GUIDE_VERSION = 2;
   const SHORTCUT_ACTIONS = Object.freeze([
     { id: 'toggle', label: '显示 / 隐藏助手', key: 'P', global: true },
     { id: 'search', label: '搜索产品 / SKU', key: 'F', global: true },
@@ -16143,6 +16143,7 @@
     settingsReturnView: '',
     settingsPage: 'general',
     shortcutRecording: '',
+    shortcutGuideOpen: false,
     shortcutHint: '',
     shortcutRunning: new Set(),
     detailReturnScroll: null,
@@ -21611,6 +21612,7 @@
     updateCollectionSwitch(panel);
     renderUploadProgressOverlay(panel);
     renderFirstRunTutorialModal(panel);
+    renderShortcutGuideModal(panel);
     renderNotificationModal(panel);
     renderExcelExportResultModal(panel);
     if (state.view !== 'ledger') {
@@ -22027,10 +22029,36 @@
 
   function guideShortcutUpdate() {
     if (state.tutorialModalOpen || Number(state.settings.shortcutGuideVersion || 0) >= SHORTCUT_GUIDE_VERSION) return;
-    openShortcutSettings();
+    state.shortcutGuideOpen = true;
+    expandPanel();
+  }
+
+  function finishShortcutGuide(enabled) {
+    state.shortcutGuideOpen = false;
+    state.settings.shortcutEnabled = enabled === true;
     state.settings.shortcutGuideVersion = SHORTCUT_GUIDE_VERSION;
     saveSettings(state.settings);
-    showToast('本次更新新增快捷键，可在此修改或删除绑定', { tone: 'info' });
+    if (enabled) openShortcutSettings();
+    else renderShell();
+  }
+
+  function renderShortcutGuideModal(panel) {
+    const existing = panel.querySelector('.pfh-shortcut-guide');
+    if (!state.shortcutGuideOpen) {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'pfh-first-run-backdrop pfh-shortcut-guide';
+    overlay.innerHTML = '<section class="pfh-first-run-dialog" role="dialog" aria-modal="true" aria-label="是否开启快捷键模式">' +
+      '<div class="pfh-first-run-head"><strong>是否开启快捷键模式？</strong><span>新版本功能</span></div>' +
+      '<p>使用组合键快速搜索产品、打开工作台、生成表格等。开启后会进入快捷键设置，你可以修改或删除任意绑定。</p>' +
+      '<p>默认不开启。选择暂不开启后，仍可在「设置 → 快捷键」中随时开启。</p>' +
+      '<div class="pfh-about-actions"><button type="button" data-action="shortcut-guide-disable">暂不开启</button>' +
+      '<button type="button" data-action="shortcut-guide-enable">开启并查看快捷键</button></div></section>';
+    panel.appendChild(overlay);
+    if (!existing) overlay.querySelector('[data-action="shortcut-guide-disable"]')?.focus();
   }
 
   function renderShortcutSettings() {
@@ -22045,11 +22073,25 @@
         '<button type="button" data-action="shortcut-delete" data-shortcut-id="' + item.id + '"' + (value || recording ? '' : ' disabled') + '>删除</button></div></div>';
     }).join('');
     return settingsGroupHtml('export', '快捷键', settingsCardHtml('高频操作', '自动保存',
+      '<div class="pfh-about-actions"><button type="button" data-action="shortcut-mode-toggle" role="switch" aria-checked="' + (state.settings.shortcutEnabled === true) + '">' +
+      (state.settings.shortcutEnabled === true ? '快捷键模式已开启 · 点击关闭' : '快捷键模式未开启 · 点击开启') + '</button></div>' +
       '<p class="pfh-about-note">点击组合键按钮后，按下 Ctrl、Alt 或 ⌘ 加字母 / 数字，可搭配 Shift。按 Esc 取消。输入文字、弹窗操作时不会触发快捷键；删除后该操作不再绑定。</p>' +
       '<p class="pfh-shortcut-hint" role="status" aria-live="polite">' + escapeHtml(state.shortcutHint || '新版本已加入快捷键，你可以保留默认设置，也可以按自己的习惯调整。') + '</p>' + rows));
   }
 
   function handleShortcutSettingsAction(action, target) {
+    if (action === 'shortcut-guide-enable' || action === 'shortcut-guide-disable') {
+      finishShortcutGuide(action === 'shortcut-guide-enable');
+      return true;
+    }
+    if (action === 'shortcut-mode-toggle') {
+      state.settings.shortcutEnabled = state.settings.shortcutEnabled !== true;
+      state.settings.shortcutGuideVersion = SHORTCUT_GUIDE_VERSION;
+      state.shortcutRecording = '';
+      saveSettings(state.settings);
+      renderShell();
+      return true;
+    }
     if (action === 'settings-page') {
       state.settingsPage = target.getAttribute('data-settings-page') === 'shortcuts' ? 'shortcuts' : 'general';
       state.shortcutRecording = '';
@@ -22103,6 +22145,23 @@
 
   function handleShortcutKeydown(event) {
     if (event.isComposing || event.keyCode === 229 || event.repeat) return;
+    if (state.shortcutGuideOpen) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        finishShortcutGuide(false);
+      } else if (event.key === 'Tab') {
+        const buttons = document.getElementById(PANEL_ID)?.querySelectorAll('.pfh-shortcut-guide button');
+        if (buttons && buttons.length) {
+          const next = event.shiftKey ? buttons[0] : buttons[buttons.length - 1];
+          if (event.target === next || !Array.from(buttons).includes(event.target)) {
+            event.preventDefault();
+            (event.shiftKey ? buttons[buttons.length - 1] : buttons[0]).focus();
+          }
+        }
+      }
+      return;
+    }
     if (state.shortcutRecording && state.view === 'about' && state.settingsPage === 'shortcuts') {
       const recordingId = state.shortcutRecording;
       if (event.key === 'Tab' || event.key === 'Escape') {
@@ -22141,7 +22200,7 @@
       return;
     }
     state.shortcutRecording = '';
-    if (event.defaultPrevented || state.tutorialModalOpen) return;
+    if (event.defaultPrevented || state.tutorialModalOpen || state.settings.shortcutEnabled !== true) return;
     const target = event.target;
     if (target && (target.isContentEditable || target.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]'))) return;
     const panel = document.getElementById(PANEL_ID);
@@ -22209,7 +22268,7 @@
   }
 
   function renderFirstRunTutorialModal(panel) {
-    const existing = panel.querySelector('.pfh-first-run-backdrop');
+    const existing = panel.querySelector('.pfh-first-run-backdrop:not(.pfh-shortcut-guide)');
     if (existing) existing.remove();
     if (!state.tutorialModalOpen) return;
     const overlay = document.createElement('div');
@@ -49022,6 +49081,7 @@ self.onmessage = async function(event) {
       settings.theme = normalizeThemeId(settings.theme);
       settings.copywritingCollapsed = settings.copywritingCollapsed === true;
       settings.shortcutBindings = normalizeShortcutBindings(settings.shortcutBindings);
+      settings.shortcutEnabled = settings.shortcutEnabled === true;
       settings.workMode = normalizeProductDevelopmentWorkMode(settings.workMode);
       settings.homeFeatureGroups = normalizeHomeFeatureGroups(settings.homeFeatureGroups);
       settings.productDevelopmentFeatureGroups = normalizeProductDevelopmentFeatureGroups(settings.productDevelopmentFeatureGroups);
