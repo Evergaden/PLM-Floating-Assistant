@@ -1,0 +1,52 @@
+name: Build Workbench Windows Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "codex/build-main-image-installer"
+    paths:
+      - "product-asset-workbench-tauri/**"
+      - ".github/workflows/build-workbench-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: product-asset-workbench-tauri
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: product-asset-workbench-tauri/package-lock.json
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: product-asset-workbench-tauri/src-tauri
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Test code order parsing
+        run: npm test
+      - name: Test desktop core
+        working-directory: product-asset-workbench-tauri/src-tauri
+        run: cargo test --locked
+      - name: Build Windows installer
+        run: npm run tauri -- build --bundles nsis
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: PLM-Product-Asset-Workbench-Windows
+          path: product-asset-workbench-tauri/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 30

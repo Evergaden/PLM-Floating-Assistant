@@ -13,7 +13,7 @@ import {
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 import MainImageLookup from "./MainImageLookup";
 
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.2.1";
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const WORKSPACE_ROOTS_KEY = "plm-workbench.workspace-roots-v1";

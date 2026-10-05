@@ -155,4 +155,19 @@ mod tests {
         assert!(folder_codes("SKU000507160 产品", &re).is_empty());
         assert!(folder_codes("sku00050716_产品", &re).contains("SKU00050716"));
     }
+
+    #[test]
+    fn searches_nested_main_images_across_the_entire_selected_root() {
+        let root = std::env::temp_dir().join(format!("main-image-nested-{}", uuid::Uuid::new_v4()));
+        let nested = root.join("AMZ 尿素保湿足霜 SKU00046312/套图/AMZ 尿素足霜 SKU00046312/主图");
+        let other = root.join("其他产品 SKU00050716/套图/主图");
+        fs::create_dir_all(&nested).unwrap();
+        fs::create_dir_all(&other).unwrap();
+        fs::write(nested.join("主图1.jpg"), []).unwrap();
+        fs::write(other.join("主图1.jpg"), []).unwrap();
+        let rows = scan(root.to_string_lossy().into(), vec!["SKU00050716".into(), "SKU00046312".into()]).unwrap();
+        assert_eq!(rows[0].selected_path.as_deref(), other.join("主图1.jpg").to_str());
+        assert_eq!(rows[1].selected_path.as_deref(), nested.join("主图1.jpg").to_str());
+        fs::remove_dir_all(root).unwrap();
+    }
 }

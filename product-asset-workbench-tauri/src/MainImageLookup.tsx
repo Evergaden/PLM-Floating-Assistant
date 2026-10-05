@@ -54,7 +54,7 @@ export default function MainImageLookup({ root, chooseRoot }: { root: string; ch
       <div><label htmlFor="main-image-codes">粘贴 Excel 编码列（一行一个）</label><textarea id="main-image-codes" value={text} onChange={(event) => setText(event.target.value)} placeholder={"SKU00050716\nSKU00050722\n/\nSKU00044978"} disabled={busy} /></div>
       <div className="main-image-actions">
         <button className="secondary" disabled={busy} onClick={chooseRoot}><FolderOpen size={16} />{root || "选择图片搜索目录"}</button>
-        <p>搜索目录下所有产品子目录中的 主图1.jpg / png / webp。多张匹配图需手动选择。</p>
+        <p>选择所有产品所在的根目录（如 D:\工作\7月），一次遍历下级文件夹，查找主图1.jpg / png / webp。多张匹配图需手动选择。</p>
         <button disabled={busy || !root || !text.trim()} onClick={search}><Search size={16} />{busy ? "处理中…" : "按编码查找主图1"}</button>
         <button className="secondary" disabled={busy || stale || !rows.length || rows.some((row) => row.status === "ambiguous" && !row.selectedPath)} onClick={exportExcel}><FileSpreadsheet size={16} />导出带图片的 Excel</button>
         <p>导出 A 列编码、B 列嵌入图片、C 列缺图提示，无表头，便于对齐原表。图片随单元格移动，保持比例。</p>
