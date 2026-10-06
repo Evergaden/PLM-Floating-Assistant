@@ -27,6 +27,11 @@ assert.match(context.pixelRoomSettingsHtml(), /pfh-pixel-room-enabled" checked/)
 assert.match(source, /pixelRoomEnabled: false, pixelRoomEndTime: '18:00'/);
 assert.match(source, /state.settings.pixelRoomEnabled === true \? pixelRoomCardHtml\(\) : homeTrendCardHtml/);
 assert.match(source, /pixelRoomDay !== moment.day.*pixelRoomOvertime = false/);
+assert.equal(context.pixelRoomActivity(0, false).action, 'typing');
+assert.equal(context.pixelRoomActivity(24, false).action, 'drinking');
+assert.equal(context.pixelRoomActivity(32, false).action, 'stretching');
+assert.equal(context.pixelRoomActivity(48, false).action, 'typing');
+assert.equal(context.pixelRoomActivity(24, true).action, 'packing');
 
 // Exercise real raster drawing without opening a browser or touching user settings.
 const { createCanvas } = require('/Users/violet/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/@napi-rs/canvas');
@@ -39,6 +44,15 @@ for (const phase of phases) {
 }
 assert.notDeepEqual(images[0].toBuffer('image/png'), images[4].toBuffer('image/png'));
 assert.notDeepEqual(images[2].toBuffer('image/png'), images[3].toBuffer('image/png'));
+const actorFrame = (tick) => {
+  const canvas = createCanvas(480, 168);
+  const ctx = canvas.getContext('2d');
+  context.drawPixelRoom(ctx, { phase: 'day', warmth: 0 }, tick);
+  return Buffer.from(ctx.getImageData(253, 75, 65, 72).data);
+};
+assert.notDeepEqual(actorFrame(0), actorFrame(1), 'typing must move visibly on consecutive seconds');
+assert.notDeepEqual(actorFrame(0), actorFrame(24), 'drinking must change the character');
+assert.notDeepEqual(actorFrame(24), actorFrame(32), 'stretching must change the character');
 if (process.argv.includes('--preview')) {
   const sheet = createCanvas(960, 5 * 336);
   const ctx = sheet.getContext('2d');

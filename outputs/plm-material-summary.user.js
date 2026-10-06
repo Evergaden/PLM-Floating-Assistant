@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.49
+// @version      2.9.50
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.49';
+  const SCRIPT_VERSION = '2.9.50';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -27465,11 +27465,20 @@
       '<canvas class="pfh-pixel-room-canvas" width="480" height="168" role="img" aria-label="像素小办公室" style="display:block;width:100%;height:auto;image-rendering:pixelated;border-radius:8px"></canvas></article>';
   }
 
+  function pixelRoomActivity(tick, packing) {
+    const frame = Math.floor(Math.max(0, Number(tick) || 0));
+    const cycle = frame % 48;
+    return { action: packing ? 'packing' : cycle >= 24 && cycle < 32 ? 'drinking' : cycle >= 32 && cycle < 38 ? 'stretching' : 'typing', frame: frame % 2 };
+  }
+
   function drawPixelRoom(ctx, moment, tick) {
     ctx.imageSmoothingEnabled = false;
     const night = moment.phase === 'night';
     const closed = moment.phase === 'closed';
     const packing = moment.phase === 'packing';
+    const activity = pixelRoomActivity(tick, packing);
+    const drinking = activity.action === 'drinking';
+    const stretching = activity.action === 'stretching';
     const warm = closed ? 1 : moment.warmth;
     const blend = (a, b, t) => '#' + a.map((value, i) => Math.round(value + (b[i] - value) * t).toString(16).padStart(2, '0')).join('');
     const rect = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(Math.floor(x), Math.floor(y), w, h); };
@@ -27488,7 +27497,7 @@
       const sunY = 37 + Math.round(warm * 42);
       rect(247, sunY, 16, 16, '#ffe8b4'); rect(251, sunY - 3, 8, 22, '#ffe8b4');
       for (let i = 0; i < 3; i++) {
-        const x = 31 + (i * 79 + Math.floor(tick / 7)) % 210;
+        const x = 31 + (i * 79 + Math.floor(tick / 3)) % 210;
         rect(x, 40 + i * 9, 30, 4, '#ede7ec'); rect(x + 6, 36 + i * 9, 17, 4, '#ede7ec');
       }
     }
@@ -27519,7 +27528,9 @@
     rect(185, 87, 47, 28, '#5a546e'); rect(188, 90, 41, 22, closed ? '#747389' : '#8db5bc');
     if (!closed) { rect(192, 94, 21, 2, '#d7ece3'); rect(192, 99, 31, 2, '#b3d6d3'); rect(192, 104, 17, 2, '#d7ece3'); }
     rect(205, 115, 6, 5, '#71657b'); rect(197, 119, 23, 2, '#71657b');
-    rect(190, 123, 39, 2, '#e8d8cc'); rect(241, 114, 9, 7, '#ece1cf'); rect(250, 115, 3, 4, '#ece1cf'); rect(243, 112, 5, 2, '#b29a99');
+    rect(190, 121, 73, 3, '#e8d8cc');
+    for (let x = 193; x < 259; x += 6) rect(x, 122, 3, 1, '#b4a2af');
+    if (!drinking || closed) { rect(241, 114, 9, 7, '#ece1cf'); rect(250, 115, 3, 4, '#ece1cf'); rect(243, 112, 5, 2, '#b29a99'); }
     rect(314, 119, 23, 2, '#7a6a80'); rect(324, 92, 3, 27, '#7a6a80'); rect(313, 90, 26, 4, night ? '#e5bd7a' : '#b69ca7'); rect(317, 85, 18, 5, night ? '#f4d69a' : '#d0b0b2');
     if (night) { ctx.globalAlpha = 0.14; rect(305, 94, 42, 26, '#ffdc91'); ctx.globalAlpha = 1; }
     rect(344, 107, 10, 14, '#b791a7'); rect(347, 101, 2, 8, '#7d6d91'); rect(352, 99, 2, 11, '#c6a176');
@@ -27527,12 +27538,23 @@
     if (packing || closed) { rect(257, 117, 22, 4, '#c78681'); rect(259, 116, 18, 1, '#efdbbd'); rect(368, 132, 17, 17, '#776d8c'); rect(372, 127, 9, 5, '#776d8c'); rect(372, 128, 7, 4, '#b79490'); }
     else { rect(260, 117, 20, 3, '#f4e9d5'); rect(271, 117, 1, 3, '#b3a2a8'); }
     if (!closed) {
-      const bob = packing ? Math.floor(tick / 2) % 2 : 0;
+      const bob = stretching ? -4 : drinking ? -1 : activity.frame;
       rect(279, 86 + bob, 22, 6, '#574e67'); rect(276, 92 + bob, 27, 14, '#574e67'); rect(279, 94 + bob, 21, 16, '#e8b49b');
       rect(278, 93 + bob, 7, 7, '#574e67'); rect(286, 103 + bob, 2, 2, '#7b5966');
       rect(279, 110 + bob, 24, 17, '#8b9bbb'); rect(279, 125, 22, 11, '#66617e'); rect(280, 134, 7, 10, '#66617e'); rect(296, 134, 7, 10, '#66617e');
-      const reach = packing ? Math.floor(tick / 3) % 2 * 5 : Math.floor(tick / 4) % 2;
-      rect(269 - reach, 115, 13 + reach, 6, '#8b9bbb'); rect(265 - reach, 116, 5, 4, '#e8b49b'); rect(278, 143, 10, 4, '#554e65'); rect(294, 143, 12, 4, '#554e65');
+      if (drinking) {
+        const lift = activity.frame * 2;
+        rect(271, 104 - lift, 8, 14, '#8b9bbb'); rect(268, 102 - lift, 10, 5, '#e8b49b');
+        rect(265, 96 - lift, 9, 9, '#ece1cf'); rect(274, 98 - lift, 3, 5, '#ece1cf'); rect(267, 95 - lift, 5, 2, '#b29a99');
+      } else if (stretching) {
+        const lift = activity.frame * 3;
+        rect(269, 95 - lift, 7, 17, '#8b9bbb'); rect(266, 87 - lift, 7, 10, '#8b9bbb'); rect(265, 82 - lift, 7, 6, '#e8b49b');
+        rect(304, 95 - lift, 7, 17, '#8b9bbb'); rect(308, 87 - lift, 7, 10, '#8b9bbb'); rect(310, 82 - lift, 7, 6, '#e8b49b');
+      } else {
+        const reach = packing ? activity.frame * 7 : activity.frame * 4;
+        rect(264 - reach, 113 + activity.frame, 18 + reach, 6, '#8b9bbb'); rect(259 - reach, 116 + activity.frame, 6, 4, '#e8b49b');
+      }
+      rect(278, 143, 10, 4, '#554e65'); rect(294, 143, 12, 4, '#554e65');
     }
     rect(0, 164, 480, 4, '#8f7c92');
   }
