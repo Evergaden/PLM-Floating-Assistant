@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.48
+// @version      2.9.49
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.48';
+  const SCRIPT_VERSION = '2.9.49';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -22320,7 +22320,7 @@
       const resourceHint = isLulu ? '<small class="pfh-theme-option-download">' + escapeHtml(state.luluThemeAccessLoading ? '正在检查权限…' : (luluLocked ? '暂未开放' : '点击启用 · 在线加载皮肤')) + '</small>' : '';
       return '<button type="button" class="' + optionClass + '" data-action="' + action + '" data-theme-id="' + escapeHtml(theme.id) + '" aria-pressed="' + String(selected) + '"' + (luluLocked ? ' disabled aria-disabled="true" title="噜噜乐园主题暂未开放"' : '') + ' style="--pfh-theme-option-primary:' + escapeHtml(theme.primary) + ';--pfh-theme-option-secondary:' + escapeHtml(theme.secondary) + ';--pfh-theme-option-soft:' + escapeHtml(theme.primarySoft) + '"><span class="pfh-theme-option-swatch"></span><span class="pfh-theme-option-label">' + escapeHtml(theme.name) + '</span>' + resourceHint + '</button>';
     }).join('');
-    const themeBody = '<div class="pfh-settings-card pfh-theme-settings-card"><div class="pfh-settings-card-head"><strong>主题颜色</strong><span>' + escapeHtml(getActiveTheme().name) + '</span></div><div class="pfh-about-note">普通色卡直接切换；点击噜噜乐园会切换暖黄配色并按需加载皮肤彩蛋。</div><div class="pfh-theme-grid">' + themeOptions + '</div></div>';
+    const themeBody = '<div class="pfh-settings-card pfh-theme-settings-card"><div class="pfh-settings-card-head"><strong>主题颜色</strong><span>' + escapeHtml(getActiveTheme().name) + '</span></div><div class="pfh-about-note">普通色卡直接切换；点击噜噜乐园会切换暖黄配色并按需加载皮肤彩蛋。</div><div class="pfh-theme-grid">' + themeOptions + '</div></div>' + pixelRoomSettingsHtml();
     const cacheBody = '<div class="pfh-about-actions"><button type="button" data-action="export-cache">' + escapeHtml(L.exportCache) + '</button><button type="button" data-action="import-cache">' + escapeHtml(L.importCache) + '</button></div>';
     const heroHtml = '<header class="pfh-set-hero">' +
       '<span class="pfh-set-hero-badge">' + CORE_ICON_ASSETS.settings + '</span>' +
@@ -27434,6 +27434,126 @@
     return '<article class="pfh-home-chart"><header><div><h3>新任务趋势</h3><p>' + escapeHtml(chartSummary) + '</p></div><div class="pfh-home-period-tabs"><button type="button" data-action="home-chart-period" data-period="7" class="' + (period === 7 ? 'is-active' : '') + '">7日</button><button type="button" data-action="home-chart-period" data-period="30" class="' + (period === 30 ? 'is-active' : '') + '">30日</button></div></header><div class="pfh-home-chart-canvas"><div class="pfh-home-chart-plot"><svg viewBox="0 0 620 130" preserveAspectRatio="none" role="img" aria-label="新任务趋势图"><defs><linearGradient id="pfh-home-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pfh-theme-primary)" stop-opacity=".25"></stop><stop offset="1" stop-color="var(--pfh-theme-primary)" stop-opacity="0"></stop></linearGradient></defs><line x1="0" y1="26" x2="620" y2="26"></line><line x1="0" y1="68" x2="620" y2="68"></line><line x1="0" y1="110" x2="620" y2="110"></line><path class="pfh-home-chart-area" d="' + chart.area + '"></path><path class="pfh-home-chart-line" d="' + chart.line + '"></path></svg><div class="pfh-home-chart-points">' + homeChartPointsHtml(stats, chart) + '</div><div class="pfh-home-chart-tooltip" role="status"><strong></strong><span></span></div></div><div class="pfh-home-chart-labels">' + homeChartLabelsHtml(stats.days, period) + '</div></div></article>';
   }
 
+  let pixelRoomOvertime = false;
+  let pixelRoomDay = '';
+
+  function normalizePixelRoomTime(value) {
+    return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(value || '')) ? String(value) : '18:00';
+  }
+
+  function pixelRoomSettingsHtml() {
+    return '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>下班倒计时剧场</strong><span>精细像素小房间</span></div>' +
+      '<div class="pfh-about-note">开启后，主页的新任务趋势卡片变为像素小房间。随下班时间从白天渐变到黄昏；加班夜景由你主动开启。时间按北京时间计算。</div>' +
+      '<div class="pfh-setting-row"><label><input type="checkbox" class="pfh-pixel-room-enabled"' + (state.settings.pixelRoomEnabled === true ? ' checked' : '') + '> 开启像素小房间</label></div>' +
+      '<div class="pfh-setting-row"><label>下班时间 <input type="time" class="pfh-pixel-room-time" value="' + normalizePixelRoomTime(state.settings.pixelRoomEndTime) + '"></label></div></div>';
+  }
+
+  function pixelRoomMoment(now, endTime, overtime) {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    const time = normalizePixelRoomTime(endTime).split(':').map(Number);
+    const minutes = Number(values.hour) * 60 + Number(values.minute);
+    const remaining = time[0] * 60 + time[1] - minutes;
+    const phase = overtime ? 'night' : remaining <= 0 ? 'closed' : remaining <= 15 ? 'packing' : remaining <= 60 ? 'sunset' : 'day';
+    const title = overtime ? '夜色已到，台灯为你亮着' : remaining <= 0 ? '今天收工，小房间休息啦' : '距下班还有 ' + (remaining >= 60 ? Math.floor(remaining / 60) + ' 小时 ' : '') + remaining % 60 + ' 分钟';
+    return { phase, remaining, title, minutes, day: values.year + values.month + values.day, warmth: Math.max(0, Math.min(1, (60 - remaining) / 60)) };
+  }
+
+  function pixelRoomCardHtml() {
+    return '<article class="pfh-home-chart"><header><div><h3>下班倒计时剧场</h3><p class="pfh-pixel-room-caption">小房间正在开窗…</p></div>' +
+      '<div class="pfh-home-period-tabs"><button type="button" data-action="pixel-room-overtime" aria-pressed="false">今晚加班</button></div></header>' +
+      '<canvas class="pfh-pixel-room-canvas" width="480" height="168" role="img" aria-label="像素小办公室" style="display:block;width:100%;height:auto;image-rendering:pixelated;border-radius:8px"></canvas></article>';
+  }
+
+  function drawPixelRoom(ctx, moment, tick) {
+    ctx.imageSmoothingEnabled = false;
+    const night = moment.phase === 'night';
+    const closed = moment.phase === 'closed';
+    const packing = moment.phase === 'packing';
+    const warm = closed ? 1 : moment.warmth;
+    const blend = (a, b, t) => '#' + a.map((value, i) => Math.round(value + (b[i] - value) * t).toString(16).padStart(2, '0')).join('');
+    const rect = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(Math.floor(x), Math.floor(y), w, h); };
+    // A native 480 x 168 pixel scene, with crisp layers rather than scaled photographs.
+    rect(0, 0, 480, 168, night ? '#32354e' : '#e8deeb');
+    rect(0, 0, 480, 5, '#aaa0b8'); rect(0, 5, 480, 3, '#f9f0ec');
+    for (let y = 16; y < 127; y += 12) rect(0, y, 480, 1, night ? '#3c3e59' : '#dfd3df');
+    rect(19, 17, 281, 103, '#80758d'); rect(23, 21, 273, 95, '#f7eadb');
+    const sky = night ? '#202e52' : blend([161, 204, 225], [205, 154, 194], warm);
+    rect(27, 25, 265, 87, sky);
+    rect(27, 74, 265, 38, night ? '#364363' : blend([192, 222, 226], [252, 190, 154], warm));
+    if (night) {
+      rect(245, 34, 12, 12, '#f6e6af'); rect(249, 32, 8, 16, '#f6e6af'); rect(253, 31, 8, 12, sky);
+      for (let i = 0; i < 19; i++) rect(33 + i * 13, 31 + (i * 17) % 38, 1, 1, '#dee3f3');
+    } else {
+      const sunY = 37 + Math.round(warm * 42);
+      rect(247, sunY, 16, 16, '#ffe8b4'); rect(251, sunY - 3, 8, 22, '#ffe8b4');
+      for (let i = 0; i < 3; i++) {
+        const x = 31 + (i * 79 + Math.floor(tick / 7)) % 210;
+        rect(x, 40 + i * 9, 30, 4, '#ede7ec'); rect(x + 6, 36 + i * 9, 17, 4, '#ede7ec');
+      }
+    }
+    for (let i = 0; i < 10; i++) {
+      const x = 28 + i * 27; const h = 15 + (i * 13) % 31;
+      rect(x, 112 - h, 24, h, night ? '#47516c' : '#9b9aac');
+      rect(x + 4, 109 - h, 15, 2, night ? '#5a647d' : '#b7b0bc');
+      for (let y = 117 - h; y < 109; y += 7) for (let j = 0; j < 3; j++) rect(x + 4 + j * 6, y, 3, 3, night ? ((i + j + y) % 3 ? '#eac98b' : '#65718c') : '#cfced7');
+    }
+    rect(112, 25, 4, 87, '#e4d5cc'); rect(204, 25, 4, 87, '#e4d5cc'); rect(27, 65, 265, 3, '#e4d5cc');
+    rect(15, 116, 290, 5, '#f6eadd'); rect(19, 121, 282, 4, '#b8a3a5');
+    for (const x of [9, 299]) { rect(x, 14, 9, 107, night ? '#5b566d' : '#c1accb'); rect(x + 3, 17, 2, 100, night ? '#74677e' : '#dcc5de'); }
+    // Shelves, books, clock and a small framed landscape.
+    rect(333, 43, 114, 5, '#947e87'); rect(339, 48, 4, 5, '#b49a9a'); rect(437, 48, 4, 5, '#b49a9a');
+    ['#b1a0cc', '#c5898a', '#e0bc83', '#829f95', '#909fc3'].forEach((color, i) => { rect(338 + i * 10, 22 + i % 2 * 4, 8, 21 - i % 2 * 4, color); rect(340 + i * 10, 37, 4, 1, '#eee0cf'); });
+    rect(416, 17, 24, 26, '#806d7c'); rect(419, 20, 18, 20, '#e4d4b4'); rect(421, 23, 14, 9, '#98b6ba'); rect(421, 32, 14, 6, '#829885');
+    rect(341, 65, 28, 28, '#b59a9b'); rect(344, 68, 22, 22, '#f5e9d6'); rect(354, 72, 2, 10, '#786c80'); rect(354, 80, 7, 2, '#786c80');
+    rect(0, 132, 480, 36, night ? '#5f4c5a' : '#b79490'); rect(0, 130, 480, 3, '#806c7c');
+    for (let y = 139; y < 168; y += 11) { rect(0, y, 480, 1, '#947780'); for (let x = y % 2 ? 30 : 65; x < 480; x += 88) rect(x, y - 10, 1, 10, '#a38284'); }
+    rect(115, 148, 252, 13, night ? '#675977' : '#b1a0bd'); rect(120, 151, 242, 1, '#c1adc6');
+    // Plant, cabinet and door.
+    rect(38, 132, 18, 21, '#b98070'); rect(35, 128, 24, 5, '#d4a28a');
+    rect(46, 104, 3, 24, '#6d8975'); rect(32, 103, 14, 5, '#7da18b'); rect(35, 108, 12, 4, '#638b77'); rect(49, 96, 12, 7, '#88a68d'); rect(49, 107, 15, 5, '#6e947e');
+    rect(398, 110, 42, 35, '#a28788'); rect(401, 113, 36, 13, '#c1a7a0'); rect(416, 118, 7, 2, '#806979'); rect(401, 128, 36, 13, '#b39a96'); rect(416, 133, 7, 2, '#806979');
+    rect(450, 65, 25, 83, '#8a788c'); rect(453, 69, 19, 75, '#b29ca7'); rect(455, 74, 15, 32, '#c0aab3'); rect(456, 114, 3, 3, '#ead3a5');
+    // Desk and its familiar little objects.
+    rect(168, 124, 204, 7, '#8f737c'); rect(165, 121, 210, 4, '#d4b09b'); rect(177, 131, 7, 22, '#897180'); rect(357, 131, 7, 22, '#897180');
+    rect(185, 87, 47, 28, '#5a546e'); rect(188, 90, 41, 22, closed ? '#747389' : '#8db5bc');
+    if (!closed) { rect(192, 94, 21, 2, '#d7ece3'); rect(192, 99, 31, 2, '#b3d6d3'); rect(192, 104, 17, 2, '#d7ece3'); }
+    rect(205, 115, 6, 5, '#71657b'); rect(197, 119, 23, 2, '#71657b');
+    rect(190, 123, 39, 2, '#e8d8cc'); rect(241, 114, 9, 7, '#ece1cf'); rect(250, 115, 3, 4, '#ece1cf'); rect(243, 112, 5, 2, '#b29a99');
+    rect(314, 119, 23, 2, '#7a6a80'); rect(324, 92, 3, 27, '#7a6a80'); rect(313, 90, 26, 4, night ? '#e5bd7a' : '#b69ca7'); rect(317, 85, 18, 5, night ? '#f4d69a' : '#d0b0b2');
+    if (night) { ctx.globalAlpha = 0.14; rect(305, 94, 42, 26, '#ffdc91'); ctx.globalAlpha = 1; }
+    rect(344, 107, 10, 14, '#b791a7'); rect(347, 101, 2, 8, '#7d6d91'); rect(352, 99, 2, 11, '#c6a176');
+    rect(276, 136, 28, 5, '#73667e'); rect(278, 116, 24, 20, '#9485a6'); rect(288, 141, 4, 11, '#73667e'); rect(278, 152, 24, 3, '#73667e');
+    if (packing || closed) { rect(257, 117, 22, 4, '#c78681'); rect(259, 116, 18, 1, '#efdbbd'); rect(368, 132, 17, 17, '#776d8c'); rect(372, 127, 9, 5, '#776d8c'); rect(372, 128, 7, 4, '#b79490'); }
+    else { rect(260, 117, 20, 3, '#f4e9d5'); rect(271, 117, 1, 3, '#b3a2a8'); }
+    if (!closed) {
+      const bob = packing ? Math.floor(tick / 2) % 2 : 0;
+      rect(279, 86 + bob, 22, 6, '#574e67'); rect(276, 92 + bob, 27, 14, '#574e67'); rect(279, 94 + bob, 21, 16, '#e8b49b');
+      rect(278, 93 + bob, 7, 7, '#574e67'); rect(286, 103 + bob, 2, 2, '#7b5966');
+      rect(279, 110 + bob, 24, 17, '#8b9bbb'); rect(279, 125, 22, 11, '#66617e'); rect(280, 134, 7, 10, '#66617e'); rect(296, 134, 7, 10, '#66617e');
+      const reach = packing ? Math.floor(tick / 3) % 2 * 5 : Math.floor(tick / 4) % 2;
+      rect(269 - reach, 115, 13 + reach, 6, '#8b9bbb'); rect(265 - reach, 116, 5, 4, '#e8b49b'); rect(278, 143, 10, 4, '#554e65'); rect(294, 143, 12, 4, '#554e65');
+    }
+    rect(0, 164, 480, 4, '#8f7c92');
+  }
+
+  function updatePixelRoom() {
+    if (state.settings.pixelRoomEnabled !== true || !state.expanded || document.hidden) return;
+    const canvas = document.querySelector('#plm-floating-helper .pfh-pixel-room-canvas');
+    if (!canvas) return;
+    if (canvas.closest('.pfh-home-carousel-slide')?.getAttribute('aria-hidden') === 'true') return;
+    const now = new Date(Date.now() + homeClockOffsetMs);
+    let moment = pixelRoomMoment(now, state.settings.pixelRoomEndTime, pixelRoomOvertime);
+    if (pixelRoomDay !== moment.day) { pixelRoomDay = moment.day; pixelRoomOvertime = false; moment = pixelRoomMoment(now, state.settings.pixelRoomEndTime, false); }
+    const caption = canvas.parentElement.querySelector('.pfh-pixel-room-caption');
+    if (caption) caption.textContent = moment.title;
+    const button = canvas.parentElement.querySelector('[data-action="pixel-room-overtime"]');
+    if (button) { button.textContent = pixelRoomOvertime ? '结束加班' : '今晚加班'; button.setAttribute('aria-pressed', String(pixelRoomOvertime)); }
+    canvas.setAttribute('aria-label', moment.title + '，' + ({ day: '白天办公', sunset: '黄昏办公', packing: '整理桌面', closed: '空房间已收工', night: '城市夜景与暖色台灯' })[moment.phase]);
+    const ctx = canvas.getContext('2d');
+    if (ctx) drawPixelRoom(ctx, moment, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : Math.floor(now.getTime() / 1000));
+  }
+
   function homeClockText() {
     return new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(Date.now() + homeClockOffsetMs));
   }
@@ -27445,6 +27565,7 @@
   }
 
   function updateHomeClock() {
+    updatePixelRoom();
     const clock = document.querySelector('#plm-floating-helper .pfh-home-clock');
     if (!clock) return;
     clock.textContent = homeClockText();
@@ -27516,6 +27637,7 @@
         slide.setAttribute('aria-hidden', slideIndex === state.homeCarouselIndex ? 'false' : 'true');
         slide.inert = slideIndex !== state.homeCarouselIndex;
       });
+      updatePixelRoom();
     };
     show(state.homeCarouselIndex, false);
     slider.addEventListener('input', () => { pauseUntil = Date.now() + 12000; show(slider.value); });
@@ -27558,6 +27680,7 @@
     if (homeCarouselTimer) window.clearInterval(homeCarouselTimer);
     homeCarouselTimer = window.setInterval(() => {
       if (!carousel.isConnected || state.view !== 'home' || document.hidden || pointer || Date.now() < pauseUntil || carousel.matches(':hover') || carousel.contains(document.activeElement)) return;
+      if (state.settings.pixelRoomEnabled === true && slides[state.homeCarouselIndex]?.querySelector('.pfh-pixel-room-canvas')) return;
       show((state.homeCarouselIndex + 1) % count);
     }, 8000);
   }
@@ -27940,7 +28063,7 @@
     const featureTrackClass = 'pfh-home-feature-track ' + (isProductDevelopment ? 'is-product-development' : 'is-daily') + (state.homeModeTransition ? ' is-' + escapeHtml(state.homeModeTransition) : '');
     const chartSummary = '近 ' + period + ' 日共新分配 ' + stats.total + ' 个任务';
     const carouselModules = [
-      { id: 'trend', label: '新任务趋势', html: homeTrendCardHtml(stats, chart, period, chartSummary) },
+      { id: 'trend', label: state.settings.pixelRoomEnabled === true ? '下班倒计时剧场' : '新任务趋势', html: state.settings.pixelRoomEnabled === true ? pixelRoomCardHtml() : homeTrendCardHtml(stats, chart, period, chartSummary) },
       { id: 'todo', label: '待办项', html: homeTodoCardHtml() },
     ];
     const carouselSlides = carouselModules.map((module) => '<div class="pfh-home-carousel-slide" data-module-id="' + module.id + '" data-module-label="' + escapeHtml(module.label) + '">' + module.html + '</div>').join('');
@@ -34743,6 +34866,11 @@ self.onmessage = async function(event) {
       showToast('\u4e3b\u9898\u5df2\u5207\u6362\u4e3a ' + getActiveTheme().name);
       return;
     }
+    if (action === 'pixel-room-overtime') {
+      pixelRoomOvertime = !pixelRoomOvertime;
+      updatePixelRoom();
+      return;
+    }
     if (action === 'developer-settings-tap') {
       const now = Date.now();
       if (now - state.developerSettingsTapAt > 1800) state.developerSettingsTapCount = 0;
@@ -36358,6 +36486,19 @@ self.onmessage = async function(event) {
   }
 
   function handlePanelChange(event) {
+    if (event.target?.classList?.contains('pfh-pixel-room-enabled')) {
+      state.settings.pixelRoomEnabled = event.target.checked === true;
+      pixelRoomOvertime = false;
+      saveSettings(state.settings);
+      renderShell();
+      return;
+    }
+    if (event.target?.classList?.contains('pfh-pixel-room-time')) {
+      state.settings.pixelRoomEndTime = normalizePixelRoomTime(event.target.value);
+      event.target.value = state.settings.pixelRoomEndTime;
+      saveSettings(state.settings);
+      return;
+    }
     if (productDevelopmentHandleChange(event)) return;
     const skuFilterField = event.target && event.target.getAttribute && event.target.getAttribute('data-sku-filter');
     if (skuFilterField && Object.prototype.hasOwnProperty.call(state.skuFilters, skuFilterField)) {
@@ -49213,7 +49354,7 @@ self.onmessage = async function(event) {
   }
 
   function loadSettings() {
-    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'waterfall', skuListSort: 'assigned', skuListPreferenceVersion: SKU_LIST_PREFERENCE_VERSION, theme: DEFAULT_THEME_ID, themeSkinVersion: THEME_SKIN_VERSION, copywritingCollapsed: false, workMode: 'daily', homeFeatureGroups: normalizeHomeFeatureGroups(DEFAULT_HOME_FEATURE_GROUPS), productDevelopmentFeatureGroups: normalizeProductDevelopmentFeatureGroups(DEFAULT_PRODUCT_DEVELOPMENT_FEATURE_GROUPS) };
+    const defaults = { pixelRoomEnabled: false, pixelRoomEndTime: '18:00', excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'waterfall', skuListSort: 'assigned', skuListPreferenceVersion: SKU_LIST_PREFERENCE_VERSION, theme: DEFAULT_THEME_ID, themeSkinVersion: THEME_SKIN_VERSION, copywritingCollapsed: false, workMode: 'daily', homeFeatureGroups: normalizeHomeFeatureGroups(DEFAULT_HOME_FEATURE_GROUPS), productDevelopmentFeatureGroups: normalizeProductDevelopmentFeatureGroups(DEFAULT_PRODUCT_DEVELOPMENT_FEATURE_GROUPS) };
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       const settings = { ...defaults, ...(saved || {}) };
@@ -49226,6 +49367,8 @@ self.onmessage = async function(event) {
       settings.copywritingCollapsed = settings.copywritingCollapsed === true;
       settings.shortcutBindings = normalizeShortcutBindings(settings.shortcutBindings);
       settings.shortcutEnabled = settings.shortcutEnabled === true;
+      settings.pixelRoomEnabled = settings.pixelRoomEnabled === true;
+      settings.pixelRoomEndTime = normalizePixelRoomTime(settings.pixelRoomEndTime);
       settings.workMode = normalizeProductDevelopmentWorkMode(settings.workMode);
       settings.homeFeatureGroups = normalizeHomeFeatureGroups(settings.homeFeatureGroups);
       settings.productDevelopmentFeatureGroups = normalizeProductDevelopmentFeatureGroups(settings.productDevelopmentFeatureGroups);
