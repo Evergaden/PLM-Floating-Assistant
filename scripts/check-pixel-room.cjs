@@ -3,11 +3,16 @@ const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync(path.join(__dirname, '../outputs/plm-material-summary.user.js'), 'utf8');
-const start = source.indexOf('  let pixelRoomOvertime = false;');
+const start = source.indexOf('  function normalizePixelRoomTime(');
 const end = source.indexOf('  function homeClockText(', start);
 const context = { Intl, state: { settings: {} } };
 vm.createContext(context);
-vm.runInContext(source.slice(start, end), context);
+const globals = ['pixelRoomOvertime', 'pixelRoomDay', 'pixelRoomAnimationFrame', 'pixelRoomVisibilityBound'].map((name) => {
+  const declaration = source.match(new RegExp('  let ' + name + ' = [^;]+;'));
+  assert.ok(declaration && declaration.index < source.indexOf('  renderShell(L.noDrawer);'), name + ' must initialize before startup rendering');
+  return declaration[0];
+}).join('\n');
+vm.runInContext(globals + source.slice(start, end), context);
 const moment = (time, overtime = false, endTime = '18:00') => context.pixelRoomMoment(new Date('2026-10-06T' + time + ':00+08:00'), endTime, overtime);
 assert.equal(moment('16:59').phase, 'day');
 assert.equal(moment('17:00').phase, 'sunset');

@@ -3660,6 +3660,10 @@
   const HOME_TODO_KEY = 'plm-floating-helper:home-todos:v1';
   let homeCarouselTimer = 0;
   let homeClockTimer = 0;
+  let pixelRoomOvertime = false;
+  let pixelRoomDay = '';
+  let pixelRoomAnimationFrame = 0;
+  let pixelRoomVisibilityBound = false;
   let homeClockSyncTimer = 0;
   let homeClockOffsetMs = 0;
   let homeClockSyncedAt = 0;
@@ -27434,11 +27438,6 @@
   function homeTrendCardHtml(stats, chart, period, chartSummary) {
     return '<article class="pfh-home-chart"><header><div><h3>新任务趋势</h3><p>' + escapeHtml(chartSummary) + '</p></div><div class="pfh-home-period-tabs"><button type="button" data-action="home-chart-period" data-period="7" class="' + (period === 7 ? 'is-active' : '') + '">7日</button><button type="button" data-action="home-chart-period" data-period="30" class="' + (period === 30 ? 'is-active' : '') + '">30日</button></div></header><div class="pfh-home-chart-canvas"><div class="pfh-home-chart-plot"><svg viewBox="0 0 620 130" preserveAspectRatio="none" role="img" aria-label="新任务趋势图"><defs><linearGradient id="pfh-home-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pfh-theme-primary)" stop-opacity=".25"></stop><stop offset="1" stop-color="var(--pfh-theme-primary)" stop-opacity="0"></stop></linearGradient></defs><line x1="0" y1="26" x2="620" y2="26"></line><line x1="0" y1="68" x2="620" y2="68"></line><line x1="0" y1="110" x2="620" y2="110"></line><path class="pfh-home-chart-area" d="' + chart.area + '"></path><path class="pfh-home-chart-line" d="' + chart.line + '"></path></svg><div class="pfh-home-chart-points">' + homeChartPointsHtml(stats, chart) + '</div><div class="pfh-home-chart-tooltip" role="status"><strong></strong><span></span></div></div><div class="pfh-home-chart-labels">' + homeChartLabelsHtml(stats.days, period) + '</div></div></article>';
   }
-
-  let pixelRoomOvertime = false;
-  let pixelRoomDay = '';
-  let pixelRoomAnimationFrame = 0;
-  let pixelRoomVisibilityBound = false;
 
   function normalizePixelRoomTime(value) {
     return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(value || '')) ? String(value) : '18:00';
