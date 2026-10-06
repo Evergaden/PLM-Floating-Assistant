@@ -3,7 +3,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync(path.join(__dirname, '../outputs/plm-material-summary.user.js'), 'utf8');
-const start = source.indexOf('  function normalizePixelRoomTime(');
+const start = source.indexOf('  let pixelRoomOvertime = false;');
 const end = source.indexOf('  function homeClockText(', start);
 const context = { Intl, state: { settings: {} } };
 vm.createContext(context);
@@ -50,9 +50,73 @@ const actorFrame = (tick) => {
   context.drawPixelRoom(ctx, { phase: 'day', warmth: 0 }, tick);
   return Buffer.from(ctx.getImageData(253, 75, 65, 72).data);
 };
-assert.notDeepEqual(actorFrame(0), actorFrame(1), 'typing must move visibly on consecutive seconds');
+assert.notDeepEqual(actorFrame(0), actorFrame(0.25), 'typing must move within the first second');
 assert.notDeepEqual(actorFrame(0), actorFrame(24), 'drinking must change the character');
 assert.notDeepEqual(actorFrame(24), actorFrame(32), 'stretching must change the character');
+
+// Drive the actual animation scheduler with a visible canvas and reduced-motion OS.
+// No browser, live PLM session or saved user preferences are used.
+const requests = new Map();
+let nextId = 0;
+let visible = true;
+let timestamp = 0;
+let visibilityListener;
+const canvas = createCanvas(480, 168);
+canvas.isConnected = true;
+canvas.closest = () => ({ getAttribute: () => visible ? 'false' : 'true' });
+canvas.parentElement = { querySelector: () => ({ textContent: '', setAttribute() {} }) };
+canvas.setAttribute = () => {};
+context.homeClockOffsetMs = 0;
+context.state.expanded = true;
+context.state.settings.pixelRoomAnimation = true;
+context.document = {
+  hidden: false,
+  querySelector: () => canvas,
+  addEventListener: (type, listener) => { assert.equal(type, 'visibilitychange'); visibilityListener = listener; },
+};
+context.window = {
+  performance: { now: () => timestamp },
+  matchMedia: () => ({ matches: true }),
+  requestAnimationFrame: (callback) => { requests.set(++nextId, callback); return nextId; },
+  cancelAnimationFrame: (id) => requests.delete(id),
+};
+const advance = (value) => {
+  timestamp = value;
+  const callbacks = Array.from(requests.values());
+  requests.clear();
+  callbacks.forEach((callback) => callback(value));
+};
+context.setupPixelRoomAnimation();
+assert.equal(requests.size, 1);
+advance(0);
+const firstFrame = canvas.toBuffer('image/png');
+advance(300);
+assert.notDeepEqual(firstFrame, canvas.toBuffer('image/png'), 'explicit theater animation must run even when OS reduced-motion is on');
+context.setupPixelRoomAnimation();
+assert.equal(requests.size, 1, 'repeated setup must not duplicate animation loops');
+context.document.hidden = true;
+visibilityListener();
+assert.equal(requests.size, 0, 'background pages must stop');
+context.document.hidden = false;
+visibilityListener();
+assert.equal(requests.size, 1, 'foreground pages must resume');
+visible = false;
+advance(600);
+assert.equal(requests.size, 0, 'hidden carousel slides must stop');
+visible = true;
+context.state.settings.pixelRoomAnimation = false;
+context.setupPixelRoomAnimation();
+assert.equal(requests.size, 0, 'animation switch must support static mode');
+context.updatePixelRoom(0);
+const staticFrame = canvas.toBuffer('image/png');
+context.updatePixelRoom(10);
+assert.deepEqual(staticFrame, canvas.toBuffer('image/png'));
+context.state.settings.pixelRoomAnimation = true;
+context.setupPixelRoomAnimation();
+canvas.isConnected = false;
+advance(900);
+assert.equal(requests.size, 0, 'removed canvases must stop');
+assert.match(source, /function renderShell\(statusText\) \{\s+stopPixelRoomAnimation\(\)/);
 if (process.argv.includes('--preview')) {
   const sheet = createCanvas(960, 5 * 336);
   const ctx = sheet.getContext('2d');

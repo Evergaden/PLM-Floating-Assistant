@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.50
+// @version      2.9.51
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.50';
+  const SCRIPT_VERSION = '2.9.51';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -21659,6 +21659,7 @@
   }
 
   function renderShell(statusText) {
+    stopPixelRoomAnimation();
     const panel = ensurePanel();
     if (state.view === 'unitConverter') {
       state.view = 'tools';
@@ -27436,6 +27437,8 @@
 
   let pixelRoomOvertime = false;
   let pixelRoomDay = '';
+  let pixelRoomAnimationFrame = 0;
+  let pixelRoomVisibilityBound = false;
 
   function normalizePixelRoomTime(value) {
     return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(value || '')) ? String(value) : '18:00';
@@ -27445,6 +27448,7 @@
     return '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>下班倒计时剧场</strong><span>精细像素小房间</span></div>' +
       '<div class="pfh-about-note">开启后，主页的新任务趋势卡片变为像素小房间。随下班时间从白天渐变到黄昏；加班夜景由你主动开启。时间按北京时间计算。</div>' +
       '<div class="pfh-setting-row"><label><input type="checkbox" class="pfh-pixel-room-enabled"' + (state.settings.pixelRoomEnabled === true ? ' checked' : '') + '> 开启像素小房间</label></div>' +
+      '<div class="pfh-setting-row"><label><input type="checkbox" class="pfh-pixel-room-animation"' + (state.settings.pixelRoomAnimation !== false ? ' checked' : '') + '> 播放小人动作与飘云</label></div><div class="pfh-about-note">此开关单独控制剧场动画；关闭后保留倒计时和昼夜变化，不修改系统的动态效果设置。</div>' +
       '<div class="pfh-setting-row"><label>下班时间 <input type="time" class="pfh-pixel-room-time" value="' + normalizePixelRoomTime(state.settings.pixelRoomEndTime) + '"></label></div></div>';
   }
 
@@ -27466,8 +27470,9 @@
   }
 
   function pixelRoomActivity(tick, packing) {
-    const frame = Math.floor(Math.max(0, Number(tick) || 0));
-    const cycle = frame % 48;
+    const seconds = Math.max(0, Number(tick) || 0);
+    const frame = Math.floor(seconds * 4);
+    const cycle = Math.floor(seconds) % 48;
     return { action: packing ? 'packing' : cycle >= 24 && cycle < 32 ? 'drinking' : cycle >= 32 && cycle < 38 ? 'stretching' : 'typing', frame: frame % 2 };
   }
 
@@ -27559,7 +27564,38 @@
     rect(0, 164, 480, 4, '#8f7c92');
   }
 
-  function updatePixelRoom() {
+  function stopPixelRoomAnimation() {
+    if (pixelRoomAnimationFrame) window.cancelAnimationFrame(pixelRoomAnimationFrame);
+    pixelRoomAnimationFrame = 0;
+  }
+
+  function setupPixelRoomAnimation() {
+    stopPixelRoomAnimation();
+    if (!pixelRoomVisibilityBound) {
+      pixelRoomVisibilityBound = true;
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopPixelRoomAnimation();
+        else { updatePixelRoom(); setupPixelRoomAnimation(); }
+      });
+    }
+    if (state.settings.pixelRoomEnabled !== true || state.settings.pixelRoomAnimation === false || !state.expanded || document.hidden) return;
+    const canvas = document.querySelector('#plm-floating-helper .pfh-pixel-room-canvas');
+    if (!canvas || canvas.closest('.pfh-home-carousel-slide')?.getAttribute('aria-hidden') === 'true') return;
+    let lastPaint = -Infinity;
+    const animate = (timestamp) => {
+      pixelRoomAnimationFrame = 0;
+      if (!canvas.isConnected || document.hidden || !state.expanded || state.settings.pixelRoomEnabled !== true || state.settings.pixelRoomAnimation === false || canvas.closest('.pfh-home-carousel-slide')?.getAttribute('aria-hidden') === 'true') return;
+      // Six crisp pixel frames per second, independent of the homepage clock.
+      if (timestamp - lastPaint >= 1000 / 6) {
+        lastPaint = timestamp;
+        updatePixelRoom(timestamp / 1000);
+      }
+      pixelRoomAnimationFrame = window.requestAnimationFrame(animate);
+    };
+    pixelRoomAnimationFrame = window.requestAnimationFrame(animate);
+  }
+
+  function updatePixelRoom(animationSeconds) {
     if (state.settings.pixelRoomEnabled !== true || !state.expanded || document.hidden) return;
     const canvas = document.querySelector('#plm-floating-helper .pfh-pixel-room-canvas');
     if (!canvas) return;
@@ -27573,7 +27609,8 @@
     if (button) { button.textContent = pixelRoomOvertime ? '结束加班' : '今晚加班'; button.setAttribute('aria-pressed', String(pixelRoomOvertime)); }
     canvas.setAttribute('aria-label', moment.title + '，' + ({ day: '白天办公', sunset: '黄昏办公', packing: '整理桌面', closed: '空房间已收工', night: '城市夜景与暖色台灯' })[moment.phase]);
     const ctx = canvas.getContext('2d');
-    if (ctx) drawPixelRoom(ctx, moment, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : Math.floor(now.getTime() / 1000));
+    const tick = state.settings.pixelRoomAnimation === false ? 0 : typeof animationSeconds === 'number' ? animationSeconds : window.performance.now() / 1000;
+    if (ctx) drawPixelRoom(ctx, moment, tick);
   }
 
   function homeClockText() {
@@ -27660,6 +27697,7 @@
         slide.inert = slideIndex !== state.homeCarouselIndex;
       });
       updatePixelRoom();
+      setupPixelRoomAnimation();
     };
     show(state.homeCarouselIndex, false);
     slider.addEventListener('input', () => { pauseUntil = Date.now() + 12000; show(slider.value); });
@@ -36508,6 +36546,11 @@ self.onmessage = async function(event) {
   }
 
   function handlePanelChange(event) {
+    if (event.target?.classList?.contains('pfh-pixel-room-animation')) {
+      state.settings.pixelRoomAnimation = event.target.checked === true;
+      saveSettings(state.settings);
+      return;
+    }
     if (event.target?.classList?.contains('pfh-pixel-room-enabled')) {
       state.settings.pixelRoomEnabled = event.target.checked === true;
       pixelRoomOvertime = false;
@@ -49390,6 +49433,7 @@ self.onmessage = async function(event) {
       settings.shortcutBindings = normalizeShortcutBindings(settings.shortcutBindings);
       settings.shortcutEnabled = settings.shortcutEnabled === true;
       settings.pixelRoomEnabled = settings.pixelRoomEnabled === true;
+      settings.pixelRoomAnimation = settings.pixelRoomAnimation !== false;
       settings.pixelRoomEndTime = normalizePixelRoomTime(settings.pixelRoomEndTime);
       settings.workMode = normalizeProductDevelopmentWorkMode(settings.workMode);
       settings.homeFeatureGroups = normalizeHomeFeatureGroups(settings.homeFeatureGroups);
