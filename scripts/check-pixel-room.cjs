@@ -35,8 +35,19 @@ assert.match(source, /pixelRoomDay !== moment.day.*pixelRoomOvertime = false/);
 assert.equal(context.pixelRoomActivity(0, false).action, 'typing');
 assert.equal(context.pixelRoomActivity(24, false).action, 'drinking');
 assert.equal(context.pixelRoomActivity(32, false).action, 'stretching');
-assert.equal(context.pixelRoomActivity(48, false).action, 'typing');
+assert.equal(context.pixelRoomActivity(38, false).action, 'waving');
+assert.equal(context.pixelRoomActivity(44, false).action, 'watching-cat');
+assert.equal(context.pixelRoomActivity(50, false).action, 'standing');
+assert.equal(context.pixelRoomActivity(80, false).action, 'typing');
 assert.equal(context.pixelRoomActivity(24, true).action, 'packing');
+assert.match(context.pixelRoomCardHtml(), /窗边日常/);
+assert.match(context.pixelRoomSettingsHtml(), /窗边日常/);
+const homeDefinitions = source.slice(source.indexOf('const HOME_FEATURE_DEFINITIONS'), source.indexOf('const HOME_FEATURE_DEFINITIONS') + 3000);
+assert.ok(homeDefinitions.includes('magicUpload'));
+assert.ok(!homeDefinitions.includes("badge: 'BETA'"));
+for (const [tick, action] of [[0, 'walking'], [16, 'grooming'], [28, 'sleeping'], [44, 'stretching'], [52, 'walking'], [68, 'sitting']]) assert.equal(context.pixelRoomCatActivity(tick, false).action, action);
+assert.equal(context.pixelRoomCatActivity(0, true).action, 'sleeping');
+assert.ok(context.pixelRoomCatActivity(10, false).x > context.pixelRoomCatActivity(0, false).x);
 const at = (time) => new Date('2026-10-06T' + time + ':00+08:00');
 const sample = {
   current: { time: at('10:00').getTime() / 1000, temperature_2m: 27, weather_code: 3, cloud_cover: 97, wind_speed_10m: 10 },
@@ -82,6 +93,13 @@ const actorFrame = (tick) => {
 assert.notDeepEqual(actorFrame(0), actorFrame(0.25), 'typing must move within the first second');
 assert.notDeepEqual(actorFrame(0), actorFrame(24), 'drinking must change the character');
 assert.notDeepEqual(actorFrame(24), actorFrame(32), 'stretching must change the character');
+const catFrame = (tick) => {
+  const canvas = createCanvas(180, 168);
+  context.drawPixelRoomCat(canvas.getContext('2d'), tick, false);
+  return canvas.toBuffer('image/png');
+};
+assert.notDeepEqual(catFrame(0), catFrame(0.25), 'cat legs and tail must animate');
+assert.notDeepEqual(catFrame(16), catFrame(28), 'grooming and sleeping must differ');
 
 // Drive the actual animation scheduler with a visible canvas and reduced-motion OS.
 // No browser, live PLM session or saved user preferences are used.

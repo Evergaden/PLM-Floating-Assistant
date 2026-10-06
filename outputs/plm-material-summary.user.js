@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.52
+// @version      2.9.53
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.52';
+  const SCRIPT_VERSION = '2.9.53';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -2761,8 +2761,8 @@
     Object.freeze({ id: 'detail', action: 'open-first-detail', icon: 'folder', title: '我的详情', description: '点击后先检查新的设计分配，自动加入本地列表和今日工作台。' }),
     Object.freeze({ id: 'batchExcel', action: 'home-batch-excel', icon: 'batchExcel', title: '批量生成 Excel', description: '多个 SKU 自动补全并成表' }),
     Object.freeze({ id: 'upload', action: 'upload-toggle', icon: 'upload', title: '批量提审上传', description: '队列上传并记录状态' }),
-    Object.freeze({ id: 'magicUpload', action: 'home-magic-upload', icon: 'upload', title: '魔法上传', description: 'ZIP 自动识别并上传', badge: 'BETA' }),
-    Object.freeze({ id: 'parameterImage', action: 'home-parameter-image', icon: 'image', title: '生成参数图', description: '尺寸图与英文参数图', badge: 'BETA' }),
+    Object.freeze({ id: 'magicUpload', action: 'home-magic-upload', icon: 'upload', title: '魔法上传', description: 'ZIP 自动识别并上传' }),
+    Object.freeze({ id: 'parameterImage', action: 'home-parameter-image', icon: 'image', title: '生成参数图', description: '尺寸图与英文参数图' }),
     Object.freeze({ id: 'ledger', action: 'ledger-open', icon: 'taskPlan', title: '今日工作台', description: '记录定稿和流程' }),
     Object.freeze({ id: 'tools', action: 'home-tools', icon: 'tools', title: '小工具', description: '换算、编码与批量文案补全' }),
     Object.freeze({ id: 'feedback', action: 'home-feedback', icon: 'messageCircle', title: '提交反馈', description: '建议与问题反馈' }),
@@ -27449,7 +27449,7 @@
   }
 
   function pixelRoomSettingsHtml() {
-    return '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>下班倒计时剧场</strong><span>精细像素小房间</span></div>' +
+    return '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>窗边日常</strong><span>精细像素小房间</span></div>' +
       '<div class="pfh-about-note">开启后，主页的新任务趋势卡片变为像素小房间。随下班时间从白天渐变到黄昏；加班夜景由你主动开启。时间按北京时间计算。</div>' +
       '<div class="pfh-setting-row"><label><input type="checkbox" class="pfh-pixel-room-enabled"' + (state.settings.pixelRoomEnabled === true ? ' checked' : '') + '> 开启像素小房间</label></div>' +
       '<div class="pfh-setting-row"><label><input type="checkbox" class="pfh-pixel-room-animation"' + (state.settings.pixelRoomAnimation !== false ? ' checked' : '') + '> 播放小人动作与飘云</label></div><div class="pfh-about-note">此开关单独控制剧场动画；关闭后保留倒计时和昼夜变化，不修改系统的动态效果设置。</div>' +
@@ -27542,7 +27542,7 @@
   }
 
   function pixelRoomCardHtml() {
-    return '<article class="pfh-home-chart"><header><div><h3>下班倒计时剧场</h3><p class="pfh-pixel-room-caption">小房间正在开窗…</p></div>' +
+    return '<article class="pfh-home-chart"><header><div><h3>窗边日常</h3><p class="pfh-pixel-room-caption">小房间正在开窗…</p></div>' +
       '<div class="pfh-home-period-tabs"><button type="button" data-action="pixel-room-overtime" aria-pressed="false">今晚加班</button></div></header>' +
       '<canvas class="pfh-pixel-room-canvas" width="480" height="168" role="img" aria-label="像素小办公室" style="display:block;width:100%;height:auto;image-rendering:pixelated;border-radius:8px"></canvas></article>';
   }
@@ -27550,8 +27550,51 @@
   function pixelRoomActivity(tick, packing) {
     const seconds = Math.max(0, Number(tick) || 0);
     const frame = Math.floor(seconds * 4);
-    const cycle = Math.floor(seconds) % 48;
-    return { action: packing ? 'packing' : cycle >= 24 && cycle < 32 ? 'drinking' : cycle >= 32 && cycle < 38 ? 'stretching' : 'typing', frame: frame % 2 };
+    const cycle = Math.floor(seconds) % 80;
+    return { action: packing ? 'packing' : cycle >= 24 && cycle < 32 ? 'drinking' : cycle >= 32 && cycle < 38 ? 'stretching' : cycle >= 38 && cycle < 44 ? 'waving' : cycle >= 44 && cycle < 50 ? 'watching-cat' : cycle >= 50 && cycle < 58 ? 'standing' : 'typing', frame: frame % 2 };
+  }
+
+  function pixelRoomCatActivity(tick, closed) {
+    const seconds = Math.max(0, Number(tick) || 0);
+    const cycle = seconds % 84;
+    const frame = Math.floor(seconds * 4) % 2;
+    if (closed) return { action: 'sleeping', x: 92, frame, flip: false };
+    if (cycle < 16) return { action: 'walking', x: 75 + Math.floor(cycle * 3), frame, flip: true };
+    if (cycle < 28) return { action: 'grooming', x: 123, frame, flip: false };
+    if (cycle < 44) return { action: 'sleeping', x: 123, frame, flip: false };
+    if (cycle < 52) return { action: 'stretching', x: 123, frame, flip: false };
+    if (cycle < 68) return { action: 'walking', x: 123 - Math.floor((cycle - 52) * 3), frame, flip: false };
+    return { action: 'sitting', x: 75, frame, flip: false };
+  }
+
+  function drawPixelRoomCat(ctx, tick, closed) {
+    const cat = pixelRoomCatActivity(tick, closed);
+    const r = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); };
+    ctx.save(); ctx.translate(cat.x, 143);
+    if (cat.flip) { ctx.translate(29, 0); ctx.scale(-1, 1); }
+    r(0, 16, 31, 2, '#947b86');
+    const fur = '#d49c6d', light = '#f2d8b2', dark = '#aa735b';
+    if (cat.action === 'sleeping') {
+      r(3, 8 - cat.frame, 22, 9 + cat.frame, fur); r(0, 10, 9, 6, light); r(1, 7, 4, 5, fur); r(23, 11, 6, 5, dark); r(5, 13, 3, 1, dark);
+      r(12, 10 - cat.frame, 2, 3, dark); r(17, 9 - cat.frame, 2, 3, dark);
+      r(29, 4 - cat.frame * 2, 3, 1, '#b4a6bd'); r(31, 5 - cat.frame * 2, 1, 2, '#b4a6bd'); r(29, 7 - cat.frame * 2, 3, 1, '#b4a6bd');
+    } else {
+      const sitting = cat.action === 'sitting' || cat.action === 'grooming';
+      const stretch = cat.action === 'stretching';
+      const bodyY = sitting ? 5 : stretch ? 11 : 8;
+      r(8, bodyY, sitting ? 14 : 19, sitting ? 11 : stretch ? 5 : 8, fur);
+      r(10, bodyY + 2, 3, 4, dark); r(17, bodyY + 1, 3, 4, dark);
+      const headY = stretch ? 7 : sitting ? 0 : 3 + cat.frame;
+      r(0, headY, 12, 10, fur); r(1, headY - 3, 3, 5, fur); r(8, headY - 3, 3, 5, fur);
+      r(2, headY - 1, 1, 2, '#e9b3a0'); r(9, headY - 1, 1, 2, '#e9b3a0'); r(0, headY + 6, 8, 4, light);
+      r(2, headY + 4, 2, 2, '#615361'); r(7, headY + 4, 2, 2, '#615361'); r(-1, headY + 7, 2, 1, '#a77573');
+      const step = cat.action === 'walking' ? cat.frame * 3 : 0;
+      r(3 + step, 14, 4, 3, light); r(20 - step, 14, 4, 3, light);
+      r(26, bodyY - 3 - cat.frame * 2, 3, 8, fur); r(24, bodyY - 5 - cat.frame * 2, 4, 3, fur);
+      if (cat.action === 'grooming') { r(3, headY + 6 - cat.frame * 3, 5, 3, light); r(5, headY + 7 - cat.frame * 3, 2, 1, '#d9908e'); }
+      if (stretch) { r(0, 14, 11, 3, light); r(22, 9 - cat.frame, 5, 7, fur); }
+    }
+    ctx.restore();
   }
 
   function drawPixelRoom(ctx, moment, tick) {
@@ -27563,6 +27606,7 @@
     const activity = pixelRoomActivity(tick, packing);
     const drinking = activity.action === 'drinking';
     const stretching = activity.action === 'stretching';
+    const standing = activity.action === 'standing';
     const warm = outdoor ? outdoor.warmth : closed ? 1 : moment.warmth;
     const weatherKind = outdoor?.kind || 'clear';
     const dull = ['overcast', 'rain', 'storm', 'fog', 'snow'].includes(weatherKind);
@@ -27641,10 +27685,12 @@
     if (packing || closed) { rect(257, 117, 22, 4, '#c78681'); rect(259, 116, 18, 1, '#efdbbd'); rect(368, 132, 17, 17, '#776d8c'); rect(372, 127, 9, 5, '#776d8c'); rect(372, 128, 7, 4, '#b79490'); }
     else { rect(260, 117, 20, 3, '#f4e9d5'); rect(271, 117, 1, 3, '#b3a2a8'); }
     if (!closed) {
+      ctx.save();
+      if (standing) ctx.translate(30 + activity.frame * 2, -8);
       const bob = stretching ? -4 : drinking ? -1 : activity.frame;
       rect(279, 86 + bob, 22, 6, '#574e67'); rect(276, 92 + bob, 27, 14, '#574e67'); rect(279, 94 + bob, 21, 16, '#e8b49b');
-      rect(278, 93 + bob, 7, 7, '#574e67'); rect(286, 103 + bob, 2, 2, '#7b5966');
-      rect(279, 110 + bob, 24, 17, '#8b9bbb'); rect(279, 125, 22, 11, '#66617e'); rect(280, 134, 7, 10, '#66617e'); rect(296, 134, 7, 10, '#66617e');
+      rect(278, 93 + bob, 7, 7, '#574e67'); rect(286, 103 + bob, Math.floor(tick) % 8 === 0 ? 3 : 2, Math.floor(tick) % 8 === 0 ? 1 : 2, '#7b5966');
+      rect(279, 110 + bob, 24, 17, '#8b9bbb'); rect(279, 125, 22, 11, '#66617e'); rect(280, 134, 7, standing ? 20 : 10, '#66617e'); rect(296, 134, 7, standing ? 20 : 10, '#66617e');
       if (drinking) {
         const lift = activity.frame * 2;
         rect(271, 104 - lift, 8, 14, '#8b9bbb'); rect(268, 102 - lift, 10, 5, '#e8b49b');
@@ -27653,12 +27699,19 @@
         const lift = activity.frame * 3;
         rect(269, 95 - lift, 7, 17, '#8b9bbb'); rect(266, 87 - lift, 7, 10, '#8b9bbb'); rect(265, 82 - lift, 7, 6, '#e8b49b');
         rect(304, 95 - lift, 7, 17, '#8b9bbb'); rect(308, 87 - lift, 7, 10, '#8b9bbb'); rect(310, 82 - lift, 7, 6, '#e8b49b');
+      } else if (activity.action === 'waving') {
+        rect(303, 99, 7, 18, '#8b9bbb'); rect(307 + activity.frame * 3, 88, 6, 13, '#8b9bbb'); rect(306 + activity.frame * 3, 83, 7, 6, '#e8b49b');
+        rect(267, 115, 13, 6, '#8b9bbb');
+      } else if (activity.action === 'watching-cat' || standing) {
+        rect(271, 115, 7, 15, '#8b9bbb'); rect(268 - activity.frame * 2, 129, 7, 5, '#e8b49b');
       } else {
         const reach = packing ? activity.frame * 7 : activity.frame * 4;
         rect(264 - reach, 113 + activity.frame, 18 + reach, 6, '#8b9bbb'); rect(259 - reach, 116 + activity.frame, 6, 4, '#e8b49b');
       }
-      rect(278, 143, 10, 4, '#554e65'); rect(294, 143, 12, 4, '#554e65');
+      rect(278, standing ? 153 : 143, 10, 4, '#554e65'); rect(294, standing ? 153 : 143, 12, 4, '#554e65');
+      ctx.restore();
     }
+    drawPixelRoomCat(ctx, tick, closed);
     rect(0, 164, 480, 4, '#8f7c92');
   }
 
@@ -28223,7 +28276,7 @@
     const featureTrackClass = 'pfh-home-feature-track ' + (isProductDevelopment ? 'is-product-development' : 'is-daily') + (state.homeModeTransition ? ' is-' + escapeHtml(state.homeModeTransition) : '');
     const chartSummary = '近 ' + period + ' 日共新分配 ' + stats.total + ' 个任务';
     const carouselModules = [
-      { id: 'trend', label: state.settings.pixelRoomEnabled === true ? '下班倒计时剧场' : '新任务趋势', html: state.settings.pixelRoomEnabled === true ? pixelRoomCardHtml() : homeTrendCardHtml(stats, chart, period, chartSummary) },
+      { id: 'trend', label: state.settings.pixelRoomEnabled === true ? '窗边日常' : '新任务趋势', html: state.settings.pixelRoomEnabled === true ? pixelRoomCardHtml() : homeTrendCardHtml(stats, chart, period, chartSummary) },
       { id: 'todo', label: '待办项', html: homeTodoCardHtml() },
     ];
     const carouselSlides = carouselModules.map((module) => '<div class="pfh-home-carousel-slide" data-module-id="' + module.id + '" data-module-label="' + escapeHtml(module.label) + '">' + module.html + '</div>').join('');
