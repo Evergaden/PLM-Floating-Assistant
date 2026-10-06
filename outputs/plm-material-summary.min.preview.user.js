@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.53
+// @version      2.9.54
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -56,7 +56,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.9.53", r = (() => {
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.9.54", r = (() => {
         const e = {
             exports: {}
         }, t = e.exports;
@@ -9725,7 +9725,7 @@
             }
         }, 0);
     }
-    const d = "2.5.301", p = Object.freeze({
+    const d = "2.5.302", p = Object.freeze({
         id: "design",
         label: "测试版",
         code: "TEST"
@@ -37525,8 +37525,11 @@
     }
     function Cz(e) {
         const t = Bf(e || Rf()), n = Rf(), r = Cf().querySelector(".pfh-search-input");
-        r && (r.value = lC(r.value)), np.searchQuery = r ? r.value.trim() : "", np.skuPage = 1,
-        Ez();
+        if (r && (r.value = lC(r.value)), np.searchQuery = r ? r.value.trim() : "", np.skuPage = 1,
+        Ez(), !sC(np.searchQuery).length && !Ah()) return void _D("请输入产品名、SKU 或物料编码后再搜索。", {
+            tone: "quiet",
+            diagnostic: !1
+        });
         const i = sC(np.searchQuery).length || Ah() ? Ih(np.searchQuery) : [];
         if (i.length) {
             const e = i[0], r = XP(e.sku);
@@ -37535,7 +37538,12 @@
             lj(), "parameterImage" === t && rp.loadRules(), "copywriting" === t && np.data) return np.copywritingMode = !1,
             void xx(!1);
         }
-        Mf(), Hf();
+        if (Mf(), Hf(), !i.length) {
+            _D(Ah() && hC(sC(np.searchQuery)).length > 0 ? "当前筛选条件下没有匹配产品，请调整或清除筛选条件。" : "本地资料中未找到" + (np.searchQuery ? "“" + np.searchQuery.slice(0, 60) + "”" : "匹配产品") + "，请检查编码或名称，或先在「我的详情」更新产品资料。", {
+                tone: "quiet",
+                diagnostic: !1
+            });
+        }
     }
     function Ez() {
         const e = Cf(), t = e.querySelector(".pfh-search-input"), n = e.querySelector(".pfh-search-clear");

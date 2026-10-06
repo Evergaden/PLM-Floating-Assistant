@@ -132,24 +132,6 @@
         min-width: 0;
         width: 100%;
       }
-      #plm-floating-helper .pfh-search-input {
-        min-width: 0;
-        width: 100%;
-        height: 24px;
-        padding: 2px 24px 2px 7px;
-        color: #1f2937;
-        background: #fff;
-        border: 1px solid #cad3df;
-        border-radius: 5px;
-        font-size: 12px;
-        line-height: 18px;
-        outline: none;
-        overflow: visible;
-      }
-      #plm-floating-helper .pfh-search-input:focus {
-        border-color: #7c9cff;
-        box-shadow: 0 0 0 2px rgba(124, 156, 255, 0.18);
-      }
       #plm-floating-helper .pfh-search-clear {
         position: absolute;
         top: 50%;
@@ -943,14 +925,6 @@
         border-radius: 2px;
         pointer-events: none;
       }
-      #plm-floating-helper .pfh-search-input {
-        height: 32px;
-        line-height: 30px;
-        padding-left: 34px;
-        border-color: #d6dfeb;
-        border-radius: 5px 0 0 5px;
-        color: #0b1120;
-      }
       #plm-floating-helper .pfh-search > button {
         height: 32px;
         min-width: 64px;
@@ -1228,18 +1202,6 @@
         max-width: 390px;
         flex-basis: 390px;
       }
-      #plm-floating-helper .pfh-search-input {
-        height: 34px;
-        padding-left: 36px;
-        padding-right: 24px;
-        border-color: #dbe4f0;
-        color: #334155;
-        font-size: 12px;
-      }
-      #plm-floating-helper .pfh-search-input::placeholder {
-        color: #7a89a5;
-        opacity: 1;
-      }
       #plm-floating-helper .pfh-search-box::before {
         left: 14px;
         width: 12px;
@@ -1367,9 +1329,6 @@
       }
       #plm-floating-helper .pfh-search-box::after {
         display: none !important;
-      }
-      #plm-floating-helper .pfh-search-input {
-        padding-left: 44px !important;
       }
       #plm-floating-helper .pfh-list::-webkit-scrollbar,
 #plm-floating-helper .pfh-sku-scroll::-webkit-scrollbar,
@@ -1630,13 +1589,6 @@
         border-radius: 0;
         transform: translateY(-50%);
         font-size: 17px;
-      }
-      #plm-floating-helper .pfh-search-input {
-        height: 36px;
-        border: 1px solid rgba(171, 160, 231, 0.34);
-        border-radius: 12px 0 0 12px;
-        background: rgba(255, 255, 255, 0.72);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
       }
       #plm-floating-helper .pfh-search > button,
 #plm-floating-helper .pfh-excel-controls > button[data-action="excel-generate"],

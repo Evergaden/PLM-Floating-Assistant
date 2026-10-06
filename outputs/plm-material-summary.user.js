@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.53
+// @version      2.9.54
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.53';
+  const SCRIPT_VERSION = '2.9.54';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -200,7 +200,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.301';
+  const UI_ASSET_VERSION = '2.5.302';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -39787,6 +39787,10 @@ self.onmessage = async function(event) {
     state.searchQuery = input ? input.value.trim() : '';
     state.skuPage = 1;
     updateSearchClear();
+    if (!parseSearchTokens(state.searchQuery).length && !hasSkuFilters()) {
+      showToast('请输入产品名、SKU 或物料编码后再搜索。', { tone: 'quiet', diagnostic: false });
+      return;
+    }
     const matches = parseSearchTokens(state.searchQuery).length || hasSkuFilters() ? getFilteredSearchMatches(state.searchQuery) : [];
     if (matches.length) {
       const target = matches[0];
@@ -39806,6 +39810,12 @@ self.onmessage = async function(event) {
     }
     expandPanel();
     renderShell();
+    if (!matches.length) {
+      const hiddenByFilters = hasSkuFilters() && getSearchMatches(parseSearchTokens(state.searchQuery)).length > 0;
+      showToast(hiddenByFilters
+        ? '当前筛选条件下没有匹配产品，请调整或清除筛选条件。'
+        : '本地资料中未找到' + (state.searchQuery ? '“' + state.searchQuery.slice(0, 60) + '”' : '匹配产品') + '，请检查编码或名称，或先在「我的详情」更新产品资料。', { tone: 'quiet', diagnostic: false });
+    }
   }
 
   function clearSearch() {
