@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.51
+// @version      2.9.52
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,6 +25,7 @@
 // @connect      velvet.qzz.io
 // @connect      plm-cloud-backup.wt196731.workers.dev
 // @connect      update.greasyfork.org
+// @connect      api.open-meteo.com
 // @connect      127.0.0.1
 // @run-at       document-idle
 // ==/UserScript==
@@ -34,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.51';
+  const SCRIPT_VERSION = '2.9.52';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -3664,6 +3665,10 @@
   let pixelRoomDay = '';
   let pixelRoomAnimationFrame = 0;
   let pixelRoomVisibilityBound = false;
+  let pixelRoomWeather = null;
+  let pixelRoomWeatherLoaded = false;
+  let pixelRoomWeatherPromise = null;
+  let pixelRoomWeatherNextAttempt = 0;
   let homeClockSyncTimer = 0;
   let homeClockOffsetMs = 0;
   let homeClockSyncedAt = 0;
@@ -27448,7 +27453,81 @@
       '<div class="pfh-about-note">开启后，主页的新任务趋势卡片变为像素小房间。随下班时间从白天渐变到黄昏；加班夜景由你主动开启。时间按北京时间计算。</div>' +
       '<div class="pfh-setting-row"><label><input type="checkbox" class="pfh-pixel-room-enabled"' + (state.settings.pixelRoomEnabled === true ? ' checked' : '') + '> 开启像素小房间</label></div>' +
       '<div class="pfh-setting-row"><label><input type="checkbox" class="pfh-pixel-room-animation"' + (state.settings.pixelRoomAnimation !== false ? ' checked' : '') + '> 播放小人动作与飘云</label></div><div class="pfh-about-note">此开关单独控制剧场动画；关闭后保留倒计时和昼夜变化，不修改系统的动态效果设置。</div>' +
-      '<div class="pfh-setting-row"><label>下班时间 <input type="time" class="pfh-pixel-room-time" value="' + normalizePixelRoomTime(state.settings.pixelRoomEndTime) + '"></label></div></div>';
+      '<div class="pfh-setting-row"><label>下班时间 <input type="time" class="pfh-pixel-room-time" value="' + normalizePixelRoomTime(state.settings.pixelRoomEndTime) + '"></label></div><div class="pfh-about-note">天气地点：汕头市龙湖区。太阳按当天日出、日落移动，天气约每 15 分钟刷新；断网时显示缓存状态。天气数据：<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>。</div></div>';
+  }
+
+  function pixelRoomWeatherKind(code) {
+    if ([95, 96, 97, 99].includes(code)) return { kind: 'storm', label: '雷雨' };
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return { kind: 'snow', label: '雪' };
+    if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { kind: 'rain', label: '雨' };
+    if ([45, 48].includes(code)) return { kind: 'fog', label: '雾' };
+    if (code === 3) return { kind: 'overcast', label: '阴' };
+    if (code === 2) return { kind: 'cloudy', label: '多云' };
+    if (code === 0 || code === 1) return { kind: 'clear', label: '晴' };
+    return { kind: 'unknown', label: '天气未知' };
+  }
+
+  function parsePixelRoomWeather(data, fetchedAt) {
+    const current = data && data.current;
+    const daily = data && data.daily;
+    if (!current || !Number.isFinite(current.temperature_2m) || !Number.isInteger(current.weather_code) || !Number.isFinite(current.time) || !daily || !Array.isArray(daily.sunrise) || !Array.isArray(daily.sunset)) throw new Error('Invalid pixel room weather');
+    const sun = daily.sunrise.map((rise, i) => ({ rise, set: daily.sunset[i] })).filter((item) => Number.isFinite(item.rise) && Number.isFinite(item.set) && item.set > item.rise && item.set - item.rise < 86400);
+    if (!sun.length) throw new Error('Missing sunrise and sunset');
+    return { fetchedAt, observedAt: current.time * 1000, code: current.weather_code, temperature: current.temperature_2m, cloud: Number.isFinite(current.cloud_cover) ? Math.max(0, Math.min(100, current.cloud_cover)) : 0, wind: Number.isFinite(current.wind_speed_10m) ? Math.max(0, current.wind_speed_10m) : 0, sun };
+  }
+
+  function loadPixelRoomWeatherCache() {
+    if (pixelRoomWeatherLoaded) return;
+    pixelRoomWeatherLoaded = true;
+    try {
+      const value = typeof GM_getValue === 'function' ? GM_getValue('pfh-pixel-room-weather-longhu-v1', null) : JSON.parse(localStorage.getItem('pfh-pixel-room-weather-longhu-v1') || 'null');
+      if (value && Number.isFinite(value.fetchedAt) && Number.isFinite(value.observedAt) && Number.isFinite(value.temperature) && Number.isInteger(value.code) && Array.isArray(value.sun) && value.sun.every((item) => Number.isFinite(item.rise) && Number.isFinite(item.set) && item.set > item.rise)) pixelRoomWeather = value;
+    } catch (_) {}
+  }
+
+  function refreshPixelRoomWeather() {
+    if (state.settings.pixelRoomEnabled !== true || !state.expanded || document.hidden) return;
+    loadPixelRoomWeatherCache();
+    const now = Date.now();
+    if (pixelRoomWeatherPromise || now < pixelRoomWeatherNextAttempt || (pixelRoomWeather && now >= pixelRoomWeather.fetchedAt && now - pixelRoomWeather.fetchedAt < 15 * 60 * 1000)) return;
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=23.3740&longitude=116.7320&current=temperature_2m,weather_code,cloud_cover,precipitation,wind_speed_10m&daily=sunrise,sunset&timezone=Asia%2FShanghai&forecast_days=2&timeformat=unixtime';
+    pixelRoomWeatherNextAttempt = now + 5 * 60 * 1000;
+    const request = typeof GM_xmlhttpRequest === 'function' ? new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({ method: 'GET', url, timeout: 12000,
+        onload: (response) => { try { if (response.status < 200 || response.status >= 300) throw new Error('Weather HTTP ' + response.status); resolve(JSON.parse(response.responseText)); } catch (error) { reject(error); } },
+        onerror: () => reject(new Error('Weather network unavailable')), ontimeout: () => reject(new Error('Weather request timed out')),
+      });
+    }) : (async () => {
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 12000);
+      try { const response = await fetch(url, { signal: controller.signal }); if (!response.ok) throw new Error('Weather HTTP ' + response.status); return await response.json(); }
+      finally { window.clearTimeout(timer); }
+    })();
+    pixelRoomWeatherPromise = request.then((data) => {
+      pixelRoomWeather = parsePixelRoomWeather(data, Date.now());
+      try {
+        if (typeof GM_setValue === 'function') GM_setValue('pfh-pixel-room-weather-longhu-v1', pixelRoomWeather);
+        else localStorage.setItem('pfh-pixel-room-weather-longhu-v1', JSON.stringify(pixelRoomWeather));
+      } catch (_) {}
+    }).catch(() => {}).finally(() => { pixelRoomWeatherPromise = null; updatePixelRoom(); });
+  }
+
+  function pixelRoomOutdoor(now, weather) {
+    const dayFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const day = dayFormatter.format(now);
+    const clock = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+    const minutes = (date) => { const parts = clock.format(date).split(':').map(Number); return parts[0] * 60 + parts[1] + parts[2] / 60; };
+    const today = weather?.sun?.find((item) => dayFormatter.format(new Date(item.rise * 1000)) === day);
+    const rise = today ? minutes(new Date(today.rise * 1000)) : 360;
+    const set = today ? minutes(new Date(today.set * 1000)) : 1080;
+    const time = minutes(now);
+    const progress = Math.max(0, Math.min(1, (time - rise) / (set - rise)));
+    const age = weather ? now.getTime() - weather.observedAt : Infinity;
+    const usable = weather && age >= -60 * 60 * 1000 && age < 24 * 60 * 60 * 1000;
+    const type = usable ? pixelRoomWeatherKind(weather.code) : { kind: 'unknown', label: '天气未连接' };
+    const stale = usable && (age > 90 * 60 * 1000 || now.getTime() - weather.fetchedAt > 30 * 60 * 1000);
+    return { night: time < rise || time >= set, sunX: Math.round(38 + progress * 218), sunY: Math.round(85 - Math.sin(progress * Math.PI) * 56), warmth: Math.max(0, Math.min(1, (time - (set - 90)) / 90)), kind: type.kind, cloud: usable ? weather.cloud : 0, wind: usable ? weather.wind : 0,
+      label: '龙湖 · ' + type.label + (usable ? ' ' + Math.round(weather.temperature) + '°C' + (stale ? '（缓存）' : '') : ' · 昼夜示意') };
   }
 
   function pixelRoomMoment(now, endTime, overtime) {
@@ -27477,13 +27556,16 @@
 
   function drawPixelRoom(ctx, moment, tick) {
     ctx.imageSmoothingEnabled = false;
-    const night = moment.phase === 'night';
+    const outdoor = moment.outdoor;
+    const night = moment.phase === 'night' || Boolean(outdoor?.night);
     const closed = moment.phase === 'closed';
     const packing = moment.phase === 'packing';
     const activity = pixelRoomActivity(tick, packing);
     const drinking = activity.action === 'drinking';
     const stretching = activity.action === 'stretching';
-    const warm = closed ? 1 : moment.warmth;
+    const warm = outdoor ? outdoor.warmth : closed ? 1 : moment.warmth;
+    const weatherKind = outdoor?.kind || 'clear';
+    const dull = ['overcast', 'rain', 'storm', 'fog', 'snow'].includes(weatherKind);
     const blend = (a, b, t) => '#' + a.map((value, i) => Math.round(value + (b[i] - value) * t).toString(16).padStart(2, '0')).join('');
     const rect = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(Math.floor(x), Math.floor(y), w, h); };
     // A native 480 x 168 pixel scene, with crisp layers rather than scaled photographs.
@@ -27491,26 +27573,43 @@
     rect(0, 0, 480, 5, '#aaa0b8'); rect(0, 5, 480, 3, '#f9f0ec');
     for (let y = 16; y < 127; y += 12) rect(0, y, 480, 1, night ? '#3c3e59' : '#dfd3df');
     rect(19, 17, 281, 103, '#80758d'); rect(23, 21, 273, 95, '#f7eadb');
-    const sky = night ? '#202e52' : blend([161, 204, 225], [205, 154, 194], warm);
+    const sky = night ? '#202e52' : dull ? '#929fae' : blend([161, 204, 225], [205, 154, 194], warm);
     rect(27, 25, 265, 87, sky);
     rect(27, 74, 265, 38, night ? '#364363' : blend([192, 222, 226], [252, 190, 154], warm));
-    if (night) {
+    if (night && !dull) {
       rect(245, 34, 12, 12, '#f6e6af'); rect(249, 32, 8, 16, '#f6e6af'); rect(253, 31, 8, 12, sky);
       for (let i = 0; i < 19; i++) rect(33 + i * 13, 31 + (i * 17) % 38, 1, 1, '#dee3f3');
-    } else {
-      const sunY = 37 + Math.round(warm * 42);
-      rect(247, sunY, 16, 16, '#ffe8b4'); rect(251, sunY - 3, 8, 22, '#ffe8b4');
-      for (let i = 0; i < 3; i++) {
-        const x = 31 + (i * 79 + Math.floor(tick / 3)) % 210;
-        rect(x, 40 + i * 9, 30, 4, '#ede7ec'); rect(x + 6, 36 + i * 9, 17, 4, '#ede7ec');
+    } else if (!night) {
+      const sunY = outdoor ? outdoor.sunY : 37 + Math.round(warm * 42);
+      const sunX = outdoor ? outdoor.sunX : 247;
+      if (!dull) { rect(sunX, sunY, 16, 16, '#ffe8b4'); rect(sunX + 4, sunY - 3, 8, 22, '#ffe8b4'); }
+    }
+    // Clouds and precipitation stay behind the window frame and inside the glass.
+    ctx.save(); ctx.beginPath(); ctx.rect(27, 25, 265, 87); ctx.clip();
+    if (!night || weatherKind !== 'clear') {
+      for (let i = 0; i < (dull ? 7 : weatherKind === 'cloudy' ? 5 : 3); i++) {
+        const x = 22 + (i * 79 + Math.floor(tick * (1 + Math.min(30, outdoor?.wind || 0) / 10) / 3)) % 260;
+        const cloudColor = dull ? night ? '#66738a' : '#b7c1cb' : '#ede7ec';
+        rect(x, 40 + i * 9, dull ? 48 : 30, 4, cloudColor); rect(x + 6, 36 + i * 9, dull ? 32 : 17, 4, cloudColor);
       }
     }
+    ctx.restore();
     for (let i = 0; i < 10; i++) {
       const x = 28 + i * 27; const h = 15 + (i * 13) % 31;
       rect(x, 112 - h, 24, h, night ? '#47516c' : '#9b9aac');
       rect(x + 4, 109 - h, 15, 2, night ? '#5a647d' : '#b7b0bc');
       for (let y = 117 - h; y < 109; y += 7) for (let j = 0; j < 3; j++) rect(x + 4 + j * 6, y, 3, 3, night ? ((i + j + y) % 3 ? '#eac98b' : '#65718c') : '#cfced7');
     }
+    ctx.save(); ctx.beginPath(); ctx.rect(27, 25, 265, 87); ctx.clip();
+    if (weatherKind === 'rain' || weatherKind === 'storm' || weatherKind === 'snow') {
+      for (let i = 0; i < (weatherKind === 'storm' ? 44 : 26); i++) {
+        const x = 27 + (i * 37 + Math.floor(tick * 9)) % 265;
+        const y = 25 + (i * 19 + Math.floor(tick * (weatherKind === 'snow' ? 9 : 38))) % 87;
+        rect(x, y, weatherKind === 'snow' ? 2 : 1, weatherKind === 'snow' ? 2 : 5, night ? '#b4c5da' : '#dce7ee');
+      }
+    }
+    if (weatherKind === 'fog') { ctx.globalAlpha = .3; rect(27, 25, 265, 87, '#d3dce0'); ctx.globalAlpha = 1; }
+    ctx.restore();
     rect(112, 25, 4, 87, '#e4d5cc'); rect(204, 25, 4, 87, '#e4d5cc'); rect(27, 65, 265, 3, '#e4d5cc');
     rect(15, 116, 290, 5, '#f6eadd'); rect(19, 121, 282, 4, '#b8a3a5');
     for (const x of [9, 299]) { rect(x, 14, 9, 107, night ? '#5b566d' : '#c1accb'); rect(x + 3, 17, 2, 100, night ? '#74677e' : '#dcc5de'); }
@@ -27602,8 +27701,10 @@
     const now = new Date(Date.now() + homeClockOffsetMs);
     let moment = pixelRoomMoment(now, state.settings.pixelRoomEndTime, pixelRoomOvertime);
     if (pixelRoomDay !== moment.day) { pixelRoomDay = moment.day; pixelRoomOvertime = false; moment = pixelRoomMoment(now, state.settings.pixelRoomEndTime, false); }
+    refreshPixelRoomWeather();
+    moment.outdoor = pixelRoomOutdoor(now, pixelRoomWeather);
     const caption = canvas.parentElement.querySelector('.pfh-pixel-room-caption');
-    if (caption) caption.textContent = moment.title;
+    if (caption) caption.textContent = moment.title + ' · ' + moment.outdoor.label;
     const button = canvas.parentElement.querySelector('[data-action="pixel-room-overtime"]');
     if (button) { button.textContent = pixelRoomOvertime ? '结束加班' : '今晚加班'; button.setAttribute('aria-pressed', String(pixelRoomOvertime)); }
     canvas.setAttribute('aria-label', moment.title + '，' + ({ day: '白天办公', sunset: '黄昏办公', packing: '整理桌面', closed: '空房间已收工', night: '城市夜景与暖色台灯' })[moment.phase]);

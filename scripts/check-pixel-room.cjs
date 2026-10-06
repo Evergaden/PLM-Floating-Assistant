@@ -7,7 +7,7 @@ const start = source.indexOf('  function normalizePixelRoomTime(');
 const end = source.indexOf('  function homeClockText(', start);
 const context = { Intl, state: { settings: {} } };
 vm.createContext(context);
-const globals = ['pixelRoomOvertime', 'pixelRoomDay', 'pixelRoomAnimationFrame', 'pixelRoomVisibilityBound'].map((name) => {
+const globals = ['pixelRoomOvertime', 'pixelRoomDay', 'pixelRoomAnimationFrame', 'pixelRoomVisibilityBound', 'pixelRoomWeather', 'pixelRoomWeatherLoaded', 'pixelRoomWeatherPromise', 'pixelRoomWeatherNextAttempt'].map((name) => {
   const declaration = source.match(new RegExp('  let ' + name + ' = [^;]+;'));
   assert.ok(declaration && declaration.index < source.indexOf('  renderShell(L.noDrawer);'), name + ' must initialize before startup rendering');
   return declaration[0];
@@ -37,6 +37,30 @@ assert.equal(context.pixelRoomActivity(24, false).action, 'drinking');
 assert.equal(context.pixelRoomActivity(32, false).action, 'stretching');
 assert.equal(context.pixelRoomActivity(48, false).action, 'typing');
 assert.equal(context.pixelRoomActivity(24, true).action, 'packing');
+const at = (time) => new Date('2026-10-06T' + time + ':00+08:00');
+const sample = {
+  current: { time: at('10:00').getTime() / 1000, temperature_2m: 27, weather_code: 3, cloud_cover: 97, wind_speed_10m: 10 },
+  daily: { sunrise: [at('06:00').getTime() / 1000], sunset: [at('18:00').getTime() / 1000] },
+};
+const weather = context.parsePixelRoomWeather(sample, at('10:00').getTime());
+assert.equal(context.pixelRoomWeatherKind(95).kind, 'storm');
+assert.equal(context.pixelRoomWeatherKind(63).kind, 'rain');
+assert.equal(context.pixelRoomWeatherKind(45).kind, 'fog');
+assert.equal(context.pixelRoomWeatherKind(73).kind, 'snow');
+assert.throws(() => context.parsePixelRoomWeather({}, Date.now()));
+assert.throws(() => context.parsePixelRoomWeather({ ...sample, daily: { sunrise: [2], sunset: [1] } }, Date.now()));
+const morning = context.pixelRoomOutdoor(at('08:00'), weather);
+const noon = context.pixelRoomOutdoor(at('12:00'), weather);
+const afternoon = context.pixelRoomOutdoor(at('16:00'), weather);
+assert.ok(morning.sunX < noon.sunX && noon.sunX < afternoon.sunX);
+assert.ok(noon.sunY < morning.sunY && noon.sunY < afternoon.sunY);
+assert.equal(context.pixelRoomOutdoor(at('18:00'), weather).night, true);
+assert.equal(context.pixelRoomOutdoor(at('05:00'), weather).night, true);
+assert.equal(context.pixelRoomOutdoor(at('10:00'), weather).kind, 'overcast');
+assert.match(context.pixelRoomOutdoor(at('12:00'), weather).label, /缓存/);
+assert.match(context.pixelRoomOutdoor(new Date('2026-10-08T12:00:00+08:00'), weather).label, /天气未连接/);
+assert.match(context.pixelRoomOutdoor(at('12:00'), null).label, /昼夜示意/);
+assert.match(source, /@connect\s+api.open-meteo.com/);
 
 // Exercise real raster drawing without opening a browser or touching user settings.
 const { createCanvas } = require('/Users/violet/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/@napi-rs/canvas');
@@ -72,6 +96,7 @@ canvas.closest = () => ({ getAttribute: () => visible ? 'false' : 'true' });
 canvas.parentElement = { querySelector: () => ({ textContent: '', setAttribute() {} }) };
 canvas.setAttribute = () => {};
 context.homeClockOffsetMs = 0;
+vm.runInContext('pixelRoomWeatherLoaded = true; pixelRoomWeatherNextAttempt = Infinity;', context);
 context.state.expanded = true;
 context.state.settings.pixelRoomAnimation = true;
 context.document = {
@@ -130,4 +155,32 @@ if (process.argv.includes('--preview')) {
   fs.mkdirSync(path.join(__dirname, '../tmp'), { recursive: true });
   fs.writeFileSync(path.join(__dirname, '../tmp/pixel-room-scenes.png'), sheet.toBuffer('image/png'));
 }
-console.log('Pixel room time boundaries, opt-in settings, scene changes and raster drawing passed');
+async function checkWeatherRequests() {
+  canvas.isConnected = true;
+  let calls = 0;
+  let request;
+  let saved;
+  context.GM_xmlhttpRequest = (options) => { calls++; request = options; };
+  context.GM_setValue = (key, value) => { saved = value; assert.equal(key, 'pfh-pixel-room-weather-longhu-v1'); };
+  vm.runInContext('pixelRoomWeather = null; pixelRoomWeatherNextAttempt = 0;', context);
+  context.refreshPixelRoomWeather();
+  context.refreshPixelRoomWeather();
+  assert.equal(calls, 1, 'weather fetches must coalesce');
+  assert.match(request.url, /latitude=23\.3740&longitude=116\.7320/);
+  assert.match(request.url, /timeformat=unixtime/);
+  request.onload({ status: 200, responseText: JSON.stringify(sample) });
+  await vm.runInContext('pixelRoomWeatherPromise', context);
+  assert.equal(saved.code, 3);
+  context.refreshPixelRoomWeather();
+  assert.equal(calls, 1, 'fresh cached weather must avoid another request');
+  vm.runInContext('pixelRoomWeather.fetchedAt -= 3600000; pixelRoomWeatherNextAttempt = 0;', context);
+  context.refreshPixelRoomWeather();
+  assert.equal(calls, 2);
+  request.onerror();
+  await vm.runInContext('pixelRoomWeatherPromise', context);
+  assert.equal(vm.runInContext('pixelRoomWeather.code', context), 3, 'network failures must preserve cache');
+  context.refreshPixelRoomWeather();
+  assert.equal(calls, 2, 'network failures must back off');
+  console.log('Pixel room animation, solar path, weather scenes, cache and request lifecycle passed');
+}
+checkWeatherRequests().catch((error) => { console.error(error); process.exitCode = 1; });
