@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.56
+// @version      2.9.57
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.56';
+  const SCRIPT_VERSION = '2.9.57';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -3669,6 +3669,11 @@
   let pixelRoomWeatherLoaded = false;
   let pixelRoomWeatherPromise = null;
   let pixelRoomWeatherNextAttempt = 0;
+  let pixelRoomRestUntil = 0;
+  let pixelRoomCatCommand = null;
+  let pixelRoomLastCat = null;
+  let pixelRoomPicture = null;
+  let pixelRoomPictureLoaded = false;
   let homeClockSyncTimer = 0;
   let homeClockOffsetMs = 0;
   let homeClockSyncedAt = 0;
@@ -27512,7 +27517,7 @@
       '<div class="pfh-about-note">开启后，主页的新任务趋势卡片变为像素小房间。随下班时间从白天渐变到黄昏；加班夜景由你主动开启。时间按北京时间计算。</div>' +
       '<div class="pfh-setting-row"><label><input type="checkbox" class="pfh-pixel-room-enabled"' + (state.settings.pixelRoomEnabled === true ? ' checked' : '') + '> 开启像素小房间</label></div>' +
       '<div class="pfh-setting-row"><label><input type="checkbox" class="pfh-pixel-room-animation"' + (state.settings.pixelRoomAnimation !== false ? ' checked' : '') + '> 播放小人动作与飘云</label></div><div class="pfh-about-note">此开关单独控制剧场动画；关闭后保留倒计时和昼夜变化，不修改系统的动态效果设置。</div>' +
-      '<div class="pfh-setting-row"><label>下班时间 <input type="time" class="pfh-pixel-room-time" value="' + normalizePixelRoomTime(state.settings.pixelRoomEndTime) + '"></label></div><div class="pfh-about-note">天气地点：汕头市龙湖区。太阳按当天日出、日落移动，天气约每 15 分钟刷新；断网时显示缓存状态。天气数据：<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>。</div></div>';
+      '<div class="pfh-setting-row"><label>下班时间 <input type="time" class="pfh-pixel-room-time" value="' + normalizePixelRoomTime(state.settings.pixelRoomEndTime) + '"></label></div><div class="pfh-about-note">午休 12:00–13:30：小人去吃饭，猫占领椅子。点猫回头、点地板召唤、双击桌面跳上桌；点台灯、窗帘、杯子可切换。点墙上画框换自己的图片，图片只保存在本机。</div><div class="pfh-setting-row"><button type="button" data-action="pixel-room-picture">更换墙上的画</button><button type="button" data-action="pixel-room-picture-reset">恢复默认画</button></div><div class="pfh-about-note">天气地点：汕头市龙湖区。太阳按当天日出、日落移动，天气约每 15 分钟刷新；断网时显示缓存状态。天气数据：<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>。</div></div>';
   }
 
   function pixelRoomWeatherKind(code) {
@@ -27596,14 +27601,117 @@
     const minutes = Number(values.hour) * 60 + Number(values.minute);
     const remaining = time[0] * 60 + time[1] - minutes;
     const phase = overtime ? 'night' : remaining <= 0 ? 'closed' : remaining <= 15 ? 'packing' : remaining <= 60 ? 'sunset' : 'day';
-    const title = overtime ? '夜色已到，台灯为你亮着' : remaining <= 0 ? '今天收工，小房间休息啦' : '距下班还有 ' + (remaining >= 60 ? Math.floor(remaining / 60) + ' 小时 ' : '') + remaining % 60 + ' 分钟';
+    const title = overtime ? '夜色已到，小房间陪你加班' : remaining <= 0 ? '今天收工，小房间休息啦' : '距下班还有 ' + (remaining >= 60 ? Math.floor(remaining / 60) + ' 小时 ' : '') + remaining % 60 + ' 分钟';
     return { phase, remaining, title, minutes, day: values.year + values.month + values.day, warmth: Math.max(0, Math.min(1, (60 - remaining) / 60)) };
   }
 
   function pixelRoomCardHtml() {
     return '<article class="pfh-home-chart"><header><div><h3>窗边日常</h3><p class="pfh-pixel-room-caption">小房间正在开窗…</p></div>' +
-      '<div class="pfh-home-period-tabs"><button type="button" data-action="pixel-room-overtime" aria-pressed="false">今晚加班</button></div></header>' +
-      '<canvas class="pfh-pixel-room-canvas" width="480" height="168" role="img" aria-label="像素小办公室" style="display:block;width:100%;height:auto;image-rendering:pixelated;border-radius:8px"></canvas></article>';
+      '<div class="pfh-home-period-tabs"><button type="button" data-action="pixel-room-rest" aria-pressed="false">休息一会儿</button><button type="button" data-action="pixel-room-overtime" aria-pressed="false">今晚加班</button></div></header>' +
+      '<canvas class="pfh-pixel-room-canvas" width="480" height="168" role="img" aria-label="像素小办公室" title="点猫回头 · 点地板召唤 · 双击桌子跳上桌 · 点灯、窗帘、杯子、画框互动" style="display:block;width:100%;height:auto;image-rendering:pixelated;border-radius:8px;cursor:pointer"></canvas></article>';
+  }
+
+  function pixelRoomRest(moment, nowMs) {
+    return { lunch: moment.minutes >= 720 && moment.minutes < 810 && moment.phase !== 'closed', manual: pixelRoomRestUntil > nowMs };
+  }
+
+  function resolvePixelRoomCat(tick, moment) {
+    const base = { ...pixelRoomCatActivity(tick, moment.phase === 'closed'), y: 143 };
+    const command = pixelRoomCatCommand;
+    if (command && tick < command.until) {
+      const progress = state.settings.pixelRoomAnimation === false ? 1 : Math.max(0, Math.min(1, (tick - command.started) / command.duration));
+      return { action: progress < 1 && command.action !== 'turning' ? 'walking' : 'sitting', x: Math.round(command.fromX + (command.x - command.fromX) * progress), y: Math.round(command.fromY + (command.y - command.fromY) * progress - (command.action === 'jumping' ? Math.sin(progress * Math.PI) * 28 : 0)), frame: Math.floor(tick * 4) % 2, flip: command.action === 'turning' ? !command.flip : command.x > command.fromX };
+    }
+    if (moment.rest?.lunch || moment.rest?.manual) return { ...base, action: 'sleeping', x: 278, y: 121 };
+    if (['rain', 'storm'].includes(moment.outdoor?.kind)) return { ...base, action: 'sleeping', x: 87, y: 139, box: true };
+    if (moment.phase === 'closed') return base;
+    if (tick % 180 >= 155 && tick % 180 < 166) return { ...base, action: 'grooming', x: 198, y: 98, blocking: true };
+    if (moment.outdoor?.kind === 'clear' && !moment.outdoor.night && tick % 120 < 40) return { ...base, action: 'sleeping', x: 68, y: 101 };
+    return base;
+  }
+
+  function pixelRoomHit(x, y, cat, doubleClick) {
+    if (doubleClick) return x >= 165 && x <= 375 && y >= 87 && y <= 131 ? 'desk' : '';
+    if (cat && x >= cat.x - 4 && x <= cat.x + 34 && y >= cat.y - 4 && y <= cat.y + 18) return 'cat';
+    if (x >= 310 && x <= 341 && y >= 82 && y <= 122) return 'lamp';
+    if (state.settings.pixelRoomCurtains && x >= 23 && x <= 296 && y >= 21 && y <= 86) return 'curtain';
+    if (y >= 14 && y <= 121 && ((x >= 8 && x <= 27) || (x >= 298 && x <= 313))) return 'curtain';
+    if (x >= 237 && x <= 257 && y >= 110 && y <= 124) return 'cup';
+    if (x >= 414 && x <= 442 && y >= 15 && y <= 45) return 'picture';
+    return y >= 132 && y <= 163 && x >= 61 && x <= 393 ? 'floor' : '';
+  }
+
+  function interactPixelRoom(hit, x, tick) {
+    const from = pixelRoomLastCat || { x: 75, y: 143, flip: false };
+    if (['cat', 'floor', 'desk'].includes(hit)) {
+      const targetX = hit === 'floor' ? Math.max(62, Math.min(359, x - 15)) : hit === 'desk' ? 246 : from.x;
+      const duration = state.settings.pixelRoomAnimation === false ? 0.001 : hit === 'desk' ? 0.9 : Math.max(0.3, Math.abs(targetX - from.x) / 60);
+      pixelRoomCatCommand = { action: hit === 'cat' ? 'turning' : hit === 'desk' ? 'jumping' : 'walking', fromX: from.x, fromY: from.y, flip: from.flip, x: targetX, y: hit === 'desk' ? 103 : hit === 'floor' ? 143 : from.y, duration, started: tick, until: tick + duration + 10 };
+    } else if (hit === 'lamp') {
+      const automatic = pixelRoomLastCat?.night || false;
+      state.settings.pixelRoomLamp = !(typeof state.settings.pixelRoomLamp === 'boolean' ? state.settings.pixelRoomLamp : automatic);
+      saveSettings(state.settings);
+    } else if (hit === 'curtain') {
+      state.settings.pixelRoomCurtains = !state.settings.pixelRoomCurtains;
+      saveSettings(state.settings);
+    } else if (hit === 'cup') {
+      state.settings.pixelRoomCup = ((Number(state.settings.pixelRoomCup) || 0) + 1) % 4;
+      saveSettings(state.settings);
+    } else if (hit === 'picture') choosePixelRoomPicture();
+  }
+
+  function setupPixelRoomInteractions(canvas) {
+    if (canvas.pfhRoomBound) return;
+    canvas.pfhRoomBound = true;
+    const activate = (event, doubleClick) => {
+      if (!doubleClick && event.detail > 1) return;
+      const bounds = canvas.getBoundingClientRect();
+      if (!bounds.width || !bounds.height) return;
+      const x = (event.clientX - bounds.left) * 480 / bounds.width;
+      const y = (event.clientY - bounds.top) * 168 / bounds.height;
+      const hit = pixelRoomHit(x, y, pixelRoomLastCat, doubleClick);
+      if (!hit) return;
+      event.preventDefault(); event.stopPropagation();
+      const tick = window.performance.now() / 1000;
+      interactPixelRoom(hit, x, tick);
+      updatePixelRoom(tick);
+    };
+    canvas.addEventListener('click', (event) => activate(event, false));
+    canvas.addEventListener('dblclick', (event) => activate(event, true));
+  }
+
+  function loadPixelRoomPicture(value) {
+    pixelRoomPictureLoaded = true;
+    if (!value || typeof value !== 'string' || value.length > 100000 || !/^data:image\/(?:png|jpeg);base64,/.test(value)) { pixelRoomPicture = null; return; }
+    const image = new Image();
+    image.onload = () => { pixelRoomPicture = image; updatePixelRoom(); };
+    image.onerror = () => { pixelRoomPicture = null; };
+    image.src = value;
+  }
+
+  function choosePixelRoomPicture() {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/png,image/jpeg,image/webp';
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (!/^image\/(?:png|jpeg|webp)$/.test(file.type) || file.size > 10 * 1024 * 1024) { showToast('请选择 10MB 以内的 PNG、JPG 或 WebP 图片'); return; }
+      const url = URL.createObjectURL(file);
+      try {
+        const image = new Image();
+        await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = url; });
+        const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        const side = Math.min(image.naturalWidth, image.naturalHeight);
+        ctx.drawImage(image, (image.naturalWidth - side) / 2, (image.naturalHeight - side) / 2, side, side, 0, 0, 128, 128);
+        const value = canvas.toDataURL('image/jpeg', .85);
+        if (typeof GM_setValue === 'function') GM_setValue('pfh-pixel-room-picture-v1', value);
+        else localStorage.setItem('pfh-pixel-room-picture-v1', value);
+        loadPixelRoomPicture(value); showToast('小房间已换上你的画');
+      } catch (_) { showToast('图片读取失败，请换一张图片'); }
+      finally { URL.revokeObjectURL(url); }
+    };
+    input.click();
   }
 
   function pixelRoomActivity(tick, packing) {
@@ -27626,10 +27734,10 @@
     return { action: 'sitting', x: 75, frame, flip: false };
   }
 
-  function drawPixelRoomCat(ctx, tick, closed) {
-    const cat = pixelRoomCatActivity(tick, closed);
+  function drawPixelRoomCat(ctx, tick, closed, resolvedCat) {
+    const cat = resolvedCat || pixelRoomCatActivity(tick, closed);
     const r = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); };
-    ctx.save(); ctx.translate(cat.x, 143);
+    ctx.save(); ctx.translate(cat.x, cat.y ?? 143);
     if (cat.flip) { ctx.translate(29, 0); ctx.scale(-1, 1); }
     r(0, 16, 31, 2, '#947b86');
     const fur = '#d49c6d', light = '#f2d8b2', dark = '#aa735b';
@@ -27666,6 +27774,9 @@
     const drinking = activity.action === 'drinking';
     const stretching = activity.action === 'stretching';
     const standing = activity.action === 'standing';
+    const resting = Boolean(moment.rest?.lunch || moment.rest?.manual);
+    const lampOn = typeof state.settings.pixelRoomLamp === 'boolean' ? state.settings.pixelRoomLamp : night;
+    const cupColor = ['#ece1cf', '#d1a2b6', '#9cbab4', '#a4b4d6'][Math.abs(Number(state.settings.pixelRoomCup) || 0) % 4];
     const warm = outdoor ? outdoor.warmth : closed ? 1 : moment.warmth;
     const weatherKind = outdoor?.kind || 'clear';
     const dull = ['overcast', 'rain', 'storm', 'fog', 'snow'].includes(weatherKind);
@@ -27715,11 +27826,19 @@
     ctx.restore();
     rect(112, 25, 4, 87, '#e4d5cc'); rect(204, 25, 4, 87, '#e4d5cc'); rect(27, 65, 265, 3, '#e4d5cc');
     rect(15, 116, 290, 5, '#f6eadd'); rect(19, 121, 282, 4, '#b8a3a5');
-    for (const x of [9, 299]) { rect(x, 14, 9, 107, night ? '#5b566d' : '#c1accb'); rect(x + 3, 17, 2, 100, night ? '#74677e' : '#dcc5de'); }
+    const curtainSway = (outdoor?.wind || 0) >= 20 ? Math.round(Math.sin(tick * 1.7) * 2) : 0;
+    for (const x of [9, 299]) { rect(x + curtainSway, 14, 9, 107, night ? '#5b566d' : '#c1accb'); rect(x + 3 + curtainSway, 17, 2, 100, night ? '#74677e' : '#dcc5de'); }
+    if (state.settings.pixelRoomCurtains) {
+      for (const [x, width] of [[23, 135], [158, 138]]) {
+        rect(x, 21, width, 99, night ? '#655a78' : '#c5b0d0');
+        for (let fold = x + 7; fold < x + width; fold += 12) rect(fold + curtainSway, 23, 3, 94, night ? '#7b6a8d' : '#dcc6df');
+      }
+    }
     // Shelves, books, clock and a small framed landscape.
     rect(333, 43, 114, 5, '#947e87'); rect(339, 48, 4, 5, '#b49a9a'); rect(437, 48, 4, 5, '#b49a9a');
     ['#b1a0cc', '#c5898a', '#e0bc83', '#829f95', '#909fc3'].forEach((color, i) => { rect(338 + i * 10, 22 + i % 2 * 4, 8, 21 - i % 2 * 4, color); rect(340 + i * 10, 37, 4, 1, '#eee0cf'); });
     rect(416, 17, 24, 26, '#806d7c'); rect(419, 20, 18, 20, '#e4d4b4'); rect(421, 23, 14, 9, '#98b6ba'); rect(421, 32, 14, 6, '#829885');
+    if (pixelRoomPicture) ctx.drawImage(pixelRoomPicture, 419, 20, 18, 20);
     rect(341, 65, 28, 28, '#b59a9b'); rect(344, 68, 22, 22, '#f5e9d6'); rect(354, 72, 2, 10, '#786c80'); rect(354, 80, 7, 2, '#786c80');
     rect(0, 132, 480, 36, night ? '#5f4c5a' : '#b79490'); rect(0, 130, 480, 3, '#806c7c');
     for (let y = 139; y < 168; y += 11) { rect(0, y, 480, 1, '#947780'); for (let x = y % 2 ? 30 : 65; x < 480; x += 88) rect(x, y - 10, 1, 10, '#a38284'); }
@@ -27729,6 +27848,10 @@
     rect(46, 104, 3, 24, '#6d8975'); rect(32, 103, 14, 5, '#7da18b'); rect(35, 108, 12, 4, '#638b77'); rect(49, 96, 12, 7, '#88a68d'); rect(49, 107, 15, 5, '#6e947e');
     rect(398, 110, 42, 35, '#a28788'); rect(401, 113, 36, 13, '#c1a7a0'); rect(416, 118, 7, 2, '#806979'); rect(401, 128, 36, 13, '#b39a96'); rect(416, 133, 7, 2, '#806979');
     rect(450, 65, 25, 83, '#8a788c'); rect(453, 69, 19, 75, '#b29ca7'); rect(455, 74, 15, 32, '#c0aab3'); rect(456, 114, 3, 3, '#ead3a5');
+    if (['rain', 'storm'].includes(weatherKind) && moment.remaining <= 60) {
+      rect(443, 117, 2, 32, '#71687f'); rect(440, 115, 5, 3, '#71687f');
+      rect(434, 124, 17, 4, '#849fc0'); rect(437, 120, 11, 5, '#a5b8cd'); rect(439, 128, 7, 15, '#849fc0'); rect(439, 146, 6, 3, '#71687f');
+    }
     // Desk and its familiar little objects.
     rect(168, 124, 204, 7, '#8f737c'); rect(165, 121, 210, 4, '#d4b09b'); rect(177, 131, 7, 22, '#897180'); rect(357, 131, 7, 22, '#897180');
     rect(185, 87, 47, 28, '#5a546e'); rect(188, 90, 41, 22, closed ? '#747389' : '#8db5bc');
@@ -27736,14 +27859,23 @@
     rect(205, 115, 6, 5, '#71657b'); rect(197, 119, 23, 2, '#71657b');
     rect(190, 121, 73, 3, '#e8d8cc');
     for (let x = 193; x < 259; x += 6) rect(x, 122, 3, 1, '#b4a2af');
-    if (!drinking || closed) { rect(241, 114, 9, 7, '#ece1cf'); rect(250, 115, 3, 4, '#ece1cf'); rect(243, 112, 5, 2, '#b29a99'); }
-    rect(314, 119, 23, 2, '#7a6a80'); rect(324, 92, 3, 27, '#7a6a80'); rect(313, 90, 26, 4, night ? '#e5bd7a' : '#b69ca7'); rect(317, 85, 18, 5, night ? '#f4d69a' : '#d0b0b2');
-    if (night) { ctx.globalAlpha = 0.14; rect(305, 94, 42, 26, '#ffdc91'); ctx.globalAlpha = 1; }
+    if (!drinking || closed || resting) { rect(241, 114, 9, 7, cupColor); rect(250, 115, 3, 4, cupColor); rect(243, 112, 5, 2, '#b29a99'); }
+    rect(314, 119, 23, 2, '#7a6a80'); rect(324, 92, 3, 27, '#7a6a80'); rect(313, 90, 26, 4, lampOn ? '#e5bd7a' : '#b69ca7'); rect(317, 85, 18, 5, lampOn ? '#f4d69a' : '#d0b0b2');
+    if (lampOn) { ctx.globalAlpha = 0.14; rect(305, 94, 42, 26, '#ffdc91'); ctx.globalAlpha = 1; }
     rect(344, 107, 10, 14, '#b791a7'); rect(347, 101, 2, 8, '#7d6d91'); rect(352, 99, 2, 11, '#c6a176');
     rect(276, 136, 28, 5, '#73667e'); rect(278, 116, 24, 20, '#9485a6'); rect(288, 141, 4, 11, '#73667e'); rect(278, 152, 24, 3, '#73667e');
     if (packing || closed) { rect(257, 117, 22, 4, '#c78681'); rect(259, 116, 18, 1, '#efdbbd'); rect(368, 132, 17, 17, '#776d8c'); rect(372, 127, 9, 5, '#776d8c'); rect(372, 128, 7, 4, '#b79490'); }
     else { rect(260, 117, 20, 3, '#f4e9d5'); rect(271, 117, 1, 3, '#b3a2a8'); }
-    if (!closed) {
+    if (resting) {
+      rect(350, 64, 1, 12, '#917582'); rect(367, 64, 1, 12, '#917582'); rect(341, 75, 37, 16, '#f0dfbc');
+      ctx.fillStyle = '#796375'; ctx.font = '9px sans-serif'; ctx.fillText(moment.rest.manual ? '休息中' : '午饭中', 344, 87);
+      if (moment.rest.lunch && moment.minutes === 720) {
+        // The first lunchtime minute catches the little commuter heading out with lunch.
+        rect(422, 100, 13, 11, '#e8b49b'); rect(420, 97, 16, 5, '#574e67'); rect(421, 112, 15, 17, '#8b9bbb');
+        rect(422, 129, 5, 13, '#66617e'); rect(432, 129, 5, 13, '#66617e'); rect(412, 123, 9, 7, '#d6b391');
+      }
+    }
+    if (!closed && !resting) {
       ctx.save();
       if (standing) ctx.translate(30 + activity.frame * 2, -8);
       const bob = stretching ? -4 : drinking ? -1 : activity.frame;
@@ -27753,7 +27885,7 @@
       if (drinking) {
         const lift = activity.frame * 2;
         rect(271, 104 - lift, 8, 14, '#8b9bbb'); rect(268, 102 - lift, 10, 5, '#e8b49b');
-        rect(265, 96 - lift, 9, 9, '#ece1cf'); rect(274, 98 - lift, 3, 5, '#ece1cf'); rect(267, 95 - lift, 5, 2, '#b29a99');
+        rect(265, 96 - lift, 9, 9, cupColor); rect(274, 98 - lift, 3, 5, cupColor); rect(267, 95 - lift, 5, 2, '#b29a99');
       } else if (stretching) {
         const lift = activity.frame * 3;
         rect(269, 95 - lift, 7, 17, '#8b9bbb'); rect(266, 87 - lift, 7, 10, '#8b9bbb'); rect(265, 82 - lift, 7, 6, '#e8b49b');
@@ -27770,7 +27902,12 @@
       rect(278, standing ? 153 : 143, 10, 4, '#554e65'); rect(294, standing ? 153 : 143, 12, 4, '#554e65');
       ctx.restore();
     }
-    drawPixelRoomCat(ctx, tick, closed);
+    const cat = resolvePixelRoomCat(tick, moment);
+    pixelRoomLastCat = { ...cat, night };
+    if (cat.box) { rect(81, 140, 42, 22, '#b8906c'); rect(83, 142, 38, 3, '#d5b18a'); }
+    drawPixelRoomCat(ctx, tick, closed, cat);
+    if (cat.box) { rect(81, 151, 42, 11, '#bf9872'); rect(100, 153, 4, 9, '#a87c59'); }
+    if (cat.blocking) { rect(302, 79, 2, 7, '#ce9c79'); rect(302, 89, 2, 2, '#ce9c79'); }
     rect(0, 164, 480, 4, '#8f7c92');
   }
 
@@ -27810,16 +27947,24 @@
     const canvas = document.querySelector('#plm-floating-helper .pfh-pixel-room-canvas');
     if (!canvas) return;
     if (canvas.closest('.pfh-home-carousel-slide')?.getAttribute('aria-hidden') === 'true') return;
+    setupPixelRoomInteractions(canvas);
+    if (!pixelRoomPictureLoaded) {
+      try { loadPixelRoomPicture(typeof GM_getValue === 'function' ? GM_getValue('pfh-pixel-room-picture-v1', '') : localStorage.getItem('pfh-pixel-room-picture-v1')); }
+      catch (_) { pixelRoomPictureLoaded = true; }
+    }
     const now = new Date(Date.now() + homeClockOffsetMs);
     let moment = pixelRoomMoment(now, state.settings.pixelRoomEndTime, pixelRoomOvertime);
     if (pixelRoomDay !== moment.day) { pixelRoomDay = moment.day; pixelRoomOvertime = false; moment = pixelRoomMoment(now, state.settings.pixelRoomEndTime, false); }
     refreshPixelRoomWeather();
     moment.outdoor = pixelRoomOutdoor(now, pixelRoomWeather);
+    moment.rest = pixelRoomRest(moment, Date.now());
     const caption = canvas.parentElement.querySelector('.pfh-pixel-room-caption');
-    if (caption) caption.textContent = moment.title + ' · ' + moment.outdoor.label;
+    if (caption) caption.textContent = (moment.rest.manual ? '休息一会儿 · 小牌子已挂上' : moment.rest.lunch ? '午休中 · 13:30 回来，椅子先借给猫' : moment.title) + ' · ' + moment.outdoor.label;
+    const restButton = canvas.parentElement.querySelector('[data-action="pixel-room-rest"]');
+    if (restButton) { restButton.textContent = moment.rest.manual ? '回来啦' : '休息一会儿'; restButton.setAttribute('aria-pressed', String(moment.rest.manual)); }
     const button = canvas.parentElement.querySelector('[data-action="pixel-room-overtime"]');
     if (button) { button.textContent = pixelRoomOvertime ? '结束加班' : '今晚加班'; button.setAttribute('aria-pressed', String(pixelRoomOvertime)); }
-    canvas.setAttribute('aria-label', moment.title + '，' + ({ day: '白天办公', sunset: '黄昏办公', packing: '整理桌面', closed: '空房间已收工', night: '城市夜景与暖色台灯' })[moment.phase]);
+    canvas.setAttribute('aria-label', (moment.rest.manual ? '休息一会儿' : moment.rest.lunch ? '午休中，猫占领椅子' : moment.title) + '，' + ({ day: '白天办公', sunset: '黄昏办公', packing: '整理桌面', closed: '空房间已收工', night: '城市夜景与暖色台灯' })[moment.phase]);
     const ctx = canvas.getContext('2d');
     const tick = state.settings.pixelRoomAnimation === false ? 0 : typeof animationSeconds === 'number' ? animationSeconds : window.performance.now() / 1000;
     if (ctx) drawPixelRoom(ctx, moment, tick);
@@ -27915,6 +28060,7 @@
     slider.addEventListener('input', () => { pauseUntil = Date.now() + 12000; show(slider.value); });
     viewport.addEventListener('dragstart', (event) => { event.preventDefault(); });
     viewport.addEventListener('pointerdown', (event) => {
+      if (event.target.closest('.pfh-pixel-room-canvas')) { pauseUntil = Date.now() + 60000; return; }
       if (!event.isPrimary || event.button !== 0 || event.target.closest('button,input,textarea,select,a,[contenteditable="true"]')) return;
       pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, startIndex: state.homeCarouselIndex };
       track.style.transition = 'none';
@@ -35155,6 +35301,18 @@ self.onmessage = async function(event) {
       pixelRoomOvertime = !pixelRoomOvertime;
       updatePixelRoom();
       return;
+    }
+    if (action === 'pixel-room-rest') {
+      pixelRoomRestUntil = pixelRoomRestUntil > Date.now() ? 0 : Date.now() + 30 * 60 * 1000;
+      pixelRoomCatCommand = null;
+      updatePixelRoom();
+      return;
+    }
+    if (action === 'pixel-room-picture') { choosePixelRoomPicture(); return; }
+    if (action === 'pixel-room-picture-reset') {
+      if (typeof GM_setValue === 'function') GM_setValue('pfh-pixel-room-picture-v1', '');
+      else localStorage.removeItem('pfh-pixel-room-picture-v1');
+      loadPixelRoomPicture(''); updatePixelRoom(); showToast('已恢复默认画'); return;
     }
     if (action === 'developer-settings-tap') {
       const now = Date.now();
@@ -49700,6 +49858,9 @@ self.onmessage = async function(event) {
       settings.pixelRoomEnabled = settings.pixelRoomEnabled === true;
       settings.pixelRoomAnimation = settings.pixelRoomAnimation !== false;
       settings.pixelRoomEndTime = normalizePixelRoomTime(settings.pixelRoomEndTime);
+      settings.pixelRoomLamp = typeof settings.pixelRoomLamp === 'boolean' ? settings.pixelRoomLamp : null;
+      settings.pixelRoomCurtains = settings.pixelRoomCurtains === true;
+      settings.pixelRoomCup = Math.max(0, Math.min(3, Math.trunc(Number(settings.pixelRoomCup)) || 0));
       settings.workMode = normalizeProductDevelopmentWorkMode(settings.workMode);
       settings.homeFeatureGroups = normalizeHomeFeatureGroups(settings.homeFeatureGroups);
       settings.productDevelopmentFeatureGroups = normalizeProductDevelopmentFeatureGroups(settings.productDevelopmentFeatureGroups);
