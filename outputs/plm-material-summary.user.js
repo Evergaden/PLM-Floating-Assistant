@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.57
+// @version      2.9.58
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.57';
+  const SCRIPT_VERSION = '2.9.58';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -16513,6 +16513,9 @@
   document.addEventListener('click', handlePageToyCopywritingClick, true);
   ensureLauncher();
   renderShell(L.noDrawer);
+  if (isCloudBackupKeyConflict()) window.setTimeout(() => {
+    if (isCloudBackupKeyConflict()) notifyCloudBackupKeyConflict();
+  }, 1500);
   guideShortcutUpdate();
   window.setTimeout(() => refreshLoadingTips(false), 500 + Math.floor(Math.random() * 4500));
   scheduleCloudAssetRefresh(50);
@@ -22381,7 +22384,8 @@
   function renderAbout(panel) {
     const detail = panel.querySelector('.pfh-detail');
     const cloudBody = '<label class="pfh-cloud-key"><span>' + escapeHtml(L.cloudBackupKey) + '</span><input type="text" class="pfh-cloud-backup-key" value="' + escapeHtml(state.settings.cloudBackupKey || '') + '" placeholder="' + escapeHtml(L.cloudBackupPlaceholder) + '" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label>' +
-      '<div class="pfh-about-actions"><button type="button" data-action="cloud-backup-save">' + escapeHtml(L.cloudBackupSave) + '</button><button type="button" data-action="cloud-backup-restore">' + escapeHtml(L.cloudBackupRestore) + '</button><span class="pfh-cloud-status">' + escapeHtml(getCloudBackupStatusText()) + '</span></div>';
+      '<div class="pfh-about-actions"><button type="button" data-action="cloud-backup-save">保存并验证密钥</button><button type="button" data-action="cloud-backup-restore">' + escapeHtml(L.cloudBackupRestore) + '</button><span class="pfh-cloud-status">' + escapeHtml(getCloudBackupStatusText()) + '</span></div>' +
+      '<div class="pfh-cloud-key-guide" aria-live="polite">' + cloudBackupKeyGuideHtml() + '</div>';
     const preferenceBody = [
       '<div class="pfh-setting-row"><span>' + escapeHtml(L.excelKeywordSetting) + '</span><label><input type="radio" name="pfh-keyword-mode" value="brandName"' + (state.settings.excelKeywordMode === 'brandName' ? ' checked' : '') + '> ' + escapeHtml(L.excelKeywordBrandName) + '</label><label><input type="radio" name="pfh-keyword-mode" value="english"' + (state.settings.excelKeywordMode === 'english' ? ' checked' : '') + '> ' + escapeHtml(L.excelKeywordEnglish) + '</label></div>',
       '<div class="pfh-setting-row"><span>' + escapeHtml(L.excelDownloadSetting) + '</span><label><input type="radio" name="pfh-download-mode" value="picker"' + (state.settings.excelDownloadMode === 'picker' ? ' checked' : '') + '> ' + escapeHtml(L.excelDownloadPicker) + '</label><label><input type="radio" name="pfh-download-mode" value="direct"' + (state.settings.excelDownloadMode === 'direct' ? ' checked' : '') + '> ' + escapeHtml(L.excelDownloadDirect) + '</label></div>',
@@ -36306,6 +36310,9 @@ self.onmessage = async function(event) {
       saveCloudBackupNow();
       return;
     }
+    if (action === 'cloud-backup-rekey') {
+      return generatePersonalCloudBackupKey();
+    }
     if (action === 'cloud-rule-versions-refresh') {
       refreshCloudRuleVersions();
       return;
@@ -36663,8 +36670,7 @@ self.onmessage = async function(event) {
       state.magicToyLabelInput = event.target.value;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-cloud-backup-key')) {
-      state.settings.cloudBackupKey = event.target.value.trim();
-      saveSettings(state.settings);
+      updateCloudBackupKey(event.target.value);
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-tutorial-cloud-key')) {
       state.settings.cloudBackupKey = event.target.value.trim();
@@ -48134,6 +48140,52 @@ self.onmessage = async function(event) {
     return String(state.settings.cloudBackupKey || '').trim();
   }
 
+  function isCloudBackupKeyConflict() {
+    const key = getCloudBackupKey();
+    return Boolean(key && state.settings.cloudBackupConflictKeyHash === diagnosticHash(key));
+  }
+
+  function notifyCloudBackupKeyConflict() {
+    showToast('备份密钥已由其他账号使用，自动备份已暂停。请打开设置 → 云备份，点击“生成个人密钥并验证”，或填写自己的新密钥', { diagnostic: false });
+  }
+
+  function cloudBackupKeyGuideHtml() {
+    const conflict = isCloudBackupKeyConflict();
+    return '<div class="pfh-about-note"' + (conflict ? ' role="alert"' : '') + '>' +
+      (conflict ? '此密钥已由其他账号使用，自动备份已暂停。请换一个仅自己使用的密钥，再保存并验证。' :
+        '每人使用不同的备份密钥，请勿与同事共用。同一账号在其他电脑恢复备份时，请使用自己的同一密钥。请妥善保存，恢复备份时需要它。') +
+      '</div><div class="pfh-about-actions"><button type="button" data-action="cloud-backup-rekey"' +
+      (state.cloudBackupRunning ? ' disabled' : '') + '>生成个人密钥并验证</button></div>';
+  }
+
+  function refreshCloudBackupKeyGuide() {
+    const guide = ensurePanel().querySelector('.pfh-cloud-key-guide');
+    if (guide) guide.innerHTML = cloudBackupKeyGuideHtml();
+  }
+
+  function updateCloudBackupKey(value) {
+    const key = String(value || '').trim();
+    if (key === getCloudBackupKey()) return;
+    state.settings.cloudBackupKey = key;
+    setCloudBackupStatus(isCloudBackupKeyConflict()
+      ? '此密钥已由其他账号使用，请更换个人密钥'
+      : '密钥已更换，尚未验证，请点击“保存并验证密钥”');
+  }
+
+  async function generatePersonalCloudBackupKey() {
+    if (state.cloudBackupRunning) {
+      showToast('备份正在进行，请稍后再更换密钥');
+      return false;
+    }
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const key = 'plm-' + Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    updateCloudBackupKey(key);
+    const input = ensurePanel().querySelector('.pfh-cloud-backup-key');
+    if (input) input.value = key;
+    return saveCloudBackupNow();
+  }
+
   function getCloudBackupOwnerName() {
     const backupKey = getCloudBackupKey();
     if (!backupKey) return '';
@@ -48168,6 +48220,7 @@ self.onmessage = async function(event) {
   }
 
   function getCloudBackupStatusText() {
+    if (isCloudBackupKeyConflict()) return '密钥与其他账号冲突，自动备份已暂停，请更换个人密钥';
     return redactCloudBackupOwnerMismatch(state.cloudBackupStatus || state.settings.cloudBackupStatus || L.cloudBackupReady);
   }
 
@@ -48182,10 +48235,11 @@ self.onmessage = async function(event) {
     saveSettings(state.settings);
     const status = ensurePanel().querySelector('.pfh-cloud-status');
     if (status) status.textContent = getCloudBackupStatusText();
+    refreshCloudBackupKeyGuide();
   }
 
   function queueCloudBackup() {
-    if (!getCloudBackupKey()) return;
+    if (!getCloudBackupKey() || isCloudBackupKeyConflict()) return;
     state.cloudBackupQueued = true;
     window.clearTimeout(state.cloudBackupTimer);
     state.cloudBackupTimer = window.setTimeout(() => runQueuedCloudBackup(), CLOUD_BACKUP_DEBOUNCE_MS);
@@ -48206,11 +48260,10 @@ self.onmessage = async function(event) {
     state.cloudBackupQueued = false;
     const input = ensurePanel().querySelector('.pfh-cloud-backup-key');
     if (input) {
-      state.settings.cloudBackupKey = input.value.trim();
-      saveSettings(state.settings);
+      updateCloudBackupKey(input.value);
     }
     try {
-      await saveCloudBackup({ silent: false });
+      return await saveCloudBackup({ silent: false });
     } catch (error) {
       console.warn('PLM floating helper cloud backup failed:', error);
     }
@@ -48218,6 +48271,10 @@ self.onmessage = async function(event) {
 
   async function saveCloudBackup(options) {
     const backupKey = getCloudBackupKey();
+    if (isCloudBackupKeyConflict()) {
+      if (!(options && options.silent)) notifyCloudBackupKeyConflict();
+      return false;
+    }
     if (!backupKey) {
       if (!(options && options.silent)) showToast(L.cloudBackupMissingKey);
       return false;
@@ -48263,25 +48320,38 @@ self.onmessage = async function(event) {
           if (!tooLarge || attemptIndex === backupAttempts.length - 1) throw error;
         }
       }
-      if (!response || !response.ok) throw new Error(response && response.error ? response.error : 'save failed');
+      if (!response || !response.ok || response.userId !== backupId) throw new Error(response && response.error ? response.error : '云端未确认密钥与备份保存结果，请稍后重新验证');
+      if (getCloudBackupKey() !== backupKey) return true;
+      state.settings.cloudBackupConflictKeyHash = '';
       const downgraded = uploadedMode && uploadedMode !== '\u5b8c\u6574';
       const chunked = Boolean(response.chunked);
       const backupModeText = downgraded ? '\uff08' + uploadedMode + (chunked ? '\u00b7\u5206\u7247' : '') + '\uff09' : (chunked ? '\uff08\u5206\u7247\uff09' : '');
-      setCloudBackupStatus(L.cloudBackupSavedAt + ' ' + new Date().toLocaleTimeString() + '\uff0c' + state.index.length + '\u4e2a\u7f16\u7801' + backupModeText);
+      setCloudBackupStatus('密钥验证通过 · ' + L.cloudBackupSavedAt + ' ' + new Date().toLocaleTimeString() + '\uff0c' + state.index.length + '\u4e2a\u7f16\u7801' + backupModeText);
       addLog('success', downgraded ? '\u4e91\u5907\u4efd' + uploadedMode + '\u4e0a\u4f20\u6210\u529f' : '\u4e91\u5907\u4efd\u4e0a\u4f20\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801' + (chunked ? '\u00b7\u5206\u7247' : ''));
       const translateDirtyAfter = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
       if (!translateDirtyAfter || Number(translateDirtyAfter.updatedAt) <= translateDirtyAt) writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
       if (!(options && options.silent)) showToast(L.cloudBackupSaved);
       return true;
     } catch (error) {
+      if (error && error.cloudData && error.cloudData.error === 'backup owner mismatch') {
+        state.settings.cloudBackupConflictKeyHash = diagnosticHash(backupKey);
+        saveSettings(state.settings);
+        if (getCloudBackupKey() === backupKey) {
+          state.cloudBackupQueued = false;
+          window.clearTimeout(state.cloudBackupTimer);
+          notifyCloudBackupKeyConflict();
+        }
+      }
+      if (getCloudBackupKey() !== backupKey) return false;
       const errorMessage = formatCloudBackupSaveError(error);
       console.warn('PLM floating helper cloud backup save failed:', errorMessage);
       setCloudBackupStatus(L.cloudBackupFailed + '\uff1a' + errorMessage);
       addLog('error', '\u4e91\u5907\u4efd\u4e0a\u4f20\u5931\u8d25', errorMessage);
-      if (!(options && options.silent)) showToast(L.cloudBackupFailed + '\uff1a' + errorMessage);
+      if (!(options && options.silent) && !isCloudBackupKeyConflict()) showToast(L.cloudBackupFailed + '\uff1a' + errorMessage);
       return false;
     } finally {
       state.cloudBackupRunning = false;
+      refreshCloudBackupKeyGuide();
     }
   }
 
@@ -49848,6 +49918,9 @@ self.onmessage = async function(event) {
       const settings = { ...defaults, ...(saved || {}) };
       const previousBackupStatus = settings.cloudBackupStatus;
       settings.cloudBackupStatus = redactCloudBackupOwnerMismatch(previousBackupStatus);
+      const needsBackupConflictMigration = !settings.cloudBackupConflictKeyHash && settings.cloudBackupKey &&
+        /backup owner mismatch|该备份密钥已绑定|该备份密钥不可用于当前账号/.test(String(previousBackupStatus || ''));
+      if (needsBackupConflictMigration) settings.cloudBackupConflictKeyHash = diagnosticHash(String(settings.cloudBackupKey).trim());
       const needsThemeMigration = Number(saved && saved.themeSkinVersion || 0) < THEME_SKIN_VERSION;
       if (needsThemeMigration && (!saved || !saved.theme)) settings.theme = DEFAULT_THEME_ID;
       settings.themeSkinVersion = THEME_SKIN_VERSION;
@@ -49865,7 +49938,7 @@ self.onmessage = async function(event) {
       settings.homeFeatureGroups = normalizeHomeFeatureGroups(settings.homeFeatureGroups);
       settings.productDevelopmentFeatureGroups = normalizeProductDevelopmentFeatureGroups(settings.productDevelopmentFeatureGroups);
       const needsSkuMigration = Number(saved && saved.skuListPreferenceVersion || 0) < SKU_LIST_PREFERENCE_VERSION;
-      if (needsSkuMigration || needsThemeMigration || settings.cloudBackupStatus !== previousBackupStatus) {
+      if (needsSkuMigration || needsThemeMigration || needsBackupConflictMigration || settings.cloudBackupStatus !== previousBackupStatus) {
         if (needsSkuMigration) {
           settings.skuListMode = 'waterfall';
           settings.skuListSort = 'assigned';
