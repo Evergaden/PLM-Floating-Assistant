@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.303",
+  "version": "2.5.304",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -148,6 +148,10 @@
     },
     {
       "path": "modules/development-list-header.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/material-cards.css",
       "mode": "module"
     },
     {

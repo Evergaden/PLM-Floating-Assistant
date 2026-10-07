@@ -592,10 +592,11 @@
     setCell(sheet, 'G4', excelData.sku || '');
     if (excelData.singleBottle) setCell(sheet, 'H4', '瓶装');
     else sheet.getCell('H4').value = { formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"盒装",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"袋装",""))' };
-    setCell(sheet, 'I4', formatExcelDimFromParts([excelData.productLength, excelData.productWidth, excelData.productHeight]) || formatExcelDim(excelData.productNums, []));
+    setCell(sheet, 'I4', buildExcelProductSizeWithAccessories(excelData));
     setCell(sheet, 'J4', formatExcelDimFromParts([excelData.packageLength, excelData.packageWidth, excelData.packageHeight]) || formatExcelDim(excelData.packageNums, []));
     setCell(sheet, 'L4', formatIngredientsForExcel(extra.ingredients));
-    setCell(sheet, 'M4', normalizeExcelUnit(excelData.netContent));
+    setCell(sheet, 'M4', buildExcelSpecificationWithAccessories(excelData));
+    if (normalizeAccessories(excelData.accessories).length) setCell(sheet, 'M3', '规格');
     setCell(sheet, 'N4', normalizeExcelUnit(excelData.grossWeight));
     setCell(sheet, 'O4', normalizeExcelNumberOrText(purchasePrice));
     setCell(sheet, 'P4', getReturnDateText(7));

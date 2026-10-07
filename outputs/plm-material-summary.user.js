@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.55
+// @version      2.9.56
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.55';
+  const SCRIPT_VERSION = '2.9.56';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -200,7 +200,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.303';
+  const UI_ASSET_VERSION = '2.5.304';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -4978,10 +4978,11 @@
     setCell(sheet, 'G4', excelData.sku || '');
     if (excelData.singleBottle) setCell(sheet, 'H4', '瓶装');
     else sheet.getCell('H4').value = { formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"盒装",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"袋装",""))' };
-    setCell(sheet, 'I4', formatExcelDimFromParts([excelData.productLength, excelData.productWidth, excelData.productHeight]) || formatExcelDim(excelData.productNums, []));
+    setCell(sheet, 'I4', buildExcelProductSizeWithAccessories(excelData));
     setCell(sheet, 'J4', formatExcelDimFromParts([excelData.packageLength, excelData.packageWidth, excelData.packageHeight]) || formatExcelDim(excelData.packageNums, []));
     setCell(sheet, 'L4', formatIngredientsForExcel(extra.ingredients));
-    setCell(sheet, 'M4', normalizeExcelUnit(excelData.netContent));
+    setCell(sheet, 'M4', buildExcelSpecificationWithAccessories(excelData));
+    if (normalizeAccessories(excelData.accessories).length) setCell(sheet, 'M3', '规格');
     setCell(sheet, 'N4', normalizeExcelUnit(excelData.grossWeight));
     setCell(sheet, 'O4', normalizeExcelNumberOrText(purchasePrice));
     setCell(sheet, 'P4', getReturnDateText(7));
@@ -17438,6 +17439,7 @@
         const productNums = productNumsFromPackage(packageNums, hasInnerCard);
         const updatedData = normalizeData({
           ...trackedData,
+          accessories: packaging.accessories,
           packageSizeText: packaging.packageSizeText || trackedData.packageSizeText,
           packageSizeLabel: packaging.packageSizeLabel || trackedData.packageSizeLabel,
           packageCode: packaging.packageCode || trackedData.packageCode,
@@ -17471,6 +17473,7 @@
 
   function hasPackagingChanged(data, packaging) {
     if (!packaging) return false;
+    if (JSON.stringify(normalizeAccessories(data.accessories)) !== JSON.stringify(normalizeAccessories(packaging.accessories))) return true;
     if (packaging.packageSizeText && packaging.packageSizeText !== data.packageSizeText) return true;
     if (packaging.packageSizeLabel && packaging.packageSizeLabel !== data.packageSizeLabel) return true;
     if (hasInnerCardMark(packaging) !== hasInnerCardMark(data)) return true;
@@ -17945,6 +17948,7 @@
       packageSizeText: packaging.packageSizeText || '',
       packageSizeLabel: packaging.packageSizeLabel || '',
       packageCode: packaging.packageCode || '',
+      accessories: seenMaterial ? packaging.accessories : undefined,
       printSizeText: tubeSpec ? tubeSpec.printSizeText : (packaging.printSizeText || ''),
       printSizeLabel: tubeSpec ? '\u5370\u5237' : (packaging.printSizeLabel || ''),
       printCode: packaging.printCode || '',
@@ -18003,6 +18007,7 @@
       if (isUsefulValue(value)) merged[key] = value;
     }
     if (next.seenMaterial) {
+      if (Array.isArray(next.accessories)) merged.accessories = normalizeAccessories(next.accessories);
       const hasTubeSpec = Boolean(next.tubeSegmentText || next.tubeTailSealLengthValue || next.tailSealLengthValue || next.tubeDiameter || next.tubeBody || next.tubeSpecKey || next.isTubePrintMaterial);
       if (hasTubeSpec) {
         ['tubeSegmentText', 'tubeTailSealLengthValue', 'tailSealLengthValue', 'tubeDiameter', 'tubeBody', 'tubeSpecKey'].forEach((key) => {
@@ -18236,6 +18241,7 @@
 
   function normalizeData(data) {
     const safe = data || {};
+    safe.accessories = normalizeAccessories(safe.accessories);
     safe.apiFieldStates = normalizeApiFieldStates(safe.apiFieldStates);
     safe.name = normalizeProductNameValue(safe.name);
     const productNameNetContent = productNameDerivedNetContent(safe.name, safe.netContent, safe.specificationText);
@@ -18362,6 +18368,7 @@
   }
 
   function shouldOmitToyProductSize(data) {
+    if (normalizeAccessories(data && data.accessories).some((item) => item.sizeText)) return false;
     return Boolean(data && (data.omitEstimatedProductSize || (isToyDimensionProduct(data) && data.productSizeSource !== 'plm' && !data.singleBottle)));
   }
 
@@ -19637,9 +19644,55 @@
     return isApiBoxCategory(category) || isPaperBoxMaterialText(name);
   }
 
+  function normalizeAccessories(value) {
+    const seen = new Set();
+    return (Array.isArray(value) ? value : []).slice(0, 30).map((item) => ({
+      name: compactText(item && item.name).slice(0, 100),
+      code: compactText(item && item.code).slice(0, 100),
+      sizeText: compactText(item && item.sizeText).slice(0, 200),
+      specification: compactText(item && item.specification).slice(0, 500),
+      quantity: Number(item && item.quantity) > 0 ? Math.min(Number(item.quantity), 9999) : 1,
+    })).filter((item) => {
+      const key = item.code || item.name + '|' + item.specification;
+      if (!item.name || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function extractBomAccessory(item) {
+    const name = compactText(item && (item.name || item.material_name || item.materialName));
+    const category = compactText(item && (item.category_name || item.categoryName));
+    const specification = compactText(item && (item.properties_value || item.propertiesValue || item.specification_model || item.specificationModelName || item.specification || item.specificationModel));
+    // Classify the material itself, never a sponge mentioned in a box's pack specification.
+    if (!name || /说明书|使用说明|纸盒|纸箱|标签|印刷|瓶|旋盖|泵头|喷头|软管|滴管|盖子|瓶盖|内卡/.test(name + ' ' + category)) return null;
+    const known = /海绵|刷子|毛刷|清洁刷|刮板|刮刀|起泡网|勺|量杯|手套|抹布|擦布|毛巾|棉签|棉片|粉扑|漏斗|梳子|镊子|吸管|搅拌棒/.test(name);
+    if (!known && !/配件|附件/.test(category)) return null;
+    let sizeText = '';
+    const axis = Array.from(specification.matchAll(/(直径|长|宽|高|厚(?:度)?)\s*[:：]?\s*(\d+(?:\.\d+)?)\s*(cm|mm|厘米|毫米)/gi));
+    if (axis.length) {
+      sizeText = axis.map((match) => match[1] + (Number(match[2]) / (/mm|毫米/i.test(match[3]) ? 10 : 1)) + 'cm').join(' × ');
+    } else {
+      const dimensions = getApiMaterialDimensions(item, 2, true);
+      if (dimensions) sizeText = formatApiMaterialDimensions(dimensions);
+    }
+    const count = specification.match(/(?:^|[,，;；\s])(?:数量\s*[:：]?\s*)?(\d+(?:\.\d+)?)\s*(?:个|把|支|片|条|只|件|套)(?:[,，;；\s]|$)/);
+    const rawQuantity = item.usage_value ?? item.usageValue ?? item.usage ?? item.qty ?? item.material_quantity ?? item.materialQuantity;
+    return { name, code: getApiMaterialCode(item), sizeText, specification, quantity: Number(rawQuantity) > 0 ? Number(rawQuantity) : (count ? Number(count[1]) : 1) };
+  }
+
+  function extractDomAccessories(root) {
+    return normalizeAccessories(Array.from(root.querySelectorAll('tr, .ant-table-row, [role="row"]')).filter(isVisibleElement).map((row) => {
+      const cells = Array.from(row.querySelectorAll('td, [role="cell"], .ant-table-cell')).map((cell) => compactText(cell.innerText || cell.textContent));
+      if (cells.length < 6) return null;
+      return extractBomAccessory({ code: cells[1], name: cells[3], category_name: cells[4], specification: cells[5] });
+    }).filter(Boolean));
+  }
+
   function extractApiMaterialPackaging(payload) {
     const items = getApiMaterialItems(payload);
     const materialResponseResolved = hasApiMaterialItemsPayload(payload);
+    const accessories = normalizeAccessories(items.map(extractBomAccessory).filter(Boolean));
     const packageCandidates = items.map((item, index) => {
       const name = compactText(item && (item.name || item.material_name || item.materialName));
       const category = compactText(item && (item.category_name || item.categoryName));
@@ -19658,6 +19711,7 @@
       if (isPaperBoxMaterialText(materialClassText) || isPrintedBagMaterial) score += 160;
       if (isPackagingCategory) score += 20;
       if (isPrintMaterial) score -= 100;
+      if (extractBomAccessory(item)) score -= 300;
       if (/瓶|旋盖|泵头|喷头|罐|软管|滴管|刷头|盖子/.test(name)) score -= 180;
       if (dimensions && dimensions.length >= 3) score += 40;
       else if (unitIssue) score += 25;
@@ -19707,6 +19761,7 @@
       || (printItems[0] ? extractNetContentFromMaterial(printItems[0].text) : '');
     const apiFieldStates = materialResponseResolved ? {
       material: items.length ? 'value' : 'empty',
+      accessories: accessories.length ? 'value' : 'empty',
       materialSize: getApiFieldState([packageSizeText, printSizeText].filter(Boolean), true),
       packageSize: getApiFieldState(packageSizeText, true),
       packageLabel: getApiFieldState(packageSizeLabel, true),
@@ -19717,6 +19772,7 @@
       netContent: getApiFieldState(netContent, true),
     } : {};
     return {
+      accessories,
       packageSizeText,
       packageSizeLabel,
       packageCode,
@@ -19739,7 +19795,7 @@
         print: (printItems.find((item) => item.unitIssue) || {}).unitIssue || null,
       },
       netContent,
-      apiMaterialSource: packageItem || printItems.length ? 'plm-project-pms' : '',
+      apiMaterialSource: packageItem || printItems.length || accessories.length ? 'plm-project-pms' : '',
       apiFieldStates,
     };
   }
@@ -19764,7 +19820,7 @@
     const preserveProductDetailPackage = hasProductDetailPackage(merged);
     const packageKeys = new Set(['packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums']);
     [
-      'packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums', 'hasInnerCard',
+      'accessories', 'packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums', 'hasInnerCard',
       'printSizeText', 'printSizeLabel', 'printCode', 'printRawText', 'isTubePrintMaterial',
       'tubeSegmentText', 'tubeTailSealLengthValue', 'tailSealLengthValue', 'tubeDiameter', 'tubeBody', 'tubeSpecKey',
       'netContent', 'grossWeight', 'apiMaterialSource', 'infringementImageUrls', 'infringementImageUrl', 'infringementImageSource', 'infringementCopywriting',
@@ -20352,6 +20408,7 @@
     }).filter(Boolean);
 
     return {
+      accessories: extractDomAccessories(root),
       packageSizeText: packageDim || packageRawDim,
       packageSizeLabel: packageName || '',
       packageCode: extractMaterialCode(packageRow),
@@ -26315,7 +26372,7 @@
   }
 
   function getApiPackagingFieldStateKeys() {
-    return ['material', 'materialSize', 'packageSize', 'packageLabel', 'packageCode', 'printSize', 'printLabel', 'printCode', 'netContent', 'grossWeight'];
+    return ['material', 'accessories', 'materialSize', 'packageSize', 'packageLabel', 'packageCode', 'printSize', 'printLabel', 'printCode', 'netContent', 'grossWeight'];
   }
 
   function omitApiFieldStates(states, keys) {
@@ -26408,10 +26465,9 @@
       skuDataChangeAlertHtml(state.data),
       '<section class="pfh-section pfh-sku-info-section">',
       '<div class="pfh-info-grid">',
-      rowHtml('packageCode', L.packageCode, state.data.packageCode),
-      rowHtml('printCode', L.printCode, state.data.printCode),
-      rowHtml('packageSizeText', state.data.packageSizeLabel || L.packageSize, state.data.packageSizeText || L.noPackage),
-      rowHtml('printSizeText', state.data.printSizeLabel || L.printSize, formatPrintSizeDisplay(state.data) || L.noPrint),
+      materialSummaryCardHtml('package', state.data.packageSizeLabel || L.packageSize, state.data.packageSizeText || L.noPackage, state.data.packageCode),
+      materialSummaryCardHtml('print', state.data.printSizeLabel || L.printSize, formatPrintSizeDisplay(state.data) || L.noPrint, state.data.printCode),
+      accessoryCardsHtml(state.data),
       '</div>',
       '</section>',
       '<section class="pfh-section pfh-graphic-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + escapeHtml(L.graphicSection) + '</h3>' + toyCopywritingButtonHtml(state.data) + excelTriggerHtml() + '</div>' + toyCopywritingFeedbackHtml(state.data),
@@ -32250,6 +32306,19 @@ self.onmessage = async function(event) {
     showToast('已确认本次数据更新');
   }
 
+  function materialSummaryCardHtml(kind, title, size, code) {
+    if (state.skuEditMode) return rowHtml(kind + 'Code', '', code) + rowHtml(kind + 'SizeText', title, size);
+    return '<article class="pfh-material-card"><small>' + escapeHtml(title) + '</small>' +
+      '<span role="button" tabindex="0" class="pfh-material-size" data-key="' + kind + 'SizeText" data-material-copy-key="' + kind + 'SizeText" title="左键复制尺寸，右键查看命名与历史编码">' + escapeHtml(size).replace(/\n/g, '<br>') + '</span>' +
+      (code ? '<span role="button" tabindex="0" class="pfh-material-code" data-key="' + kind + 'Code" data-material-copy-key="' + kind + 'Code" title="点击复制物料编码">' + escapeHtml(code) + '</span>' : '') + '</article>';
+  }
+
+  function accessoryCardsHtml(data) {
+    return normalizeAccessories(data.accessories).map((item) => '<article class="pfh-material-card"><small>' + escapeHtml(item.name) + ' · ×' + item.quantity + '</small>' +
+      '<span role="button" tabindex="0" class="pfh-material-size" data-material-copy-key="accessory" data-copy-value="' + escapeHtml(item.sizeText || item.specification) + '" title="点击复制尺寸或规格">' + escapeHtml(item.sizeText || item.specification || '尺寸待补充') + '</span>' +
+      (item.code ? '<span role="button" tabindex="0" class="pfh-material-code" data-material-copy-key="accessory" data-copy-value="' + escapeHtml(item.code) + '" title="点击复制物料编码">' + escapeHtml(item.code) + '</span>' : '') + '</article>').join('');
+  }
+
   function rowHtml(key, title, value, options) {
     const shown = value || L.unknown;
     const colorClass = /^package(Length|Width|Height)$/.test(key) ? ' is-carton-dim' : (/^product(Length|Width|Height)$/.test(key) ? ' is-product-dim' : '');
@@ -32465,7 +32534,7 @@ self.onmessage = async function(event) {
       showSkuWaterfallContextMenu(skuCard.getAttribute('data-sku'), event, { allowCache: true, includeSearch: false });
       return;
     }
-    const row = event.target && event.target.closest && event.target.closest('.pfh-row[data-key="packageSizeText"], .pfh-row[data-key="printSizeText"]');
+    const row = event.target && event.target.closest && event.target.closest('[data-key="packageSizeText"], [data-key="printSizeText"]');
     if (!row) return;
     event.preventDefault();
     event.stopPropagation();
@@ -36235,11 +36304,11 @@ self.onmessage = async function(event) {
       return;
     }
 
-    const copyTarget = event.target && event.target.closest && event.target.closest('[data-copy-key]');
-    const key = copyTarget && copyTarget.getAttribute('data-copy-key');
+    const copyTarget = event.target && event.target.closest && event.target.closest('[data-copy-key], [data-material-copy-key]');
+    const key = copyTarget && (copyTarget.getAttribute('data-copy-key') || copyTarget.getAttribute('data-material-copy-key'));
     if (key) {
       if (event.target.closest('button, input, textarea, select')) return;
-      copyText(key === 'printSizeText' ? formatPrintSizeDisplay(state.data) : ((state.data && state.data[key]) || ''));
+      copyText(copyTarget.hasAttribute('data-copy-value') ? copyTarget.getAttribute('data-copy-value') : (key === 'printSizeText' ? formatPrintSizeDisplay(state.data) : ((state.data && state.data[key]) || '')));
       copyTarget.classList.add('is-copied');
       window.setTimeout(() => copyTarget.classList.remove('is-copied'), 650);
       showToast(L.copied);
@@ -36247,6 +36316,11 @@ self.onmessage = async function(event) {
   }
 
   function handlePanelKeydown(event) {
+    if ((event.key === 'Enter' || event.key === ' ') && event.target && event.target.matches('[data-material-copy-key]')) {
+      event.preventDefault();
+      event.target.click();
+      return;
+    }
     if (state.view === 'home' && event.key === 'Enter' && !event.isComposing && event.target && event.target.classList && event.target.classList.contains('pfh-home-todo-input')) {
       event.preventDefault();
       const addButton = ensurePanel().querySelector('[data-action="home-todo-add"]');
@@ -40908,9 +40982,23 @@ self.onmessage = async function(event) {
     return watermark;
   }
 
+  function buildExcelProductSizeWithAccessories(data) {
+    const primarySize = formatExcelDimFromParts([data.productLength, data.productWidth, data.productHeight]) || formatExcelDim(data.productNums, []);
+    const accessories = normalizeAccessories(data.accessories).filter((item) => item.sizeText);
+    if (!accessories.length) return primarySize;
+    return [primarySize ? (data.name || '主产品') + '：\n' + primarySize : '', ...accessories.map((item) => item.name + '：\n' + item.sizeText)].filter(Boolean).join('\n');
+  }
+
+  function buildExcelSpecificationWithAccessories(data) {
+    const accessories = normalizeAccessories(data.accessories);
+    const net = normalizeExcelUnit(data.netContent);
+    if (!accessories.length) return net;
+    return [(data.brand ? data.brand + ' ' : '') + (data.name || '主产品') + (net ? '：' + net : '') + '×1', ...accessories.map((item) => item.name + '×' + item.quantity)].join('，\n');
+  }
+
   function writeExcelBatchRow(sheet, rowNumber, data, extra, packQty, purchasePrice) {
     const cell = (column, value) => setCell(sheet, column + rowNumber, value);
-    const productSize = formatExcelDimFromParts([data.productLength, data.productWidth, data.productHeight]) || formatExcelDim(data.productNums, []);
+    const productSize = buildExcelProductSizeWithAccessories(data);
     const packageSize = formatExcelDimFromParts([data.packageLength, data.packageWidth, data.packageHeight]) || formatExcelDim(data.packageNums, []);
     const cartonSpec = getExcelBatchField(data, ['cartonSpec', 'outerCartonSpec', 'cartonSize', 'cartonSizeText', 'boxSpec']);
     const material = getExcelBatchField(data, ['packageMaterial', 'packagingMaterial', 'material']);
@@ -40929,7 +41017,8 @@ self.onmessage = async function(event) {
     cell('J', packageSize);
     if (material) cell('K', material);
     cell('L', formatIngredientsForExcel(extra.ingredients || getPreferredExcelIngredients(data)));
-    cell('M', normalizeExcelUnit(data.netContent));
+    cell('M', buildExcelSpecificationWithAccessories(data));
+    if (normalizeAccessories(data.accessories).length) setCell(sheet, 'M3', '规格');
     cell('N', normalizeExcelUnit(data.grossWeight));
     cell('O', normalizeExcelNumberOrText(purchasePrice));
     cell('P', data.returnDate || getReturnDateText(7));
@@ -41375,10 +41464,11 @@ self.onmessage = async function(event) {
       setCell(sheet, 'G4', excelData.sku || '');
       if (excelData.singleBottle) setCell(sheet, 'H4', '\u74f6\u88c5');
       else sheet.getCell('H4').value = { formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"\u76d2\u88c5",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"\u888b\u88c5",""))' };
-      setCell(sheet, 'I4', formatExcelDimFromParts([excelData.productLength, excelData.productWidth, excelData.productHeight]) || formatExcelDim(excelData.productNums, []));
+      setCell(sheet, 'I4', buildExcelProductSizeWithAccessories(excelData));
       setCell(sheet, 'J4', formatExcelDimFromParts([excelData.packageLength, excelData.packageWidth, excelData.packageHeight]) || formatExcelDim(excelData.packageNums, []));
       setCell(sheet, 'L4', formatIngredientsForExcel(extra.ingredients));
-      setCell(sheet, 'M4', normalizeExcelUnit(excelData.netContent));
+      setCell(sheet, 'M4', buildExcelSpecificationWithAccessories(excelData));
+      if (normalizeAccessories(excelData.accessories).length) setCell(sheet, 'M3', '规格');
       setCell(sheet, 'N4', normalizeExcelUnit(excelData.grossWeight));
       setCell(sheet, 'O4', normalizeExcelNumberOrText(purchasePrice));
       setCell(sheet, 'P4', getReturnDateText(7));
@@ -41897,6 +41987,12 @@ self.onmessage = async function(event) {
 
   function setCell(sheet, address, value) {
     sheet.getCell(address).value = value;
+    if (/^[IM]\d+$/.test(address) && typeof value === 'string' && value.includes('\n')) {
+      const cell = sheet.getCell(address);
+      cell.alignment = { ...(cell.alignment || {}), wrapText: true };
+      const row = sheet.getRow(Number(address.match(/\d+$/)[0]));
+      row.height = Math.max(Number(row.height) || 0, value.split('\n').length * 18 + 20);
+    }
   }
 
   function getExcelImageSource(data, extra) {
@@ -47374,6 +47470,7 @@ self.onmessage = async function(event) {
   }
 
   const MINIMAL_BACKUP_ITEM_FIELDS = [
+    'accessories', 'specificationText',
     'sku', 'brand', 'name', 'englishName', 'manualCategory', 'plmCategory', 'category', 'productType', 'aiCategory', 'aiProductType',
     'developerText', 'developerName', 'projectStatus', 'projectId', 'projectRowId', 'projectVersionId', 'apiMaterialSource',
     'designType', 'artPriority', 'designAssignedAt', 'developmentAssignedAt', 'acquiredAt', 'acquiredAtMs', 'skuListSource', 'referenceUrl',
@@ -47396,7 +47493,9 @@ self.onmessage = async function(event) {
     MINIMAL_BACKUP_ITEM_FIELDS.forEach((key) => {
       const value = source[key];
       if (value === undefined || value === null || value === '') return;
-      if (key === 'materialDimensionUnitIssues') {
+      if (key === 'accessories') {
+        compact[key] = normalizeAccessories(value);
+      } else if (key === 'materialDimensionUnitIssues') {
         const issues = value && typeof value === 'object' ? value : {};
         compact[key] = {
           package: issues.package ? { unit: 'm', raw: compactBackupText(issues.package.raw, 120) } : null,

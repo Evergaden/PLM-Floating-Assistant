@@ -1,0 +1,40 @@
+#plm-floating-helper .pfh-material-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--pfh-theme-border, #e8e2ff);
+  border-radius: 16px;
+  background: var(--pfh-theme-card, #fff);
+}
+#plm-floating-helper .pfh-material-card small {
+  color: var(--pfh-theme-muted, #8793ad);
+  font-size: 12px;
+  font-weight: 700;
+}
+#plm-floating-helper .pfh-material-card [data-material-copy-key] {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color .15s, background .15s;
+}
+#plm-floating-helper .pfh-material-size {
+  color: var(--pfh-theme-text, #17213a);
+  font-size: 15px;
+  font-weight: 700;
+}
+#plm-floating-helper .pfh-material-code {
+  color: var(--pfh-theme-muted, #8793ad);
+  font-size: 12px;
+}
+#plm-floating-helper .pfh-material-card [data-material-copy-key]:hover,
+#plm-floating-helper .pfh-material-card [data-material-copy-key]:focus-visible,
+#plm-floating-helper .pfh-material-card .is-copied {
+  color: var(--pfh-theme-primary, #7c3aed);
+  background: var(--pfh-theme-soft, #f4efff);
+  outline: none;
+}
