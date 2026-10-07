@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.58
+// @version      2.9.59
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.58';
+  const SCRIPT_VERSION = '2.9.59';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -30156,6 +30156,7 @@
         session.cartonFile = file;
       } else {
         const customRemark = session.labelRemarkTexts[matchedLabelSpec.key];
+        geometry.hasBarcode = !cartonSpec && matchedLabelSpec.kind === 'label' && detectSizeImageBarcode(image, geometry);
         const dataUrl = generateLabelSizeImageJpeg(
           image,
           geometry,
@@ -30604,7 +30605,7 @@
     if (includeBatchNumber) {
       context.fillStyle = '#ee1410';
       context.font = '76px "Microsoft YaHei", "PingFang SC", sans-serif';
-      const batchNote = renderOptions && renderOptions.batchNoteText || (shouldUseFullLabelDateRemark(data) ? '\uff08\u751f\u4ea7\u65e5\u671f+\u622a\u6b62\u65e5\u671f+\u6279\u6b21\u53f7\uff09' : '\uff08\u6279\u6b21\u53f7\uff09');
+      const batchNote = renderOptions && renderOptions.batchNoteText || getLabelBatchNoteText(shouldUseFullLabelDateRemark(data, spec, geometry.hasBarcode));
       context.fillText(batchNote, 469, 370);
       batchTextRight = 469 + context.measureText(batchNote).width;
     }
@@ -30717,6 +30718,9 @@
       matchFlatSizeImageRatio,
       analyzeSizeImageGeometry,
       analyzeLabelSizeImageGeometry,
+      hasSizeImageBarcodePixels,
+      detectSizeImageBarcode,
+      getLabelBatchNoteText,
       generateSizeImageJpeg,
       generateLabelSizeImageJpeg,
     ].map((item) => typeof item === 'string' ? item : item.toString()).join('\n');
@@ -30786,6 +30790,10 @@ self.onmessage = async function(event) {
     const renderOptions = detectedType === 'carton'
       ? ((payload.renderMeta && payload.renderMeta.carton) || {})
       : ((payload.renderMeta && payload.renderMeta.labels && payload.renderMeta.labels[key]) || {});
+    if (detectedType === 'label' && !cartonSpec && matchedLabelSpec.kind === 'label') {
+      geometry.hasBarcode = detectSizeImageBarcode(image, geometry);
+      if (geometry.hasBarcode) renderOptions.batchNoteText = getLabelBatchNoteText(true);
+    }
     renderOptions.traceWatermark = payload.traceWatermark;
     if (detectedType === 'label' && isDoubleSidedPrintedBagSizeImage(matchedLabelSpec, geometry) && productImage) {
       renderOptions.productImage = productImage;
@@ -30836,7 +30844,7 @@ self.onmessage = async function(event) {
       const includeBatchNumber = transparent ? false : session.includeBatchNumber;
       renderMeta.labels[spec.key] = {
         titleText: getSizeImageTitle(spec.kind === 'print' ? 'print' : 'label', data, session.includeRemark, includeRoundArc, session.labelRemarkTexts[spec.key]),
-        batchNoteText: includeBatchNumber ? (shouldUseFullLabelDateRemark(data) ? '\uff08\u751f\u4ea7\u65e5\u671f+\u622a\u6b62\u65e5\u671f+\u6279\u6b21\u53f7\uff09' : '\uff08\u6279\u6b21\u53f7\uff09') : '',
+        batchNoteText: includeBatchNumber ? getLabelBatchNoteText(shouldUseFullLabelDateRemark(data, spec)) : '',
       };
     });
     let worker = null;
@@ -30893,10 +30901,87 @@ self.onmessage = async function(event) {
     }
   }
 
-  function shouldUseFullLabelDateRemark(data) {
+  function hasSizeImageBarcodePixels(pixels, width, height) {
+    // Look for many narrow black/white bars that repeat on parallel scan lines.
+    // Scan both axes so rotated barcodes work without reading their payload.
+    const luminance = (x, y) => {
+      const index = (y * width + x) * 4;
+      return pixels[index + 3] < 128 ? 255 : pixels[index] * 0.299 + pixels[index + 1] * 0.587 + pixels[index + 2] * 0.114;
+    };
+    for (const vertical of [false, true]) {
+      const length = vertical ? height : width;
+      const crossLength = vertical ? width : height;
+      const value = (position, cross) => vertical ? luminance(cross, position) : luminance(position, cross);
+      const maxRun = Math.max(12, Math.ceil(length / 80));
+      const step = Math.max(2, Math.floor(crossLength / 100));
+      for (let cross = 12; cross < crossLength - 12; cross += step) {
+        let start = -1;
+        let bars = 0;
+        let pale = 0;
+        let light = 0;
+        let previousDark = value(0, cross) < 110;
+        let runStart = 0;
+        for (let position = 1; position <= length; position += 1) {
+          const shade = position < length ? value(position, cross) : 255;
+          const dark = shade < 110;
+          if (position < length && dark === previousDark) continue;
+          const runLength = position - runStart;
+          if (runLength > maxRun || position === length) {
+            const end = runStart;
+            const span = end - start;
+            if (start >= 0 && bars >= 20 && span >= 70 && light > 0 && pale / light >= 0.85) {
+              const offset = Math.max(12, Math.ceil(span * 0.025));
+              if (cross >= offset && cross + offset < crossLength) {
+                const parallel = [-offset, -Math.ceil(offset / 2), Math.ceil(offset / 2), offset].every((delta) => {
+                  let matching = 0;
+                  for (let sample = start; sample < end; sample += 1) {
+                    if ((value(sample, cross) < 110) === (value(sample, cross + delta) < 110)) matching += 1;
+                  }
+                  return matching / span >= 0.94;
+                });
+                if (parallel) return true;
+              }
+            }
+            start = -1;
+            bars = 0;
+            pale = 0;
+            light = 0;
+          } else if (previousDark) {
+            if (start < 0) start = runStart;
+            bars += 1;
+          } else if (start >= 0) {
+            light += runLength;
+            for (let sample = runStart; sample < position; sample += 1) if (value(sample, cross) > 190) pale += 1;
+          }
+          previousDark = dark;
+          runStart = position;
+        }
+      }
+    }
+    return false;
+  }
+
+  function detectSizeImageBarcode(image, geometry) {
+    const scale = Math.min(1, 1600 / Math.max(geometry.cropWidth, geometry.cropHeight));
+    const width = Math.max(1, Math.round(geometry.cropWidth * scale));
+    const height = Math.max(1, Math.round(geometry.cropHeight * scale));
+    const canvas = createSizeImageCanvas(width, height);
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, geometry.cropX, geometry.cropY, geometry.cropWidth, geometry.cropHeight, 0, 0, width, height);
+    return hasSizeImageBarcodePixels(context.getImageData(0, 0, width, height).data, width, height);
+  }
+
+  function getLabelBatchNoteText(fullDate) {
+    return fullDate ? '（生产日期+截止日期+批次号）' : '（批次号）';
+  }
+
+  function shouldUseFullLabelDateRemark(data, spec, hasBarcode) {
     const brand = String(data && data.brand || '').trim().toUpperCase();
-    const flatSpec = getLabelSizeImageSpec(data);
-    return ['DOCTEAT', 'GOOGEER', 'BUSHAID'].some((name) => brand.includes(name)) && !getSizeImageSpec(data) && Boolean(flatSpec && flatSpec.kind === 'label');
+    const flatSpec = spec || getLabelSizeImageSpec(data);
+    return !getSizeImageSpec(data) && Boolean(flatSpec && flatSpec.kind === 'label') &&
+      (Boolean(hasBarcode) || ['DOCTEAT', 'GOOGEER', 'BUSHAID'].some((name) => brand.includes(name)));
   }
 
   function getSizeImageTitle(type, data, includeRemark, includeRoundArc, customRemark) {
