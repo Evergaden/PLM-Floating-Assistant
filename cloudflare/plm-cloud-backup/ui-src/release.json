@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.302",
+  "version": "2.5.303",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -144,6 +144,10 @@
     },
     {
       "path": "modules/header-search.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/development-list-header.css",
       "mode": "module"
     },
     {

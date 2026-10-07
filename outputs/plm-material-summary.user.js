@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.54
+// @version      2.9.55
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.54';
+  const SCRIPT_VERSION = '2.9.55';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -200,7 +200,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.302';
+  const UI_ASSET_VERSION = '2.5.303';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -7368,13 +7368,13 @@
     const listSortMenu = '<div class="pfh-export-menu pfh-sku-sort-menu' + (state.skuSortMenuOpen ? ' is-open' : '') + '">' +
       '<button type="button" class="pfh-export-menu-button" data-action="sku-sort-toggle" aria-expanded="' + (state.skuSortMenuOpen ? 'true' : 'false') + '"><span>' + escapeHtml(listSortLabel) + '</span><i></i></button>' +
       '<div class="pfh-export-menu-list"><button type="button" data-action="sku-list-sort" data-sort="assigned" class="' + (listSort === 'assigned' ? 'is-active' : '') + '">分配时间</button><button type="button" data-action="sku-list-sort" data-sort="acquired" class="' + (listSort === 'acquired' ? 'is-active' : '') + '">获取时间</button></div></div>';
-    const listTools = '<div class="pfh-sku-list-toolbar"><div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="开发 SKU 列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
+    const listTools = '<div class="pfh-development-list-tools"><div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="开发 SKU 列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
       '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">列表</button><button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">瀑布流</button></div>' +
       '<label class="pfh-sku-sort"><span>排序</span>' + listSortMenu + '</label></div>';
     const taskListOpen = state.productDevelopmentTaskListOpen !== false;
     const sidebarToggle = '<button type="button" class="pfh-product-development-task-sidebar-collapse" data-action="product-development-task-list-toggle" aria-expanded="' + (taskListOpen ? 'true' : 'false') + '" title="' + (taskListOpen ? '收起开发 SKU 列表' : '固定开发 SKU 列表') + '">' + (taskListOpen ? '‹' : '›') + '</button>';
-    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="product-development-tasks-home" aria-label="返回开发主页">' + iconHtml('backArrow') + '</button><strong>开发 SKU</strong><span>共 ' + tasks.length + ' 条</span><button type="button" class="pfh-sku-add-button" data-action="product-development-tasks-refresh" title="刷新本人开发任务" aria-label="刷新本人开发任务">↻</button>' + sidebarToggle + '</div>' + listTools;
-    const userNote = state.productDevelopmentTaskUserName ? '<div class="pfh-list-note">开发人员：' + escapeHtml(state.productDevelopmentTaskUserName) + '</div>' : '';
+    const listHead = '<header class="pfh-development-list-header"><button type="button" class="pfh-development-list-icon" data-action="product-development-tasks-home" aria-label="返回开发主页">' + iconHtml('backArrow') + '</button><strong>开发 SKU</strong><span class="pfh-development-list-count">' + tasks.length + ' 条</span><button type="button" class="pfh-development-list-icon" data-action="product-development-tasks-refresh" title="刷新本人开发任务" aria-label="刷新本人开发任务"' + (state.productDevelopmentTasksLoading ? ' disabled aria-busy="true"' : '') + '>' + iconHtml('refresh') + '</button>' + sidebarToggle + '</header>' + listTools;
+    const userNote = state.productDevelopmentTaskUserName ? '<div class="pfh-development-list-user"><span>开发人员</span><strong title="' + escapeHtml(state.productDevelopmentTaskUserName) + '">' + escapeHtml(state.productDevelopmentTaskUserName) + '</strong></div>' : '';
     if (state.productDevelopmentTasksLoading && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">正在读取本人开发任务…</div></div></div>';
     if (state.productDevelopmentTaskError && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(state.productDevelopmentTaskError) + '</div></div></div>';
     if (!items.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">当前用户暂无开发人员字段匹配的产品任务</div></div></div>';
@@ -10406,7 +10406,10 @@
       list.setAttribute('aria-hidden', 'true');
     }
     if (sidebar) sidebar.classList.toggle('is-open', state.productDevelopmentTaskListOpen !== false);
-    if (sidebarBody) sidebarBody.innerHTML = productDevelopmentTaskListHtml();
+    if (sidebarBody) {
+      sidebarBody.innerHTML = productDevelopmentTaskListHtml();
+      setupSkuViewFusion(sidebarBody);
+    }
     if (!detail) return;
     let task = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || state.productDevelopmentSelectedTask;
     if (!task) {
@@ -22924,7 +22927,7 @@
     const buttons = Array.from(switcher.querySelectorAll('button[data-action="sku-list-mode"]'));
     const moveIndicator = (button) => {
       if (!button) return;
-      indicator.style.setProperty('left', button.offsetLeft + 'px', 'important');
+      indicator.style.setProperty('left', (button.offsetLeft - switcher.clientLeft) + 'px', 'important');
       indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
     };
     buttons.forEach((button) => {
