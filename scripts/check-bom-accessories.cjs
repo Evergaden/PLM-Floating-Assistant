@@ -39,7 +39,7 @@ const context = {
   escapeHtml: (text) => String(text).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'),
 };
 vm.createContext(context);
-for (const name of ['normalizeAccessories', 'getApiMaterialCode', 'getApiMaterialSourceText', 'getApiMaterialUnitIssue', 'getApiMaterialDimensions', 'detectMaterialDimensionUnitIssue', 'normalizeMaterialDimensionUnitIssue', 'normalizeMaterialDimensionUnitIssues', 'extractDimensionString', 'normalizeDimensionText', 'normalizeDimensionParts', 'parseDimension', 'firstNumber', 'formatApiMaterialDimensions', 'extractBomAccessory', 'extractDomAccessories', 'mergeApiPackagingData', 'buildExcelProductSizeWithAccessories', 'buildExcelSpecificationWithAccessories', 'materialSummaryCardHtml', 'accessoryCardsHtml', 'setCell']) vm.runInContext(extract(name), context);
+for (const name of ['normalizeAccessories', 'getApiMaterialCode', 'getApiMaterialSourceText', 'getApiMaterialUnitIssue', 'getApiMaterialDimensions', 'detectMaterialDimensionUnitIssue', 'normalizeMaterialDimensionUnitIssue', 'normalizeMaterialDimensionUnitIssues', 'extractDimensionString', 'normalizeDimensionText', 'normalizeDimensionParts', 'parseDimension', 'firstNumber', 'formatApiMaterialDimensions', 'extractBomAccessory', 'extractDomAccessories', 'mergeApiPackagingData', 'formatExcelAccessorySize', 'formatExcelQuantityText', 'buildExcelProductSizeWithAccessories', 'buildExcelSpecificationWithAccessories', 'materialSummaryCardHtml', 'accessoryCardsHtml', 'setCell']) vm.runInContext(extract(name), context);
 const sponge = context.extractBomAccessory({ name: '黄色圆形海绵', code: 'JU-C01-0002-01', category_name: '成品 - 家居百货 - 厨房清洁', specification: '黄色圆形海绵,1个,直径7cmx高2cm' });
 for (const name of ['getApiMaterialItems', 'hasApiMaterialItemsPayload', 'getApiFieldState', 'isApiBoxMaterial', 'extractApiMaterialPackaging']) vm.runInContext(extract(name), context);
 const api = context.extractApiMaterialPackaging({ data: { pms: [
@@ -72,9 +72,15 @@ assert.equal(context.extractDomAccessories(dom)[0].sizeText, sponge.sizeText);
 const data = { name: '大灯焕新剂', netContent: '100ml', productNums: [4.4, 3.8, 17.3], accessories: [sponge, brush] };
 const size = context.buildExcelProductSizeWithAccessories(data);
 assert.match(size, /大灯焕新剂：\n4.4\*3.8\*17.3CM/);
-assert.match(size, /黄色圆形海绵：\n直径7cm × 高2cm/);
-assert.match(context.buildExcelSpecificationWithAccessories(data), /大灯焕新剂：100ML×1，\n黄色圆形海绵×1，\n刷子×2/);
+assert.match(size, /黄色圆形海绵：\n直径7cm\*高2cm/);
+assert.match(size, /刷子：\n3\*14cm/);
+assert.match(context.buildExcelSpecificationWithAccessories(data), /大灯焕新剂：100MLx1，\n黄色圆形海绵x1，\n刷子x2/);
 assert.equal(context.buildExcelSpecificationWithAccessories({ netContent: '100ml' }), '100ML');
+for (const separator of ['x', 'X', '×', '＊', '*']) {
+  assert.equal(context.formatExcelAccessorySize('6.3' + separator + '4.4' + separator + '14cm'), '6.3*4.4*14cm');
+  assert.equal(context.buildExcelSpecificationWithAccessories({ netContent: '75g' + separator + '2' }), '75Gx2');
+}
+assert.equal(brush.sizeText, '3x14cm', 'formatting must not rewrite cached dimensions');
 const html = context.materialSummaryCardHtml('package', '纸盒', '4.6x4x17.5cm', 'MTL00083040');
 assert.match(html, /data-material-copy-key="packageSizeText"/);
 assert.match(html, /data-material-copy-key="packageCode"/);

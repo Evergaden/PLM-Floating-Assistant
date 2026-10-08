@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.59
+// @version      2.9.60
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -56,7 +56,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.9.59", r = (() => {
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.9.60", r = (() => {
         const e = {
             exports: {}
         }, t = e.exports;
@@ -38349,11 +38349,15 @@
     }
     function Wj(e) {
         const t = VT([ e.productLength, e.productWidth, e.productHeight ]) || OT(e.productNums, []), n = um(e.accessories).filter(e => e.sizeText);
-        return n.length ? [ t ? (e.name || "主产品") + "：\n" + t : "", ...n.map(e => e.name + "：\n" + e.sizeText) ].filter(Boolean).join("\n") : t;
+        return n.length ? [ t ? (e.name || "主产品") + "：\n" + t : "", ...n.map(e => {
+            return e.name + "：\n" + (t = e.sizeText, String(t || "").replace(/(\d+(?:\.\d+)?\s*(?:cm|mm|厘米|毫米)?)\s*[xX×＊*]\s*(?=(?:直径|长|宽|高|厚(?:度)?)?\s*\d)/gi, "$1*"));
+            var t;
+        }) ].filter(Boolean).join("\n") : t;
     }
     function Zj(e) {
-        const t = um(e.accessories), n = GT(e.netContent);
-        return t.length ? [ (e.brand ? e.brand + " " : "") + (e.name || "主产品") + (n ? "：" + n : "") + "×1", ...t.map(e => e.name + "×" + e.quantity) ].join("，\n") : n;
+        const t = um(e.accessories), n = (r = GT(e.netContent), String(r || "").replace(/(\d+(?:\.\d+)?\s*(?:kg|mg|mcg|ug|g|ml|cl|dl|l|floz|oz|lbs?|粒|片|支|瓶|袋|盒|包|个|件|套)?)\s*[xX×＊*]\s*(?=\d)/gi, "$1x"));
+        var r;
+        return t.length ? [ (e.brand ? e.brand + " " : "") + (e.name || "主产品") + (n ? "：" + n : "") + "x1", ...t.map(e => e.name + "x" + e.quantity) ].join("，\n") : n;
     }
     function Qj(e, t, n, r, i, a) {
         const o = (n, r) => bT(e, n + t, r), s = Wj(n), l = VT([ n.packageLength, n.packageWidth, n.packageHeight ]) || OT(n.packageNums, []), c = qj(n, [ "cartonSpec", "outerCartonSpec", "cartonSize", "cartonSizeText", "boxSpec" ]), u = qj(n, [ "packageMaterial", "packagingMaterial", "material" ]), d = qj(n, [ "leadTimeText", "deliveryText", "deliveryNote", "leadTimeNote" ]), p = qj(n, [ "alibabaLink", "aliLink", "1688Link", "alibabaUrl" ]);

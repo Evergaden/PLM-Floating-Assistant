@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.59
+// @version      2.9.60
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.59';
+  const SCRIPT_VERSION = '2.9.60';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -41231,18 +41231,26 @@ self.onmessage = async function(event) {
     return watermark;
   }
 
+  function formatExcelAccessorySize(value) {
+    return String(value || '').replace(/(\d+(?:\.\d+)?\s*(?:cm|mm|厘米|毫米)?)\s*[xX×＊*]\s*(?=(?:直径|长|宽|高|厚(?:度)?)?\s*\d)/gi, '$1*');
+  }
+
+  function formatExcelQuantityText(value) {
+    return String(value || '').replace(/(\d+(?:\.\d+)?\s*(?:kg|mg|mcg|ug|g|ml|cl|dl|l|floz|oz|lbs?|粒|片|支|瓶|袋|盒|包|个|件|套)?)\s*[xX×＊*]\s*(?=\d)/gi, '$1x');
+  }
+
   function buildExcelProductSizeWithAccessories(data) {
     const primarySize = formatExcelDimFromParts([data.productLength, data.productWidth, data.productHeight]) || formatExcelDim(data.productNums, []);
     const accessories = normalizeAccessories(data.accessories).filter((item) => item.sizeText);
     if (!accessories.length) return primarySize;
-    return [primarySize ? (data.name || '主产品') + '：\n' + primarySize : '', ...accessories.map((item) => item.name + '：\n' + item.sizeText)].filter(Boolean).join('\n');
+    return [primarySize ? (data.name || '主产品') + '：\n' + primarySize : '', ...accessories.map((item) => item.name + '：\n' + formatExcelAccessorySize(item.sizeText))].filter(Boolean).join('\n');
   }
 
   function buildExcelSpecificationWithAccessories(data) {
     const accessories = normalizeAccessories(data.accessories);
-    const net = normalizeExcelUnit(data.netContent);
+    const net = formatExcelQuantityText(normalizeExcelUnit(data.netContent));
     if (!accessories.length) return net;
-    return [(data.brand ? data.brand + ' ' : '') + (data.name || '主产品') + (net ? '：' + net : '') + '×1', ...accessories.map((item) => item.name + '×' + item.quantity)].join('，\n');
+    return [(data.brand ? data.brand + ' ' : '') + (data.name || '主产品') + (net ? '：' + net : '') + 'x1', ...accessories.map((item) => item.name + 'x' + item.quantity)].join('，\n');
   }
 
   function writeExcelBatchRow(sheet, rowNumber, data, extra, packQty, purchasePrice) {
