@@ -10,8 +10,6 @@
 
 #plm-floating-helper .pfh-warning-note strong,
 #plm-floating-helper .pfh-mini-tool-card > label,
-#plm-floating-helper .pfh-settings-card-head strong,
-#plm-floating-helper .pfh-settings-page .pfh-log-head strong,
 #plm-floating-helper .pfh-table-head,
 #plm-floating-helper .pfh-log-head strong,
 #plm-floating-helper .pfh-search-result-toolbar button,
@@ -20,8 +18,7 @@
   font-weight: var(--pfh-font-weight-control, 400);
 }
 
-#plm-floating-helper .pfh-mini-tool-head h2,
-#plm-floating-helper .pfh-settings-hero h3 {
+#plm-floating-helper .pfh-mini-tool-head h2 {
   font-weight: var(--pfh-font-weight-heading, 700);
 }
 

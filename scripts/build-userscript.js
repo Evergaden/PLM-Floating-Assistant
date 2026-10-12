@@ -4,6 +4,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const outputPath = path.join(root, 'outputs', 'plm-material-summary.user.js');
 const modules = [
+  { name: 'network-diagnostics', file: path.join(root, 'src', 'network-diagnostics.module.js') },
   {
     name: 'trace-name-pinyin',
     file: path.join(root, 'src', 'vendor', 'pinyin-pro-3.29.4.js'),

@@ -154,6 +154,7 @@
       markCloudRecoverySucceeded();
     } catch (error) {
       const session = readCloudRecoverySession();
+      if (!hasRequiredCloudAssetCache(cloudAssetCache)) offerNetworkDiagnostics('界面所需资源无法更新，部分功能暂不可用', error);
       if (session && (session.status === 'refreshing' || session.status === 'suppressed')) {
         writeCloudRecoverySession('suppressed');
         state.cloudRecoveryPromptVisible = false;

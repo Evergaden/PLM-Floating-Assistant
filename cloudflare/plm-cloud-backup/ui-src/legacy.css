@@ -563,58 +563,6 @@
         color: #4f7cff;
         font-size: 12px;
       }
-      #plm-floating-helper .pfh-setting-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 0;
-        border-bottom: 1px dashed #e2e8f0;
-        color: #334155;
-        font-size: 13px;
-      }
-      #plm-floating-helper .pfh-setting-row > span {
-        min-width: 84px;
-        color: #64748b;
-      }
-      #plm-floating-helper .pfh-setting-row label {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        position: relative;
-        min-height: 28px;
-        padding: 0 12px;
-        color: #c9d0db;
-        border: 1px solid #cfd5df;
-        border-radius: 999px;
-        cursor: pointer;
-        white-space: nowrap;
-      }
-      #plm-floating-helper .pfh-setting-row label:has(input:checked) {
-        color: #334155;
-        background: #e9fced;
-        border-color: #e9fced;
-      }
-      #plm-floating-helper .pfh-setting-row input[type="radio"] {
-        position: absolute;
-        width: 0;
-        height: 0;
-        margin: 0;
-        padding: 0;
-        opacity: 0;
-        appearance: none;
-        pointer-events: none;
-      }
-      #plm-floating-helper .pfh-setting-row label::before {
-        content: '';
-        width: 6px;
-        height: 6px;
-        flex: 0 0 6px;
-        display: block;
-        background: center / contain no-repeat url("data:image/svg+xml,%3Csvg viewBox='0 0 1024 1024' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M512 512m-512 0a512 512 0 1 0 1024 0 512 512 0 1 0-1024 0Z' fill='%23e6e6e6'/%3E%3C/svg%3E");
-      }
-      #plm-floating-helper .pfh-setting-row label:has(input:checked)::before {
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1024 1024' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M512 512m-512 0a512 512 0 1 0 1024 0 512 512 0 1 0-1024 0Z' fill='%231afa29'/%3E%3C/svg%3E");
-      }
       #plm-floating-helper .pfh-cloud-backup {
         margin: 10px 0;
         padding: 10px;
@@ -1469,21 +1417,18 @@
         bottom: -3px;
         cursor: nesw-resize;
       }
-      #plm-floating-helper .pfh-row,
-#plm-floating-helper .pfh-setting-row {
+#plm-floating-helper .pfh-row {
         user-select: none;
       }
-      #plm-floating-helper .pfh-value,
+#plm-floating-helper .pfh-value,
 #plm-floating-helper .pfh-title-meta,
 #plm-floating-helper .pfh-search,
 #plm-floating-helper .pfh-note-source,
 #plm-floating-helper .pfh-about-note strong,
 #plm-floating-helper .pfh-about-note p,
-#plm-floating-helper .pfh-easter-egg,
-#plm-floating-helper .pfh-setting-row > span {
+#plm-floating-helper .pfh-easter-egg {
         user-select: text;
       }
-      #plm-floating-helper .pfh-setting-row label,
 #plm-floating-helper .pfh-about-actions,
 #plm-floating-helper .pfh-about-actions button {
         user-select: none;
@@ -1999,16 +1944,6 @@
       }
       #plm-floating-helper .pfh-cloud-backup {
         background: rgba(255,255,255,.82);
-      }
-      #plm-floating-helper .pfh-setting-row {
-        background: rgba(255,255,255,.60);
-        border: 1px solid rgba(226, 232, 240, .88);
-        border-radius: 14px;
-        padding: 10px 12px;
-      }
-      #plm-floating-helper .pfh-setting-row label {
-        border-radius: 10px;
-        background: rgba(248,250,252,.96);
       }
       #plm-floating-helper .pfh-home-grid {
         width: min(100%, 860px);
@@ -3088,46 +3023,6 @@
         display: block !important;
         white-space: pre-line !important;
       }
-      #plm-floating-helper .pfh-settings-page {
-        display: grid !important;
-        gap: 10px !important;
-        align-content: start !important;
-        padding: 14px !important;
-      }
-      #plm-floating-helper .pfh-settings-page > h3 {
-        display: none !important;
-      }
-      #plm-floating-helper .pfh-settings-hero {
-        display: flex !important;
-        align-items: flex-start !important;
-        justify-content: space-between !important;
-        gap: 12px !important;
-        padding: 12px 14px !important;
-        border: 1px solid rgba(211, 204, 255, .34) !important;
-        border-radius: 14px !important;
-        background: linear-gradient(135deg, rgba(255,255,255,.86), rgba(246,244,255,.70)) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.92) !important;
-      }
-      #plm-floating-helper .pfh-settings-hero h3 {
-        margin: 0 !important;
-        color: #17153f !important;
-        font-size: 16px !important;
-        line-height: 1.25 !important;
-        cursor: default;
-      }
-      #plm-floating-helper .pfh-settings-hero p {
-        margin: 4px 0 0 !important;
-        color: #6b7897 !important;
-        font-size: 12px !important;
-        line-height: 1.35 !important;
-      }
-      #plm-floating-helper .pfh-settings-hero span {
-        flex: 0 0 auto !important;
-        color: #7c6ecf !important;
-        font-size: 12px !important;
-        line-height: 1.4 !important;
-        white-space: nowrap !important;
-      }
       #plm-floating-helper .pfh-developer-backdrop {
         position: fixed;
         inset: 0;
@@ -3303,127 +3198,6 @@
         color: #fff;
         box-shadow: 0 8px 16px rgba(117, 69, 238, .22);
       }
-      #plm-floating-helper .pfh-settings-card,
-#plm-floating-helper .pfh-settings-page > .pfh-log-panel {
-        margin: 0 !important;
-        padding: 12px !important;
-        border: 1px solid rgba(211, 204, 255, .32) !important;
-        border-radius: 14px !important;
-        background: rgba(255,255,255,.68) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.86) !important;
-      }
-      #plm-floating-helper .pfh-settings-card-head {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        gap: 10px !important;
-        margin: 0 0 9px !important;
-      }
-      #plm-floating-helper .pfh-settings-card-head strong,
-#plm-floating-helper .pfh-settings-page .pfh-log-head strong {
-        color: #17153f !important;
-        font-size: 13px !important;
-        line-height: 1.25 !important;
-      }
-      #plm-floating-helper .pfh-settings-card-head span,
-#plm-floating-helper .pfh-settings-page .pfh-log-head span {
-        color: #7d86a8 !important;
-        font-size: 11px !important;
-        line-height: 1.3 !important;
-        white-space: nowrap !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-about-actions {
-        display: flex !important;
-        flex-wrap: wrap !important;
-        align-items: center !important;
-        gap: 7px !important;
-        margin: 8px 0 0 !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-about-actions button {
-        height: 28px !important;
-        min-height: 28px !important;
-        padding: 0 10px !important;
-        border: 1px solid rgba(190, 199, 220, .82) !important;
-        border-radius: 10px !important;
-        background: rgba(255,255,255,.76) !important;
-        color: #253047 !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.90) !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-about-actions button:hover {
-        border-color: rgba(124, 58, 237, .28) !important;
-        box-shadow: 0 8px 18px rgba(124,58,237,.10), inset 0 1px 0 rgba(255,255,255,.92) !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-setting-row {
-        display: grid !important;
-        grid-template-columns: 86px minmax(0, max-content) minmax(0, max-content) !important;
-        gap: 7px !important;
-        align-items: center !important;
-        margin-top: 7px !important;
-        padding: 8px 9px !important;
-        border: 1px solid rgba(226, 232, 240, .82) !important;
-        border-radius: 12px !important;
-        background: rgba(255,255,255,.58) !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-setting-row > span {
-        min-width: 0 !important;
-        color: #6b7897 !important;
-        font-size: 12px !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-setting-row label {
-        min-height: 26px !important;
-        padding: 0 9px !important;
-        border: 1px solid rgba(190, 199, 220, .78) !important;
-        border-radius: 9px !important;
-        background: rgba(255,255,255,.68) !important;
-        color: #4b5875 !important;
-        font-size: 12px !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-setting-row label:has(input:checked) {
-        border-color: rgba(124, 58, 237, .28) !important;
-        background: rgba(244, 241, 255, .82) !important;
-        color: #5f35c8 !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-cloud-key {
-        grid-template-columns: 72px minmax(0, 1fr) !important;
-        gap: 8px !important;
-        color: #6b7897 !important;
-        font-size: 12px !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-cloud-key input {
-        height: 30px !important;
-        border: 1px solid rgba(190, 199, 220, .86) !important;
-        border-radius: 10px !important;
-        background: rgba(255,255,255,.80) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.92) !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-cloud-backup p,
-#plm-floating-helper .pfh-settings-page .pfh-about-note,
-#plm-floating-helper .pfh-settings-page .pfh-easter-egg,
-#plm-floating-helper .pfh-settings-page .pfh-manual-note {
-        display: none !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-cloud-status,
-#plm-floating-helper .pfh-settings-page .pfh-insight-status {
-        color: #6d35e8 !important;
-        font-size: 12px !important;
-        line-height: 1.35 !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-log-list {
-        max-height: 220px !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-log-row {
-        grid-template-columns: 54px 48px minmax(0, 1fr) !important;
-        padding: 6px 7px !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-readiness-panel,
-#plm-floating-helper .pfh-settings-page .pfh-rule-panel {
-        margin-top: 10px !important;
-      }
-      #plm-floating-helper .pfh-settings-page .pfh-rule-row,
-#plm-floating-helper .pfh-settings-page .pfh-readiness-row {
-        border-radius: 10px !important;
-        background: rgba(248,250,252,.68) !important;
-      }
       #plm-floating-helper .pfh-header .pfh-actions {
         align-items: center !important;
         gap: 14px !important;
@@ -3509,9 +3283,6 @@
       }
       @media (max-width: 760px) {
         #plm-floating-helper .pfh-info-grid {
-          grid-template-columns: 1fr !important;
-        }
-        #plm-floating-helper .pfh-settings-page .pfh-setting-row {
           grid-template-columns: 1fr !important;
         }
         #plm-floating-helper .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open {

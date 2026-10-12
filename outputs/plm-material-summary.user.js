@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.60
+// @version      2.9.61
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,6 +27,9 @@
 // @connect      update.greasyfork.org
 // @connect      api.open-meteo.com
 // @connect      127.0.0.1
+// @connect      www.google.com
+// @connect      greasyfork.org
+// @connect      cdn.jsdelivr.net
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -35,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.60';
+  const SCRIPT_VERSION = '2.9.61';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -143,10 +146,17 @@
       const resolveRuntime = () => {
         const runtime = getLazyExternalRuntime(key);
         if (runtime) resolve(runtime);
-        else reject(new Error('按需组件加载完成但运行时不可用：' + definition.global));
+        else {
+          const error = Object.assign(new Error('按需组件加载完成但运行时不可用：' + definition.global), { scriptRuntimeFailure: true, componentKey: key });
+          offerNetworkDiagnostics(definition.global + ' 组件没有正常运行', error);
+          reject(error);
+        }
       };
       script.addEventListener('load', resolveRuntime, { once: true });
-      script.addEventListener('error', () => reject(new Error('按需组件加载失败，请检查网络或脚本权限：' + definition.global)), { once: true });
+      script.addEventListener('error', () => {
+        offerNetworkDiagnostics(definition.global + ' 下载失败，当前功能无法继续');
+        reject(new Error(definition.global + ' 加载失败，可点击“开始检测”检查通信情况。'));
+      }, { once: true });
     }).catch((error) => {
       delete lazyExternalScriptPromises[key];
       throw error;
@@ -200,7 +210,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.304';
+  const UI_ASSET_VERSION = '2.5.305';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -3187,6 +3197,234 @@
     }
     root.PLMApiMonitor = { status: () => ({ enabled: Boolean(plmApiMonitorState.enabled), count: plmApiMonitorState.entries.length }), entries: () => plmApiMonitorState.entries.slice(), clear: () => { plmApiMonitorState.entries = []; savePlmApiMonitorState(); }, export: () => downloadBlob(new Blob([JSON.stringify(plmApiMonitorState.entries, null, 2)], { type: 'application/json' }), 'plm-data-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json') };
   }
+  // <network-diagnostics-module>
+  const networkDiagnostics = {
+    checking: false, open: false, offerOpen: false, checkedAt: 0, results: [],
+    permissions: Object.create(null), promise: null, lastOfferedAt: 0,
+    reason: '', runtimeFailure: false, runtimeComponent: '', simulation: false,
+  };
+  const NETWORK_DIAGNOSTICS_TIMEOUT_MS = 8000;
+  const NETWORK_DIAGNOSTICS_OFFER_COOLDOWN_MS = 60000;
+
+  function networkFailureKind(error) {
+    const status = Number(error && error.status) || 0;
+    if (status === 401 || status === 403 || /登录态/.test(formatErrorMessage(error))) return 'auth-error';
+    if (status >= 400) return 'http-error';
+    if (status > 0) return 'invalid-response';
+    return error && error.cloudTransportFailure ? 'unreachable' : 'invalid-response';
+  }
+
+  function recordNetworkPermissionResult(path, response, error) {
+    if (!/^\/features\//.test(path)) return;
+    if (!error && (!response || typeof response.enabled !== 'boolean')) error = new Error('权限响应格式异常');
+    networkDiagnostics.permissions[path.split('?')[0]] = { kind: error ? networkFailureKind(error) : 'ok' };
+    // Observe ordinary requests without starting probes or interrupting automatic retries.
+  }
+
+  function offerNetworkDiagnostics(reason, error) {
+    if (networkDiagnostics.checking || networkDiagnostics.open || networkDiagnostics.offerOpen) return;
+    if (networkDiagnostics.lastOfferedAt && Date.now() - networkDiagnostics.lastOfferedAt < NETWORK_DIAGNOSTICS_OFFER_COOLDOWN_MS) return;
+    networkDiagnostics.reason = reason || '当前操作未能完成';
+    networkDiagnostics.simulation = false;
+    networkDiagnostics.runtimeFailure = Boolean(error && error.scriptRuntimeFailure);
+    networkDiagnostics.runtimeComponent = String(error && error.componentKey || '');
+    networkDiagnostics.lastOfferedAt = Date.now();
+    networkDiagnostics.offerOpen = true;
+    expandPanel();
+    renderNetworkDiagnostics(ensurePanel());
+  }
+
+  function networkDiagnosticsTargets() {
+    return [
+      { id: 'google', label: '谷歌', url: 'https://www.google.com/generate_204' },
+      { id: 'update', label: '油叉更新站', url: GREASYFORK_SCRIPT_URL },
+      { id: 'cdn', label: 'Excel 等组件下载站', url: EXCELJS_URL },
+      { id: 'cloud', label: '权限服务主线路', url: CLOUD_BACKUP_API_BASE + '/health', health: true },
+      { id: 'fallback', label: '权限服务备用线路', url: CLOUD_ASSET_FALLBACK_API_BASE + '/health', health: true },
+      ...[
+        ['size-image', '尺寸图权限'], ['parameter-image', '参数图权限'],
+        ['lulu-theme', '主题权限'], ['magic-upload', '魔法上传权限'],
+      ].map(([feature, label]) => ({ id: 'permission-' + feature, label, permission: true, path: '/features/' + feature })),
+    ];
+  }
+
+  function probeNetworkTarget(target) {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (kind, status, detail) => {
+        if (done) return;
+        done = true;
+        window.clearTimeout(timer);
+        resolve({ ...target, kind, status: Number(status) || 0, detail: detail || '' });
+      };
+      const timer = window.setTimeout(() => finish(target.permission ? 'pending-timeout' : 'unreachable'), NETWORK_DIAGNOSTICS_TIMEOUT_MS + 500);
+      if (target.permission) {
+        const name = findCurrentPlmUserName();
+        if (!name) { finish('auth-error', 0, '未识别到 PLM 登录用户'); return; }
+        cloudRequest(target.path + '?name=' + encodeURIComponent(name), { method: 'GET', timeoutMs: NETWORK_DIAGNOSTICS_TIMEOUT_MS }).then((response) => {
+          if (!response || typeof response.enabled !== 'boolean') finish('invalid-response');
+          else finish('ok', 200, response.enabled ? '通信正常 · 已开通' : '通信正常 · 未开通此功能');
+        }, (error) => finish(networkFailureKind(error), error && error.status));
+        return;
+      }
+      if (typeof GM_xmlhttpRequest !== 'function') { finish('unsupported'); return; }
+      try {
+        GM_xmlhttpRequest({
+          method: target.health ? 'GET' : 'HEAD', url: target.url,
+          timeout: NETWORK_DIAGNOSTICS_TIMEOUT_MS, anonymous: true,
+          onload: (response) => {
+            const status = Number(response.status) || 0;
+            if (!status) return finish('unreachable');
+            if (status < 200 || status >= 400) return finish('http-error', status);
+            if (target.id === 'cdn' && /content-type:\s*text\/html/i.test(response.responseHeaders || '')) return finish('invalid-response', status);
+            if (target.health) {
+              try {
+                if (JSON.parse(response.responseText || '{}').ok !== true) return finish('invalid-response', status);
+              } catch (_) { return finish('invalid-response', status); }
+            }
+            finish('ok', status);
+          },
+          onerror: () => finish('unreachable'), ontimeout: () => finish('unreachable'), onabort: () => finish('unreachable'),
+        });
+      } catch (_) { finish('unsupported'); }
+    });
+  }
+
+  function networkDiagnosticsConclusion() {
+    const result = (kind, title, message) => ({ kind, title, message });
+    if (networkDiagnostics.checking) return result('checking', '正在检测通信情况', '结果正在逐项更新，请稍等几秒。');
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return result('offline', '电脑已断网', '请先连接公司网络或 Wi-Fi；仍无法联网请联系 IT。');
+    const rows = networkDiagnostics.results;
+    if (!rows.length) return result('unknown', '尚未检测', '点击“开始检测”，查看哪些通信失败。');
+    if (rows.some((row) => row.kind === 'unsupported')) return result('browser', '浏览器阻止了网络检测', '请允许油猴跨域连接请求，或请 IT 协助检查浏览器限制。');
+    const cloudOk = rows.some((row) => row.health && row.kind === 'ok');
+    const permissions = rows.filter((row) => row.permission);
+    const failures = rows.filter((row) => row.kind === 'unreachable' && row.id !== 'google' && (!row.health || !cloudOk));
+    if (failures.length) {
+      const googleOk = rows.some((row) => row.id === 'google' && row.kind === 'ok');
+      return result('network', '更像梯子 / 网络问题',
+        (googleOk ? '谷歌正常，但' : '') + failures.map((row) => row.label).join('、') + '连不上。请把结果发给 IT，检查梯子线路、分流和公司网络拦截。检测尚不能排除目标网站自身故障；无需反复重装脚本。');
+    }
+    if (permissions.some((row) => row.kind === 'auth-error')) return result('auth', '是登录或账号授权问题', '服务能响应，但登录或授权未通过。请重新登录 PLM；仍失败请联系权限管理员。');
+    if (!cloudOk || rows.some((row) => row.id !== 'google' && !row.health && ['http-error', 'invalid-response'].includes(row.kind))) {
+      return result('server', '服务响应异常，不能认定是梯子故障', '网站已响应，但返回错误或异常内容。请把结果发给维护人员检查服务、网络拦截或脚本与服务的兼容情况。');
+    }
+    if (permissions.some((row) => row.kind === 'pending-timeout')) return result('unknown', '网站可连接，权限仍未确认', '权限请求未在检测时限内完成，暂不能判断是梯子还是脚本问题。请重新检测或复制结果给维护人员。');
+    const runtimeRecovered = networkDiagnostics.runtimeComponent && typeof getLazyExternalRuntime === 'function'
+      && getLazyExternalRuntime(networkDiagnostics.runtimeComponent);
+    if (networkDiagnostics.runtimeFailure && !runtimeRecovered) return result('script', '网络正常，更像脚本 / 浏览器兼容问题', '更新站、下载站和权限请求正常，但组件加载后没有正常运行。请把原操作报错和检测结果发给脚本维护人员。');
+    return result('recovered', '助手所需通信正常', '本次检测没有发现助手所需通信故障，请重试刚才的操作。若仍失败，请把原操作报错和检测结果发给脚本维护人员；仅凭连接正常还不能断定脚本有问题。');
+  }
+
+  function networkDiagnosticsRows() {
+    return networkDiagnostics.results.map((row) => ({ ...row, detail: row.detail || ({
+      waiting: '检测中…', ok: '通信正常', unreachable: '通信失败 / 超时', unsupported: '浏览器阻止检测',
+      'invalid-response': '响应内容异常', 'auth-error': '登录或授权失败', 'pending-timeout': '超时，暂未确认',
+    }[row.kind] || '网站返回 HTTP ' + row.status) }));
+  }
+
+  function networkDiagnosticsReport() {
+    const conclusion = networkDiagnosticsConclusion();
+    return ['PLM 助手通信检测 · v' + SCRIPT_VERSION,
+      networkDiagnostics.simulation ? '动画演示：所有结果为模拟，不代表当前网络。' : '真实通信检测',
+      '受影响操作：' + (networkDiagnostics.reason || '手动检测'),
+      networkDiagnostics.checkedAt ? '检测时间：' + new Date(networkDiagnostics.checkedAt).toLocaleString() : '检测尚未完成',
+      conclusion.title, conclusion.message,
+      ...networkDiagnosticsRows().map((row) => row.label + '：' + row.detail + (row.url ? ' · ' + row.url : '')),
+    ].join('\n');
+  }
+
+  function networkDiagnosticIcon(kind) {
+    const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (kind === 'waiting') return '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#7c55cb" stroke-width="2.5" stroke-dasharray="35 22">'
+      + (reduced ? '' : '<animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>') + '</circle></svg>';
+    return kind === 'ok'
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e7f6ec"/><path d="m7 12 3 3 7-7" fill="none" stroke="#198447" stroke-width="2.5"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#feecec"/><path d="m8 8 8 8m0-8-8 8" stroke="#cf3c3c" stroke-width="2.5"/></svg>';
+  }
+
+  function renderNetworkDiagnostics(panel) {
+    if (!panel) return;
+    let layer = panel.querySelector('[data-network-diagnostics-layer]');
+    if (!networkDiagnostics.open && !networkDiagnostics.offerOpen) { if (layer) layer.remove(); return; }
+    const full = panel.querySelector('.pfh-full');
+    if (!full) return;
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'pfh-notification-layer';
+      layer.setAttribute('data-network-diagnostics-layer', '1');
+      full.appendChild(layer);
+    }
+    // Native dialog/progress and SVG animation remain usable without hosted CSS.
+    const header = (title) => '<header><h3>' + escapeHtml(title) + '</h3><button type="button" class="pfh-notification-close" data-action="network-diagnostics-close" aria-label="关闭">×</button></header>';
+    if (networkDiagnostics.offerOpen && !networkDiagnostics.open) {
+      layer.innerHTML = '<dialog open class="pfh-notification-dialog" role="dialog" aria-label="网络波动提示">' + header('网络波动，当前功能暂未完成')
+        + '<div class="pfh-notification-list"><p>' + escapeHtml(networkDiagnostics.reason) + '</p><p>是否检测通信情况？检测会显示哪些网站连不上，并给出排查方向。</p></div>'
+        + '<footer><button type="button" data-action="network-diagnostics-close">暂不检测</button><button type="button" data-action="network-diagnostics-retry">开始检测</button></footer></dialog>';
+      return;
+    }
+    const conclusion = networkDiagnosticsConclusion();
+    const rows = networkDiagnosticsRows();
+    const finished = rows.filter((row) => row.kind !== 'waiting').length;
+    layer.innerHTML = '<dialog open class="pfh-notification-dialog" role="dialog" aria-label="通信检测结果">' + header((networkDiagnostics.simulation ? '演示 · ' : '') + conclusion.title)
+      + '<div class="pfh-notification-list" aria-busy="' + networkDiagnostics.checking + '">' + (networkDiagnostics.simulation ? '<p class="pfh-notification-status">动画演示：所有结果为模拟，不代表当前网络。</p>' : '') + '<p>' + escapeHtml(conclusion.message) + '</p>'
+      + '<p><progress max="' + Math.max(1, rows.length) + '" value="' + finished + '" aria-label="通信检测进度"></progress> ' + finished + ' / ' + rows.length + '</p>'
+      + rows.map((row) => '<article class="pfh-notification-item"><div class="pfh-notification-item-head">' + networkDiagnosticIcon(row.kind) + '<strong>' + escapeHtml(row.label) + '</strong><span>' + escapeHtml(row.detail) + '</span></div></article>').join('')
+      + '<p class="pfh-notification-status">' + escapeHtml(networkDiagnostics.checking ? '检测中…' : '检测时间：' + new Date(networkDiagnostics.checkedAt).toLocaleTimeString()) + '</p></div>'
+      + '<footer><button type="button" data-action="network-diagnostics-retry"' + (networkDiagnostics.checking ? ' disabled' : '') + '>重新检测</button>'
+      + '<button type="button" data-action="network-diagnostics-copy"' + (networkDiagnostics.checking ? ' disabled' : '') + '>复制检测结果</button></footer></dialog>';
+  }
+
+  function openNetworkDiagnosticsDemo() {
+    if (networkDiagnostics.checking) return;
+    networkDiagnostics.open = false;
+    networkDiagnostics.offerOpen = true;
+    networkDiagnostics.simulation = true;
+    networkDiagnostics.runtimeFailure = false;
+    networkDiagnostics.runtimeComponent = '';
+    networkDiagnostics.reason = '动画演示：模拟 Excel 下载失败';
+    expandPanel();
+    renderNetworkDiagnostics(ensurePanel());
+  }
+
+  function requestNetworkDiagnostics(open, simulation) {
+    // Consent must come from Start/Retry or the userscript menu, never a failed background request.
+    if (!open) return Promise.resolve(networkDiagnostics.results);
+    networkDiagnostics.offerOpen = false;
+    networkDiagnostics.open = true;
+    networkDiagnostics.lastOfferedAt = Date.now();
+    expandPanel();
+    if (networkDiagnostics.promise) { renderNetworkDiagnostics(ensurePanel()); return networkDiagnostics.promise; }
+    if (!simulation && networkDiagnostics.simulation) {
+      networkDiagnostics.reason = '手动真实通信检测';
+      networkDiagnostics.runtimeFailure = false;
+      networkDiagnostics.runtimeComponent = '';
+    }
+    networkDiagnostics.simulation = Boolean(simulation);
+    networkDiagnostics.checking = true;
+    networkDiagnostics.results = networkDiagnosticsTargets().map((target) => ({ ...target, kind: 'waiting' }));
+    renderNetworkDiagnostics(ensurePanel());
+    const probes = networkDiagnostics.results.map((target, index) => (networkDiagnostics.simulation
+      ? new Promise((resolve) => window.setTimeout(() => resolve({ ...target,
+        kind: target.id === 'google' ? 'ok' : 'unreachable', status: 0,
+      }), 450 + index * 220))
+      : probeNetworkTarget(target)).then((result) => {
+      networkDiagnostics.results[index] = result;
+      renderNetworkDiagnostics(ensurePanel());
+      return result;
+    }));
+    networkDiagnostics.promise = Promise.all(probes).then((results) => {
+      networkDiagnostics.checkedAt = Date.now();
+      return results;
+    }).finally(() => {
+      networkDiagnostics.checking = false;
+      networkDiagnostics.promise = null;
+      renderNetworkDiagnostics(ensurePanel());
+    });
+    return networkDiagnostics.promise;
+  }
+  // </network-diagnostics-module>
+
   // <cloud-assets-module>
 
   const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v3';
@@ -3344,6 +3582,7 @@
       markCloudRecoverySucceeded();
     } catch (error) {
       const session = readCloudRecoverySession();
+      if (!hasRequiredCloudAssetCache(cloudAssetCache)) offerNetworkDiagnostics('界面所需资源无法更新，部分功能暂不可用', error);
       if (session && (session.status === 'refreshing' || session.status === 'suppressed')) {
         writeCloudRecoverySession('suppressed');
         state.cloudRecoveryPromptVisible = false;
@@ -16188,6 +16427,7 @@
     developerSettingsTapCount: 0,
     developerSettingsTapAt: 0,
     developerInsightsUnlocked: false,
+    developerInsightsOpen: false,
     developerToolsOpen: false,
     tutorialModalOpen: firstTutorial,
     tutorialEmptyKeyClickCount: 0,
@@ -16519,6 +16759,7 @@
   guideShortcutUpdate();
   window.setTimeout(() => refreshLoadingTips(false), 500 + Math.floor(Math.random() * 4500));
   scheduleCloudAssetRefresh(50);
+  if (typeof GM_registerMenuCommand === 'function') GM_registerMenuCommand('检测网络 / 复制检测结果', () => requestNetworkDiagnostics(true));
   scheduleSizeImageAccessRefresh(300);
   scheduleParameterImageAccessRefresh(420);
   scheduleLuluThemeAccessRefresh(540);
@@ -21773,6 +22014,7 @@
     renderFirstRunTutorialModal(panel);
     renderShortcutGuideModal(panel);
     renderNotificationModal(panel);
+    renderNetworkDiagnostics(panel);
     renderExcelExportResultModal(panel);
     if (state.view !== 'ledger') {
       if (state.ledgerTabResizeObserver) {
@@ -22099,60 +22341,7 @@
     return settingsCardHtml('检查更新', hasUpdate ? '有新版本' : '当前 v' + SCRIPT_VERSION, body, 'pfh-script-update-card' + (hasUpdate ? ' is-update-available' : ''));
   }
 
-  function renderSettingsPageStyle() {
-    const P = '#plm-floating-helper .pfh-settings-page ';
-    return '<style>' +
-      P + '{display:flex!important;flex-direction:column!important;gap:18px!important;align-content:stretch!important;padding:16px 14px 24px!important}' +
-      P + '.pfh-set-hero{position:relative;display:flex;align-items:center;gap:14px;padding:17px 18px;border-radius:20px;border:1px solid var(--pfh-theme-border,rgba(226,224,240,.9));background:linear-gradient(140deg,var(--pfh-theme-surface,#fff),var(--pfh-theme-surface-alt,#FBFAFF));box-shadow:0 1px 2px rgba(31,20,70,.05),0 10px 24px -20px rgba(31,20,70,.36),inset 0 1px 0 rgba(255,255,255,.72);overflow:hidden}' +
-      P + '.pfh-set-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(82% 140% at 100% 0%,var(--pfh-theme-primary-soft,rgba(109,53,232,.16)),transparent 62%);pointer-events:none}' +
-      P + '.pfh-set-hero-badge{position:relative;flex:0 0 auto;display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:linear-gradient(150deg,var(--pfh-theme-primary,#6d35e8),var(--pfh-theme-primary-hover,#5422c9));color:#fff;box-shadow:0 12px 24px -12px rgba(84,34,201,.75),inset 0 1px 0 rgba(255,255,255,.35)}' +
-      P + '.pfh-set-hero-badge svg{width:23px;height:23px}' +
-      P + '.pfh-set-hero-copy{position:relative;flex:1 1 auto;min-width:0}' +
-      P + '.pfh-set-hero-copy h3{margin:0!important;font-size:17px!important;line-height:1.25!important;font-weight:700!important;letter-spacing:.2px;color:var(--pfh-theme-text,#17153f)!important;cursor:default}' +
-      P + '.pfh-set-hero-copy p{margin:3px 0 0!important;font-size:12px!important;line-height:1.45!important;color:var(--pfh-theme-muted,#6b7897)!important}' +
-      P + '.pfh-set-hero-version{position:relative;flex:0 0 auto;padding:5px 11px;border-radius:999px;border:1px solid var(--pfh-theme-border,rgba(211,204,255,.45));background:var(--pfh-theme-card,rgba(255,255,255,.66));font-size:11px!important;font-weight:600;color:var(--pfh-theme-primary-hover,#5f35c8)!important;white-space:nowrap}' +
-      P + '.pfh-set-group{display:flex!important;flex-direction:column!important;gap:10px!important}' +
-      P + '.pfh-set-group-head{display:flex!important;align-items:center!important;gap:9px!important;padding:0 3px!important}' +
-      P + '.pfh-set-group-icon{display:grid;place-items:center;width:23px;height:23px;border-radius:8px;background:var(--pfh-theme-primary-soft,rgba(109,53,232,.14));color:var(--pfh-theme-primary-hover,#5422c9)}' +
-      P + '.pfh-set-group-icon svg{width:13px;height:13px}' +
-      P + '.pfh-set-group-head h4{margin:0!important;font-size:12.5px!important;font-weight:700!important;letter-spacing:.4px;color:var(--pfh-theme-text,#17153f)!important}' +
-      P + '.pfh-set-group-head::after{content:"";flex:1 1 auto;height:1px;background:linear-gradient(90deg,var(--pfh-theme-border,rgba(211,204,255,.55)),transparent)}' +
-      P + '.pfh-settings-card,' + P + '.pfh-log-panel{margin:0!important;padding:15px 18px!important;border:1px solid var(--pfh-theme-border,rgba(226,224,240,.9))!important;border-radius:16px!important;background:linear-gradient(160deg,var(--pfh-theme-surface,#fff),var(--pfh-theme-surface-alt,#FBFAFF))!important;box-shadow:0 1px 2px rgba(31,20,70,.05),0 8px 20px -18px rgba(31,20,70,.32),inset 0 1px 0 rgba(255,255,255,.7)!important;transition:box-shadow .2s ease,transform .2s ease,border-color .2s ease}' +
-      P + '.pfh-settings-card:hover,' + P + '.pfh-log-panel:hover{border-color:var(--pfh-theme-border-strong,rgba(190,199,220,.7))!important;box-shadow:0 2px 4px rgba(31,20,70,.06),0 14px 28px -20px rgba(31,20,70,.4),inset 0 1px 0 rgba(255,255,255,.78)!important;transform:translateY(-1px)}' +
-      P + '.pfh-settings-card-head,' + P + '.pfh-log-head{gap:10px!important;margin:0 0 13px!important;padding-bottom:11px!important;border-bottom:1px solid var(--pfh-theme-border,rgba(226,224,240,.8))!important}' +
-      P + '.pfh-settings-card-head strong,' + P + '.pfh-log-head strong{font-size:13.5px!important;font-weight:700!important;color:var(--pfh-theme-text,#17153f)!important}' +
-      P + '.pfh-settings-card-head span,' + P + '.pfh-log-head span{padding:3px 9px!important;border-radius:999px!important;border:1px solid var(--pfh-theme-border,rgba(211,204,255,.45))!important;background:var(--pfh-theme-card,rgba(255,255,255,.6))!important;font-size:11px!important;font-weight:600!important;color:var(--pfh-theme-primary-hover,#5f35c8)!important;white-space:nowrap!important}' +
-      P + '.pfh-about-note,' + P + '.pfh-cloud-backup p{display:block!important;margin:0 0 12px!important;padding:9px 12px!important;border-radius:11px!important;background:var(--pfh-theme-card,rgba(248,248,253,.82))!important;color:var(--pfh-theme-muted,#6b7897)!important;font-size:11.5px!important;line-height:1.55!important}' +
-      P + '.pfh-setting-row{display:grid!important;grid-template-columns:88px minmax(0,max-content) minmax(0,max-content)!important;gap:8px!important;align-items:center!important;margin-top:8px!important;padding:9px 11px!important;border:1px solid var(--pfh-theme-border,rgba(226,232,240,.75))!important;border-radius:12px!important;background:var(--pfh-theme-card,rgba(255,255,255,.55))!important}' +
-      P + '.pfh-ai-model-row{grid-template-columns:88px minmax(0,1fr)!important}' +
-      P + '.pfh-setting-row:first-child{margin-top:0!important}' +
-      P + '.pfh-setting-row>span{min-width:0!important;color:var(--pfh-theme-muted,#6b7897)!important;font-size:12px!important;font-weight:600!important}' +
-      P + '.pfh-setting-row label{min-height:28px!important;padding:0 12px!important;border:1px solid var(--pfh-theme-border,rgba(190,199,220,.75))!important;border-radius:999px!important;background:var(--pfh-theme-surface,rgba(255,255,255,.72))!important;color:var(--pfh-theme-muted,#4b5875)!important;font-size:12px!important;transition:border-color .16s ease,background .16s ease,color .16s ease,box-shadow .16s ease}' +
-      P + '.pfh-setting-row label:has(input:checked){border-color:var(--pfh-theme-primary,rgba(124,58,237,.55))!important;background:var(--pfh-theme-primary-soft,rgba(243,239,255,.98))!important;color:var(--pfh-theme-primary-hover,#5422c9)!important;font-weight:700!important;box-shadow:inset 0 0 0 1px var(--pfh-theme-primary-soft,rgba(109,53,232,.28)),0 6px 14px -10px rgba(84,34,201,.55)}' +
-      P + '.pfh-setting-row label::before{content:""!important;width:7px!important;height:7px!important;flex:0 0 7px!important;border-radius:50%!important;background:var(--pfh-theme-border-strong,rgba(190,199,220,.95))!important;background-image:none!important;transition:background .16s ease,box-shadow .16s ease}' +
-      P + '.pfh-setting-row label:has(input:checked)::before{background:var(--pfh-theme-primary,#6d35e8)!important;box-shadow:0 0 0 3px var(--pfh-theme-primary-soft,rgba(109,53,232,.2))!important}' +
-      P + '.pfh-theme-grid{gap:9px!important}' +
-      P + '.pfh-theme-option{border-radius:13px!important;border:1px solid var(--pfh-theme-border,rgba(211,204,255,.42))!important;background:var(--pfh-theme-surface,rgba(255,255,255,.72))!important;padding:8px!important;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}' +
-      P + '.pfh-theme-option:hover{transform:translateY(-2px)!important;box-shadow:0 10px 20px -14px rgba(31,20,70,.45)!important}' +
-      P + '.pfh-theme-option.is-selected{border-color:var(--pfh-theme-primary,rgba(124,58,237,.55))!important;box-shadow:0 0 0 3px var(--pfh-theme-primary-soft,rgba(109,53,232,.22)),0 10px 20px -14px rgba(31,20,70,.45)!important}' +
-      P + '.pfh-theme-option-swatch{height:24px!important;border-radius:8px!important}' +
-      P + '.pfh-about-actions{gap:8px!important;margin:9px 0 0!important}' +
-      P + '.pfh-about-actions button{height:30px!important;min-height:30px!important;padding:0 13px!important;border:1px solid var(--pfh-theme-border,rgba(190,199,220,.8))!important;border-radius:999px!important;background:var(--pfh-theme-surface,rgba(255,255,255,.8))!important;color:var(--pfh-theme-text,#253047)!important;font-size:12px!important;font-weight:600!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.9)!important;transition:border-color .16s ease,background .16s ease,color .16s ease,transform .16s ease,box-shadow .16s ease}' +
-      P + '.pfh-about-actions button:hover:not(:disabled){border-color:var(--pfh-theme-primary,rgba(124,58,237,.35))!important;background:var(--pfh-theme-primary-soft,rgba(244,241,255,.92))!important;color:var(--pfh-theme-primary-hover,#5f35c8)!important;transform:translateY(-1px)!important;box-shadow:0 10px 20px -12px rgba(84,34,201,.55)!important}' +
-      P + '.pfh-cloud-key{grid-template-columns:78px minmax(0,1fr)!important;gap:9px!important;align-items:center!important;color:var(--pfh-theme-muted,#6b7897)!important;font-size:12px!important}' +
-      P + '.pfh-cloud-key input{height:32px!important;border:1px solid var(--pfh-theme-border,rgba(190,199,220,.8))!important;border-radius:10px!important;background:var(--pfh-theme-control-surface,rgba(255,255,255,.86))!important;color:var(--pfh-theme-text,#253047)!important;box-shadow:inset 0 1px 2px rgba(31,20,70,.05)!important}' +
-      P + '.pfh-cloud-status,' + P + '.pfh-insight-status{color:var(--pfh-theme-primary-hover,#6d35e8)!important;font-size:12px!important;line-height:1.35!important}' +
-      P + '.pfh-log-list{max-height:240px!important;border-radius:12px!important}' +
-      P + '.pfh-rule-row,' + P + '.pfh-readiness-row{border-radius:11px!important;background:var(--pfh-theme-card,rgba(248,250,252,.68))!important}' +
-      P + '.pfh-rule-row{display:flex!important;align-items:center!important;gap:10px!important;border:1px solid var(--pfh-theme-border,rgba(226,232,240,.7));padding:9px 12px;margin-top:7px}' +
-      P + '.pfh-rule-row>div{flex:1 1 auto;min-width:0}' +
-      P + '.pfh-rule-row>b{color:var(--pfh-theme-text,#253047)}' +
-      P + '.pfh-rule-row>small{color:var(--pfh-theme-muted,#7d86a8)}' +
-      P + '.pfh-rule-row>span{flex:0 0 auto;min-width:82px!important;text-align:right!important;padding:3px 9px;border-radius:999px;background:var(--pfh-theme-primary-soft,rgba(244,241,255,.9));color:var(--pfh-theme-primary-hover,#5f35c8);font-weight:600}' +
-      P + '.pfh-insights-panel,' + P + '.pfh-runtime-log-panel{margin:0!important}' +
-      P + '.pfh-api-monitor-tools{margin:12px 0 0!important}' +
-      '</style>';
-  }
+  function renderSettingsPageStyle() { return ''; }
 
   function normalizeShortcutBindings(saved) {
     const bindings = {};
@@ -22404,16 +22593,17 @@
     const heroHtml = '<header class="pfh-set-hero">' +
       '<span class="pfh-set-hero-badge">' + CORE_ICON_ASSETS.settings + '</span>' +
       '<div class="pfh-set-hero-copy"><h3 data-action="developer-settings-tap">' + escapeHtml(L.settingsTitle) + '</h3><p>\u4e91\u5907\u4efd\u3001\u8fd0\u884c\u504f\u597d\u548c\u8c03\u8bd5\u8bb0\u5f55</p></div>' +
-      '<span class="pfh-set-hero-version">v' + escapeHtml(SCRIPT_VERSION) + ' \u00b7 ' + escapeHtml(String(state.index.length)) + ' \u4e2a\u7f16\u7801</span>' +
+      '<div class="pfh-set-hero-meta"><span class="pfh-set-hero-version">v' + escapeHtml(SCRIPT_VERSION) + ' · ' + escapeHtml(String(state.index.length)) + ' 个编码</span>' + (state.developerInsightsUnlocked ? '<button type="button" data-action="developer-mode-toggle" aria-expanded="' + state.developerToolsOpen + '">开发者模式</button>' : '') + '</div>' +
     '</header>';
     const cloudBackupCard = settingsCardHtml(L.cloudBackupTitle, '\u4f18\u5148', cloudBody, 'pfh-cloud-backup');
     const cacheCard = settingsCardHtml('\u672c\u5730\u7f13\u5b58', '\u5907\u4efd\u8fc1\u79fb', cacheBody);
     const exportCard = settingsCardHtml('\u5bfc\u51fa\u504f\u597d', 'Excel', preferenceBody);
-    const runtimeBody = (state.developerInsightsUnlocked ? renderInsightsSection() : '') + renderLogSection();
+    const runtimeBody = (state.developerToolsOpen && state.developerInsightsOpen ? renderInsightsSection() : '') + renderLogSection();
     detail.innerHTML = [
       '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section pfh-settings-page">',
       renderSettingsPageStyle(),
       heroHtml,
+      state.developerToolsOpen ? renderDeveloperTools() : '',
       '<nav class="pfh-about-actions pfh-settings-tabs" aria-label="设置页面"><button type="button" data-action="settings-page" data-settings-page="general" aria-pressed="' + (state.settingsPage !== 'shortcuts') + '">常规设置</button><button type="button" data-action="settings-page" data-settings-page="shortcuts" aria-pressed="' + (state.settingsPage === 'shortcuts') + '">快捷键</button></nav>',
       ...(state.settingsPage === 'shortcuts' ? [renderShortcutSettings()] : [
       settingsGroupHtml('cloud', '版本更新', renderScriptUpdateCard()),
@@ -22423,7 +22613,6 @@
       settingsGroupHtml('connect', '\u8fde\u63a5', desktopBridgeSettingsHtml()),
       settingsGroupHtml('cloud', '\u4e91\u7aef\u8d44\u6e90', renderCloudRuleVersions()),
       settingsGroupHtml('runtime', '\u8fd0\u884c\u4e0e\u8bca\u65ad', runtimeBody),
-      state.developerToolsOpen ? renderDeveloperTools() : '',
       ]),
       '</section></div>',
     ].join('');
@@ -22449,14 +22638,14 @@
   }
 
   function renderDeveloperTools() {
-    return '<div class="pfh-developer-backdrop" data-action="developer-tools-close">' +
-      '<section class="pfh-developer-dialog" role="dialog" aria-modal="true" aria-label="开发者工具">' +
-        '<div><strong>开发者工具</strong><span>当前布局</span></div>' +
-        '<p>复制窗口、唤起按钮、尺寸和左右分隔栏数据，用于设定新用户首次打开时的默认布局。</p>' +
-        '<button type="button" data-action="developer-layout-copy">复制当前布局</button>' +
-        '<button type="button" data-action="developer-tools-close">关闭</button>' +
-      '</section>' +
-    '</div>';
+    return '<section class="pfh-settings-card pfh-developer-mode-card" aria-label="开发者模式">'
+      + '<div class="pfh-settings-card-head"><strong>开发者模式</strong><span>测试与调试</span></div>'
+      + '<p class="pfh-developer-description">动画演示只模拟网络波动和检测过程，不改变权限，也不发送诊断请求。</p>'
+      + '<div class="pfh-about-actions"><button type="button" data-action="developer-network-demo">网络波动动画演示</button>'
+      + '<button type="button" data-action="developer-network-check">真实通信检测</button>'
+      + '<button type="button" data-action="developer-insights-toggle">' + (state.developerInsightsOpen ? '收起数据洞察' : '查看数据洞察') + '</button>'
+      + '<button type="button" data-action="developer-layout-copy">复制当前布局</button>'
+      + '<button type="button" data-action="developer-tools-close">关闭开发者模式</button></div></section>';
   }
 
   function renderInsightsSection() {
@@ -27519,9 +27708,13 @@
   function pixelRoomSettingsHtml() {
     return '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>窗边日常</strong><span>精细像素小房间</span></div>' +
       '<div class="pfh-about-note">开启后，主页的新任务趋势卡片变为像素小房间。随下班时间从白天渐变到黄昏；加班夜景由你主动开启。时间按北京时间计算。</div>' +
-      '<div class="pfh-setting-row"><label><input type="checkbox" class="pfh-pixel-room-enabled"' + (state.settings.pixelRoomEnabled === true ? ' checked' : '') + '> 开启像素小房间</label></div>' +
-      '<div class="pfh-setting-row"><label><input type="checkbox" class="pfh-pixel-room-animation"' + (state.settings.pixelRoomAnimation !== false ? ' checked' : '') + '> 播放小人动作与飘云</label></div><div class="pfh-about-note">此开关单独控制剧场动画；关闭后保留倒计时和昼夜变化，不修改系统的动态效果设置。</div>' +
-      '<div class="pfh-setting-row"><label>下班时间 <input type="time" class="pfh-pixel-room-time" value="' + normalizePixelRoomTime(state.settings.pixelRoomEndTime) + '"></label></div><div class="pfh-about-note">午休 12:00–13:30：小人去吃饭，猫占领椅子。点猫回头、点地板召唤、双击桌面跳上桌；点台灯、窗帘、杯子可切换。点墙上画框换自己的图片，图片只保存在本机。</div><div class="pfh-setting-row"><button type="button" data-action="pixel-room-picture">更换墙上的画</button><button type="button" data-action="pixel-room-picture-reset">恢复默认画</button></div><div class="pfh-about-note">天气地点：汕头市龙湖区。太阳按当天日出、日落移动，天气约每 15 分钟刷新；断网时显示缓存状态。天气数据：<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>。</div></div>';
+      '<div class="pfh-pixel-room-toggle"><label><input type="checkbox" class="pfh-pixel-room-enabled"' + (state.settings.pixelRoomEnabled === true ? ' checked' : '') + '><span>开启像素小房间</span></label></div>' +
+      '<div class="pfh-pixel-room-toggle"><label><input type="checkbox" class="pfh-pixel-room-animation"' + (state.settings.pixelRoomAnimation !== false ? ' checked' : '') + '><span>播放小人动作与飘云</span></label></div><div class="pfh-about-note">关闭动画后，仍保留倒计时和昼夜变化。</div>' +
+      '<label class="pfh-pixel-room-field"><span>下班时间</span><input type="time" class="pfh-pixel-room-time" value="' + normalizePixelRoomTime(state.settings.pixelRoomEndTime) + '"></label>' +
+      '<div class="pfh-about-note">午休 12:00–13:30：小人去吃饭，猫占领椅子。点猫回头、点地板召唤，双击桌面跳上桌；台灯、窗帘和杯子也可以切换。</div>' +
+      '<div class="pfh-pixel-room-picture-actions pfh-about-actions"><button type="button" data-action="pixel-room-picture">更换墙上的画</button><button type="button" data-action="pixel-room-picture-reset">恢复默认画</button></div>' +
+      '<div class="pfh-about-note">点墙上画框也可换自己的图片，图片只保存在本机。</div>' +
+      '<div class="pfh-about-note">天气地点：汕头市龙湖区。太阳随日出、日落移动，每 15 分钟刷新天气；断网时显示缓存。数据来源：<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>。</div></div>';
   }
 
   function pixelRoomWeatherKind(code) {
@@ -35053,6 +35246,14 @@ self.onmessage = async function(event) {
     if (!namingCard) closePackagingNamingCard(ensurePanel());
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
+    if (action === 'network-diagnostics-retry') { requestNetworkDiagnostics(true, networkDiagnostics.simulation); return; }
+    if (action === 'network-diagnostics-copy') { copyText(networkDiagnosticsReport()); showToast('已复制检测结果，请发给 IT 或脚本维护人员。'); return; }
+    if (action === 'network-diagnostics-close') {
+      networkDiagnostics.open = false;
+      networkDiagnostics.offerOpen = false;
+      renderNetworkDiagnostics(ensurePanel());
+      return;
+    }
     if (handleShortcutSettingsAction(action, actionTarget)) return;
     if (action === 'cloud-recovery-refresh-page') {
       refreshPageForCloudRecovery();
@@ -35413,8 +35614,22 @@ self.onmessage = async function(event) {
         state.developerInsightsUnlocked = true;
         state.developerToolsOpen = false;
         renderShell();
-        showToast('\u6570\u636e\u6d1e\u5bdf\u5df2\u663e\u793a');
+        showToast('已解锁开发者模式按钮');
       }
+      return;
+    }
+    if (action === 'developer-mode-toggle' && state.developerInsightsUnlocked) {
+      state.developerToolsOpen = !state.developerToolsOpen;
+      renderShell(); return;
+    }
+    if (action === 'developer-insights-toggle' && state.developerInsightsUnlocked) {
+      state.developerInsightsOpen = !state.developerInsightsOpen;
+      renderShell(); return;
+    }
+    if ((action === 'developer-network-demo' || action === 'developer-network-check') && state.developerInsightsUnlocked) {
+      if (networkDiagnostics.checking) { showToast('检测正在进行，请稍后再试'); return; }
+      if (action === 'developer-network-demo') openNetworkDiagnosticsDemo();
+      else requestNetworkDiagnostics(true, false);
       return;
     }
     if (action === 'plm-api-monitor-toggle') {
@@ -36566,6 +36781,14 @@ self.onmessage = async function(event) {
   }
 
   function handlePanelKeydown(event) {
+    if (event.key === 'Escape' && (networkDiagnostics.open || networkDiagnostics.offerOpen)) {
+      event.preventDefault();
+      event.stopPropagation();
+      networkDiagnostics.open = false;
+      networkDiagnostics.offerOpen = false;
+      renderNetworkDiagnostics(ensurePanel());
+      return;
+    }
     if ((event.key === 'Enter' || event.key === ' ') && event.target && event.target.matches('[data-material-copy-key]')) {
       event.preventDefault();
       event.target.click();
@@ -41414,7 +41637,7 @@ self.onmessage = async function(event) {
     try {
       await ensureExcelJsLoaded();
     } catch (error) {
-      showToast(L.excelNeedLibrary);
+      showToast(formatErrorMessage(error) || L.excelNeedLibrary);
       return;
     }
     if (!await ensureExcelTemplateLoaded()) {
@@ -41651,7 +41874,7 @@ self.onmessage = async function(event) {
     try {
       await ensureExcelJsLoaded();
     } catch (error) {
-      showToast(L.excelNeedLibrary);
+      showToast(formatErrorMessage(error) || L.excelNeedLibrary);
       return;
     }
     if (!await ensureExcelTemplateLoaded()) {
@@ -48867,6 +49090,7 @@ self.onmessage = async function(event) {
       accessResolved = true;
     } catch (error) {
       addLog('warn', '生成尺寸图权限检查失败', formatErrorMessage(error));
+      if (!accessResolved && state.view === 'home') offerNetworkDiagnostics('尺寸图权限获取失败，功能暂不可用', error);
     } finally {
       state.sizeImageAccessLoading = !accessResolved;
       if (state.view === 'home') renderShell();
@@ -48910,6 +49134,7 @@ self.onmessage = async function(event) {
       accessResolved = true;
     } catch (error) {
       addLog('warn', '生成参数图权限检查失败', formatErrorMessage(error));
+      if (!accessResolved && ['home', 'detail', 'parameterImage'].includes(state.view)) offerNetworkDiagnostics('参数图权限获取失败，功能暂不可用', error);
     } finally {
       state.parameterImageAccessLoading = !accessResolved;
       if (state.view === 'home' || state.view === 'detail' || state.view === 'parameterImage') renderShell();
@@ -48956,6 +49181,7 @@ self.onmessage = async function(event) {
       accessResolved = true;
     } catch (error) {
       addLog('warn', '噜噜乐园主题权限检查失败', formatErrorMessage(error));
+      if (!accessResolved && (state.view === 'about' || normalizeThemeId(state.settings.theme) === 'lulu')) offerNetworkDiagnostics('主题权限获取失败', error);
     } finally {
       state.luluThemeAccessLoading = !accessResolved;
       if (state.view === 'home' || state.view === 'about') renderShell();
@@ -49158,8 +49384,13 @@ self.onmessage = async function(event) {
   }
 
   async function cloudRequest(path, options) {
-    try { return await authenticatedCloudRequest(path, options); }
+    try {
+      const response = await authenticatedCloudRequest(path, options);
+      recordNetworkPermissionResult(path, response, null);
+      return response;
+    }
     catch (error) {
+      recordNetworkPermissionResult(path, null, error);
       if (!/^\/diagnostics(?:\/|$)/.test(path)) reportDiagnosticRequest(error, path, 'cloud', options && options.method || 'GET');
       throw error;
     }
@@ -49351,6 +49582,7 @@ self.onmessage = async function(event) {
     const quiet = Boolean(options && options.quiet);
     const requestedTone = String(options && options.tone || '').trim();
     const tone = requestedTone || (quiet ? 'quiet' : (/失败|错误|异常|不可用|无法|不能为空|请先|缺少|拦截|未找到|没有可/.test(message) ? 'error' : 'success'));
+    if (!quiet && tone === 'error' && /network|failed to fetch|timeout|网络|云端连接|外部连接|加载失败/i.test(message)) offerNetworkDiagnostics('当前操作因通信异常未能完成');
     const duration = message.length > 12 ? 12000 : 7000;
     const item = { message, quiet, tone, duration };
     const panel = ensurePanel();
@@ -49648,6 +49880,7 @@ self.onmessage = async function(event) {
       accessResolved = true;
     } catch (error) {
       addLog('warn', '魔法上传权限检查失败', formatErrorMessage(error));
+      if (!accessResolved && ['home', 'magicUpload'].includes(state.view)) offerNetworkDiagnostics('魔法上传权限获取失败，功能暂不可用', error);
     } finally {
       state.magicUploadAccessLoading = !accessResolved;
       if (state.view === 'home' || state.view === 'magicUpload') renderShell();
