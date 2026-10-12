@@ -65,7 +65,7 @@ function context(outcomes = {}, defer = false) {
   const incremental = context({}, true);
   const pending = incremental.sandbox.requestNetworkDiagnostics(true);
   assert.equal(incremental.sandbox.diagnostics.results.filter((row) => row.kind === 'waiting').length, 9);
-  assert.match(incremental.html(), /animateTransform/);
+  assert.match(incremental.html(), /class="pfh-api-spinner"/);
   assert.match(incremental.html(), /role="dialog"/, 'Shortcut handling must recognize the results dialog');
   assert.match(incremental.html(), /value="0"/);
   assert.equal(pending, incremental.sandbox.requestNetworkDiagnostics(true), 'Repeated Start shares the running check');
@@ -98,7 +98,7 @@ function context(outcomes = {}, defer = false) {
     assert.equal(test.sandbox.networkDiagnosticsConclusion().kind, expected, JSON.stringify(outcomes));
     assert.doesNotMatch(test.sandbox.networkDiagnosticsReport(), /private-user|Authorization|Bearer/);
     assert.match(test.html(), /9 \/ 9/);
-    assert.doesNotMatch(test.html(), /animateTransform/, 'Spinner must stop once checking finishes');
+    assert.doesNotMatch(test.html(), /class="pfh-api-spinner"/, 'Spinner must stop once checking finishes');
   }
 
   const runtime = context();
@@ -107,7 +107,10 @@ function context(outcomes = {}, defer = false) {
   assert.equal(runtime.sandbox.networkDiagnosticsConclusion().kind, 'script');
   runtime.sandbox.getLazyExternalRuntime = () => ({ Workbook: function () {} });
   assert.equal(runtime.sandbox.networkDiagnosticsConclusion().kind, 'recovered', 'A late-loaded component must not still be blamed on the script');
-  runtime.sandbox.window.matchMedia = () => ({ matches: true });
+  const spinnerCss = fs.readFileSync(path.join(__dirname, '../cloudflare/plm-cloud-backup/ui-src/legacy.css'), 'utf8');
+  assert.match(spinnerCss, /\.pfh-api-spinner\{[^}]*animation:pfh-api-status-spin \.8s linear infinite/,
+    'Waiting indicators must reuse the existing continuous CSS rotation');
+  assert.match(spinnerCss, /@keyframes pfh-api-status-spin\{to\{transform:rotate\(360deg\)\}\}/);
   assert.doesNotMatch(runtime.sandbox.networkDiagnosticIcon('waiting'), /animateTransform/);
 
   const unsupported = context();
@@ -130,7 +133,7 @@ function context(outcomes = {}, defer = false) {
   frames[0]();
   await new Promise((resolve) => setImmediate(resolve));
   assert.match(demo.html(), /1 \/ 9/);
-  assert.match(demo.html(), /animateTransform/);
+  assert.match(demo.html(), /class="pfh-api-spinner"/);
   frames.slice(1).forEach((frame) => frame());
   await animation;
   assert.equal(demo.sandbox.networkDiagnosticsConclusion().kind, 'network');

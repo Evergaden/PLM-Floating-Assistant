@@ -135,9 +135,8 @@
   }
 
   function networkDiagnosticIcon(kind) {
-    const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (kind === 'waiting') return '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="35 22">'
-      + (reduced ? '' : '<animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>') + '</circle></svg>';
+    // Reuse the API status spinner's CSS animation; do not rely on inline SVG SMIL.
+    if (kind === 'waiting') return '<span class="pfh-api-spinner" aria-hidden="true"></span>';
     return kind === 'ok'
       ? '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e7f6ec"/><path d="m7 12 3 3 7-7" fill="none" stroke="#198447" stroke-width="2.5"/></svg>'
       : '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#feecec"/><path d="m8 8 8 8m0-8-8 8" stroke="#cf3c3c" stroke-width="2.5"/></svg>';
