@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.305",
+  "version": "2.5.306",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -48,6 +48,10 @@
     },
     {
       "path": "modules/settings-layout.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/network-diagnostics.css",
       "mode": "module"
     },
     {

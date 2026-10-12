@@ -136,7 +136,7 @@
 
   function networkDiagnosticIcon(kind) {
     const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (kind === 'waiting') return '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#7c55cb" stroke-width="2.5" stroke-dasharray="35 22">'
+    if (kind === 'waiting') return '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="35 22">'
       + (reduced ? '' : '<animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>') + '</circle></svg>';
     return kind === 'ok'
       ? '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#e7f6ec"/><path d="m7 12 3 3 7-7" fill="none" stroke="#198447" stroke-width="2.5"/></svg>'
@@ -151,28 +151,36 @@
     if (!full) return;
     if (!layer) {
       layer = document.createElement('div');
-      layer.className = 'pfh-notification-layer';
+      layer.className = 'pfh-network-layer';
       layer.setAttribute('data-network-diagnostics-layer', '1');
       full.appendChild(layer);
     }
-    // Native dialog/progress and SVG animation remain usable without hosted CSS.
-    const header = (title) => '<header><h3>' + escapeHtml(title) + '</h3><button type="button" class="pfh-notification-close" data-action="network-diagnostics-close" aria-label="关闭">×</button></header>';
+    const header = (title) => '<header class="pfh-network-header"><div><small>连接诊断' + (networkDiagnostics.simulation ? ' · 动画演示' : '') + '</small><h3>' + escapeHtml(title) + '</h3></div><button type="button" class="pfh-network-close" data-action="network-diagnostics-close" aria-label="关闭">×</button></header>';
     if (networkDiagnostics.offerOpen && !networkDiagnostics.open) {
-      layer.innerHTML = '<dialog open class="pfh-notification-dialog" role="dialog" aria-label="网络波动提示">' + header('网络波动，当前功能暂未完成')
-        + '<div class="pfh-notification-list"><p>' + escapeHtml(networkDiagnostics.reason) + '</p><p>是否检测通信情况？检测会显示哪些网站连不上，并给出排查方向。</p></div>'
-        + '<footer><button type="button" data-action="network-diagnostics-close">暂不检测</button><button type="button" data-action="network-diagnostics-retry">开始检测</button></footer></dialog>';
+      layer.innerHTML = '<dialog open class="pfh-network-dialog pfh-network-offer" role="dialog" aria-label="网络波动提示">' + header('连接遇到了一点波动')
+        + '<div class="pfh-network-body"><div class="pfh-network-reason"><span aria-hidden="true">!</span><p>' + escapeHtml(networkDiagnostics.reason.replace(/^动画演示：/, '')) + '</p></div>'
+        + '<p class="pfh-network-description">检测一下，看看是网络连接还是服务出了问题。</p>'
+        + (networkDiagnostics.simulation ? '<p class="pfh-network-demo-note">这是动画演示，不代表当前网络状态。</p>' : '') + '</div>'
+        + '<footer class="pfh-network-footer"><small>约 8 秒 · 不修改设置</small><div><button type="button" class="pfh-network-secondary" data-action="network-diagnostics-close">暂不检测</button><button type="button" class="pfh-network-primary" data-action="network-diagnostics-retry">开始检测</button></div></footer></dialog>';
       return;
     }
     const conclusion = networkDiagnosticsConclusion();
     const rows = networkDiagnosticsRows();
     const finished = rows.filter((row) => row.kind !== 'waiting').length;
-    layer.innerHTML = '<dialog open class="pfh-notification-dialog" role="dialog" aria-label="通信检测结果">' + header((networkDiagnostics.simulation ? '演示 · ' : '') + conclusion.title)
-      + '<div class="pfh-notification-list" aria-busy="' + networkDiagnostics.checking + '">' + (networkDiagnostics.simulation ? '<p class="pfh-notification-status">动画演示：所有结果为模拟，不代表当前网络。</p>' : '') + '<p>' + escapeHtml(conclusion.message) + '</p>'
-      + '<p><progress max="' + Math.max(1, rows.length) + '" value="' + finished + '" aria-label="通信检测进度"></progress> ' + finished + ' / ' + rows.length + '</p>'
-      + rows.map((row) => '<article class="pfh-notification-item"><div class="pfh-notification-item-head">' + networkDiagnosticIcon(row.kind) + '<strong>' + escapeHtml(row.label) + '</strong><span>' + escapeHtml(row.detail) + '</span></div></article>').join('')
-      + '<p class="pfh-notification-status">' + escapeHtml(networkDiagnostics.checking ? '检测中…' : '检测时间：' + new Date(networkDiagnostics.checkedAt).toLocaleTimeString()) + '</p></div>'
-      + '<footer><button type="button" data-action="network-diagnostics-retry"' + (networkDiagnostics.checking ? ' disabled' : '') + '>重新检测</button>'
-      + '<button type="button" data-action="network-diagnostics-copy"' + (networkDiagnostics.checking ? ' disabled' : '') + '>复制检测结果</button></footer></dialog>';
+    const titles = { checking: '正在检查通信', recovered: '通信正常', network: '优先排查代理网络', script: '脚本运行需要排查', auth: '账号授权异常', server: '服务响应异常', offline: '当前已断网', browser: '检测被浏览器拦截', unknown: '部分结果仍待确认' };
+    const summary = conclusion.kind === 'recovered' ? '连接已就绪，可以重试刚才的操作。' : networkDiagnostics.checking ? '正在逐项检查，请稍等片刻。' : '已找到异常项，展开下方建议查看处理方式。';
+    const group = (label, items) => '<section class="pfh-network-group"><h4>' + label + '</h4>' + items.map((row) => {
+      const status = row.kind === 'ok' ? (row.permission ? row.detail.includes('未开通') ? '未开通' : '已开通' : '正常') : row.kind === 'waiting' ? '检查中' : row.kind === 'unreachable' ? '无法连接' : row.kind === 'pending-timeout' ? '待确认' : row.detail;
+      return '<div class="pfh-network-row" data-status="' + escapeHtml(row.kind) + '"><span class="pfh-network-row-icon">' + networkDiagnosticIcon(row.kind) + '</span><strong>' + escapeHtml(row.label) + '</strong><span class="pfh-network-status">' + escapeHtml(status) + '</span></div>';
+    }).join('') + '</section>';
+    layer.innerHTML = '<dialog open class="pfh-network-dialog" role="dialog" aria-label="通信检测结果" data-outcome="' + conclusion.kind + '">' + header(networkDiagnostics.simulation ? '演示 · 通信检测' : '通信检测')
+      + '<div class="pfh-network-body" aria-busy="' + networkDiagnostics.checking + '"><div class="pfh-network-summary"><span>' + networkDiagnosticIcon(networkDiagnostics.checking ? 'waiting' : conclusion.kind === 'recovered' ? 'ok' : 'error') + '</span><div><strong>' + escapeHtml(titles[conclusion.kind] || conclusion.title) + '</strong><p>' + summary + '</p></div></div>'
+      + (networkDiagnostics.simulation ? '<p class="pfh-network-demo-note">所有结果为模拟，不代表当前网络。</p>' : '')
+      + '<div class="pfh-network-progress"><progress max="' + Math.max(1, rows.length) + '" value="' + finished + '" aria-label="通信检测进度"></progress><span>' + finished + ' / ' + rows.length + '</span></div>'
+      + group('外部连接', rows.filter((row) => !row.permission)) + group('账号与功能', rows.filter((row) => row.permission))
+      + (!networkDiagnostics.checking ? '<details class="pfh-network-advice"><summary>判断依据与处理建议</summary><p>' + escapeHtml(conclusion.message) + '</p></details>' : '') + '</div>'
+      + '<footer class="pfh-network-footer"><small>' + escapeHtml(networkDiagnostics.checking ? '检测中…' : new Date(networkDiagnostics.checkedAt).toLocaleTimeString() + ' 检测') + '</small><div><button type="button" class="pfh-network-secondary" data-action="network-diagnostics-retry"' + (networkDiagnostics.checking ? ' disabled' : '') + '>重新检测</button>'
+      + '<button type="button" class="pfh-network-primary" data-action="network-diagnostics-copy"' + (networkDiagnostics.checking ? ' disabled' : '') + '>复制结果</button></div></footer></dialog>';
   }
 
   function openNetworkDiagnosticsDemo() {
