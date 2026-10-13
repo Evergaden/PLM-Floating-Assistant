@@ -1,13 +1,13 @@
-/* Flat detail content; version history keeps its separate dialog styles. */
+/* One outer card; images and copy remain flat, side by side. */
 #plm-floating-helper[data-pfh-theme] .pfh-infringement-section{
   display:block;
   min-width:0;
-  margin-top:12px;
-  padding:0;
-  border:0;
-  border-radius:0;
-  background:transparent;
-  box-shadow:none;
+  margin:18px 0 0;
+  padding:16px;
+  border:1px solid var(--pfh-theme-border);
+  border-radius:16px;
+  background:var(--pfh-theme-surface);
+  box-shadow:0 3px 12px var(--pfh-theme-shadow-soft);
 }
 #plm-floating-helper[data-pfh-theme] .pfh-infringement-section>.pfh-infringement-title{
   display:flex;
@@ -26,7 +26,7 @@
 #plm-floating-helper[data-pfh-theme] .pfh-infringement-history-button:hover{border-color:var(--pfh-theme-primary);box-shadow:0 6px 14px var(--pfh-theme-shadow-soft);}
 #plm-floating-helper[data-pfh-theme] .pfh-infringement-history-button em{display:inline-flex;min-width:16px;height:16px;align-items:center;justify-content:center;padding:0 4px;border-radius:999px;background:var(--pfh-theme-surface);color:var(--pfh-theme-primary-hover);font-size:9px;font-style:normal;}
 #plm-floating-helper[data-pfh-theme] .pfh-infringement-history-empty-label{color:var(--pfh-theme-muted);font-size:9px;white-space:nowrap;}
-#plm-floating-helper[data-pfh-theme] .pfh-infringement-content{display:grid;grid-template-columns:var(--pfh-infringement-columns,minmax(0,1.18fr) minmax(0,.82fr));gap:20px;min-width:0;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-content{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(0,.82fr);gap:16px;min-width:0;}
 #plm-floating-helper[data-pfh-theme] .pfh-infringement-images,
 #plm-floating-helper[data-pfh-theme] .pfh-infringement-copy{min-width:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;}
 #plm-floating-helper[data-pfh-theme] .pfh-infringement-subhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;color:var(--pfh-theme-text);}
@@ -50,7 +50,3 @@
 #plm-floating-helper[data-pfh-theme] .pfh-infringement-copy-head>span{padding:3px 6px;border-radius:999px;background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary-hover);font-size:8px;white-space:nowrap;}
 #plm-floating-helper[data-pfh-theme] .pfh-infringement-copy pre{flex:1 1 auto;min-height:130px;max-height:290px;margin:0;overflow:auto;color:var(--pfh-theme-text);background:transparent;font:400 11px/1.65 Arial,"Microsoft YaHei",sans-serif;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;}
 #plm-floating-helper[data-pfh-theme] .pfh-infringement-empty{display:flex;min-height:100px;align-items:center;justify-content:center;color:var(--pfh-theme-muted);font-size:10px;line-height:1.5;text-align:center;}
-#plm-floating-helper.is-narrow-panel .pfh-infringement-section{--pfh-infringement-columns:minmax(0,1fr);}
-@media(max-width:680px){
-  #plm-floating-helper[data-pfh-theme] .pfh-infringement-section{--pfh-infringement-columns:minmax(0,1fr);}
-}

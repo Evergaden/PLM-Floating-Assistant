@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.64
+// @version      2.9.65
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.64';
+  const SCRIPT_VERSION = '2.9.65';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -210,7 +210,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.307';
+  const UI_ASSET_VERSION = '2.5.308';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -26794,7 +26794,7 @@
     const copywritingHtml = copywriting
       ? '<pre>' + escapeHtml(copywriting) + '</pre>'
       : '<div class="pfh-infringement-empty">当前版本未返回产品文案修改</div>';
-    return '<section class="pfh-section pfh-infringement-section"><div class="pfh-section-title pfh-infringement-title"><div class="pfh-infringement-title-copy"><h3>侵权图</h3></div><div class="pfh-infringement-title-actions">' + historyButton + '</div></div><div class="pfh-infringement-content"><div class="pfh-infringement-images"><div class="pfh-infringement-subhead"><strong>效果图制作参考</strong><span>' + imageUrls.length + ' 张</span></div>' + imageHtml + '</div><div class="pfh-infringement-copy"><div class="pfh-infringement-copy-head"><div><strong>产品文案修改</strong><small>保留 PLM 原始换行</small></div><span>当前版本</span></div>' + copywritingHtml + '</div></div></section>';
+    return '<section class="pfh-infringement-section"><div class="pfh-section-title pfh-infringement-title"><div class="pfh-infringement-title-copy"><h3>侵权图</h3></div><div class="pfh-infringement-title-actions">' + historyButton + '</div></div><div class="pfh-infringement-content"><div class="pfh-infringement-images"><div class="pfh-infringement-subhead"><strong>效果图制作参考</strong><span>' + imageUrls.length + ' 张</span></div>' + imageHtml + '</div><div class="pfh-infringement-copy"><div class="pfh-infringement-copy-head"><div><strong>产品文案修改</strong><small>保留 PLM 原始换行</small></div><span>当前版本</span></div>' + copywritingHtml + '</div></div></section>';
   }
 
   function closeInfringementImageViewer() {
