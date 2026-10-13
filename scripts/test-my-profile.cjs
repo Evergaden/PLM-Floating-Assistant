@@ -2,7 +2,9 @@ const fs = require('fs');
 const vm = require('vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync(require('path').join(__dirname, '../outputs/plm-material-summary.user.js'), 'utf8');
-const profile = source.slice(source.indexOf('  const myProfile ='), source.indexOf('  const DETAIL_VIEW_TABS'));
+const declarations = source.match(/  const myProfile =[^\n]+\n  const PROFILE_USAGE_KEY =[^\n]+/)[0];
+const profileFunctions = source.slice(source.indexOf('  function profileUsageRecord('), source.indexOf('  const DETAIL_VIEW_TABS'));
+const profile = declarations + '\n' + profileFunctions;
 const tasks = source.slice(source.indexOf('  function profileTaskProgress('), source.indexOf('  function getHomeFeatureGroups('));
 const storage = {};
 let writes = 0, cleared = 0, focused = 0, removed = 0;
@@ -22,6 +24,20 @@ const sandbox = {
 vm.createContext(sandbox);
 vm.runInContext(profile + tasks + '\nglobalThis.profileState = myProfile;', sandbox);
 (async () => {
+  // Replay the actual declaration order around the first shell render.
+  // The previous release threw a TDZ ReferenceError here despite passing syntax checks.
+  const startupPosition = source.indexOf('  renderShell(L.noDrawer);');
+  const declarationPosition = source.indexOf('  const myProfile =');
+  const bootstrap = 'renderMyProfile({ querySelector: () => null });';
+  const startupSandbox = { ...sandbox, findCurrentPlmUserName: () => '启动用户', getCloudBackupKey: () => '',
+    readProductDevelopmentStorage: (key, fallback) => fallback, writeProductDevelopmentStorage: () => {} };
+  vm.createContext(startupSandbox);
+  vm.runInContext(profileFunctions + '\n' + (declarationPosition < startupPosition
+    ? declarations + '\n' + bootstrap : bootstrap + '\n' + declarations), startupSandbox);
+  const lateDeclarations = { ...startupSandbox };
+  vm.createContext(lateDeclarations);
+  assert.throws(() => vm.runInContext(profileFunctions + '\n' + bootstrap + '\n' + declarations, lateDeclarations),
+    /before initialization/, 'The regression fixture must reproduce the previous startup failure');
   assert.equal(sandbox.profileUsageRecord(''), null);
   assert.equal(writes, 0, 'Do not attribute anonymous use to a later logged-in user');
   const first = sandbox.profileUsageRecord('用户甲');

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.68
+// @version      2.9.69
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.68';
+  const SCRIPT_VERSION = '2.9.69';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -16395,6 +16395,10 @@
     { id: 'settings', label: '打开快捷键设置', key: 'S', global: true },
   ]);
 
+  // Shell rendering starts below; personal state must exist before the first render.
+  const myProfile = { open: false, closing: false, timer: 0, focus: null, layer: null, backupKey: '', backupOrigin: null, backupLoading: false };
+  const PROFILE_USAGE_KEY = 'plmFloatingHelper.profileUsage.v1';
+
   const state = {
     drawer: null,
     sku: '',
@@ -21900,8 +21904,6 @@
     button.setAttribute('data-tooltip', hasUpdate ? '有新版本' : TOOLTIP.about);
   }
 
-  const myProfile = { open: false, closing: false, timer: 0, focus: null, layer: null, backupKey: '', backupOrigin: null, backupLoading: false };
-  const PROFILE_USAGE_KEY = 'plmFloatingHelper.profileUsage.v1';
 
   function profileUsageRecord(name) {
     if (!name) return null;
