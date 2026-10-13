@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.306",
+  "version": "2.5.307",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 284456,
-      "maxImportant": 2068,
+      "maxBytes": 275907,
+      "maxImportant": 1885,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast",
@@ -165,12 +165,16 @@
     {
       "path": "modules/toast.css",
       "mode": "module"
+    },
+    {
+      "path": "modules/infringement-layout.css",
+      "mode": "module"
     }
   ],
   "budgets": {
-    "important": 2068,
+    "important": 1885,
     "supersededImportantDeclarations": 0,
-    "duplicateSelectors": 465,
-    "conflictingSelectors": 432
+    "duplicateSelectors": 463,
+    "conflictingSelectors": 430
   }
 }

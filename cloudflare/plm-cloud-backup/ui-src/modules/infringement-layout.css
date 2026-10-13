@@ -1,0 +1,56 @@
+/* Flat detail content; version history keeps its separate dialog styles. */
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-section{
+  display:block;
+  min-width:0;
+  margin-top:12px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-section>.pfh-infringement-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  min-height:38px;
+  margin:0 0 11px;
+  padding:0 1px 9px;
+  border-bottom:1px solid var(--pfh-theme-border);
+}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-title-copy{display:flex;min-width:0;flex-direction:column;gap:3px;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-title-copy h3{margin:0;color:var(--pfh-theme-text);font-size:15px;line-height:1.2;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-title-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0;flex-wrap:wrap;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-history-button{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:28px;padding:0 9px;border:1px solid var(--pfh-theme-border-strong);border-radius:9px;background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary-hover);font:inherit;font-size:10px;line-height:1;white-space:nowrap;cursor:pointer;transition:box-shadow .18s ease,border-color .18s ease;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-history-button:hover{border-color:var(--pfh-theme-primary);box-shadow:0 6px 14px var(--pfh-theme-shadow-soft);}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-history-button em{display:inline-flex;min-width:16px;height:16px;align-items:center;justify-content:center;padding:0 4px;border-radius:999px;background:var(--pfh-theme-surface);color:var(--pfh-theme-primary-hover);font-size:9px;font-style:normal;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-history-empty-label{color:var(--pfh-theme-muted);font-size:9px;white-space:nowrap;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-content{display:grid;grid-template-columns:var(--pfh-infringement-columns,minmax(0,1.18fr) minmax(0,.82fr));gap:20px;min-width:0;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-images,
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-copy{min-width:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-subhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;color:var(--pfh-theme-text);}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-subhead strong{font-size:11px;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-subhead span{color:var(--pfh-theme-muted);font-size:9px;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-images{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));align-content:start;gap:8px;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-images>.pfh-infringement-subhead{grid-column:1/-1;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-image-card{display:flex;min-width:0;flex-direction:column;gap:0;padding:0;overflow:hidden;border:0;border-radius:0;background:transparent;color:var(--pfh-theme-text);font:inherit;text-align:left;cursor:zoom-in;appearance:none;box-shadow:none;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-image-card:hover .pfh-infringement-image-caption{color:var(--pfh-theme-primary-hover);}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-image-card:focus-visible{outline:2px solid var(--pfh-theme-primary);outline-offset:3px;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-image-media{display:flex;width:100%;min-height:150px;aspect-ratio:16/9;align-items:center;justify-content:center;overflow:hidden;background:var(--pfh-theme-surface-alt);}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-image-media img{display:block;width:100%;height:100%;object-fit:contain;background:#fff;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-image-caption{display:flex;align-items:center;justify-content:space-between;gap:7px;padding:7px 0;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-image-caption strong{color:var(--pfh-theme-text);font-size:10px;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-image-caption small{color:var(--pfh-theme-muted);font-size:8px;white-space:nowrap;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-copy{display:flex;min-height:0;flex-direction:column;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-copy-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;padding-bottom:7px;border-bottom:1px solid var(--pfh-theme-border);}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-copy-head>div{display:flex;min-width:0;flex-direction:column;gap:3px;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-copy-head strong{color:var(--pfh-theme-text);font-size:11px;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-copy-head small{color:var(--pfh-theme-muted);font-size:9px;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-copy-head>span{padding:3px 6px;border-radius:999px;background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary-hover);font-size:8px;white-space:nowrap;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-copy pre{flex:1 1 auto;min-height:130px;max-height:290px;margin:0;overflow:auto;color:var(--pfh-theme-text);background:transparent;font:400 11px/1.65 Arial,"Microsoft YaHei",sans-serif;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;}
+#plm-floating-helper[data-pfh-theme] .pfh-infringement-empty{display:flex;min-height:100px;align-items:center;justify-content:center;color:var(--pfh-theme-muted);font-size:10px;line-height:1.5;text-align:center;}
+#plm-floating-helper.is-narrow-panel .pfh-infringement-section{--pfh-infringement-columns:minmax(0,1fr);}
+@media(max-width:680px){
+  #plm-floating-helper[data-pfh-theme] .pfh-infringement-section{--pfh-infringement-columns:minmax(0,1fr);}
+}
