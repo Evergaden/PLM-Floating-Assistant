@@ -24,25 +24,21 @@
 #plm-floating-helper .pfh-home-lower { display: block; }
 #plm-floating-helper .pfh-my-layer {
   position: fixed;
-  inset: 0;
   z-index: 2147483645;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(25, 21, 40, .2);
-  backdrop-filter: blur(6px);
+  padding: 0;
+  background: transparent;
 }
 #plm-floating-helper .pfh-my-dialog {
-  width: min(380px, 100%);
-  max-height: calc(100dvh - 40px);
+  width: 100%;
+  max-height: inherit;
   box-sizing: border-box;
   overflow: auto;
   border: 1px solid var(--pfh-theme-border);
-  border-radius: 22px;
+  border-radius: 16px;
   background: var(--pfh-theme-surface);
   color: var(--pfh-theme-text);
-  box-shadow: 0 20px 60px rgba(25, 21, 40, .15);
-  transform-origin: 50% 30%;
+  box-shadow: 0 12px 32px rgba(25, 21, 40, .12);
+  transform-origin: 18px 0;
 }
 #plm-floating-helper .pfh-my-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 0; }
 #plm-floating-helper .pfh-my-header > strong { font-size: 13px; font-weight: 700; }

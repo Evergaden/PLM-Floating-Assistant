@@ -16,7 +16,7 @@ const sandbox = {
   magicUploadStatusLabel: () => '正在上传',
   escapeHtml: (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'),
   iconHtml: () => '',
-  window: { matchMedia: () => ({ matches: false }), clearInterval: () => cleared++ },
+  window: { matchMedia: () => ({ matches: false }), clearInterval: () => cleared++, removeEventListener() {} },
   document: { getElementById: () => ({ querySelector: () => ({ setAttribute: () => {} }) }) },
   PANEL_ID: 'test',
   CLOUD_BACKUP_API_BASE: 'https://assets.test',
@@ -91,6 +91,14 @@ vm.runInContext(profile + tasks + '\nglobalThis.profileState = myProfile;', sand
   assert.equal(removed, 1);
   assert.equal(focused, 1);
   assert.equal(sandbox.profileState.closing, false);
+  sandbox.window.innerWidth = 800;
+  sandbox.window.innerHeight = 600;
+  sandbox.profileState.layer = { style: {} };
+  sandbox.document.getElementById = () => ({ querySelector: () => ({ getBoundingClientRect: () => ({ left: 720, bottom: 60 }) }) });
+  sandbox.positionMyProfile();
+  assert.equal(sandbox.profileState.layer.style.top, '68px', 'Popover anchors below the avatar');
+  assert.equal(sandbox.profileState.layer.style.left, '468px', 'Keep the popover inside the viewport near the right edge');
+  assert.equal(sandbox.profileState.layer.style.width, '320px');
   sandbox.window.matchMedia = () => ({ matches: true });
   assert.equal(sandbox.animateMyProfile(dialog, false), null);
   assert.doesNotMatch(source, /toggle-collection|pfh-collection-mark|homeTaskPanelHtml/);

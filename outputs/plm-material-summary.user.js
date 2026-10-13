@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.69
+// @version      2.9.70
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.69';
+  const SCRIPT_VERSION = '2.9.70';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -210,7 +210,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.311';
+  const UI_ASSET_VERSION = '2.5.312';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -21977,12 +21977,32 @@
     ], { duration: closing ? 220 : 420, easing: 'cubic-bezier(.22,1,.36,1)' });
   }
 
-  function closeMyProfile() {
+  function positionMyProfile() {
+    const avatar = document.getElementById(PANEL_ID)?.querySelector('.pfh-my-avatar');
+    const layer = myProfile.layer;
+    if (!avatar || !layer) return;
+    const rect = avatar.getBoundingClientRect();
+    const width = Math.min(320, window.innerWidth - 24);
+    const top = Math.min(rect.bottom + 8, window.innerHeight - 100);
+    layer.style.width = width + 'px';
+    layer.style.left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)) + 'px';
+    layer.style.top = Math.max(12, top) + 'px';
+    layer.style.maxHeight = Math.max(80, window.innerHeight - top - 12) + 'px';
+  }
+
+  function closeMyProfile(restoreFocus = true) {
     if (!myProfile.open || myProfile.closing) return;
     myProfile.open = false;
     myProfile.closing = true;
     window.clearInterval(myProfile.timer);
     myProfile.timer = 0;
+    if (myProfile.outsideHandler) {
+      document.removeEventListener('pointerdown', myProfile.outsideHandler, true);
+      document.removeEventListener('focusin', myProfile.outsideHandler, true);
+      myProfile.outsideHandler = null;
+    }
+    window.removeEventListener('resize', positionMyProfile);
+    window.removeEventListener('scroll', positionMyProfile, true);
     const layer = myProfile.layer;
     const button = document.getElementById(PANEL_ID)?.querySelector('.pfh-my-avatar');
     if (button) button.setAttribute('aria-expanded', 'false');
@@ -21990,7 +22010,7 @@
       if (layer) layer.remove();
       myProfile.layer = null;
       myProfile.closing = false;
-      if (myProfile.focus && myProfile.focus.isConnected) myProfile.focus.focus();
+      if (restoreFocus && myProfile.focus && myProfile.focus.isConnected) myProfile.focus.focus();
       myProfile.focus = null;
     };
     const animation = layer && animateMyProfile(layer.querySelector('.pfh-my-dialog'), true);
@@ -22017,17 +22037,25 @@
     if (!layer || !layer.isConnected) {
       layer = document.createElement('div');
       layer.className = 'pfh-my-layer';
-      layer.setAttribute('data-action', 'my-profile-close');
-      layer.innerHTML = '<section class="pfh-my-dialog" role="dialog" aria-modal="true" aria-label="我的"><header class="pfh-my-header"><strong>我的</strong><button type="button" data-action="my-profile-close" aria-label="关闭我的">×</button></header><div class="pfh-my-body"></div></section>';
+      layer.innerHTML = '<section class="pfh-my-dialog" role="dialog" aria-label="我的"><header class="pfh-my-header"><strong>我的</strong><button type="button" data-action="my-profile-close" aria-label="关闭我的">×</button></header><div class="pfh-my-body"></div></section>';
       panel.querySelector('.pfh-full').appendChild(layer);
       myProfile.layer = layer;
+      positionMyProfile();
       animateMyProfile(layer.querySelector('.pfh-my-dialog'), false);
       layer.querySelector('button').focus();
+      myProfile.outsideHandler = (event) => {
+        if (!layer.contains(event.target) && !button?.contains(event.target)) closeMyProfile(false);
+      };
+      document.addEventListener('pointerdown', myProfile.outsideHandler, true);
+      document.addEventListener('focusin', myProfile.outsideHandler, true);
+      window.addEventListener('resize', positionMyProfile);
+      window.addEventListener('scroll', positionMyProfile, true);
     }
     const body = layer.querySelector('.pfh-my-body');
     const html = myProfileBodyHtml(name, usage);
     // Keep the dialog and focused task buttons intact while background queues update.
     if (body.innerHTML !== html && !body.contains(document.activeElement)) body.innerHTML = html;
+    positionMyProfile();
   }
 
   function toggleMyProfile() {
@@ -28381,16 +28409,30 @@
     const buttons = nav ? Array.from(nav.querySelectorAll('button')) : [];
     const slides = Array.from(carousel.querySelectorAll('.pfh-home-carousel-slide'));
     const count = slides.length;
+    let slideAnimation = null;
+    let indicatorAnimation = null;
     let pointer = null;
     let pauseUntil = 0;
+    const move = (element, property, value, previous, animate) => {
+      const from = getComputedStyle(element)[property];
+      if (previous) previous.cancel();
+      element.style.transition = 'none';
+      element.style[property] = value;
+      if (!animate) return null;
+      // Explicit spring motion for this switch, independent of inherited transitions.
+      if (typeof element.animate === 'function') return element.animate([{ [property]: from }, { [property]: value }], { duration: 600, easing: 'cubic-bezier(.25,1.2,.35,1)' });
+      element.style[property] = from;
+      element.getBoundingClientRect();
+      element.style.transition = property + ' .6s cubic-bezier(.25,1.2,.35,1)';
+      element.style[property] = value;
+      return null;
+    };
     const show = (index, animate = true) => {
       state.homeCarouselIndex = Math.max(0, Math.min(count - 1, Number(index) || 0));
-      track.style.transition = animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? '' : 'none';
-      track.style.transform = 'translate3d(-' + (state.homeCarouselIndex * 100) + '%,0,0)';
+      slideAnimation = move(track, 'transform', 'translate3d(-' + (state.homeCarouselIndex * 100) + '%,0,0)', slideAnimation, animate);
       if (indicator && buttons[state.homeCarouselIndex]) {
         const button = buttons[state.homeCarouselIndex];
-        indicator.style.transition = animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? '' : 'none';
-        indicator.style.left = (button.offsetLeft + (button.offsetWidth - 16) / 2) + 'px';
+        indicatorAnimation = move(indicator, 'left', (button.offsetLeft + (button.offsetWidth - 16) / 2) + 'px', indicatorAnimation, animate);
         buttons.forEach((item, index) => item.setAttribute('aria-pressed', String(index === state.homeCarouselIndex)));
       }
       slides.forEach((slide, slideIndex) => {
@@ -28413,6 +28455,7 @@
     viewport.addEventListener('pointerdown', (event) => {
       if (event.target.closest('.pfh-pixel-room-canvas')) { pauseUntil = Date.now() + 60000; return; }
       if (!event.isPrimary || event.button !== 0 || event.target.closest('button,input,textarea,select,a,[contenteditable="true"]')) return;
+      if (slideAnimation) { slideAnimation.cancel(); slideAnimation = null; }
       pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, startIndex: state.homeCarouselIndex };
       track.style.transition = 'none';
       pauseUntil = Date.now() + 12000;
@@ -35391,11 +35434,10 @@ self.onmessage = async function(event) {
     const action = actionTarget && actionTarget.getAttribute('data-action');
     if (action === 'my-profile-toggle') { toggleMyProfile(); return; }
     if (action === 'my-profile-close') {
-      if (actionTarget === myProfile.layer && event.target !== actionTarget) return;
       closeMyProfile();
       return;
     }
-    if (myProfile.open && action && (action === 'collapse' || actionTarget.closest('.pfh-my-dialog'))) closeMyProfile();
+    if (myProfile.open && action && (action === 'collapse' || actionTarget.closest('.pfh-my-dialog'))) closeMyProfile(false);
     if (action === 'network-diagnostics-retry') { requestNetworkDiagnostics(true, networkDiagnostics.simulation); return; }
     if (action === 'network-diagnostics-copy') { copyText(networkDiagnosticsReport()); showToast('已复制检测结果，请发给 IT 或脚本维护人员。'); return; }
     if (action === 'network-diagnostics-close') {
@@ -36917,12 +36959,6 @@ self.onmessage = async function(event) {
       event.stopPropagation();
       closeMyProfile();
       return;
-    }
-    if (myProfile.open && event.key === 'Tab') {
-      const buttons = Array.from(myProfile.layer.querySelectorAll('button:not(:disabled)'));
-      const first = buttons[0], last = buttons[buttons.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     }
     if (event.key === 'Escape' && (networkDiagnostics.open || networkDiagnostics.offerOpen)) {
       event.preventDefault();
