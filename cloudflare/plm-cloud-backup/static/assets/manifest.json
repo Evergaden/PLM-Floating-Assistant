@@ -24,9 +24,9 @@
       "sha256": "37d251b096d2ae7c0a8e9173db147664f4f25834bd70518a9e52c33d39640bb4"
     },
     "uiStyles": {
-      "path": "v15/ui-2.5.309.css",
-      "bytes": 792531,
-      "sha256": "f643bf88f2a596e78f6f9d930415a2e97214c111387c3ed053f41e59a4f9c8a9"
+      "path": "v15/ui-2.5.310.css",
+      "bytes": 789984,
+      "sha256": "0536d7fbc905baac2a1a649c856c2d90ad9f2bc9355c3719974e9bc6628809a8"
     },
     "uiStyleVersions": {
       "2.5.108": {
@@ -753,6 +753,11 @@
         "path": "v15/ui-2.5.309.css",
         "bytes": 792531,
         "sha256": "f643bf88f2a596e78f6f9d930415a2e97214c111387c3ed053f41e59a4f9c8a9"
+      },
+      "2.5.310": {
+        "path": "v15/ui-2.5.310.css",
+        "bytes": 789984,
+        "sha256": "0536d7fbc905baac2a1a649c856c2d90ad9f2bc9355c3719974e9bc6628809a8"
       }
     }
   }

@@ -1,0 +1,71 @@
+/* Personal entry replaces the collection switch; one quiet profile surface. */
+#plm-floating-helper[data-pfh-theme] .pfh-my-avatar {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 50%;
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary);
+  cursor: pointer;
+  font: 400 15px/1 Arial, "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+  overflow: hidden;
+  box-shadow: none;
+}
+#plm-floating-helper .pfh-my-avatar img,
+#plm-floating-helper .pfh-my-portrait img { width: 100%; height: 100%; object-fit: cover; }
+#plm-floating-helper .pfh-my-avatar:focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 3px; }
+#plm-floating-helper .pfh-home-lower { display: block; }
+#plm-floating-helper .pfh-my-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(25, 21, 40, .2);
+  backdrop-filter: blur(6px);
+}
+#plm-floating-helper .pfh-my-dialog {
+  width: min(380px, 100%);
+  max-height: calc(100dvh - 40px);
+  box-sizing: border-box;
+  overflow: auto;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 22px;
+  background: var(--pfh-theme-surface);
+  color: var(--pfh-theme-text);
+  box-shadow: 0 20px 60px rgba(25, 21, 40, .15);
+  transform-origin: 50% 30%;
+}
+#plm-floating-helper .pfh-my-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 0; }
+#plm-floating-helper .pfh-my-header > strong { font-size: 13px; font-weight: 700; }
+#plm-floating-helper .pfh-my-header button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--pfh-theme-muted); font-size: 22px; box-shadow: none; }
+#plm-floating-helper .pfh-my-body { padding: 20px; }
+#plm-floating-helper .pfh-my-identity { display: flex; gap: 14px; align-items: center; }
+#plm-floating-helper .pfh-my-portrait { display: grid; place-items: center; flex: 0 0 56px; width: 56px; height: 56px; border-radius: 50%; background: var(--pfh-theme-primary-soft); color: var(--pfh-theme-primary); font-size: 22px; overflow: hidden; }
+#plm-floating-helper .pfh-my-identity h3 { margin: 0; font-size: 19px; line-height: 1.4; font-weight: 700; overflow-wrap: anywhere; }
+#plm-floating-helper .pfh-my-identity p { margin: 4px 0 0; color: var(--pfh-theme-muted); font-size: 11px; }
+#plm-floating-helper .pfh-my-usage { display: grid; gap: 4px; margin: 18px 0 22px; color: var(--pfh-theme-muted); font-size: 11px; }
+#plm-floating-helper .pfh-my-usage small { font-size: 10px; }
+#plm-floating-helper .pfh-my-tasks > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+#plm-floating-helper .pfh-my-tasks > header strong { font-size: 13px; font-weight: 700; }
+#plm-floating-helper .pfh-my-tasks > header span { font-size: 10px; color: var(--pfh-theme-muted); }
+#plm-floating-helper .pfh-my-task { display: grid; grid-template-columns: 20px minmax(0, 1fr) 36px; align-items: center; gap: 10px; width: 100%; padding: 12px 0; border: 0; border-bottom: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; color: var(--pfh-theme-text); text-align: left; cursor: pointer; box-shadow: none; }
+#plm-floating-helper .pfh-my-task:last-child { border-bottom: 0; }
+#plm-floating-helper .pfh-my-task strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 400; }
+#plm-floating-helper .pfh-my-task small { display: block; margin: 3px 0 6px; color: var(--pfh-theme-muted); font-size: 10px; overflow-wrap: anywhere; }
+#plm-floating-helper .pfh-my-task em { font-size: 10px; font-style: normal; color: var(--pfh-theme-primary); }
+#plm-floating-helper .pfh-my-task > span { color: var(--pfh-theme-primary); }
+#plm-floating-helper .pfh-my-task[data-tone="error"] em { color: #c84747; }
+#plm-floating-helper .pfh-my-task progress { display: block; width: 100%; height: 4px; border: 0; border-radius: 4px; overflow: hidden; appearance: none; background: var(--pfh-theme-border); accent-color: var(--pfh-theme-primary); }
+#plm-floating-helper .pfh-my-task progress::-webkit-progress-bar { background: var(--pfh-theme-border); }
+#plm-floating-helper .pfh-my-task progress::-webkit-progress-value { background: var(--pfh-theme-primary); }
+#plm-floating-helper .pfh-my-task progress::-moz-progress-bar { background: var(--pfh-theme-primary); }
+#plm-floating-helper .pfh-my-empty { margin: 0; padding: 22px 0 10px; color: var(--pfh-theme-muted); font-size: 12px; text-align: center; }

@@ -573,8 +573,6 @@
   stroke:currentColor;
 }
       #plm-floating-helper .pfh-home-entry-secondary .pfh-home-entry-icon .pfh-icon{width:14px;height:14px;}
-      #plm-floating-helper .pfh-home-task-icon .pfh-icon{width:15px;height:15px;}
-      #plm-floating-helper .pfh-home-task-empty>span .pfh-icon{width:21px;height:21px;}
       #plm-floating-helper[data-pfh-theme] .pfh-header .pfh-actions .pfh-icon,
 #plm-floating-helper[data-pfh-theme] .pfh-header .pfh-actions .pfh-icon svg,
 #plm-floating-helper[data-pfh-theme] .pfh-header .pfh-actions .pfh-icon svg *{

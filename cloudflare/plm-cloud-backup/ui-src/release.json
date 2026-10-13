@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.309",
+  "version": "2.5.310",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 275907,
-      "maxImportant": 1885,
+      "maxBytes": 269115,
+      "maxImportant": 1826,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast",
@@ -25,7 +25,9 @@
         ".pfh-copywriting-",
         "data-pfh-page-toy-copywriting",
         "[data-pfh-theme] :where(button)",
-        "[data-pfh-theme] :where(button:hover:not(:disabled)"
+        "[data-pfh-theme] :where(button:hover:not(:disabled)",
+        ".pfh-collection-mark",
+        ".pfh-home-task"
       ],
       "forbidProperties": [
         "font-weight"
@@ -169,12 +171,16 @@
     {
       "path": "modules/infringement-layout.css",
       "mode": "module"
+    },
+    {
+      "path": "modules/my-profile.css",
+      "mode": "module"
     }
   ],
   "budgets": {
-    "important": 1885,
+    "important": 1826,
     "supersededImportantDeclarations": 0,
-    "duplicateSelectors": 463,
-    "conflictingSelectors": 430
+    "duplicateSelectors": 458,
+    "conflictingSelectors": 425
   }
 }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.66
+// @version      2.9.67
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.66';
+  const SCRIPT_VERSION = '2.9.67';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -210,7 +210,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.309';
+  const UI_ASSET_VERSION = '2.5.310';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -21725,7 +21725,7 @@
     const full = panel.querySelector('.pfh-full');
     const taskSidebar = panel.querySelector('.pfh-product-development-task-sidebar');
     if (full && taskSidebar) full.after(taskSidebar);
-    panel.querySelector('.pfh-heading').insertAdjacentHTML('afterbegin', '<button type="button" class="pfh-collection-mark" data-action="toggle-collection" role="switch" aria-label="\u6570\u636e\u91c7\u96c6">P</button>');
+    panel.querySelector('.pfh-heading').insertAdjacentHTML('afterbegin', '<button type="button" class="pfh-my-avatar" data-action="my-profile-toggle" aria-label="我的" aria-haspopup="dialog" aria-expanded="false"><span aria-hidden="true">我</span></button>');
     panel.dataset.edition = PRODUCT_EDITION.id;
     panel.querySelector('.pfh-heading strong').insertAdjacentHTML('afterend', '<span class="pfh-edition-badge pfh-edition-' + escapeHtml(PRODUCT_EDITION.id) + '"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3.2 10.8 10.7 3.3a1.55 1.55 0 0 1 2.2 0l.1.1a1.55 1.55 0 0 1 0 2.2l-7.5 7.5"></path><path d="m9.7 4.3 2 2"></path><path d="m2.4 13.7 3.4-.8-2.6-2.6-.8 3.4Z"></path></svg><b>' + escapeHtml(PRODUCT_EDITION.label) + '</b><small>' + escapeHtml(PRODUCT_EDITION.code) + '</small></span>');
     panel.querySelector('strong').textContent = L.title;
@@ -21838,6 +21838,7 @@
 
   function collapsePanel(force) {
     if (!force && window.getSelection && String(window.getSelection()).trim()) return;
+    closeMyProfile();
     if (!force && state.drawer && state.sku) state.manuallyCollapsedForSku = state.sku;
     state.userCollapsedPanel = true;
     state.expanded = false;
@@ -21899,13 +21900,102 @@
     button.setAttribute('data-tooltip', hasUpdate ? '有新版本' : TOOLTIP.about);
   }
 
-  function updateCollectionSwitch(panel) {
-    const button = panel && panel.querySelector('.pfh-collection-mark');
-    if (!button) return;
-    const enabled = Boolean(state.settings.collectionEnabled);
-    button.classList.toggle('is-on', enabled);
-    button.setAttribute('aria-checked', String(enabled));
-    button.title = enabled ? '\u6570\u636e\u91c7\u96c6\u5df2\u5f00\u542f' : '\u6570\u636e\u91c7\u96c6\u5df2\u5173\u95ed';
+  const myProfile = { open: false, closing: false, timer: 0, focus: null, layer: null };
+  const PROFILE_USAGE_KEY = 'plmFloatingHelper.profileUsage.v1';
+
+  function profileUsageRecord(name) {
+    if (!name) return null;
+    const saved = readProductDevelopmentStorage(PROFILE_USAGE_KEY, {});
+    const records = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+    const key = encodeURIComponent(name);
+    const existing = records[key];
+    const now = Date.now();
+    if (existing && Number.isFinite(existing.recordedAtMs) && existing.recordedAtMs > 0 && existing.recordedAtMs <= now) return existing;
+    const record = { recordedAtMs: now };
+    writeProductDevelopmentStorage(PROFILE_USAGE_KEY, { ...records, [key]: record });
+    return record;
+  }
+
+  function myProfileBodyHtml(name, usage) {
+    const tasks = profileTaskItems();
+    const recorded = usage ? new Date(usage.recordedAtMs).toLocaleDateString('zh-CN') : '';
+    return '<div class="pfh-my-identity"><span class="pfh-my-portrait" aria-hidden="true">' + escapeHtml(name ? Array.from(name)[0] : '我') + '</span><div><h3>' + escapeHtml(name || '暂未识别用户') + '</h3><p>我的 PLM 工作空间</p></div></div>'
+      + '<div class="pfh-my-usage"><span>首次使用时间暂无历史记录</span>' + (recorded ? '<small>本机记录始于 ' + escapeHtml(recorded) + '</small>' : '<small>登录 PLM 后开始记录</small>') + '</div>'
+      + '<section class="pfh-my-tasks"><header><strong>任务动态</strong><span>' + (tasks.length ? '最近 ' + tasks.length + ' 项' : '') + '</span></header>'
+      + (tasks.length ? tasks.map((task) => '<button type="button" class="pfh-my-task" data-tone="' + escapeHtml(task.tone || 'waiting') + '" data-action="' + escapeHtml(task.action) + '"><span>' + iconHtml(task.icon) + '</span><div><strong>' + escapeHtml(task.title) + '</strong><small>' + escapeHtml(task.status) + '</small><progress max="100" value="' + task.progress + '" aria-label="' + escapeHtml(task.title + '进度') + '"></progress></div><em>' + task.progress + '%</em></button>').join('') : '<p class="pfh-my-empty">暂无进行中的任务</p>') + '</section>';
+  }
+
+  function animateMyProfile(dialog, closing) {
+    if (typeof dialog.animate !== 'function' || (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return null;
+    return dialog.animate(closing ? [
+      { opacity: 1, transform: 'translateY(0) scale(1)' },
+      { opacity: 1, transform: 'translateY(-3px) scale(1.025)', offset: .25 },
+      { opacity: 0, transform: 'translateY(-18px) scale(.88)' },
+    ] : [
+      { opacity: 0, transform: 'translateY(-20px) scale(.86)' },
+      { opacity: 1, transform: 'translateY(3px) scale(1.035)', offset: .68 },
+      { opacity: 1, transform: 'translateY(0) scale(1)' },
+    ], { duration: closing ? 220 : 420, easing: 'cubic-bezier(.22,1,.36,1)' });
+  }
+
+  function closeMyProfile() {
+    if (!myProfile.open || myProfile.closing) return;
+    myProfile.open = false;
+    myProfile.closing = true;
+    window.clearInterval(myProfile.timer);
+    myProfile.timer = 0;
+    const layer = myProfile.layer;
+    const button = document.getElementById(PANEL_ID)?.querySelector('.pfh-my-avatar');
+    if (button) button.setAttribute('aria-expanded', 'false');
+    const finish = () => {
+      if (layer) layer.remove();
+      myProfile.layer = null;
+      myProfile.closing = false;
+      if (myProfile.focus && myProfile.focus.isConnected) myProfile.focus.focus();
+      myProfile.focus = null;
+    };
+    const animation = layer && animateMyProfile(layer.querySelector('.pfh-my-dialog'), true);
+    if (animation) animation.finished.then(finish, finish); else finish();
+  }
+
+  function renderMyProfile(panel) {
+    if (!panel) return;
+    const name = findCurrentPlmUserName();
+    const usage = profileUsageRecord(name);
+    const button = panel.querySelector('.pfh-my-avatar');
+    if (button) {
+      button.setAttribute('aria-expanded', String(myProfile.open));
+      button.querySelector('span').textContent = name ? Array.from(name)[0] : '我';
+      button.setAttribute('title', '我的');
+    }
+    if (!myProfile.open || myProfile.closing) return;
+    let layer = myProfile.layer;
+    if (!layer || !layer.isConnected) {
+      layer = document.createElement('div');
+      layer.className = 'pfh-my-layer';
+      layer.setAttribute('data-action', 'my-profile-close');
+      layer.innerHTML = '<section class="pfh-my-dialog" role="dialog" aria-modal="true" aria-label="我的"><header class="pfh-my-header"><strong>我的</strong><button type="button" data-action="my-profile-close" aria-label="关闭我的">×</button></header><div class="pfh-my-body"></div></section>';
+      panel.querySelector('.pfh-full').appendChild(layer);
+      myProfile.layer = layer;
+      animateMyProfile(layer.querySelector('.pfh-my-dialog'), false);
+      layer.querySelector('button').focus();
+    }
+    const body = layer.querySelector('.pfh-my-body');
+    const html = myProfileBodyHtml(name, usage);
+    // Keep the dialog and focused task buttons intact while background queues update.
+    if (body.innerHTML !== html && !body.contains(document.activeElement)) body.innerHTML = html;
+  }
+
+  function toggleMyProfile() {
+    if (myProfile.closing) return;
+    if (myProfile.open) { closeMyProfile(); return; }
+    myProfile.focus = document.activeElement;
+    myProfile.open = true;
+    renderMyProfile(ensurePanel());
+    myProfile.timer = window.setInterval(() => {
+      if (!state.expanded || !myProfile.layer?.isConnected) { closeMyProfile(); return; }
+      renderMyProfile(ensurePanel());
+    }, 1000);
   }
 
   const DETAIL_VIEW_TABS = Object.freeze([
@@ -22016,7 +22106,7 @@
     updatePanelPinButton(panel);
     updateSettingsNotice(panel);
     updateNotificationButton(panel);
-    updateCollectionSwitch(panel);
+    renderMyProfile(panel);
     renderUploadProgressOverlay(panel);
     renderFirstRunTutorialModal(panel);
     renderShortcutGuideModal(panel);
@@ -28306,7 +28396,7 @@
     }, 8000);
   }
 
-  function homeTaskProgress(status, explicitProgress) {
+  function profileTaskProgress(status, explicitProgress) {
     if (Number.isFinite(Number(explicitProgress)) && Number(explicitProgress) > 0) {
       const value = Number(explicitProgress) <= 1 ? Number(explicitProgress) * 100 : Number(explicitProgress);
       return Math.max(4, Math.min(100, Math.round(value)));
@@ -28318,14 +28408,14 @@
     return 7;
   }
 
-  function homeTaskItems() {
+  function profileTaskItems() {
     const tasks = [];
     (state.magicUploadQueue || []).filter((task) => task && task.status !== 'success').forEach((task) => tasks.push({
       action: 'home-magic-upload',
       icon: 'upload',
       title: (task.sku || '待确认 SKU') + ' · 魔法上传',
       status: magicUploadStatusLabel(task),
-      progress: homeTaskProgress(task.status, task.progress),
+      progress: profileTaskProgress(task.status, task.progress),
       tone: task.status === 'error' ? 'error' : (task.status === 'processing' ? 'active' : ''),
     }));
     (state.uploadQueue || []).filter((task) => task && !/成功/.test(task.status || '')).forEach((task) => tasks.push({
@@ -28333,7 +28423,7 @@
       icon: 'upload',
       title: (task.sku || '待确认 SKU') + ' · 提审上传',
       status: task.step || task.status || '等待处理',
-      progress: homeTaskProgress(task.step || task.status),
+      progress: profileTaskProgress(task.step || task.status),
       tone: /失败|缺/.test((task.step || '') + (task.status || '')) ? 'error' : (/进行中|上传中/.test((task.step || '') + (task.status || '')) ? 'active' : ''),
     }));
     (state.batchExcelQueue || []).filter((task) => task && task.status !== 'downloaded').forEach((task) => tasks.push({
@@ -28341,22 +28431,12 @@
       icon: 'batchExcel',
       title: task.sku + ' · 批量生成 Excel',
       status: task.status === 'ready' ? '已准备，可下载' : (task.status === 'preparing' ? '正在补全缓存' : (task.status === 'error' ? '生成失败' : '等待处理')),
-      progress: homeTaskProgress(task.status),
+      progress: profileTaskProgress(task.status),
       tone: task.status === 'error' ? 'error' : (task.status === 'preparing' ? 'active' : (task.status === 'ready' ? 'done' : '')),
     }));
     return tasks.slice(0, 4);
   }
 
-  function homeTaskPanelHtml() {
-    const tasks = homeTaskItems();
-    const previewBadge = tasks.length ? '<span class="pfh-home-preview-badge">实时队列</span>' : '';
-    const body = tasks.length ? '<div class="pfh-home-task-list">' + tasks.map((task) => '<button type="button" class="pfh-home-task-row is-' + escapeHtml(task.tone || 'waiting') + '" data-action="' + escapeHtml(task.action) + '">' +
-      '<span class="pfh-home-task-icon">' + iconHtml(task.icon) + '</span>' +
-      '<span class="pfh-home-task-main"><span class="pfh-home-task-name"><b title="' + escapeHtml(task.title) + '">' + escapeHtml(task.title) + '</b><em>' + task.progress + '%</em></span><span class="pfh-home-task-progress"><i style="width:' + task.progress + '%"></i></span><small>' + escapeHtml(task.status) + '</small></span>' +
-      '<i class="pfh-home-task-status"></i></button>').join('') + '</div>' :
-      '<div class="pfh-home-task-empty"><img src="' + escapeHtml(CLOUD_BACKUP_API_BASE + '/assets/export-icons/task-empty-glass-v1.png') + '" alt="" width="56" height="56" decoding="async"><strong>暂时没有进行中的任务</strong><p>任务中心位置已预留，后续会集中显示上传、生成和提审进度。</p><div><i>上传队列</i><i>生成进度</i><i>提审状态</i></div></div>';
-    return '<section class="pfh-home-panel pfh-home-task-panel"><div class="pfh-home-panel-title"><h3>任务动态</h3>' + previewBadge + '</div>' + body + '<footer><span>最多展示最近 4 项</span>' + (tasks.length ? '<button type="button" data-action="upload-toggle">查看上传队列 →</button>' : '') + '</footer></section>';
-  }
 
   function getHomeFeatureGroups() {
     const groups = normalizeHomeFeatureGroups(state.settings && state.settings.homeFeatureGroups);
@@ -28701,7 +28781,6 @@
         '<section class="pfh-home-panel pfh-home-feature-panel' + (state.homeFeatureEditMode ? ' is-editing' : '') + (isProductDevelopment ? ' is-product-development' : '') + '"><div class="pfh-home-panel-title"><h3 data-work-mode-title>' + (isProductDevelopment ? '开发功能' : '常用功能') + '</h3>' + featureEditActions + '</div>' +
           '<div class="pfh-home-feature-viewport"><div class="' + featureTrackClass + '">' + dailyFeaturePage + productDevelopmentHomeFeaturePageHtml() + '</div></div>' +
           '</section>' +
-        homeTaskPanelHtml() +
       '</div>' +
       '</section></div>';
   }
@@ -35252,6 +35331,13 @@ self.onmessage = async function(event) {
     if (!namingCard) closePackagingNamingCard(ensurePanel());
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
+    if (action === 'my-profile-toggle') { toggleMyProfile(); return; }
+    if (action === 'my-profile-close') {
+      if (actionTarget === myProfile.layer && event.target !== actionTarget) return;
+      closeMyProfile();
+      return;
+    }
+    if (myProfile.open && action && (action === 'collapse' || actionTarget.closest('.pfh-my-dialog'))) closeMyProfile();
     if (action === 'network-diagnostics-retry') { requestNetworkDiagnostics(true, networkDiagnostics.simulation); return; }
     if (action === 'network-diagnostics-copy') { copyText(networkDiagnosticsReport()); showToast('已复制检测结果，请发给 IT 或脚本维护人员。'); return; }
     if (action === 'network-diagnostics-close') {
@@ -35668,25 +35754,6 @@ self.onmessage = async function(event) {
       copyText(layout);
       addLog('info', '已复制当前布局', layout.replace(/\n/g, ' | '));
       showToast('当前布局已复制');
-      return;
-    }
-    if (action === 'toggle-collection') {
-      state.settings.collectionEnabled = !state.settings.collectionEnabled;
-      saveSettings(state.settings);
-      if (!state.settings.collectionEnabled) {
-        stopScan();
-        stopMaterialWatch();
-        stopManualTabRead();
-      } else {
-        window.clearTimeout(state.assignedDesignTaskAutoSyncTimer);
-        state.assignedDesignTaskAutoSyncTimer = 0;
-        scheduleAssignedDesignTaskAutoSync(0);
-        state.observedDrawer = getProjectDrawer();
-        state.observedSku = state.observedDrawer ? findSku(getVisibleText(state.observedDrawer)) : '';
-        state.observedTab = state.observedDrawer ? getActiveTabText(state.observedDrawer) : '';
-      }
-      showToast(state.settings.collectionEnabled ? '\u6570\u636e\u91c7\u96c6\u5df2\u5f00\u542f' : '\u6570\u636e\u91c7\u96c6\u5df2\u5173\u95ed');
-      renderShell();
       return;
     }
     if (action === 'refresh') {
@@ -36787,6 +36854,18 @@ self.onmessage = async function(event) {
   }
 
   function handlePanelKeydown(event) {
+    if (myProfile.open && event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeMyProfile();
+      return;
+    }
+    if (myProfile.open && event.key === 'Tab') {
+      const buttons = Array.from(myProfile.layer.querySelectorAll('button:not(:disabled)'));
+      const first = buttons[0], last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
     if (event.key === 'Escape' && (networkDiagnostics.open || networkDiagnostics.offerOpen)) {
       event.preventDefault();
       event.stopPropagation();
@@ -50248,6 +50327,8 @@ self.onmessage = async function(event) {
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       const settings = { ...defaults, ...(saved || {}) };
+      // The removed collection switch must not leave existing installations paused.
+      settings.collectionEnabled = true;
       const previousBackupStatus = settings.cloudBackupStatus;
       settings.cloudBackupStatus = redactCloudBackupOwnerMismatch(previousBackupStatus);
       const needsBackupConflictMigration = !settings.cloudBackupConflictKeyHash && settings.cloudBackupKey &&

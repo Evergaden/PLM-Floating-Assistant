@@ -32,17 +32,13 @@
 
 /* Magic Upload: explicit component ownership for the first migrated surface. */
 
-/* Home navigation and task rows are real buttons and use the same lift. */
-#plm-floating-helper[data-pfh-theme] .pfh-home-entry:hover:not(:disabled),
-#plm-floating-helper[data-pfh-theme] .pfh-home-task-row:hover:not(:disabled) {
+/* Home navigation buttons use the shared lift. */
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry:hover:not(:disabled) {
   transform: var(--pfh-interaction-button-hover-transform);
 }
-
-#plm-floating-helper[data-pfh-theme] .pfh-home-entry:active:not(:disabled),
-#plm-floating-helper[data-pfh-theme] .pfh-home-task-row:active:not(:disabled) {
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry:active:not(:disabled) {
   transform: var(--pfh-interaction-button-active-transform);
 }
-
 /* The home navigation replay keeps its delayed rebound in the same contract. */
 #plm-floating-helper[data-pfh-theme] .pfh-home-entry.is-click-bouncing {
   box-shadow: 0 5px 13px var(--pfh-theme-shadow-soft);
