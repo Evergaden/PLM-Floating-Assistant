@@ -845,6 +845,28 @@ async function resolveBackupUserId(input) {
   return { userId: await sha256Hex(backupKey), legacyIdentity: true };
 }
 
+function backupOrigin(row) {
+  if (!row) return { firstBackupAt: '', firstBackupExact: false };
+  const payload = parseStoredBackupPayload(row.payload);
+  const recorded = payload && payload.pfhBackupOrigin;
+  const raw = String(recorded && recorded.at || row.updated_at || '');
+  const ms = Date.parse(/Z$|[+-]\d\d:\d\d$/.test(raw) ? raw : raw.replace(' ', 'T') + 'Z');
+  return { firstBackupAt: Number.isFinite(ms) && ms > 0 && ms <= Date.now() ? new Date(ms).toISOString() : '', firstBackupExact: Boolean(recorded && recorded.exact === true) };
+}
+
+async function handleBackupProfile(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const url = new URL(request.url);
+  const identity = await resolveBackupUserId({ backupId: url.searchParams.get('backupId') });
+  if (identity.error) return json({ error: identity.error }, 400);
+  const row = await env.DB.prepare('SELECT payload, updated_at FROM user_backups WHERE user_id = ?').bind(identity.userId).first();
+  if (!row) return json({ found: false });
+  const context = requestAuthContexts.get(request);
+  const name = normalizeBackupOwnerName(context && context.claims && context.claims.userName || url.searchParams.get('name'));
+  if (!name || name !== getBackupOwnerNameFromPayload(row.payload)) return json({ error: 'backup owner mismatch' }, 403);
+  return json({ found: true, ...backupOrigin(row) });
+}
+
 async function handleBackupSave(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const body = await parseJson(request);
@@ -857,7 +879,7 @@ async function handleBackupSave(request, env) {
   if (!payload || typeof payload !== 'object') return json({ error: 'payload required' }, 400);
   if (!backupOwnerName) return json({ error: 'backup owner name required' }, 400);
 
-  const serialized = JSON.stringify(payload);
+  let serialized = JSON.stringify(payload);
   if (serialized.length > MAX_BACKUP_INLINE_CHARS && !payload.chunked) return json({ error: 'payload too large' }, 413);
 
   const chunked = Boolean(payload.chunked);
@@ -885,7 +907,7 @@ async function handleBackupSave(request, env) {
   }
 
   const existing = await env.DB.prepare(`
-    SELECT payload
+    SELECT payload, updated_at
     FROM user_backups
     WHERE user_id = ?
   `).bind(identity.userId).first();
@@ -897,6 +919,10 @@ async function handleBackupSave(request, env) {
   if (existingOwnerName && existingOwnerName !== backupOwnerName) {
     return json({ error: 'backup owner mismatch' }, 409);
   }
+  const origin = existing ? backupOrigin(existing) : { firstBackupAt: new Date().toISOString(), firstBackupExact: true };
+  // The server owns this date. Old clients and subsequent saves cannot reset it.
+  serialized = JSON.stringify({ ...payload, pfhBackupOrigin: { at: origin.firstBackupAt, exact: origin.firstBackupExact } });
+  if (serialized.length > MAX_BACKUP_INLINE_CHARS && !payload.chunked) return json({ error: 'payload too large' }, 413);
   await env.DB.prepare(`
     INSERT INTO user_backups (user_id, payload, version, updated_at)
     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
@@ -922,7 +948,7 @@ async function handleBackupSave(request, env) {
       last_seen_at=CURRENT_TIMESTAMP
   `).bind(backupOwnerName, version).run();
 
-  return json({ ok: true, userId: identity.userId, bytes: serialized.length, chunked });
+  return json({ ok: true, userId: identity.userId, bytes: serialized.length, chunked, ...origin });
 }
 
 async function handleBackupChunkSave(request, env) {
@@ -7759,6 +7785,7 @@ async function handleRequest(request, env) {
     if (url.pathname === '/backup/load-chunk' && request.method === 'GET') return handleBackupChunkLoad(request, env);
     if (url.pathname === '/backup/save' && request.method === 'POST') return handleBackupSave(request, env);
     if (url.pathname === '/backup/load' && request.method === 'GET') return handleBackupLoad(request, env);
+    if (url.pathname === '/backup/profile' && request.method === 'GET') return handleBackupProfile(request, env);
     if (url.pathname === '/ingredients/normalize' && request.method === 'POST') return handleIngredientNormalize(request, env);
     if (url.pathname === '/ai-image/ingredient-audit' && request.method === 'POST') return handleIngredientAudit(request, env);
     if (url.pathname === '/ai-image/copywriting-complete' && request.method === 'POST') return handleAiImageCopywritingComplete(request, env);

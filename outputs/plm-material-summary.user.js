@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.67
+// @version      2.9.68
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.67';
+  const SCRIPT_VERSION = '2.9.68';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -210,7 +210,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.310';
+  const UI_ASSET_VERSION = '2.5.311';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -7629,7 +7629,7 @@
     const userNote = state.productDevelopmentTaskUserName ? '<div class="pfh-development-list-user"><span>开发人员</span><strong title="' + escapeHtml(state.productDevelopmentTaskUserName) + '">' + escapeHtml(state.productDevelopmentTaskUserName) + '</strong></div>' : '';
     if (state.productDevelopmentTasksLoading && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">正在读取本人开发任务…</div></div></div>';
     if (state.productDevelopmentTaskError && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(state.productDevelopmentTaskError) + '</div></div></div>';
-    if (!items.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">当前用户暂无开发人员字段匹配的产品任务</div></div></div>';
+    if (!items.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll">' + taskEmptyStateHtml('暂无产品开发任务', '当前用户没有开发人员字段匹配的产品任务') + '</div></div>';
     const cards = items.map((item) => {
       const data = productDevelopmentTaskSeedData(item);
       const image = item.productListImageUrl || item.benchmarkImageUrl || data.productListImageUrl || data.benchmarkImageUrl || '';
@@ -10672,7 +10672,7 @@
       detail.classList.remove('is-loading');
       detail.innerHTML = state.productDevelopmentTasksLoading
         ? '<div class="pfh-detail-scroll"><div class="pfh-empty">正在打开第一个开发产品…</div></div>'
-        : '<div class="pfh-detail-scroll"><div class="pfh-empty">当前用户暂无开发任务</div></div>';
+        : '<div class="pfh-detail-scroll">' + taskEmptyStateHtml('暂无产品开发任务') + '</div>';
       return;
     }
     state.data = productDevelopmentTaskSeedData(task);
@@ -21900,7 +21900,7 @@
     button.setAttribute('data-tooltip', hasUpdate ? '有新版本' : TOOLTIP.about);
   }
 
-  const myProfile = { open: false, closing: false, timer: 0, focus: null, layer: null };
+  const myProfile = { open: false, closing: false, timer: 0, focus: null, layer: null, backupKey: '', backupOrigin: null, backupLoading: false };
   const PROFILE_USAGE_KEY = 'plmFloatingHelper.profileUsage.v1';
 
   function profileUsageRecord(name) {
@@ -21916,13 +21916,50 @@
     return record;
   }
 
+  function taskEmptyStateHtml(title, detail) {
+    return '<div class="pfh-task-empty"><img src="' + escapeHtml(CLOUD_BACKUP_API_BASE + '/assets/export-icons/task-empty-glass-v1.png') + '" alt="" width="52" height="52" decoding="async"><strong>' + escapeHtml(title) + '</strong>' + (detail ? '<p>' + escapeHtml(detail) + '</p>' : '') + '</div>';
+  }
+
+  function profileCompanionDays(at, now = Date.now()) {
+    const start = Date.parse(at);
+    if (!Number.isFinite(start) || start <= 0 || start > now) return 0;
+    // Calendar days in Beijing time; the first day counts as day one.
+    return Math.floor((now + 28800000) / 86400000) - Math.floor((start + 28800000) / 86400000) + 1;
+  }
+
+  async function refreshMyProfileBackup() {
+    const name = findCurrentPlmUserName();
+    const key = getCloudBackupKey();
+    const identity = name + '\n' + key;
+    if (myProfile.backupKey === identity && (myProfile.backupLoading || myProfile.backupOrigin)) return;
+    myProfile.backupKey = identity;
+    myProfile.backupOrigin = null;
+    myProfile.backupLoading = Boolean(name && key);
+    if (!myProfile.backupLoading) return;
+    try {
+      const backupId = await getCloudBackupId(key);
+      const result = await cloudRequest('/backup/profile?backupId=' + encodeURIComponent(backupId) + '&name=' + encodeURIComponent(name), { method: 'GET' });
+      if (findCurrentPlmUserName() !== name || getCloudBackupKey() !== key || myProfile.backupKey !== identity) return;
+      myProfile.backupOrigin = result;
+    } catch (_) {
+      if (myProfile.backupKey === identity) myProfile.backupOrigin = { failed: true };
+    } finally {
+      if (myProfile.backupKey === identity) { myProfile.backupLoading = false; renderMyProfile(ensurePanel()); }
+    }
+  }
+
   function myProfileBodyHtml(name, usage) {
     const tasks = profileTaskItems();
     const recorded = usage ? new Date(usage.recordedAtMs).toLocaleDateString('zh-CN') : '';
+    const origin = myProfile.backupOrigin;
+    const days = origin && profileCompanionDays(origin.firstBackupAt);
+    const usageHtml = days
+      ? '<span>助手已陪伴你 <b>' + days + '</b> 天</span><small>从' + (origin.firstBackupExact ? '首次备份' : '最早可查备份') + '算起 · ' + escapeHtml(new Date(origin.firstBackupAt).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })) + '</small>'
+      : '<span>' + (myProfile.backupLoading ? '正在读取备份时间…' : origin && origin.failed ? '暂时无法读取备份时间' : '还没有云备份记录') + '</span>' + (recorded ? '<small>本机记录始于 ' + escapeHtml(recorded) + '</small>' : '');
     return '<div class="pfh-my-identity"><span class="pfh-my-portrait" aria-hidden="true">' + escapeHtml(name ? Array.from(name)[0] : '我') + '</span><div><h3>' + escapeHtml(name || '暂未识别用户') + '</h3><p>我的 PLM 工作空间</p></div></div>'
-      + '<div class="pfh-my-usage"><span>首次使用时间暂无历史记录</span>' + (recorded ? '<small>本机记录始于 ' + escapeHtml(recorded) + '</small>' : '<small>登录 PLM 后开始记录</small>') + '</div>'
+      + '<div class="pfh-my-usage">' + usageHtml + '</div>'
       + '<section class="pfh-my-tasks"><header><strong>任务动态</strong><span>' + (tasks.length ? '最近 ' + tasks.length + ' 项' : '') + '</span></header>'
-      + (tasks.length ? tasks.map((task) => '<button type="button" class="pfh-my-task" data-tone="' + escapeHtml(task.tone || 'waiting') + '" data-action="' + escapeHtml(task.action) + '"><span>' + iconHtml(task.icon) + '</span><div><strong>' + escapeHtml(task.title) + '</strong><small>' + escapeHtml(task.status) + '</small><progress max="100" value="' + task.progress + '" aria-label="' + escapeHtml(task.title + '进度') + '"></progress></div><em>' + task.progress + '%</em></button>').join('') : '<p class="pfh-my-empty">暂无进行中的任务</p>') + '</section>';
+      + (tasks.length ? tasks.map((task) => '<button type="button" class="pfh-my-task" data-tone="' + escapeHtml(task.tone || 'waiting') + '" data-action="' + escapeHtml(task.action) + '"><span>' + iconHtml(task.icon) + '</span><div><strong>' + escapeHtml(task.title) + '</strong><small>' + escapeHtml(task.status) + '</small><progress max="100" value="' + task.progress + '" aria-label="' + escapeHtml(task.title + '进度') + '"></progress></div><em>' + task.progress + '%</em></button>').join('') : taskEmptyStateHtml('暂时没有进行中的任务')) + '</section>';
   }
 
   function animateMyProfile(dialog, closing) {
@@ -21962,6 +21999,11 @@
     if (!panel) return;
     const name = findCurrentPlmUserName();
     const usage = profileUsageRecord(name);
+    if (myProfile.backupKey && myProfile.backupKey !== name + '\n' + getCloudBackupKey()) {
+      myProfile.backupKey = '';
+      myProfile.backupOrigin = null;
+      if (myProfile.open) refreshMyProfileBackup();
+    }
     const button = panel.querySelector('.pfh-my-avatar');
     if (button) {
       button.setAttribute('aria-expanded', String(myProfile.open));
@@ -21991,6 +22033,7 @@
     if (myProfile.open) { closeMyProfile(); return; }
     myProfile.focus = document.activeElement;
     myProfile.open = true;
+    refreshMyProfileBackup();
     renderMyProfile(ensurePanel());
     myProfile.timer = window.setInterval(() => {
       if (!state.expanded || !myProfile.layer?.isConnected) { closeMyProfile(); return; }
@@ -25102,7 +25145,7 @@
       const stageText = task.status === 'pending' || task.status === 'waiting' ? magicToyLabelReplacementSummary(task) : (task.step || statusText);
       const dimension = '4 × 3 cm';
       return '<article class="pfh-magic-task ' + taskClass + '" data-magic-toy-label-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku) + '">' + escapeHtml(task.sku) + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</span><span class="pfh-magic-file-badge">PNG</span>' + replacementBadge + '</div><div class="pfh-magic-task-meta"><span>' + escapeHtml(task.materialCode || '标签物料待匹配') + '</span><span>' + escapeHtml(dimension) + '</span></div><div class="pfh-magic-stage" data-magic-stage>' + escapeHtml(stageText) + '</div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-remove" data-magic-toy-label-id="' + escapeHtml(task.id) + '">删除</button>' + (task.status === 'error' ? '<button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-retry" data-magic-toy-label-id="' + escapeHtml(task.id) + '">重试</button>' : '') + '<strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
-    }).join('') : '<div class="pfh-magic-empty">在上方粘贴 SKU，生成带产品图、条码和尺寸标注的标签说明图</div>';
+    }).join('') : taskEmptyStateHtml('标签队列暂无任务', '在上方粘贴 SKU，生成带产品图、条码和尺寸标注的标签说明图');
     const historyHtml = historyOpen ? '<div class="pfh-magic-history-modal" data-action="magic-toy-label-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="玩具标签历史"><header><span>' + iconHtml('history') + ' 玩具标签历史 · ' + history.length + ' 条</span><button type="button" data-action="magic-toy-label-history-close">×</button></header><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : '失败') + '</strong><span>' + escapeHtml(entry.name || '标签尺寸说明图') + ' · ' + escapeHtml(entry.materialCode || '标签物料') + ' · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-toy-label-history-retry" data-magic-toy-label-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有玩具标签历史</div>') + '</div></section></div>' : '';
     const activity = queue.filter((task) => task.status === 'processing' || task.status === 'success' || task.status === 'error').slice(0, 3);
     const activityHtml = activity.length ? activity.map((task) => '<p><i></i><span>' + escapeHtml(task.sku + ' · ' + magicToyLabelStatusLabel(task)) + '</span></p>').join('') : '<p><i></i><span>' + escapeHtml(state.magicToyLabelStatus || '等待 SKU 进入队列') + '</span></p>';
@@ -25133,7 +25176,7 @@
         const progress = /成功/.test(item.status || '') ? 100 : (/进行中/.test(item.status || '') ? 45 : 0);
         const statusClass = /失败/.test(item.status || '') ? 'is-error' : (/成功/.test(item.status || '') ? 'is-success' : '');
         return '<article class="pfh-magic-task ' + statusClass + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(item.sku || '待确认 SKU') + '">' + escapeHtml(item.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(getUploadDisplayName(item) || item.name || '') + '">' + escapeHtml(getUploadDisplayName(item) || item.name || '效果图任务') + '</span><span class="pfh-magic-file-badge">' + files.length + ' 张图</span></div><div class="pfh-magic-task-meta"><span>效果图</span><span>商品草稿 / BOM API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="upload-remove" data-upload-id="' + escapeHtml(item.id) + '">删除</button>' + (/失败/.test(item.status || '') ? '<button type="button" class="pfh-magic-task-delete" data-action="magic-effect-retry" data-upload-id="' + escapeHtml(item.id) + '">重试</button>' : '') + '<strong class="pfh-magic-progress-value">' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
-      }).join('') : '<div class="pfh-magic-empty">拖入 JPG / PNG 效果图，按文件名或 SKU 自动匹配商品后上传到 BOM 效果图</div>';
+      }).join('') : taskEmptyStateHtml('效果图队列暂无任务', '拖入 JPG / PNG 效果图，按文件名或 SKU 自动匹配商品后上传到 BOM 效果图');
       const effectHistoryHtml = effectHistoryOpen ? '<div class="pfh-magic-history-modal" data-action="magic-effect-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="效果图历史"><header><span>' + iconHtml('history') + ' 效果图历史 · ' + effectHistory.length + ' 条</span><button type="button" data-action="magic-effect-history-close">×</button></header><div class="pfh-magic-history-list">' + (effectHistory.length ? effectHistory.slice(0, 40).map((entry) => { const detail = entry.step || entry.skipReason || ''; return '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status || '已完成') + '</strong><span title="' + escapeHtml(detail) + '">' + escapeHtml(entry.name || entry.sourceName || '效果图任务') + ' · ' + getToyEffectUploadEntries(entry).length + ' 张 · ' + escapeHtml(entry.completedAt || entry.updatedAt || '') + (detail ? ' · ' + escapeHtml(detail) : '') + '</span></div></div>'; }).join('') : '<div class="pfh-magic-history-empty">还没有效果图历史</div>') + '</div></section></div>' : '';
       return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">PRODUCT / BOM EFFECT API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(queue.length).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>效果图</span><strong>' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div><div class="pfh-magic-stat"><span>已完成</span><strong>' + doneCount + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3><p><i></i><span>' + escapeHtml(state.toyEffectMatchStatus || '等待效果图进入队列') + '</span></p></div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic-effect" tabindex="0" role="button" aria-label="拖入 JPG 或 PNG 效果图"><div><span class="pfh-magic-drop-icon">' + iconHtml('image') + '</span><strong>拖入效果图</strong><span>JPG / PNG / BMP · 手动商品保存到商品图片，设计任务保存到 BOM 效果图</span></div></div><input class="pfh-upload-file pfh-magic-effect-file" data-upload-kind="magic-effect" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-effect-start"' + (running || !queue.some(isUploadItemReady) ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-effect-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-effect-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" data-action="magic-effect-packing-open">手动设置装箱数/总重</button><span style="align-self:center;color:#8990a6;font-size:10px;white-space:nowrap" title="仅手动产品使用">' + escapeHtml(manualPackingSummary) + '</span><button type="button" class="pfh-magic-history-toggle" data-action="magic-effect-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>效果图队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 张图</span></div><div class="pfh-magic-queue">' + rows + '</div>' + effectHistoryHtml + manualPackingModal + '</div></section></div>';
     }
@@ -25166,7 +25209,7 @@
       const taskTitle = [task.brand || taskData.brand, task.name || taskData.name, task.sku].map((value) => String(value || '').trim()).filter(Boolean).join(' ') || task.sku || '待确认 SKU';
       const categorySummary = magicUploadCategorySummary(task) || (taskFileCount ? taskFileCount + '个文件' : '待确认');
       return '<article class="pfh-magic-task pfh-magic-package-task ' + (replacementCategories.length ? 'is-replace ' : '') + statusClass + '" data-magic-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-package-title-text" title="' + escapeHtml(taskTitle) + '">' + escapeHtml(taskTitle) + '</span>' + replacementBadge + '</div><div class="pfh-magic-task-meta"><span class="pfh-magic-package-summary" title="' + escapeHtml(categorySummary) + '">' + escapeHtml(categorySummary) + '</span><span class="pfh-magic-stage" data-magic-stage>' + escapeHtml(replacementSummary) + '</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">删除</button><strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-eta" data-magic-eta>' + escapeHtml(taskEta) + '</span><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
-    }).join('') : '<div class="pfh-magic-empty">拖入 ZIP 图包或 XLSX，极光队列会在这里生成商品任务</div>';
+    }).join('') : taskEmptyStateHtml('极光队列暂无任务', '拖入 ZIP 图包或 XLSX，队列会在这里生成商品任务');
     const historyHtml = historyOpen ? '<div class="pfh-magic-history-modal" data-action="magic-upload-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="魔法上传历史"><header><span>' + iconHtml('history') + ' 上传历史 · ' + history.length + ' 条</span><button type="button" data-action="magic-upload-history-close">×</button></header><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 40).map((entry) => { const fullSourceName = entry.sourceName || '未命名来源'; const historySourceName = truncateFileName(fullSourceName, 30); return '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : (entry.status === 'waiting' ? '已暂停' : '失败')) + '</strong><span><span class="pfh-magic-history-source" title="' + escapeHtml(fullSourceName) + '">' + escapeHtml(historySourceName) + '</span> · ' + Number(entry.successCount || 0) + '/' + Number(entry.fileCount || 0) + ' 文件 · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '未完成') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-upload-history-retry" data-magic-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>'; }).join('') : '<div class="pfh-magic-history-empty">还没有上传历史</div>') + '</div></section></div>' : '';
     const activityHtml = recentTasks.length ? recentTasks.map((task) => '<p><i></i><span>' + escapeHtml((task.sku || '待确认 SKU') + ' · ' + magicUploadStatusLabel(task)) + '</span></p>').join('') : '<p><i></i><span>等待 ZIP 或 XLSX 进入队列</span></p>';
     return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已完成文件</span><strong>' + doneFiles + '/' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>已提审商品</span><strong>' + successCount + '</strong></div><div class="pfh-magic-stat"><span>预计剩余</span><strong data-magic-overall-eta>' + (etaSeconds ? formatMagicUploadDuration(etaSeconds) : (running && pendingCount ? '正在建立估算' : '--')) + '</strong></div></div><div class="pfh-magic-queue-progress"><div class="pfh-magic-queue-progress-track"><div class="pfh-magic-queue-progress-bar" data-magic-queue-progress-bar style="width:0%"></div></div><span data-magic-queue-progress-text>0/' + totalFiles + ' 文件</span></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX，悬浮后可按 Ctrl+V 粘贴"><div><span class="pfh-magic-drop-icon">' + iconHtml('upload') + '</span><strong>拖入 ZIP 或 XLSX</strong><span>悬浮此框后按 Ctrl+V，可直接粘贴文件 · ZIP 单文件 150MB · 自动识别 SKU · 原包保留到图包素材</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-upload-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-upload-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>上传队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 个文件</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '</div></section></div>';
@@ -28331,7 +28374,9 @@
     if (!carousel) return;
     const viewport = carousel.querySelector('.pfh-home-carousel-viewport');
     const track = carousel.querySelector('.pfh-home-carousel-track');
-    const slider = carousel.querySelector('.pfh-home-carousel-slider');
+    const nav = carousel.querySelector('.pfh-home-carousel-nav');
+    const indicator = nav && nav.querySelector('.pfh-home-carousel-indicator');
+    const buttons = nav ? Array.from(nav.querySelectorAll('button')) : [];
     const slides = Array.from(carousel.querySelectorAll('.pfh-home-carousel-slide'));
     const count = slides.length;
     let pointer = null;
@@ -28340,8 +28385,12 @@
       state.homeCarouselIndex = Math.max(0, Math.min(count - 1, Number(index) || 0));
       track.style.transition = animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? '' : 'none';
       track.style.transform = 'translate3d(-' + (state.homeCarouselIndex * 100) + '%,0,0)';
-      slider.value = String(state.homeCarouselIndex);
-      slider.setAttribute('aria-valuetext', slides[state.homeCarouselIndex].getAttribute('data-module-label') || '主页模块');
+      if (indicator && buttons[state.homeCarouselIndex]) {
+        const button = buttons[state.homeCarouselIndex];
+        indicator.style.transition = animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? '' : 'none';
+        indicator.style.left = (button.offsetLeft + (button.offsetWidth - 16) / 2) + 'px';
+        buttons.forEach((item, index) => item.setAttribute('aria-pressed', String(index === state.homeCarouselIndex)));
+      }
       slides.forEach((slide, slideIndex) => {
         slide.setAttribute('aria-hidden', slideIndex === state.homeCarouselIndex ? 'false' : 'true');
         slide.inert = slideIndex !== state.homeCarouselIndex;
@@ -28350,7 +28399,14 @@
       setupPixelRoomAnimation();
     };
     show(state.homeCarouselIndex, false);
-    slider.addEventListener('input', () => { pauseUntil = Date.now() + 12000; show(slider.value); });
+    buttons.forEach((button, index) => button.addEventListener('click', () => { pauseUntil = Date.now() + 12000; show(index); }));
+    if (nav) nav.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.preventDefault();
+      pauseUntil = Date.now() + 12000;
+      show((state.homeCarouselIndex + (event.key === 'ArrowRight' ? 1 : count - 1)) % count);
+      buttons[state.homeCarouselIndex].focus();
+    });
     viewport.addEventListener('dragstart', (event) => { event.preventDefault(); });
     viewport.addEventListener('pointerdown', (event) => {
       if (event.target.closest('.pfh-pixel-room-canvas')) { pauseUntil = Date.now() + 60000; return; }
@@ -28775,7 +28831,7 @@
       cloudRecoveryNoticeHtml() +
       '<div class="pfh-home-analytics">' +
         '<article class="pfh-home-metric"><small>今日新分配</small><div><strong>' + stats.today + '</strong><span>个任务</span></div><p class="pfh-home-compare' + compareClass + '"><b>' + escapeHtml(compareBadge) + '</b><span>' + escapeHtml(compareText) + '</span></p><footer><span><small>昨日</small><b>' + stats.yesterday + '</b></span><span><small>今日已定稿</small><b>' + stats.finalizedToday + '</b></span><span><small>完成率</small><b>' + (stats.today ? stats.completionRate + '%' : '--') + '</b></span></footer></article>' +
-        '<div class="pfh-home-carousel"><div class="pfh-home-carousel-viewport"><div class="pfh-home-carousel-track">' + carouselSlides + '</div></div><input class="pfh-home-carousel-slider" type="range" min="0" max="' + (carouselModules.length - 1) + '" step="1" value="' + state.homeCarouselIndex + '" aria-label="主页模块切换"></div>' +
+        '<div class="pfh-home-carousel"><div class="pfh-home-carousel-viewport"><div class="pfh-home-carousel-track">' + carouselSlides + '</div></div><nav class="pfh-home-carousel-nav" aria-label="主页模块切换"><span class="pfh-home-carousel-indicator" aria-hidden="true"></span>' + carouselModules.map((module, index) => '<button type="button" aria-label="' + escapeHtml(module.label) + '" aria-pressed="' + String(index === state.homeCarouselIndex) + '"></button>').join('') + '</nav></div>' +
       '</div>' +
       '<div class="pfh-home-lower">' +
         '<section class="pfh-home-panel pfh-home-feature-panel' + (state.homeFeatureEditMode ? ' is-editing' : '') + (isProductDevelopment ? ' is-product-development' : '') + '"><div class="pfh-home-panel-title"><h3 data-work-mode-title>' + (isProductDevelopment ? '开发功能' : '常用功能') + '</h3>' + featureEditActions + '</div>' +
@@ -29062,7 +29118,7 @@
   }
 
   function getExcelBatchQueueRowsHtml(queue, locked) {
-    if (!Array.isArray(queue) || !queue.length) return '<div class="pfh-batch-excel-empty">还没有编码。先粘贴 SKU，再加入补全队列。</div>';
+    if (!Array.isArray(queue) || !queue.length) return taskEmptyStateHtml('Excel 队列暂无任务', '先粘贴 SKU，再加入补全队列。');
     return queue.map((entry) => {
       const snapshot = getExcelBatchCacheSnapshot(entry.sku);
       const missing = snapshot.missing;
@@ -48723,6 +48779,9 @@ self.onmessage = async function(event) {
       }
       if (!response || !response.ok || response.userId !== backupId) throw new Error(response && response.error ? response.error : '云端未确认密钥与备份保存结果，请稍后重新验证');
       if (getCloudBackupKey() !== backupKey) return true;
+      myProfile.backupOrigin = null;
+      myProfile.backupKey = '';
+      if (myProfile.open) refreshMyProfileBackup();
       state.settings.cloudBackupConflictKeyHash = '';
       const downgraded = uploadedMode && uploadedMode !== '\u5b8c\u6574';
       const chunked = Boolean(response.chunked);

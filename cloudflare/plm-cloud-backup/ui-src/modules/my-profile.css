@@ -68,4 +68,3 @@
 #plm-floating-helper .pfh-my-task progress::-webkit-progress-bar { background: var(--pfh-theme-border); }
 #plm-floating-helper .pfh-my-task progress::-webkit-progress-value { background: var(--pfh-theme-primary); }
 #plm-floating-helper .pfh-my-task progress::-moz-progress-bar { background: var(--pfh-theme-primary); }
-#plm-floating-helper .pfh-my-empty { margin: 0; padding: 22px 0 10px; color: var(--pfh-theme-muted); font-size: 12px; text-align: center; }

@@ -1,0 +1,5 @@
+/* Shared task artwork, with no nested card surface. */
+#plm-floating-helper .pfh-task-empty { display: grid; justify-items: center; gap: 10px; padding: 20px 8px; text-align: center; }
+#plm-floating-helper .pfh-task-empty img { display: block; width: 52px; height: 52px; object-fit: contain; }
+#plm-floating-helper .pfh-task-empty strong { color: var(--pfh-theme-text); font-size: 12px; font-weight: 400; }
+#plm-floating-helper .pfh-task-empty p { margin: 0; max-width: 280px; color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.6; }

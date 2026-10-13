@@ -17,6 +17,7 @@ const sandbox = {
   window: { matchMedia: () => ({ matches: false }), clearInterval: () => cleared++ },
   document: { getElementById: () => ({ querySelector: () => ({ setAttribute: () => {} }) }) },
   PANEL_ID: 'test',
+  CLOUD_BACKUP_API_BASE: 'https://assets.test',
 };
 vm.createContext(sandbox);
 vm.runInContext(profile + tasks + '\nglobalThis.profileState = myProfile;', sandbox);
@@ -31,9 +32,17 @@ vm.runInContext(profile + tasks + '\nglobalThis.profileState = myProfile;', sand
   assert.equal(Object.keys(Object.values(storage)[0]).length, 2);
   let html = sandbox.myProfileBodyHtml('<用户甲>', first);
   assert.match(html, /&lt;用户甲>/);
-  assert.match(html, /首次使用时间暂无历史记录/);
+  assert.match(html, /还没有云备份记录/);
   assert.match(html, /本机记录始于/);
-  assert.match(html, /暂无进行中的任务/);
+  assert.match(html, /暂时没有进行中的任务/);
+  assert.match(html, /task-empty-glass-v1.png/);
+  assert.equal(sandbox.profileCompanionDays('2026-01-01T15:59:00Z', Date.parse('2026-01-01T16:00:00Z')), 2, 'Count Beijing calendar days across midnight');
+  assert.equal(sandbox.profileCompanionDays('2999-01-01'), 0, 'Reject future dates');
+  sandbox.profileState.backupOrigin = { firstBackupAt: new Date(Date.now() - 86400000).toISOString(), firstBackupExact: true };
+  assert.match(sandbox.myProfileBodyHtml('用户甲', first), /助手已陪伴你/);
+  assert.match(sandbox.myProfileBodyHtml('用户甲', first), /从首次备份算起/);
+  sandbox.profileState.backupOrigin.firstBackupExact = false;
+  assert.match(sandbox.myProfileBodyHtml('用户甲', first), /从最早可查备份算起/);
   sandbox.state.magicUploadQueue = [{ sku: '<SKU>', status: 'processing' }, { sku: '完成', status: 'success' }];
   html = sandbox.myProfileBodyHtml('用户甲', first);
   assert.match(html, /&lt;SKU>/);

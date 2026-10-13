@@ -1654,7 +1654,7 @@
     const userNote = state.productDevelopmentTaskUserName ? '<div class="pfh-development-list-user"><span>开发人员</span><strong title="' + escapeHtml(state.productDevelopmentTaskUserName) + '">' + escapeHtml(state.productDevelopmentTaskUserName) + '</strong></div>' : '';
     if (state.productDevelopmentTasksLoading && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">正在读取本人开发任务…</div></div></div>';
     if (state.productDevelopmentTaskError && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(state.productDevelopmentTaskError) + '</div></div></div>';
-    if (!items.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">当前用户暂无开发人员字段匹配的产品任务</div></div></div>';
+    if (!items.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll">' + taskEmptyStateHtml('暂无产品开发任务', '当前用户没有开发人员字段匹配的产品任务') + '</div></div>';
     const cards = items.map((item) => {
       const data = productDevelopmentTaskSeedData(item);
       const image = item.productListImageUrl || item.benchmarkImageUrl || data.productListImageUrl || data.benchmarkImageUrl || '';
