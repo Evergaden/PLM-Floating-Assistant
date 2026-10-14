@@ -1,0 +1,15 @@
+{
+  "style": "mint glass with lavender iridescent highlights",
+  "createdOn": "2026-10-14",
+  "format": "PNG",
+  "width": 1254,
+  "height": 1254,
+  "transparentBackground": true,
+  "assets": [
+    { "label": "我的详情", "file": "my-details.png" },
+    { "label": "生成参数图", "file": "parameter-image.png" },
+    { "label": "批量生成 Excel", "file": "batch-excel.png" },
+    { "label": "魔法上传", "file": "magic-upload.png" },
+    { "label": "今日工作台", "file": "today-workbench.png" }
+  ]
+}
