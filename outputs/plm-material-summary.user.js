@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.76
+// @version      2.9.77
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.76';
+  const SCRIPT_VERSION = '2.9.77';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -3836,6 +3836,9 @@
     const load = async () => {
       const workbook = new Excel.Workbook();
       await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
+      const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
+      if (sheet) sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'N');
+      workbook.calcProperties.fullCalcOnLoad = true;
       return workbook;
     };
     try {
@@ -5226,6 +5229,7 @@
     setCell(sheet, 'B4', excelData.name || extra.chineseName || '');
     setCell(sheet, 'C4', '');
     setCell(sheet, 'E4', compactText(packQty));
+    sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'N');
     setCell(sheet, 'G4', excelData.sku || '');
     if (excelData.singleBottle) setCell(sheet, 'H4', '瓶装');
     else sheet.getCell('H4').value = { formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"盒装",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"袋装",""))' };
@@ -5242,11 +5246,11 @@
     if (shouldOmitToyProductSize(excelData)) {
       sheet.spliceColumns(9, 1);
       sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"盒装",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"袋装",""))' };
-      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+      sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'M');
       sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","净重",IF(RIGHT(L4,2)="ml","容量","规格"))' };
     } else if (shouldRemoveExcelPackageSizeColumn(excelData)) {
       sheet.spliceColumns(10, 1);
-      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+      sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'M');
       sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","净重",IF(RIGHT(L4,2)="ml","容量","规格"))' };
     }
     if (imageInfo) {
@@ -42235,6 +42239,7 @@ self.onmessage = async function(event) {
       setCell(sheet, 'B4', excelData.name || extra.chineseName || '');
       setCell(sheet, 'C4', '');
       setCell(sheet, 'E4', compactText(packQty));
+      sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'N');
       setCell(sheet, 'G4', excelData.sku || '');
       if (excelData.singleBottle) setCell(sheet, 'H4', '\u74f6\u88c5');
       else sheet.getCell('H4').value = { formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"\u76d2\u88c5",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"\u888b\u88c5",""))' };
@@ -42251,11 +42256,11 @@ self.onmessage = async function(event) {
       if (shouldOmitToyProductSize(excelData)) {
         sheet.spliceColumns(9, 1);
         sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"\u76d2\u88c5",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"\u888b\u88c5",""))' };
-        sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+        sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'M');
         sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","\u51c0\u91cd",IF(RIGHT(L4,2)="ml","\u5bb9\u91cf","\u89c4\u683c"))' };
       } else if (shouldRemoveExcelPackageSizeColumn(excelData)) {
         sheet.spliceColumns(10, 1);
-        sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+        sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'M');
         sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","净重",IF(RIGHT(L4,2)="ml","容量","规格"))' };
       }
 
