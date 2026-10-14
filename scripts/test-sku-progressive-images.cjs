@@ -3,9 +3,12 @@ const vm = require('vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync(require('path').join(__dirname, '../outputs/plm-material-summary.user.js'), 'utf8');
 const extract = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
-let callback, observerOptions, disconnected = 0;
+let callback, observerOptions, revealCallback, disconnected = 0;
 class Observer {
-  constructor(cb, options) { callback = cb; observerOptions = options; }
+  constructor(cb, options) {
+    if (options.rootMargin === '0px') revealCallback = cb;
+    else { callback = cb; observerOptions = options; }
+  }
   observe() {}
   unobserve() {}
   disconnect() { disconnected++; }
@@ -21,9 +24,9 @@ function fixture() {
   const classes = new Set(), motions = [];
   const placeholder = { getAttribute: () => 'tiny.jpg', removeAttribute() {}, remove() { this.removed = true; }, animate() { return {}; } };
   const frame = { classList: { add: (value) => classes.add(value), contains: (value) => classes.has(value) }, querySelector: () => placeholder };
-  const image = { attrs: { 'data-sku-image': 'original.jpg' }, getAttribute(key) { return this.attrs[key]; }, removeAttribute(key) { delete this.attrs[key]; }, closest: () => frame, isConnected: true, naturalWidth: 100, complete: false, decode: async () => {}, animate(frames, options) { motions.push({ frames, options }); } };
+  const image = { attrs: { 'data-sku-image': 'original.jpg', 'data-sku-reveal': 'pending' }, getAttribute(key) { return this.attrs[key]; }, removeAttribute(key) { delete this.attrs[key]; }, closest: () => frame, isConnected: true, naturalWidth: 100, complete: false, decode: async () => {}, animate(frames, options) { motions.push({ frames, options }); } };
   const root = {};
-  const scope = { querySelectorAll: () => image.attrs['data-sku-image'] ? [image] : [], querySelector: () => root };
+  const scope = { querySelectorAll: () => image.attrs['data-sku-reveal'] ? [image] : [], querySelector: () => root };
   return { classes, motions, placeholder, image, scope, root };
 }
 (async () => {
@@ -38,11 +41,22 @@ function fixture() {
   assert.equal(f.image.src, 'original.jpg');
   assert.equal(f.placeholder.src, 'tiny.jpg');
   await f.image.onload();
+  assert.equal(f.motions.length, 0, 'Preloading outside the viewport must not consume the reveal animation');
+  assert.ok(!f.classes.has('is-image-ready'));
+  revealCallback([{ target: f.image, isIntersecting: true }]);
   assert.ok(f.classes.has('is-image-ready'));
   assert.equal(f.motions[0].options.duration, 500);
   assert.equal(f.motions[0].frames[0].transform, 'scale(1.04)');
   sandbox.setupSkuProgressiveImages(f.scope);
-  assert.equal(disconnected, 1);
+  assert.equal(disconnected, 2);
+  const reduced = fixture();
+  sandbox.window.matchMedia = () => ({ matches: true });
+  sandbox.setupSkuProgressiveImages(reduced.scope);
+  revealCallback([{ target: reduced.image, isIntersecting: true }]);
+  callback([{ target: reduced.image, isIntersecting: true }]);
+  await reduced.image.onload();
+  assert.equal(reduced.motions.length, 1, 'Reduced motion retains an opacity reveal');
+  assert.equal(reduced.motions[0].frames[0].transform, undefined);
   const failed = fixture();
   sandbox.setupSkuProgressiveImages(failed.scope);
   callback([{ target: failed.image, isIntersecting: true }]);

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.73
+// @version      2.9.74
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.73';
+  const SCRIPT_VERSION = '2.9.74';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -23300,14 +23300,15 @@
   function skuProgressiveImageHtml(url) {
     const placeholder = getSkuPlaceholderUrl(url);
     return (placeholder ? '<img class="pfh-sku-image-placeholder" data-sku-placeholder="' + escapeHtml(placeholder) + '" alt="" decoding="async" aria-hidden="true">' : '')
-      + '<img class="pfh-sku-image-original" data-sku-image="' + escapeHtml(url) + '" alt="" decoding="async">'
+      + '<img class="pfh-sku-image-original" data-sku-reveal="pending" data-sku-image="' + escapeHtml(url) + '" alt="" decoding="async">'
       + '<span class="pfh-sku-image-fallback" aria-hidden="true">' + iconHtml('image') + '</span>';
   }
 
   function setupSkuProgressiveImages(scope) {
     if (!scope) return;
     if (scope.pfhSkuImageObserver) scope.pfhSkuImageObserver.disconnect();
-    const images = Array.from(scope.querySelectorAll('img[data-sku-image]'));
+    if (scope.pfhSkuRevealObserver) scope.pfhSkuRevealObserver.disconnect();
+    const images = Array.from(scope.querySelectorAll('img[data-sku-reveal]'));
     const load = (image) => {
       const url = image.getAttribute('data-sku-image');
       if (!url) return;
@@ -23322,11 +23323,16 @@
       }
       const ready = async () => {
         if (image.decode) { try { await image.decode(); } catch (_) {} }
+        image.pfhSkuReveal = reveal;
+        if (image.pfhSkuVisible) reveal();
+      };
+      const reveal = () => {
         if (!image.isConnected || !image.naturalWidth || frame.classList.contains('is-image-ready')) return;
+        image.removeAttribute('data-sku-reveal');
         frame.classList.add('is-image-ready');
         const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (!reduced && image.animate) {
-          image.animate([
+        if (image.animate) {
+          image.animate(reduced ? [{ opacity: 0 }, { opacity: 1 }] : [
             { opacity: 0, filter: 'blur(20px)', transform: 'scale(1.04)' },
             { opacity: 1, filter: 'blur(0px)', transform: 'scale(1)' },
           ], { duration: 500, easing: 'cubic-bezier(.22,.61,.36,1)' });
@@ -23338,6 +23344,7 @@
       };
       image.onload = ready;
       image.onerror = () => {
+        image.removeAttribute('data-sku-reveal');
         frame.classList.add('is-image-error');
         if (placeholder) placeholder.remove();
       };
@@ -23345,14 +23352,28 @@
       if (image.complete && image.naturalWidth) ready();
     };
     if (!images.length) return;
-    if (!window.IntersectionObserver) { images.forEach(load); return; }
+    if (!window.IntersectionObserver) {
+      images.forEach((image) => { image.pfhSkuVisible = true; load(image); });
+      return;
+    }
+    const root = scope.querySelector('.pfh-sku-scroll');
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        entry.target.pfhSkuVisible = entry.isIntersecting;
+        if (!entry.isIntersecting || !entry.target.pfhSkuReveal) return;
+        entry.target.pfhSkuReveal();
+        revealObserver.unobserve(entry.target);
+      });
+    }, { root, rootMargin: '0px', threshold: 0 });
+    scope.pfhSkuRevealObserver = revealObserver;
+    images.forEach((image) => revealObserver.observe(image));
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (!entry.isIntersecting) return;
         observer.unobserve(entry.target);
         load(entry.target);
       });
-    }, { root: scope.querySelector('.pfh-sku-scroll'), rootMargin: '300px 0px', threshold: 0 });
+    }, { root, rootMargin: '300px 0px', threshold: 0 });
     scope.pfhSkuImageObserver = observer;
     images.forEach((image) => observer.observe(image));
   }
