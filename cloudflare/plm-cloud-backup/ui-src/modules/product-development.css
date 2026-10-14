@@ -59,7 +59,7 @@
 
 #plm-floating-helper .pfh-home-feature-viewport {
   min-width: 0;
-  padding: 10px 12px;
+  padding: 0;
   box-sizing: border-box;
   overflow: hidden;
   cursor: grab;
@@ -83,7 +83,7 @@
 
 #plm-floating-helper .pfh-home-feature-track {
   display: flex;
-  width: calc(100% + 12px);
+  width: 100%;
   align-items: stretch;
   transform: translateX(0);
   transition: transform .62s cubic-bezier(.25, 1.2, .35, 1);
@@ -97,12 +97,12 @@
 #plm-floating-helper .pfh-home-feature-page {
   min-width: 100%;
   flex: 0 0 100%;
-  padding-right: 12px;
+  padding: 10px 12px;
   box-sizing: border-box;
 }
 
 #plm-floating-helper .pfh-home-feature-page-product {
-  padding-bottom: 1px;
+  padding-bottom: 11px;
 }
 
 @keyframes pfh-home-feature-slide-to-product {

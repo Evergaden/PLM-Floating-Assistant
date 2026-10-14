@@ -7,8 +7,8 @@
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 267874,
-      "maxImportant": 1818,
+      "maxBytes": 267215,
+      "maxImportant": 1814,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast",
@@ -191,7 +191,7 @@
     }
   ],
   "budgets": {
-    "important": 1818,
+    "important": 1814,
     "supersededImportantDeclarations": 0,
     "duplicateSelectors": 458,
     "conflictingSelectors": 425

@@ -4589,22 +4589,6 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
   gap:12px;
   margin-bottom:13px;
 }
-#plm-floating-helper .pfh-home-metric,
-#plm-floating-helper .pfh-home-chart,
-#plm-floating-helper .pfh-home-panel{
-  min-width:0;
-  background:var(--pfh-theme-surface)!important;
-  border:1px solid var(--pfh-theme-border)!important;
-  border-radius:17px;
-  box-shadow:0 10px 28px var(--pfh-theme-shadow-soft),inset 0 1px 0 rgba(255,255,255,.84)!important;
-}
-#plm-floating-helper .pfh-home-metric{
-  position:relative;
-  min-height:202px;
-  overflow:hidden;
-  padding:18px;
-  background:radial-gradient(circle at 94% 5%,var(--pfh-theme-primary-soft),transparent 145px),linear-gradient(145deg,var(--pfh-theme-surface),var(--pfh-theme-surface-alt))!important;
-}
 #plm-floating-helper .pfh-home-metric>small{
   display:flex;
   align-items:center;
