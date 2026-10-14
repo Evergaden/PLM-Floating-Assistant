@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.314",
+  "version": "2.5.315",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 268420,
+      "maxBytes": 267874,
       "maxImportant": 1818,
       "forbidSelectorFragments": [
         ".pfh-toast",
@@ -183,6 +183,10 @@
     },
     {
       "path": "modules/home-feature-icons.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/sku-progressive-images.css",
       "mode": "module"
     }
   ],

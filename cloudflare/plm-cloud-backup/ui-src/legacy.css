@@ -4081,25 +4081,6 @@
         color: #a8afbf;
         cursor: not-allowed;
       }
-      #plm-floating-helper .pfh-sku-waterfall-thumb {
-        display: grid;
-        place-items: center;
-        width: 100%;
-        height: auto;
-        aspect-ratio: 1 / 1;
-        margin-bottom: 6px;
-        overflow: hidden;
-        border-radius: 7px;
-        background: linear-gradient(145deg,#f8fafc,#f3f0ff);
-        color: #a78bfa;
-      }
-      #plm-floating-helper .pfh-sku-waterfall-thumb img {
-        display: block;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: center;
-      }
       #plm-floating-helper .pfh-sku-waterfall-meta {
         display: grid;
         grid-template-columns: minmax(0,1fr);

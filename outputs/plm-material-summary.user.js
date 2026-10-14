@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.72
+// @version      2.9.73
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.72';
+  const SCRIPT_VERSION = '2.9.73';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -210,7 +210,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.314';
+  const UI_ASSET_VERSION = '2.5.315';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -23289,6 +23289,74 @@
     return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="' + escapeHtml(skuScrollContext) + '">' + searchToolbar + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
   }
 
+  function getSkuPlaceholderUrl(url) {
+    const thumbnail = getLedgerThumbnailUrl(url);
+    if (thumbnail === url) return '';
+    const parsed = new URL(thumbnail);
+    parsed.searchParams.set('x-oss-process', 'image/resize,w_32/quality,q_30');
+    return parsed.href;
+  }
+
+  function skuProgressiveImageHtml(url) {
+    const placeholder = getSkuPlaceholderUrl(url);
+    return (placeholder ? '<img class="pfh-sku-image-placeholder" data-sku-placeholder="' + escapeHtml(placeholder) + '" alt="" decoding="async" aria-hidden="true">' : '')
+      + '<img class="pfh-sku-image-original" data-sku-image="' + escapeHtml(url) + '" alt="" decoding="async">'
+      + '<span class="pfh-sku-image-fallback" aria-hidden="true">' + iconHtml('image') + '</span>';
+  }
+
+  function setupSkuProgressiveImages(scope) {
+    if (!scope) return;
+    if (scope.pfhSkuImageObserver) scope.pfhSkuImageObserver.disconnect();
+    const images = Array.from(scope.querySelectorAll('img[data-sku-image]'));
+    const load = (image) => {
+      const url = image.getAttribute('data-sku-image');
+      if (!url) return;
+      image.removeAttribute('data-sku-image');
+      const frame = image.closest('.pfh-sku-waterfall-thumb');
+      if (!frame) return;
+      const placeholder = frame.querySelector('[data-sku-placeholder]');
+      if (placeholder) {
+        placeholder.onerror = () => placeholder.remove();
+        placeholder.src = placeholder.getAttribute('data-sku-placeholder');
+        placeholder.removeAttribute('data-sku-placeholder');
+      }
+      const ready = async () => {
+        if (image.decode) { try { await image.decode(); } catch (_) {} }
+        if (!image.isConnected || !image.naturalWidth || frame.classList.contains('is-image-ready')) return;
+        frame.classList.add('is-image-ready');
+        const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!reduced && image.animate) {
+          image.animate([
+            { opacity: 0, filter: 'blur(20px)', transform: 'scale(1.04)' },
+            { opacity: 1, filter: 'blur(0px)', transform: 'scale(1)' },
+          ], { duration: 500, easing: 'cubic-bezier(.22,.61,.36,1)' });
+          if (placeholder && placeholder.animate) {
+            const fade = placeholder.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500 });
+            fade.onfinish = () => placeholder.remove();
+          }
+        } else if (placeholder) placeholder.remove();
+      };
+      image.onload = ready;
+      image.onerror = () => {
+        frame.classList.add('is-image-error');
+        if (placeholder) placeholder.remove();
+      };
+      image.src = url;
+      if (image.complete && image.naturalWidth) ready();
+    };
+    if (!images.length) return;
+    if (!window.IntersectionObserver) { images.forEach(load); return; }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        observer.unobserve(entry.target);
+        load(entry.target);
+      });
+    }, { root: scope.querySelector('.pfh-sku-scroll'), rootMargin: '300px 0px', threshold: 0 });
+    scope.pfhSkuImageObserver = observer;
+    images.forEach((image) => observer.observe(image));
+  }
+
   function skuListCardHtml(item, listMode, activeSku, options) {
     const source = item || {};
     const opts = options || {};
@@ -23300,7 +23368,7 @@
     const dataSku = ' data-sku="' + escapeHtml(sku) + '"';
     const data = opts.data || normalizeData(loadData(sku) || source);
     const image = String(opts.image || getSkuListImageUrl(data) || '').trim();
-    const imageHtml = image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy" decoding="async">' : iconHtml('image');
+    const imageHtml = image ? skuProgressiveImageHtml(image) : iconHtml('image');
     if (listMode === 'waterfall') {
       const productName = String(opts.productName || data.name || source.name || '\u672a\u547d\u540d\u4ea7\u54c1');
       return '<button type="button" class="pfh-sku-waterfall-card' + active + pinned + '"' + action + dataSku + ' title="' + escapeHtml(title) + '">' +
@@ -23340,10 +23408,12 @@
       if (currentSortLabel && nextSortLabel) currentSortLabel.textContent = nextSortLabel.textContent;
     }
     currentContent.replaceWith(nextContent);
+    setupSkuProgressiveImages(list);
     return true;
   }
 
   function setupSkuViewFusion(list) {
+    setupSkuProgressiveImages(list);
     const switcher = list && list.querySelector('.pfh-sku-view-switch');
     const indicator = switcher && switcher.querySelector('.pfh-sku-view-indicator');
     if (!switcher || !indicator) return;
