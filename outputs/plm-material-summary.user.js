@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.75
+// @version      2.9.76
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.75';
+  const SCRIPT_VERSION = '2.9.76';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -23103,7 +23103,10 @@
   function renderSkuList(panel) {
     const list = panel.querySelector('.pfh-list');
     if (!list) return;
+    const signature = renderSkuListHtml(true);
+    if (list.pfhSkuRenderSignature === signature && list.querySelector('.pfh-sku-list-content')) return;
     list.innerHTML = renderSkuListHtml();
+    list.pfhSkuRenderSignature = signature;
     setupSkuViewFusion(list);
   }
 
@@ -23261,7 +23264,7 @@
     }
   }
 
-  function renderSkuListHtml() {
+  function renderSkuListHtml(imageSignature) {
     const query = state.searchQuery.trim();
     const searchTokens = parseSearchTokens(query);
     const allItems = sortSkuListItems(getFilteredSearchMatches(searchTokens));
@@ -23272,7 +23275,7 @@
     const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
     const listTitle = 'SKU\u5217\u8868';
     const listSort = getSkuListSort();
-    const skuScrollContext = ['sku', state.view, listMode, listSort, state.skuPage, query, ...Object.values(state.skuFilters)].join('|');
+    const skuScrollContext = ['sku', listMode, listSort, state.skuPage, query, ...Object.values(state.skuFilters)].join('|');
     const listSortLabel = listSort === 'acquired' ? '\u83b7\u53d6\u65f6\u95f4' : '\u5206\u914d\u65f6\u95f4';
     const listSortMenu = '<div class="pfh-export-menu pfh-sku-sort-menu' + (state.skuSortMenuOpen ? ' is-open' : '') + '">' +
       '<button type="button" class="pfh-export-menu-button" data-action="sku-sort-toggle" aria-expanded="' + (state.skuSortMenuOpen ? 'true' : 'false') + '"><span>' + escapeHtml(listSortLabel) + '</span><i></i></button>' +
@@ -23294,7 +23297,7 @@
     const searchToolbar = searchTokens.length || activeFilterCount
       ? '<div class="pfh-search-result-toolbar"><button type="button" data-action="pin-search-results">全部置顶</button><span>' + escapeHtml(L.searchResult + ': ' + allItems.length) + '</span></div>'
       : '';
-    const cards = items.map((item) => skuListCardHtml(item, listMode, state.selectedSku)).join('');
+    const cards = items.map((item) => skuListCardHtml(item, listMode, state.selectedSku, { imageSignature })).join('');
     return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="' + escapeHtml(skuScrollContext) + '">' + searchToolbar + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
   }
 
@@ -23306,8 +23309,8 @@
     return parsed.href;
   }
 
-  function skuProgressiveImageHtml(url) {
-    if (skuProgressiveImageHtml.revealedUrls && skuProgressiveImageHtml.revealedUrls.has(url)) {
+  function skuProgressiveImageHtml(url, imageSignature) {
+    if (!imageSignature && skuProgressiveImageHtml.revealedUrls && skuProgressiveImageHtml.revealedUrls.has(url)) {
       return '<img class="pfh-sku-image-original" src="' + escapeHtml(url) + '" style="opacity:1" alt="" decoding="async">';
     }
     const placeholder = getSkuPlaceholderUrl(url);
@@ -23404,7 +23407,7 @@
     const dataSku = ' data-sku="' + escapeHtml(sku) + '"';
     const data = opts.data || normalizeData(loadData(sku) || source);
     const image = String(opts.image || getSkuListImageUrl(data) || '').trim();
-    const imageHtml = image ? skuProgressiveImageHtml(image) : iconHtml('image');
+    const imageHtml = image ? skuProgressiveImageHtml(image, opts.imageSignature) : iconHtml('image');
     if (listMode === 'waterfall') {
       const productName = String(opts.productName || data.name || source.name || '\u672a\u547d\u540d\u4ea7\u54c1');
       return '<button type="button" class="pfh-sku-waterfall-card' + active + pinned + '"' + action + dataSku + ' title="' + escapeHtml(title) + '">' +
@@ -23444,6 +23447,7 @@
       if (currentSortLabel && nextSortLabel) currentSortLabel.textContent = nextSortLabel.textContent;
     }
     currentContent.replaceWith(nextContent);
+    list.pfhSkuRenderSignature = renderSkuListHtml(true);
     setupSkuProgressiveImages(list);
     return true;
   }

@@ -50,6 +50,7 @@ function fixture() {
   assert.match(sandbox.skuProgressiveImageHtml('original.jpg'), /src="original.jpg"/);
   assert.doesNotMatch(sandbox.skuProgressiveImageHtml('original.jpg'), /data-sku-reveal|placeholder/);
   assert.match(sandbox.skuProgressiveImageHtml('changed.jpg'), /data-sku-reveal/);
+  assert.match(sandbox.skuProgressiveImageHtml('original.jpg', true), /data-sku-reveal/, 'Render signatures must remain stable after an image is revealed');
   sandbox.setupSkuProgressiveImages(f.scope);
   assert.equal(disconnected, 2);
   const reduced = fixture();
@@ -77,6 +78,19 @@ function fixture() {
   vm.runInContext(extract('  function updateExportMenuVisibility(', '  function renderSkuList('), sandbox);
   open = true;
   sandbox.updateExportMenuVisibility();
+  let listWrites = 0, signature = 'same SKU data', setups = 0;
+  const list = { querySelector: () => ({}), set innerHTML(value) { listWrites++; this.markup = value; } };
+  sandbox.renderSkuListHtml = (signatureOnly) => signatureOnly ? signature : '<cards>';
+  sandbox.setupSkuViewFusion = () => setups++;
+  vm.runInContext(extract('  function renderSkuList(', '  function isUploadSkuPickerMode('), sandbox);
+  const panel = { querySelector: () => list };
+  sandbox.renderSkuList(panel);
+  sandbox.renderSkuList(panel);
+  assert.equal(listWrites, 1, 'Unchanged SKU data must preserve the existing image nodes');
+  assert.equal(setups, 1, 'Unchanged data must preserve active observers and animations');
+  signature = 'new image URL';
+  sandbox.renderSkuList(panel);
+  assert.equal(listWrites, 2, 'Changed SKU data must still update the list');
   open = false;
   sandbox.state.exportMenuOpen = false;
   sandbox.updateExportMenuVisibility();
