@@ -104,6 +104,8 @@
   height:auto;
   min-height:202px;
   box-sizing:border-box;
+  --pfh-home-card-shadow:none;
+  box-shadow:none;
 }
 #plm-floating-helper .pfh-home-metric,
 #plm-floating-helper .pfh-home-chart,
@@ -113,9 +115,6 @@
   border:1px solid var(--pfh-theme-border);
   border-radius:17px;
   box-shadow:var(--pfh-home-card-shadow,0 10px 28px var(--pfh-theme-shadow-soft),inset 0 1px 0 rgba(255,255,255,.84));
-}
-#plm-floating-helper .pfh-home-carousel-slide>.pfh-home-chart{
-  --pfh-home-card-shadow:none;
 }
 #plm-floating-helper .pfh-home-metric{
   position:relative;
@@ -149,7 +148,7 @@
   border:1px solid var(--pfh-theme-border);
   border-radius:17px;
   background:var(--pfh-theme-surface);
-  box-shadow:0 10px 28px var(--pfh-theme-shadow-soft),inset 0 1px 0 rgba(255,255,255,.84);
+  box-shadow:var(--pfh-home-card-shadow,0 10px 28px var(--pfh-theme-shadow-soft),inset 0 1px 0 rgba(255,255,255,.84));
 }
 #plm-floating-helper .pfh-home-todo>header{
   display:flex;
