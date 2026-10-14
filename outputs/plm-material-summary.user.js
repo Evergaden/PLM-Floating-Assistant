@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.74
+// @version      2.9.75
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.74';
+  const SCRIPT_VERSION = '2.9.75';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -23091,6 +23091,15 @@
     return true;
   }
 
+  function updateExportMenuVisibility() {
+    const panel = ensurePanel();
+    panel.querySelectorAll('.pfh-readiness-menu').forEach((menu) => {
+      menu.classList.toggle('is-open', state.exportMenuOpen);
+      const trigger = menu.querySelector('[data-action="export-menu-toggle"]');
+      if (trigger) trigger.setAttribute('aria-expanded', String(state.exportMenuOpen));
+    });
+  }
+
   function renderSkuList(panel) {
     const list = panel.querySelector('.pfh-list');
     if (!list) return;
@@ -23298,6 +23307,9 @@
   }
 
   function skuProgressiveImageHtml(url) {
+    if (skuProgressiveImageHtml.revealedUrls && skuProgressiveImageHtml.revealedUrls.has(url)) {
+      return '<img class="pfh-sku-image-original" src="' + escapeHtml(url) + '" style="opacity:1" alt="" decoding="async">';
+    }
     const placeholder = getSkuPlaceholderUrl(url);
     return (placeholder ? '<img class="pfh-sku-image-placeholder" data-sku-placeholder="' + escapeHtml(placeholder) + '" alt="" decoding="async" aria-hidden="true">' : '')
       + '<img class="pfh-sku-image-original" data-sku-reveal="pending" data-sku-image="' + escapeHtml(url) + '" alt="" decoding="async">'
@@ -23330,6 +23342,9 @@
         if (!image.isConnected || !image.naturalWidth || frame.classList.contains('is-image-ready')) return;
         image.removeAttribute('data-sku-reveal');
         frame.classList.add('is-image-ready');
+        const revealed = skuProgressiveImageHtml.revealedUrls || (skuProgressiveImageHtml.revealedUrls = new Set());
+        revealed.add(url);
+        if (revealed.size > 512) revealed.delete(revealed.values().next().value);
         const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (image.animate) {
           image.animate(reduced ? [{ opacity: 0 }, { opacity: 1 }] : [
@@ -35833,7 +35848,7 @@ self.onmessage = async function(event) {
     if (state.exportMenuOpen && !(event.target && event.target.closest && event.target.closest('.pfh-export-menu, .pfh-readiness-menu'))) {
       syncExcelInputs();
       state.exportMenuOpen = false;
-      renderShell();
+      updateExportMenuVisibility();
       return;
     }
     if (state.skuSortMenuOpen && !(event.target && event.target.closest && event.target.closest('.pfh-sku-sort-menu'))) {
@@ -36335,7 +36350,7 @@ self.onmessage = async function(event) {
     if (action === 'export-menu-toggle') {
       syncExcelInputs();
       state.exportMenuOpen = !state.exportMenuOpen;
-      renderShell();
+      updateExportMenuVisibility();
       return;
     }
     if (action === 'export-type') {
@@ -36343,7 +36358,11 @@ self.onmessage = async function(event) {
       state.exportType = actionTarget.getAttribute('data-export-type') === 'toy-label' ? 'toy-label' : 'excel';
       state.excelStatus = '';
       state.exportMenuOpen = true;
-      renderShell();
+      const panel = ensurePanel();
+      const snapshot = capturePanelScroll(panel);
+      renderDetail(panel);
+      setupDetailViewTabs(panel);
+      restorePanelScroll(panel, snapshot);
       return;
     }
     if (action === 'upload-toggle') {
