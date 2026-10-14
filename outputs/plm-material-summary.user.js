@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.70
+// @version      2.9.71
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.70';
+  const SCRIPT_VERSION = '2.9.71';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -210,7 +210,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.312';
+  const UI_ASSET_VERSION = '2.5.313';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -2767,6 +2767,7 @@
     return draft;
   }
 
+  const HOME_FEATURE_ART_FILES = Object.freeze({ detail: 'my-details.png', parameterImage: 'parameter-image.png', batchExcel: 'batch-excel.png', magicUpload: 'magic-upload.png', ledger: 'today-workbench.png' });
   const HOME_FEATURE_DEFINITIONS = Object.freeze([
     Object.freeze({ id: 'detail', action: 'open-first-detail', icon: 'folder', title: '我的详情', description: '点击后先检查新的设计分配，自动加入本地列表和今日工作台。' }),
     Object.freeze({ id: 'batchExcel', action: 'home-batch-excel', icon: 'batchExcel', title: '批量生成 Excel', description: '多个 SKU 自动补全并成表' }),
@@ -23386,6 +23387,7 @@
     if (list) list.innerHTML = '';
     detail.classList.remove('is-loading');
     detail.innerHTML = homeViewHtml(statusText);
+    setupHomeFeatureArt(detail);
     setupHomeChartInteraction(detail);
     setupHomeCarousel(detail);
     setupHomeClock();
@@ -28622,6 +28624,23 @@
     });
   }
 
+  function setupHomeFeatureArt(root) {
+    if (root.dataset.featureArtErrorsBound) return;
+    root.dataset.featureArtErrorsBound = 'true';
+    root.addEventListener('error', (event) => {
+      const image = event.target;
+      if (!image.matches?.('.pfh-home-feature-art')) return;
+      if (!image.dataset.triedFallback && CLOUD_ASSET_FALLBACK_API_BASE !== CLOUD_BACKUP_API_BASE) {
+        image.dataset.triedFallback = 'true';
+        image.src = CLOUD_ASSET_FALLBACK_API_BASE + image.dataset.artPath;
+        return;
+      }
+      const icon = image.parentElement;
+      icon.classList.remove('is-illustrated');
+      icon.innerHTML = iconHtml(image.dataset.artIcon);
+    }, true);
+  }
+
   function homeFeatureEntryHtml(entry, className, options) {
     const settings = options || {};
     const editing = Boolean(settings.editing);
@@ -28632,8 +28651,11 @@
       ? ' draggable="true" data-home-feature-card="true" data-home-feature-id="' + escapeHtml(entry.id) + '" data-home-feature-group="' + escapeHtml(group) + '" role="listitem" tabindex="0" aria-label="拖动调整' + escapeHtml(entry.title) + '的位置"'
       : ' type="button" data-action="' + escapeHtml(entry.action) + '"';
     const editHandle = editing ? '<span class="pfh-home-entry-drag-handle" aria-hidden="true">⋮⋮</span>' : '';
+    const artFile = HOME_FEATURE_ART_FILES[entry.id];
+    const artPath = artFile ? '/assets/feature-illustrations/glass-mint-v1/' + artFile : '';
+    const artwork = artFile ? '<img class="pfh-home-feature-art" src="' + escapeHtml(CLOUD_BACKUP_API_BASE + artPath) + '" data-art-path="' + escapeHtml(artPath) + '" data-art-icon="' + escapeHtml(entry.icon) + '" alt="" aria-hidden="true" decoding="async">' : iconHtml(entry.icon);
     return '<' + tag + ' class="pfh-home-entry ' + (className || '') + (disabled ? ' is-disabled' : '') + (editing ? ' is-editing-card' : '') + '"' + attrs + (disabled && !editing ? ' disabled aria-disabled="true"' : '') + '>' +
-      '<span class="pfh-home-entry-icon">' + iconHtml(entry.icon) + '</span>' +
+      '<span class="pfh-home-entry-icon' + (artFile ? ' is-illustrated' : '') + '">' + artwork + '</span>' +
       '<span class="pfh-home-entry-copy"><strong>' + escapeHtml(entry.title) + '</strong><small>' + escapeHtml(entry.description) + '</small></span>' +
       (entry.badge ? '<i class="pfh-home-entry-badge">' + escapeHtml(entry.badge) + '</i>' : '') +
       (entry.meta ? '<em class="pfh-home-entry-meta">' + escapeHtml(entry.meta) + '</em>' : '') +

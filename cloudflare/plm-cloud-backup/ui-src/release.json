@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.312",
+  "version": "2.5.313",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 269115,
-      "maxImportant": 1826,
+      "maxBytes": 268420,
+      "maxImportant": 1818,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast",
@@ -27,7 +27,8 @@
         "[data-pfh-theme] :where(button)",
         "[data-pfh-theme] :where(button:hover:not(:disabled)",
         ".pfh-collection-mark",
-        ".pfh-home-task"
+        ".pfh-home-task",
+        ".pfh-home-entry-icon"
       ],
       "forbidProperties": [
         "font-weight"
@@ -179,10 +180,14 @@
     {
       "path": "modules/task-empty.css",
       "mode": "module"
+    },
+    {
+      "path": "modules/home-feature-art.css",
+      "mode": "module"
     }
   ],
   "budgets": {
-    "important": 1826,
+    "important": 1818,
     "supersededImportantDeclarations": 0,
     "duplicateSelectors": 458,
     "conflictingSelectors": 425
