@@ -190,6 +190,9 @@
       "mode": "module"
     }
   ],
+  "experimentalSources": [
+    { "path": "modules/workspace-preview.css", "mode": "module" }
+  ],
   "budgets": {
     "important": 1814,
     "supersededImportantDeclarations": 0,

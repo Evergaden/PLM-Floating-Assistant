@@ -112,7 +112,10 @@ function analyzeCss(css) {
 }
 
 const canonicalOwners = new Map();
-const parts = release.sources.map((source) => {
+// Validate experimental modules under the same ownership and module policies,
+// but keep them out of the hosted stylesheet and its release debt baselines.
+const sources = [...release.sources, ...(release.experimentalSources || [])];
+const validatedParts = sources.map((source) => {
   const relativePath = String(source.path || '').replace(/\\/g, '/');
   const mode = String(source.mode || 'module');
   const absolutePath = path.resolve(sourceRoot, relativePath);
@@ -182,7 +185,7 @@ const parts = release.sources.map((source) => {
 
 const output = [
   `/* Generated UI ${release.version}. Edit ui-src/, never this artifact. */`,
-  ...parts,
+  ...validatedParts.slice(0, release.sources.length),
 ].join('\n\n') + '\n';
 const metrics = analyzeCss(output);
 Object.entries(release.budgets || {}).forEach(([name, limit]) => {

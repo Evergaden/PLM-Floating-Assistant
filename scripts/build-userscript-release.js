@@ -5,10 +5,28 @@ const { spawnSync } = require('child_process');
 const root = path.resolve(__dirname, '..');
 const sourcePath = path.join(root, 'outputs', 'plm-material-summary.user.js');
 const preview = process.argv.includes('--preview');
-const outputPath = path.join(root, 'outputs', preview
+const workspacePreview = process.argv.includes('--workspace-preview');
+if (preview && workspacePreview) throw new Error('Choose --preview or --workspace-preview');
+const fullOutputPath = path.join(root, 'outputs', 'plm-material-summary.workspace-preview.user.js');
+const outputPath = path.join(root, 'outputs', workspacePreview
+  ? 'plm-material-summary.workspace-preview.min.user.js' : preview
   ? 'plm-material-summary.min.preview.user.js'
   : 'plm-material-summary.min.user.js');
-const source = fs.readFileSync(sourcePath, 'utf8');
+let source = fs.readFileSync(sourcePath, 'utf8');
+if (workspacePreview) {
+  const cssPath = path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'workspace-preview.css');
+  const css = fs.readFileSync(cssPath, 'utf8');
+  source = source
+    .replace("const WORKSPACE_PREVIEW = false;", 'const WORKSPACE_PREVIEW = true;')
+    .replace("const WORKSPACE_PREVIEW_CSS = '';", () => 'const WORKSPACE_PREVIEW_CSS = ' + JSON.stringify(css) + ';')
+    // Preserve @name/@namespace so updating retains the manager's GM cache.
+    .replace('// @description  ', '// @description  [布局验证版] ');
+  if (!source.includes('const WORKSPACE_PREVIEW = true;') || !source.includes(css.slice(0, 50))) {
+    throw new Error('Workspace preview build markers are missing');
+  }
+  fs.writeFileSync(fullOutputPath, source, 'utf8');
+  console.log(`Wrote ${path.relative(root, fullOutputPath)}`);
+}
 const metadataEndMarker = '// ==/UserScript==';
 const metadataEnd = source.indexOf(metadataEndMarker);
 
@@ -21,7 +39,7 @@ const npx = process.platform === 'win32' && fs.existsSync(npxCli) ? process.exec
 const npxArgs = [
   '--yes',
   'terser@5.44.0',
-  sourcePath,
+  workspacePreview ? fullOutputPath : sourcePath,
   '--compress',
   '--mangle',
   '--comments',

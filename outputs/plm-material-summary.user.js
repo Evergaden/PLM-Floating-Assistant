@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.77
+// @version      2.9.78
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,10 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.77';
+  const SCRIPT_VERSION = '2.9.78';
+  // Replaced only by build-userscript-release.js --workspace-preview.
+  const WORKSPACE_PREVIEW = false;
+  const WORKSPACE_PREVIEW_CSS = '';
   // <trace-name-pinyin-module>
   /* @license pinyin-pro 3.29.4
    * MIT License
@@ -22150,6 +22153,82 @@
     state.detailViewPreviousTab = '';
   }
 
+  function isWorkspaceSkuView() {
+    return WORKSPACE_PREVIEW && ['detail', 'parameterImage', 'sizeImage'].includes(state.view);
+  }
+
+  function workspaceNavigationButtonHtml(entry) {
+    const viewId = state.view === 'productDevelopmentTasks' ? 'product-development-tasks' : state.view;
+    const active = entry.id === 'detail' ? isWorkspaceSkuView() : entry.id === viewId && !isWorkspaceSkuView();
+    return '<button type="button" class="pfh-workspace-nav-button' + (active ? ' is-active' : '') + '" data-action="' + escapeHtml(entry.action) + '" title="' + escapeHtml(entry.title) + '" aria-label="' + escapeHtml(entry.title) + '"' + (active ? ' aria-current="page"' : '') + (entry.disabled ? ' disabled' : '') + '>' + iconHtml(entry.icon) + '</button>';
+  }
+
+  function renderWorkspacePreviewShell(panel) {
+    if (!WORKSPACE_PREVIEW) return;
+    panel.dataset.workspacePreview = 'true';
+    let style = document.getElementById(PANEL_ID + '-workspace-preview-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = PANEL_ID + '-workspace-preview-style';
+      style.textContent = WORKSPACE_PREVIEW_CSS;
+      document.documentElement.appendChild(style);
+    }
+    const main = panel.querySelector('.pfh-main');
+    let workspace = main.querySelector('.pfh-workspace');
+    if (!workspace) {
+      workspace = document.createElement('div');
+      workspace.className = 'pfh-workspace';
+      workspace.innerHTML = '<nav class="pfh-workspace-nav" aria-label="功能导航"><div class="pfh-workspace-nav-features"></div><div class="pfh-workspace-nav-aux"></div></nav><div class="pfh-workspace-viewport"><div class="pfh-workspace-stage"><div class="pfh-workspace-list-pane"></div></div></div>';
+      const stage = workspace.querySelector('.pfh-workspace-stage');
+      workspace.querySelector('.pfh-workspace-list-pane').appendChild(panel.querySelector('.pfh-list'));
+      stage.appendChild(panel.querySelector('.pfh-detail'));
+      // Keep the original splitter and its listeners, outside the preview grid.
+      const splitter = main.querySelector('.pfh-splitter');
+      if (splitter) {
+        const stash = document.createElement('div');
+        stash.hidden = true;
+        stash.appendChild(splitter);
+        workspace.appendChild(stash);
+      }
+      main.appendChild(workspace);
+      const aux = workspace.querySelector('.pfh-workspace-nav-aux');
+      ['home-main', 'notifications', 'about'].forEach((action) => {
+        const button = panel.querySelector('[data-action="' + action + '"]');
+        button.classList.add('pfh-workspace-nav-button');
+        button.title = button.getAttribute('aria-label') || '';
+        aux.appendChild(button);
+      });
+      panel.pfhWorkspaceSearch = panel.querySelector('.pfh-search');
+      panel.querySelector('.pfh-edition-badge b').textContent = '布局验证版';
+    }
+    workspace.classList.toggle('is-sku-view', isWorkspaceSkuView());
+    const features = workspace.querySelector('.pfh-workspace-nav-features');
+    const html = getHomeFeatureEntries().concat(productDevelopmentHomeFeatureEntries()).map(workspaceNavigationButtonHtml).join('');
+    if (features.pfhSignature !== html) {
+      features.innerHTML = html;
+      features.pfhSignature = html;
+    }
+    workspace.querySelectorAll('.pfh-workspace-nav-aux button').forEach((button) => {
+      const active = button.dataset.action === (state.view === 'home' ? 'home-main' : state.view === 'about' ? 'about' : '');
+      button.classList.toggle('is-active', active);
+      if (active) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+    // Move the actual search node so input listeners, focus and value survive.
+    if (!isWorkspaceSkuView()) panel.querySelector('.pfh-heading').appendChild(panel.pfhWorkspaceSearch);
+  }
+
+  function syncWorkspaceSkuSelection(panel) {
+    if (!isWorkspaceSkuView()) return;
+    panel.querySelectorAll('.pfh-workspace-row').forEach((row) => {
+      const active = row.dataset.sku === state.selectedSku;
+      row.classList.toggle('is-active', active);
+      row.setAttribute('aria-pressed', String(active));
+    });
+    const host = panel.querySelector('.pfh-workspace-search-host');
+    if (host && panel.pfhWorkspaceSearch) host.appendChild(panel.pfhWorkspaceSearch);
+  }
+
   function renderShell(statusText) {
     stopPixelRoomAnimation();
     const panel = ensurePanel();
@@ -22158,6 +22237,7 @@
       state.toolsActiveTool = 'unit';
     }
     panel.dataset.view = state.view || 'home';
+    renderWorkspacePreviewShell(panel);
     if (state.view === 'productDevelopmentTasks') panel.style.setProperty('overflow', 'visible', 'important');
     else panel.style.removeProperty('overflow');
     const taskSidebar = panel.querySelector('.pfh-product-development-task-sidebar');
@@ -22348,7 +22428,7 @@
 
   function capturePanelScrollAnchor(node, selector) {
     const itemSelector = selector === '.pfh-sku-scroll'
-      ? '.pfh-sku[data-sku],.pfh-sku-waterfall-card[data-sku]'
+      ? '.pfh-sku[data-sku],.pfh-sku-waterfall-card[data-sku],.pfh-workspace-row[data-sku]'
       : (selector === '.pfh-ledger-list' ? '.pfh-ledger-item[data-ledger-sku]' : '');
     if (!itemSelector || !node) return null;
     const containerRect = node.getBoundingClientRect();
@@ -22379,7 +22459,7 @@
         if (!sameContext || !pos.anchor || !pos.anchor.sku) return;
         window.requestAnimationFrame(() => {
           const anchor = Array.from(node.querySelectorAll(selector === '.pfh-sku-scroll'
-            ? '.pfh-sku[data-sku],.pfh-sku-waterfall-card[data-sku]'
+            ? '.pfh-sku[data-sku],.pfh-sku-waterfall-card[data-sku],.pfh-workspace-row[data-sku]'
             : '.pfh-ledger-item[data-ledger-sku]')).find((item) =>
             (item.getAttribute('data-sku') || item.getAttribute('data-ledger-sku') || '') === pos.anchor.sku
             && (!pos.anchor.date || item.getAttribute('data-ledger-date') === pos.anchor.date)
@@ -23108,10 +23188,20 @@
     const list = panel.querySelector('.pfh-list');
     if (!list) return;
     const signature = renderSkuListHtml(true);
-    if (list.pfhSkuRenderSignature === signature && list.querySelector('.pfh-sku-list-content')) return;
+    if (list.pfhSkuRenderSignature === signature && list.querySelector('.pfh-sku-list-content')) {
+      syncWorkspaceSkuSelection(panel);
+      return;
+    }
+    const focusedSearch = isWorkspaceSkuView() && panel.pfhWorkspaceSearch && panel.pfhWorkspaceSearch.contains(document.activeElement) ? document.activeElement : null;
+    const selection = focusedSearch ? [focusedSearch.selectionStart, focusedSearch.selectionEnd] : null;
     list.innerHTML = renderSkuListHtml();
     list.pfhSkuRenderSignature = signature;
     setupSkuViewFusion(list);
+    syncWorkspaceSkuSelection(panel);
+    if (focusedSearch) {
+      focusedSearch.focus({ preventScroll: true });
+      if (selection[0] != null && focusedSearch.setSelectionRange) focusedSearch.setSelectionRange(...selection);
+    }
   }
 
   function isUploadSkuPickerMode(mode) {
@@ -23293,7 +23383,7 @@
       '<label class="pfh-sku-sort"><span>\u6392\u5e8f</span>' + listSortMenu + '</label></div>';
     const activeFilterCount = Object.values(state.skuFilters).filter(Boolean).length;
     const filterTools = '<div class="pfh-sku-filter-toolbar"><button type="button" data-action="sku-filter-toggle" aria-expanded="' + String(state.skuFilterOpen) + '" class="' + (activeFilterCount ? 'is-active' : '') + '">筛选' + (activeFilterCount ? ' · ' + activeFilterCount : '') + '</button><span>' + (activeFilterCount ? '已按条件筛选' : '开发人员、品牌、状态、设计类型') + '</span></div>' + renderSkuFilterPanel();
-    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span><button type="button" class="pfh-sku-add-button" data-action="sku-manual-add-open" title="批量添加 SKU" aria-label="批量添加 SKU">+</button></div>' + listTools + filterTools;
+    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span><button type="button" class="pfh-sku-add-button" data-action="sku-manual-add-open" title="批量添加 SKU" aria-label="批量添加 SKU">+</button></div>' + (isWorkspaceSkuView() ? '<div class="pfh-workspace-search-host"></div>' : '') + listTools + filterTools;
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
       return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll" data-scroll-context="' + escapeHtml(skuScrollContext) + '"><div class="pfh-empty">' + escapeHtml(searchTokens.length || activeFilterCount ? L.noSearchResult : L.emptyList) + '</div></div>' + pager + '</div>';
@@ -23301,7 +23391,9 @@
     const searchToolbar = searchTokens.length || activeFilterCount
       ? '<div class="pfh-search-result-toolbar"><button type="button" data-action="pin-search-results">全部置顶</button><span>' + escapeHtml(L.searchResult + ': ' + allItems.length) + '</span></div>'
       : '';
-    const cards = items.map((item) => skuListCardHtml(item, listMode, state.selectedSku, { imageSignature })).join('');
+    const cards = items.map((item) => isWorkspaceSkuView()
+      ? workspaceSkuRowHtml(item, imageSignature ? '' : state.selectedSku)
+      : skuListCardHtml(item, listMode, state.selectedSku, { imageSignature })).join('');
     return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="' + escapeHtml(skuScrollContext) + '">' + searchToolbar + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
   }
 
@@ -23400,6 +23492,20 @@
     images.forEach((image) => observer.observe(image));
   }
 
+  function workspaceSkuRowHtml(item, activeSku) {
+    const sku = String(item.sku || '').trim().toUpperCase();
+    const data = loadData(sku) || item;
+    const image = getSkuListImageUrl(data) || getSkuListImageUrl(item);
+    const title = String(data.name || item.name || '未命名产品');
+    const developer = String(data.developerName || item.developerName || '未分配开发人员');
+    const status = String(data.projectStatus || item.projectStatus || '暂无状态');
+    const active = sku === activeSku;
+    return '<button type="button" class="pfh-workspace-row' + (active ? ' is-active' : '') + '" data-sku="' + escapeHtml(sku) + '" aria-pressed="' + active + '" title="' + escapeHtml(title) + '">' +
+      '<span class="pfh-workspace-thumb pfh-sku-waterfall-thumb">' + (image ? skuProgressiveImageHtml(image, true) : '<span class="pfh-workspace-image-empty">' + iconHtml('image') + '<small>暂无效果图</small></span>') + '</span>' +
+      '<span class="pfh-workspace-product"><strong>' + escapeHtml(title) + '</strong><small>' + escapeHtml(sku) + '</small><span class="pfh-workspace-row-meta"><span>' + escapeHtml(developer) + '</span><span>' + escapeHtml(status) + '</span></span></span>' +
+      '<em data-pin-sku="' + escapeHtml(sku) + '" title="' + escapeHtml(item.pinned ? TOOLTIP.unpin : TOOLTIP.pin) + '" class="pfh-workspace-pin' + (item.pinned ? ' is-pinned' : '') + '">' + iconHtml('pin') + '</em></button>';
+  }
+
   function skuListCardHtml(item, listMode, activeSku, options) {
     const source = item || {};
     const opts = options || {};
@@ -23425,6 +23531,10 @@
   }
 
   function renderSkuListContent(panel) {
+    if (isWorkspaceSkuView()) {
+      renderSkuList(panel);
+      return true;
+    }
     const list = panel && panel.querySelector('.pfh-list');
     const currentSwitch = list && list.querySelector('.pfh-sku-view-switch');
     const currentContent = list && list.querySelector('.pfh-sku-list-content');
@@ -26921,7 +27031,7 @@
         if (main) main.classList.remove('is-home');
         renderLoadingDetail(detail, statusText);
       } else {
-        detail.innerHTML = homeViewHtml(statusText, null);
+        detail.innerHTML = isWorkspaceSkuView() ? '<div class="pfh-empty">选择一个 SKU 查看详情；暂无产品时，可先添加 SKU。</div>' : homeViewHtml(statusText, null);
       }
       return;
     }
@@ -26996,7 +27106,7 @@
         referenceLink +
         '</div>'
       : '';
-    const actions = '<div class="pfh-title-actions pfh-detail-card-actions">' +
+    const actions = '<div class="' + (WORKSPACE_PREVIEW ? 'pfh-workspace-detail-controls' : 'pfh-title-actions') + ' pfh-detail-card-actions">' +
       '<button type="button" class="pfh-detail-view-button pfh-title-open-detail" data-action="open-detail"><span>查看详情</span><span aria-hidden="true">›</span></button>' +
       '<div class="pfh-detail-secondary-actions">' +
         (state.skuEditMode
@@ -27004,7 +27114,7 @@
           : '<button type="button" class="pfh-detail-edit-button pfh-title-open-detail" data-action="sku-edit-open" title="编辑数据" aria-label="编辑数据">' + iconHtml('edit') + '<span>编辑</span></button><button type="button" class="pfh-detail-more-button" data-action="sku-detail-more" data-sku="' + escapeHtml(sku) + '" aria-label="更多操作" aria-expanded="' + (menuOpen ? 'true' : 'false') + '"><span class="pfh-detail-more-dots"><i></i><i></i><i></i></span></button>') +
       '</div>' +
       '</div>';
-    return '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="pfh-title-meta pfh-sku-detail-card">' +
+    return '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="' + (WORKSPACE_PREVIEW ? 'pfh-workspace-detail-card' : 'pfh-title-meta pfh-sku-detail-card') + '">' +
       productThumbHtml(data) +
       '<div class="pfh-detail-card-content"><div class="pfh-detail-card-heading"><span class="pfh-detail-sku-badge" data-action="copy-sku" title="点击复制 SKU">' + iconHtml('tag') + '<span>' + escapeHtml(sku) + '</span></span><strong class="pfh-detail-product-title" data-action="copy-title-meta" title="' + escapeHtml(L.copyHint) + '">' + escapeHtml(title) + '</strong></div>' +
       metaHtml + infoHtml + '</div>' +
@@ -33255,7 +33365,7 @@ self.onmessage = async function(event) {
       showToast('链接已复制');
       return;
     }
-    const skuCard = event.target && event.target.closest && event.target.closest('.pfh-sku-waterfall-card[data-sku], .pfh-sku[data-sku]');
+    const skuCard = event.target && event.target.closest && event.target.closest('.pfh-sku-waterfall-card[data-sku], .pfh-sku[data-sku], .pfh-workspace-row[data-sku]');
     if (skuCard) {
       event.preventDefault();
       event.stopPropagation();
@@ -40734,15 +40844,24 @@ self.onmessage = async function(event) {
     }
   }
 
+  function workspaceInitialSkuItem() {
+    const selected = state.index.find((item) => item.sku === state.selectedSku);
+    if (selected) return selected;
+    const items = sortSkuListItems(getFilteredSearchMatches(parseSearchTokens(state.searchQuery.trim())));
+    const page = clamp(state.skuPage || 1, 1, Math.max(1, Math.ceil(items.length / 10)));
+    return items[(page - 1) * 10] || null;
+  }
+
   function openFirstCachedDetail() {
-    const first = state.index[0] && state.index[0].sku ? state.index[0].sku : '';
-    if (!first && !state.settings.collectionEnabled) {
+    const previewItem = WORKSPACE_PREVIEW ? workspaceInitialSkuItem() : null;
+    const first = WORKSPACE_PREVIEW ? (previewItem && previewItem.sku || '') : (state.index[0] && state.index[0].sku ? state.index[0].sku : '');
+    if (!WORKSPACE_PREVIEW && !first && !state.settings.collectionEnabled) {
       showToast(L.emptyList);
       return;
     }
     if (first) {
       state.selectedSku = first;
-      state.data = normalizeData(loadData(first) || state.index[0]);
+      state.data = normalizeData(loadData(first) || previewItem || state.index[0]);
     } else {
       state.selectedSku = '';
       state.data = null;
@@ -40752,7 +40871,7 @@ self.onmessage = async function(event) {
     // Avoid rendering the same detail view twice. renderShell() sorts the local
     // catalog, so the duplicate pass was especially noticeable on large lists.
     expandPanel({ render: false });
-    renderShell(first ? '正在后台检查新的设计分配...' : L.openingDetail);
+    renderShell(first ? '正在后台检查新的设计分配...' : WORKSPACE_PREVIEW ? '' : L.openingDetail);
     if (!state.settings.collectionEnabled) return;
     window.setTimeout(() => {
       if (state.assignedDesignTaskSyncPromise) return;
@@ -51164,6 +51283,7 @@ self.onmessage = async function(event) {
   }
 
   function getSkuListMode() {
+    if (isWorkspaceSkuView()) return 'list';
     return state.settings && state.settings.skuListMode === 'waterfall' ? 'waterfall' : 'list';
   }
 
