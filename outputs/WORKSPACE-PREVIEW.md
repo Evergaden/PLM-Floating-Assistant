@@ -19,6 +19,7 @@
 node scripts/build-userscript-release.js --workspace-preview
 node scripts/build-userscript-release.js
 node scripts/check-workspace-preview.cjs
+node scripts/check-sku-image-colors.cjs
 node --check outputs/plm-material-summary.user.js
 node --check outputs/plm-material-summary.workspace-preview.user.js
 node --check outputs/plm-material-summary.workspace-preview.min.user.js
@@ -33,6 +34,7 @@ Worker 目录执行 `npm run ui:build` 和 `npm run ui:check`。`experimentalSou
 - 每行显示效果图、名称、SKU、开发人员与状态；长名称不撑开布局，缺图和加载失败有占位。
 - 点击另一行正确更新右侧详情，列表滚动位置保持，已有图片不闪烁或重载。
 - 搜索输入焦点保持，筛选、排序、分页正常，空结果有提示。
+- “筛选 → 效果图主色”可选择颜色；首次选择会读取本地 SKU 列表的效果图并在本机识别，结果逐步补齐。也可点击“识别 / 更新主色”。支持停止、续扫和失败项重试；识别缓存只保存在本机，更换图片后重新识别。主色是近似分类，复杂配色需人工核对。
 - 右侧详情、文案、参数图、尺寸图切换与查看详情、编辑、导出、刷新、更新日志正常。
 - 中间列表和右侧内容独立滚动；窗口缩小时可横向滚动，不隐藏三栏内容。窗口位置、大小和原瀑布流偏好保留。
 

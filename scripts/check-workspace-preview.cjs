@@ -33,7 +33,7 @@ const context = vm.createContext({
   clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
   getSkuListSort: () => 'assigned', renderSkuFilterPanel: () => '',
   renderCompactPager: () => '', L: { noSearchResult: 'No matches', emptyList: 'Empty' },
-  setupSkuViewFusion: () => {}, document: {}, window: {}, URL,
+  setupSkuViewFusion: () => {}, syncSkuImageColorControls: () => {}, document: {}, window: {}, URL,
 });
 [
   'escapeHtml', 'isWorkspaceSkuView', 'getSkuListMode', 'getSkuListImageUrl',

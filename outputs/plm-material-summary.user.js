@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.78
+// @version      2.9.79
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.78';
+  const SCRIPT_VERSION = '2.9.79';
   // Replaced only by build-userscript-release.js --workspace-preview.
   const WORKSPACE_PREVIEW = false;
   const WORKSPACE_PREVIEW_CSS = '';
@@ -16457,7 +16457,7 @@
     shortcutRunning: new Set(),
     detailReturnScroll: null,
     searchQuery: '',
-    skuFilters: { developer: '', brand: '', status: '', designType: '' },
+    skuFilters: { developer: '', brand: '', status: '', designType: '', imageColor: '' },
     skuFilterOpen: false,
     view: firstTutorial ? 'home' : 'home',
     settings: loadSettings(),
@@ -23190,6 +23190,7 @@
     const signature = renderSkuListHtml(true);
     if (list.pfhSkuRenderSignature === signature && list.querySelector('.pfh-sku-list-content')) {
       syncWorkspaceSkuSelection(panel);
+      syncSkuImageColorControls(panel);
       return;
     }
     const focusedSearch = isWorkspaceSkuView() && panel.pfhWorkspaceSearch && panel.pfhWorkspaceSearch.contains(document.activeElement) ? document.activeElement : null;
@@ -23198,6 +23199,7 @@
     list.pfhSkuRenderSignature = signature;
     setupSkuViewFusion(list);
     syncWorkspaceSkuSelection(panel);
+    syncSkuImageColorControls(panel);
     if (focusedSearch) {
       focusedSearch.focus({ preventScroll: true });
       if (selection[0] != null && focusedSearch.setSelectionRange) focusedSearch.setSelectionRange(...selection);
@@ -23209,6 +23211,190 @@
   }
 
   const skuSearchFacetCache = new Map();
+  const SKU_IMAGE_COLOR_CACHE_KEY = 'plm-floating-helper:sku-image-colors:v1';
+  const SKU_IMAGE_COLORS = Object.freeze([
+    ['red', '红色'], ['orange', '橙色'], ['yellow', '黄色'], ['green', '绿色'],
+    ['blue', '蓝色'], ['purple', '紫色'], ['pink', '粉色'], ['brown', '棕色'],
+    ['beige', '米色'], ['black', '黑色'], ['white', '白色'], ['gray', '灰色'],
+    ['unknown', '未识别 / 无效果图'],
+  ]);
+  const skuImageColorCache = loadSkuImageColorCache();
+  const skuImageColorScan = { running: false, stop: false, completed: 0, total: 0, failed: 0, promise: null };
+
+  function loadSkuImageColorCache() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(SKU_IMAGE_COLOR_CACHE_KEY, {})
+        : JSON.parse(localStorage.getItem(SKU_IMAGE_COLOR_CACHE_KEY) || '{}');
+      if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
+      return Object.fromEntries(Object.entries(saved).filter(([, value]) => value && typeof value === 'object'
+        && typeof value.url === 'string' && SKU_IMAGE_COLORS.some(([id]) => id === value.color)).slice(-3000));
+    } catch (_) { return {}; }
+  }
+
+  function saveSkuImageColorCache() {
+    try {
+      const entries = Object.entries(skuImageColorCache).sort((a, b) => Number(b[1].updatedAt || 0) - Number(a[1].updatedAt || 0)).slice(0, 3000);
+      const saved = Object.fromEntries(entries);
+      if (typeof GM_setValue === 'function') GM_setValue(SKU_IMAGE_COLOR_CACHE_KEY, saved);
+      else localStorage.setItem(SKU_IMAGE_COLOR_CACHE_KEY, JSON.stringify(saved));
+    } catch (_) { console.warn('PLM image color cache could not be saved'); }
+  }
+
+  function getSkuImageColorSource(item) {
+    return getSkuListImageUrl(loadData(item.sku) || item) || getSkuListImageUrl(item);
+  }
+
+  function getSkuImageColor(item) {
+    const entry = skuImageColorCache[item.sku];
+    const url = getSkuImageColorSource(item);
+    if (!url || !entry || entry.url !== url) return 'unknown';
+    return SKU_IMAGE_COLORS.some(([id]) => id === entry.color) ? entry.color : 'unknown';
+  }
+
+  function skuPixelColor(r, g, b) {
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const delta = max - min, saturation = max ? delta / max : 0;
+    if (max < 55) return 'black';
+    if (saturation < .16) return min > 212 ? 'white' : 'gray';
+    let hue = delta ? (max === r ? (g - b) / delta : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4) * 60 : 0;
+    if (hue < 0) hue += 360;
+    if (hue >= 15 && hue < 65 && max < 175) return 'brown';
+    if (hue >= 25 && hue < 65 && saturation < .35 && max >= 175) return 'beige';
+    if ((hue >= 325 || hue < 15) && saturation < .65 && max > 180) return 'pink';
+    if (hue < 15 || hue >= 345) return 'red';
+    if (hue < 45) return 'orange';
+    if (hue < 70) return 'yellow';
+    if (hue < 170) return 'green';
+    if (hue < 260) return 'blue';
+    if (hue < 325) return 'purple';
+    return 'pink';
+  }
+
+  function classifySkuImagePixels(pixels, width, height) {
+    const colors = {}, neutrals = {};
+    // Remove near-white margins connected to the image edges, rather than
+    // treating the studio background as a white product.
+    const background = new Uint8Array(width * height), queue = [];
+    const enqueue = (x, y) => {
+      if (x < 0 || y < 0 || x >= width || y >= height) return;
+      const index = y * width + x, offset = index * 4;
+      if (background[index]) return;
+      const r = pixels[offset], g = pixels[offset + 1], b = pixels[offset + 2];
+      if (pixels[offset + 3] >= 128 && !(Math.min(r, g, b) > 235 && Math.max(r, g, b) - Math.min(r, g, b) < 18)) return;
+      background[index] = 1;
+      queue.push(index);
+    };
+    for (let x = 0; x < width; x++) { enqueue(x, 0); enqueue(x, height - 1); }
+    for (let y = 0; y < height; y++) { enqueue(0, y); enqueue(width - 1, y); }
+    for (let i = 0; i < queue.length; i++) {
+      const x = queue[i] % width, y = Math.floor(queue[i] / width);
+      enqueue(x - 1, y); enqueue(x + 1, y); enqueue(x, y - 1); enqueue(x, y + 1);
+    }
+    let visible = 0, colored = 0;
+    let opaque = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const offset = (y * width + x) * 4;
+        if (pixels[offset + 3] < 128) continue;
+        opaque++;
+        if (background[y * width + x]) continue;
+        const color = skuPixelColor(pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+        // Center weighting reduces the influence of studio margins and borders.
+        const weight = x > width * .15 && x < width * .85 && y > height * .1 && y < height * .9 ? 2 : 1;
+        visible += weight;
+        if (['white', 'gray', 'black'].includes(color)) neutrals[color] = (neutrals[color] || 0) + weight;
+        else { colors[color] = (colors[color] || 0) + weight; colored += weight; }
+      }
+    }
+    // Color on a white bottle/white background is usually the useful visual cue.
+    const scores = colored >= visible * .06 ? colors : neutrals;
+    return Object.keys(scores).sort((a, b) => scores[b] - scores[a])[0] || (opaque ? 'white' : 'unknown');
+  }
+
+  async function identifySkuImageColor(url) {
+    const blob = await fetchLedgerAiImageBlob(getLedgerThumbnailUrl(url));
+    const objectUrl = URL.createObjectURL(blob);
+    let timer;
+    try {
+      const image = await Promise.race([
+        loadImage(objectUrl),
+        new Promise((_, reject) => { timer = window.setTimeout(() => reject(new Error('Image decode timeout')), 10000); }),
+      ]);
+      const canvas = document.createElement('canvas');
+      const ratio = 80 / Math.max(image.naturalWidth || image.width || 1, image.naturalHeight || image.height || 1);
+      canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width || 1) * ratio));
+      canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height || 1) * ratio));
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) throw new Error('Canvas unavailable');
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      return classifySkuImagePixels(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+    } finally {
+      window.clearTimeout(timer);
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+
+  function syncSkuImageColorControls(panel) {
+    if (!panel) return;
+    const progress = panel.querySelector('[data-sku-color-progress]');
+    if (!progress) return;
+    progress.textContent = skuImageColorScan.running
+      ? (skuImageColorScan.stop ? '正在停止… ' : '正在识别主色，结果逐步补齐：') + skuImageColorScan.completed + '/' + skuImageColorScan.total + (skuImageColorScan.failed ? '，失败 ' + skuImageColorScan.failed + ' 张' : '')
+      : '已识别 ' + state.index.filter((item) => getSkuImageColor(item) !== 'unknown').length + '/' + state.index.length + ' 个产品；可识别新增图片或重试失败项。';
+    const start = panel.querySelector('[data-action="sku-color-scan"]');
+    const stop = panel.querySelector('[data-action="sku-color-stop"]');
+    if (start) start.disabled = skuImageColorScan.running;
+    if (stop) { stop.hidden = !skuImageColorScan.running; stop.disabled = skuImageColorScan.stop; }
+  }
+
+  function startSkuImageColorScan() {
+    if (skuImageColorScan.running) return skuImageColorScan.promise;
+    const items = state.index.slice();
+    Object.assign(skuImageColorScan, { running: true, stop: false, completed: 0, total: items.length, failed: 0 });
+    let cursor = 0, lastRefresh = 0;
+    const refresh = (force) => {
+      if (!force && Date.now() - lastRefresh < 600) return;
+      lastRefresh = Date.now();
+      const panel = document.getElementById(PANEL_ID);
+      if (panel && panel.querySelector('.pfh-sku-filter-panel')) {
+        if (state.skuFilters.imageColor) renderSkuList(panel);
+        syncSkuImageColorControls(panel);
+      }
+    };
+    const worker = async () => {
+      while (!skuImageColorScan.stop && cursor < items.length) {
+        const item = items[cursor++];
+        const url = getSkuImageColorSource(item);
+        const cached = skuImageColorCache[item.sku];
+        if (url && (!cached || cached.url !== url || cached.status !== 'ready')) {
+          try {
+            const color = await identifySkuImageColor(url);
+            skuImageColorCache[item.sku] = { url, color, status: 'ready', updatedAt: Date.now() };
+          } catch (_) {
+            skuImageColorCache[item.sku] = { url, color: 'unknown', status: 'failed', updatedAt: Date.now() };
+            skuImageColorScan.failed++;
+          }
+        }
+        skuImageColorScan.completed++;
+        if (skuImageColorScan.completed % 20 === 0) saveSkuImageColorCache();
+        refresh(false);
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+      }
+    };
+    refresh(true);
+    skuImageColorScan.promise = Promise.all([worker(), worker()]).finally(() => {
+      skuImageColorScan.running = false;
+      saveSkuImageColorCache();
+      refresh(true);
+    });
+    return skuImageColorScan.promise;
+  }
+
+  function skuImageColorFilterHtml() {
+    return '<label><span>效果图主色</span><select data-sku-filter="imageColor"><option value="">全部颜色</option>' + SKU_IMAGE_COLORS.map(([id, label]) => '<option value="' + id + '"' + (state.skuFilters.imageColor === id ? ' selected' : '') + '>' + label + '</option>').join('') + '</select></label>' +
+      '<span class="pfh-sku-filter-loading" data-sku-color-progress></span><button type="button" data-action="sku-color-scan">识别 / 更新主色</button><button type="button" data-action="sku-color-stop" hidden>停止识别</button>';
+  }
+
   let skuSearchFacetsReady = false;
   let skuSearchFacetsLoading = false;
 
@@ -23259,7 +23445,8 @@
       return (!state.skuFilters.developer || facet.developer === state.skuFilters.developer)
         && (!state.skuFilters.brand || facet.brand === state.skuFilters.brand)
         && (!state.skuFilters.status || facet.status === state.skuFilters.status)
-        && (!state.skuFilters.designType || facet.designType === state.skuFilters.designType);
+        && (!state.skuFilters.designType || facet.designType === state.skuFilters.designType)
+        && (!state.skuFilters.imageColor || getSkuImageColor(item) === state.skuFilters.imageColor);
     });
   }
 
@@ -23278,6 +23465,7 @@
       skuFilterOptionsHtml('brand', '品牌') +
       skuFilterOptionsHtml('status', '项目状态') +
       skuFilterOptionsHtml('designType', '设计类型') +
+      skuImageColorFilterHtml() +
       '<button type="button" data-action="sku-filter-clear"' + (hasSkuFilters() ? '' : ' disabled') + '>清除筛选</button></div>';
   }
 
@@ -23382,7 +23570,7 @@
       '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">\u7011\u5e03\u6d41</button></div>' +
       '<label class="pfh-sku-sort"><span>\u6392\u5e8f</span>' + listSortMenu + '</label></div>';
     const activeFilterCount = Object.values(state.skuFilters).filter(Boolean).length;
-    const filterTools = '<div class="pfh-sku-filter-toolbar"><button type="button" data-action="sku-filter-toggle" aria-expanded="' + String(state.skuFilterOpen) + '" class="' + (activeFilterCount ? 'is-active' : '') + '">筛选' + (activeFilterCount ? ' · ' + activeFilterCount : '') + '</button><span>' + (activeFilterCount ? '已按条件筛选' : '开发人员、品牌、状态、设计类型') + '</span></div>' + renderSkuFilterPanel();
+    const filterTools = '<div class="pfh-sku-filter-toolbar"><button type="button" data-action="sku-filter-toggle" aria-expanded="' + String(state.skuFilterOpen) + '" class="' + (activeFilterCount ? 'is-active' : '') + '">筛选' + (activeFilterCount ? ' · ' + activeFilterCount : '') + '</button><span>' + (activeFilterCount ? '已按条件筛选' : '开发人员、品牌、状态、设计类型、效果图主色') + '</span></div>' + renderSkuFilterPanel();
     const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span><button type="button" class="pfh-sku-add-button" data-action="sku-manual-add-open" title="批量添加 SKU" aria-label="批量添加 SKU">+</button></div>' + (isWorkspaceSkuView() ? '<div class="pfh-workspace-search-host"></div>' : '') + listTools + filterTools;
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
@@ -36132,9 +36320,18 @@ self.onmessage = async function(event) {
       return;
     }
     if (action === 'sku-filter-clear') {
-      state.skuFilters = { developer: '', brand: '', status: '', designType: '' };
+      state.skuFilters = { developer: '', brand: '', status: '', designType: '', imageColor: '' };
       state.skuPage = 1;
       renderSkuList(ensurePanel());
+      return;
+    }
+    if (action === 'sku-color-scan') {
+      startSkuImageColorScan();
+      return;
+    }
+    if (action === 'sku-color-stop') {
+      skuImageColorScan.stop = true;
+      syncSkuImageColorControls(ensurePanel());
       return;
     }
     if (action === 'sku-list-mode') {
@@ -37680,6 +37877,7 @@ self.onmessage = async function(event) {
       state.skuFilters[skuFilterField] = event.target.value || '';
       state.skuPage = 1;
       renderSkuList(ensurePanel());
+      if (skuFilterField === 'imageColor' && state.skuFilters.imageColor) startSkuImageColorScan();
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-cache-value-type')) {
