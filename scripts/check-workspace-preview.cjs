@@ -33,7 +33,7 @@ const context = vm.createContext({
   clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
   getSkuListSort: () => 'assigned', renderSkuFilterPanel: () => '',
   renderCompactPager: () => '', L: { noSearchResult: 'No matches', emptyList: 'Empty' },
-  setupSkuViewFusion: () => {}, syncSkuImageColorControls: () => {}, document: {}, window: {}, URL,
+  setupSkuViewFusion: () => {}, syncSkuImageColorControls: () => {}, renderSkuFilterModal: () => {}, document: {}, window: {}, URL,
 });
 [
   'escapeHtml', 'isWorkspaceLayoutEnabled', 'isWorkspaceSkuView', 'getSkuListMode', 'getSkuListImageUrl',
@@ -44,6 +44,11 @@ const context = vm.createContext({
 assert.equal(context.getSkuListMode(), 'list');
 assert.equal(state.settings.skuListMode, 'waterfall', 'Saved waterfall preference stays intact');
 let html = context.renderSkuListHtml();
+const closedSignature = context.renderSkuListHtml(true);
+state.skuFilterOpen = true;
+assert.equal(context.renderSkuListHtml(true), closedSignature, 'Opening filter dialog does not invalidate SKU image DOM');
+state.skuFilterOpen = false;
+assert.ok(!html.includes('pfh-sku-filter-panel'), 'SKU list has no inline filter panel');
 assert.equal((html.match(/class="pfh-workspace-row(?: is-active)?"/g) || []).length, 10);
 assert.ok(html.includes('&lt;Product &amp; &quot;quoted&quot;&gt;'));
 assert.ok(html.includes('https://example.com/effect.png?a=1&amp;b=2'));
@@ -105,6 +110,9 @@ const full = fs.readFileSync(path.join(root, 'outputs/plm-material-summary.works
 const min = fs.readFileSync(path.join(root, 'outputs/plm-material-summary.workspace-preview.min.user.js'), 'utf8');
 const normal = fs.readFileSync(path.join(root, 'outputs/plm-material-summary.min.user.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'cloudflare/plm-cloud-backup/ui-src/modules/workspace-preview.css'), 'utf8');
+const filterCss = fs.readFileSync(path.join(root, 'cloudflare/plm-cloud-backup/ui-src/modules/sku-search-filters.css'), 'utf8');
+assert.ok(source.includes('const SKU_FILTER_MODAL_CSS = ' + JSON.stringify(filterCss) + ';'));
+assert.ok(normal.includes('pfh-sku-color-dot'), 'Normal minified build includes the filter dialog styles');
 assert.ok(full.includes('const WORKSPACE_PREVIEW = true;'));
 assert.ok(full.includes('const WORKSPACE_PREVIEW_CSS = ' + JSON.stringify(css) + ';'));
 assert.equal(full

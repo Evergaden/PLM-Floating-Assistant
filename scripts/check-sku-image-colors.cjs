@@ -16,7 +16,7 @@ const cache = {}, scan = { running: false }, state = {
 };
 let calls = [], inFlight = 0, peak = 0, saves = 0, failB = true, schedules = [];
 const context = vm.createContext({
-  state, skuImageColorCache: cache, skuImageColorScan: scan, PANEL_ID: 'test-panel',
+  state, skuImageColorCache: cache, skuImageColorScan: scan, PANEL_ID: 'test-panel', SKU_IMAGE_COLOR_ALGORITHM_VERSION: 2,
   loadData: () => { throw new Error('Filters must not read full product records'); }, getSkuListImageUrl: (item) => item.image || '',
   getSearchMatches: () => state.index, getSkuSearchFacet: (item) => item,
   document: { getElementById: () => null }, window: { setTimeout, clearTimeout },
@@ -38,6 +38,7 @@ const swatches = [
   ['green', 0, 150, 50], ['blue', 0, 70, 230], ['purple', 140, 30, 200],
   ['pink', 255, 150, 190], ['brown', 110, 70, 35], ['beige', 235, 215, 180],
   ['black', 10, 10, 10], ['white', 250, 250, 250], ['gray', 130, 130, 130],
+  ['green', 13, 55, 44], ['green', 20, 115, 110], ['purple', 62, 41, 130],
 ];
 for (const [color, r, g, b] of swatches) {
   const pixels = new Uint8ClampedArray(20 * 20 * 4);
@@ -88,18 +89,22 @@ async function main() {
   await context.startSkuImageColorScan({ automatic: true });
   assert.equal(schedules.length, schedulesBefore, 'Paused indexing does not restart automatically');
   state.index = Array.from({ length: 900 }, (_, n) => ({ sku: 'CACHED' + n, image: n + '.png' }));
-  for (const item of state.index) cache[item.sku] = { url: item.image, color: 'green', status: 'ready' };
+  for (const item of state.index) cache[item.sku] = { url: item.image, color: 'green', status: 'ready', algorithmVersion: 2 };
   calls = [];
   await context.startSkuImageColorScan();
   assert.equal(calls.length, 0, '900 indexed products cause zero image requests');
   assert.equal(scan.total, 0, 'The job queues pending images only');
   state.skuFilters.imageColor = 'green';
   assert.equal(context.getFilteredSearchMatches([]).length, 900, '900 product color query uses only the lightweight index');
-  cache.CACHED0 = { url: '0.png', color: 'unknown', status: 'failed', attempts: 3, updatedAt: Date.now() - 3600000 };
+  cache.CACHED0 = { url: '0.png', color: 'unknown', status: 'failed', attempts: 3, updatedAt: Date.now() - 3600000, algorithmVersion: 2 };
   assert.equal(context.getSkuImageColorIndexTasks(false).length, 0, 'Repeated failures back off for a day');
   assert.equal(context.getSkuImageColorIndexTasks(true).length, 1, 'Manual retry bypasses failure cooldown');
+  cache.CACHED1.algorithmVersion = 1;
+  assert.equal(context.getSkuImageColor(state.index[1]), 'unknown', 'Old incorrect color results are not reused');
+  assert.equal(context.getSkuImageColorIndexTasks(false).length, 1, 'Old algorithm index automatically rebuilds');
   assert.ok(saves >= 4, 'Partial and completed scans persist');
   await checkSchedulerAndResources();
+  if (process.argv.includes('--screenshots')) checkScreenshotColors();
   console.log('SKU color index checks passed: 900 cached products, zero query downloads, incremental queue, single-image concurrency, idle scheduling, pause/resume, retries and resource cleanup.');
 }
 
@@ -141,3 +146,17 @@ async function checkSchedulerAndResources() {
   await assert.rejects(resources.identifySkuImageColor('large-photo'), /size limit/);
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+
+function checkScreenshotColors() {
+  const { spawnSync } = require('node:child_process');
+  const examples = [
+    ['C:/Users/Violet/AppData/Local/Temp/codex-clipboard-a65a9a15-cba7-41b0-a3aa-f7c570fe687e.png', [180,285,260,385], 'green'],
+    ['C:/Users/Violet/AppData/Local/Temp/codex-clipboard-1515be6e-5b77-4291-9aa1-9d6954b484fa.png', [170,40,275,145], 'purple'],
+  ];
+  for (const [file, rect, expected] of examples) {
+    const result = spawnSync('python', ['-c', 'from PIL import Image; import sys,json,base64; im=Image.open(sys.argv[1]).convert("RGBA").crop(tuple(json.loads(sys.argv[2]))).resize((80,80)); print(base64.b64encode(im.tobytes()).decode())', file, JSON.stringify(rect)], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(context.classifySkuImagePixels(Buffer.from(result.stdout.trim(), 'base64'), 80, 80), expected, 'User screenshot product crop');
+  }
+  console.log('User screenshot crops: dark green package -> green; violet toothpaste -> purple.');
+}

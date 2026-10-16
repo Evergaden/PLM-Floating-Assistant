@@ -21,6 +21,7 @@ node scripts/build-userscript-release.js --workspace-preview
 node scripts/build-userscript-release.js
 node scripts/check-workspace-preview.cjs
 node scripts/check-sku-image-colors.cjs
+node scripts/check-sku-filter-modal.cjs
 node --check outputs/plm-material-summary.user.js
 node --check outputs/plm-material-summary.workspace-preview.user.js
 node --check outputs/plm-material-summary.workspace-preview.min.user.js
@@ -36,6 +37,8 @@ Worker 目录执行 `npm run ui:build` 和 `npm run ui:check`。`experimentalSou
 - 点击另一行正确更新右侧详情，列表滚动位置保持，已有图片不闪烁或重载。
 - 搜索输入焦点保持，筛选、排序、分页正常，空结果有提示。
 - “筛选 → 效果图主色”直接查询本机颜色索引，不触发图片下载。打开 PLM 后约 15 秒开始后台建索引，新增或换图时自动补齐；旧的有效颜色缓存继续复用。首次 900 多款仍需后台处理一次，处理期间结果逐步补齐。
+- 筛选使用独立弹窗，颜色显示为带名称的圆形色块，点击立即生效。支持完成、关闭按钮、遮罩空白和 Escape 关闭，关闭保留条件；弹窗内可滚动，Tab 保持在弹窗内。
+- 2.9.83 调整深绿、青绿及蓝紫边界，并降低低饱和背景色影响。旧算法的颜色索引会自动重新识别一次；重新识别前旧结果标为未识别。
 - 后台只处理缺失、换图和到重试时间的图片，一次一张，优先等待页面空闲。失败项至少隔 30 分钟重试，连续失败三次后间隔一天；可手动点击“继续建索引 / 重试”立即重试。暂停后本次页面会话不会自动恢复，刷新页面或手动继续可恢复。
 - 索引只保存于本机，当前未提供多人云端共享。大于 8MiB 的图片跳过解码；支持的浏览器优先以 80 像素位图解码，完成后主动释放位图和画布。实际浏览器峰值内存与识别速度仍需验证。
 - 右侧详情、文案、参数图、尺寸图切换与查看详情、编辑、导出、刷新、更新日志正常。

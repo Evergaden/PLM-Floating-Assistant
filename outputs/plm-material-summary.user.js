@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.82
+// @version      2.9.83
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,8 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.82';
+  const SCRIPT_VERSION = '2.9.83';
+  const SKU_FILTER_MODAL_CSS = "#plm-floating-helper .pfh-sku-filter-toolbar {\r\n  display: flex;\r\n  align-items: center;\r\n  gap: 7px;\r\n  min-width: 0;\r\n  margin: 0 0 9px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-toolbar button {\r\n  flex: 0 0 auto;\r\n  min-height: 27px;\r\n  padding: 0 11px;\r\n  border: 1px solid var(--pfh-theme-border, #d8deea);\r\n  border-radius: 999px;\r\n  background: var(--pfh-theme-surface, #fff);\r\n  color: var(--pfh-theme-text, #253047);\r\n  font-size: 11px;\r\n  cursor: pointer;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-toolbar button.is-active,\r\n#plm-floating-helper .pfh-sku-filter-toolbar button[aria-expanded=\"true\"] {\r\n  border-color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-primary-soft, #f3efff);\r\n  color: var(--pfh-theme-primary-hover, #5b21b6);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-toolbar span {\r\n  min-width: 0;\r\n  overflow: hidden;\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n  font-size: 10px;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-modal {\r\n  position: absolute;\r\n  inset: 0;\r\n  z-index: 2147483645;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  padding: 20px;\r\n  box-sizing: border-box;\r\n  background: rgba(30, 23, 61, .24);\r\n  backdrop-filter: blur(6px);\r\n  border-radius: inherit;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog {\r\n  display: grid;\r\n  grid-template-rows: auto minmax(0,1fr) auto;\r\n  width: 560px;\r\n  max-width: 100%;\r\n  max-height: 100%;\r\n  min-height: 0;\r\n  overflow: hidden;\r\n  border: 1px solid var(--pfh-theme-border, #d8deea);\r\n  border-radius: 22px;\r\n  background: var(--pfh-theme-surface, #fff);\r\n  box-shadow: 0 24px 80px rgba(30, 23, 61, .2);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > header,\r\n#plm-floating-helper .pfh-sku-filter-dialog > footer {\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: space-between;\r\n  gap: 12px;\r\n  padding: 18px 22px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > header > div {\r\n  display: grid;\r\n  gap: 5px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > header strong {\r\n  font-size: 17px;\r\n  color: var(--pfh-theme-text, #253047);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > header small {\r\n  font-size: 11px;\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > header button {\r\n  width: 32px;\r\n  height: 32px;\r\n  border: 0;\r\n  border-radius: 50%;\r\n  font-size: 22px;\r\n  background: var(--pfh-theme-surface-alt, #fbfaff);\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-body {\r\n  min-height: 0;\r\n  overflow: auto;\r\n  overscroll-behavior: contain;\r\n  padding: 0 22px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog .pfh-sku-filter-panel {\r\n  display: grid;\r\n  gap: 14px;\r\n  margin: 0;\r\n  padding: 0 0 14px;\r\n  border: 0;\r\n  border-radius: 0;\r\n  background: transparent;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-panel label {\r\n  display: grid;\r\n  grid-template-columns: 58px minmax(0, 1fr);\r\n  align-items: center;\r\n  gap: 7px;\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n  font-size: 11px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-panel select {\r\n  width: 100%;\r\n  min-width: 0;\r\n  height: 29px;\r\n  padding: 0 7px;\r\n  border: 1px solid var(--pfh-theme-border, #d8deea);\r\n  border-radius: 8px;\r\n  background: var(--pfh-theme-surface, #fff);\r\n  color: var(--pfh-theme-text, #253047);\r\n  font-size: 11px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-panel > button {\r\n  justify-self: end;\r\n  min-height: 26px;\r\n  padding: 0 9px;\r\n  border: 0;\r\n  background: transparent;\r\n  color: var(--pfh-theme-primary-hover, #5b21b6);\r\n  font-size: 11px;\r\n  cursor: pointer;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-loading {\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n  font-size: 11px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-field {\r\n  min-width: 0;\r\n  margin: 4px 0 0;\r\n  padding: 0;\r\n  border: 0;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-field legend {\r\n  padding: 0 0 12px;\r\n  font-size: 12px;\r\n  color: var(--pfh-theme-text, #253047);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-options {\r\n  display: grid;\r\n  grid-template-columns: repeat(auto-fit,minmax(60px,1fr));\r\n  gap: 10px 6px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-options .pfh-sku-color-option {\r\n  display: grid;\r\n  justify-items: center;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 8px 3px;\r\n  border: 1px solid transparent;\r\n  border-radius: 12px;\r\n  background: transparent;\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n  font-size: 11px;\r\n  white-space: normal;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-options .pfh-sku-color-option[aria-pressed=\"true\"] {\r\n  border-color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-primary-soft, #f3efff);\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-option .pfh-sku-color-dot {\r\n  display: block;\r\n  width: 30px;\r\n  height: 30px;\r\n  box-sizing: border-box;\r\n  border: 1px solid rgba(80,80,100,.2);\r\n  border-radius: 50%;\r\n  box-shadow: inset 0 1px 3px rgba(255,255,255,.3);\r\n}\r\n\r\n#plm-floating-helper [data-sku-color=\"\"] .pfh-sku-color-dot { background: conic-gradient(#e35c64,#e7b83e,#54a576,#4890d6,#9672cc,#e35c64); }\r\n#plm-floating-helper [data-sku-color=\"red\"] .pfh-sku-color-dot { background: #df5360; }\r\n#plm-floating-helper [data-sku-color=\"orange\"] .pfh-sku-color-dot { background: #e99346; }\r\n#plm-floating-helper [data-sku-color=\"yellow\"] .pfh-sku-color-dot { background: #e7c74b; }\r\n#plm-floating-helper [data-sku-color=\"green\"] .pfh-sku-color-dot { background: #55a477; }\r\n#plm-floating-helper [data-sku-color=\"blue\"] .pfh-sku-color-dot { background: #4e8dce; }\r\n#plm-floating-helper [data-sku-color=\"purple\"] .pfh-sku-color-dot { background: #9972c7; }\r\n#plm-floating-helper [data-sku-color=\"pink\"] .pfh-sku-color-dot { background: #dfa0bd; }\r\n#plm-floating-helper [data-sku-color=\"brown\"] .pfh-sku-color-dot { background: #93694a; }\r\n#plm-floating-helper [data-sku-color=\"beige\"] .pfh-sku-color-dot { background: #dfcfab; }\r\n#plm-floating-helper [data-sku-color=\"black\"] .pfh-sku-color-dot { background: #30323c; }\r\n#plm-floating-helper [data-sku-color=\"white\"] .pfh-sku-color-dot { background: #fff; }\r\n#plm-floating-helper [data-sku-color=\"gray\"] .pfh-sku-color-dot { background: #aaaeb6; }\r\n#plm-floating-helper [data-sku-color=\"unknown\"] .pfh-sku-color-dot { background: repeating-linear-gradient(135deg,#fff 0 5px,#dce0e8 5px 7px); }\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > footer {\r\n  border-top: 1px solid var(--pfh-theme-border, #d8deea);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > footer button {\r\n  min-height: 34px;\r\n  padding: 0 18px;\r\n  border-radius: 11px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > footer button:last-child {\r\n  background: var(--pfh-theme-primary, #7c3aed);\r\n  color: #fff;\r\n  border-color: transparent;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-option:focus-visible {\r\n  outline: 2px solid var(--pfh-theme-primary, #7c3aed);\r\n  outline-offset: 2px;\r\n}\r\n";
   // Selects the default layout only; both builds support the settings switch.
   const WORKSPACE_PREVIEW = false;
   const WORKSPACE_PREVIEW_CSS = "/* Optional workspace layout: embedded in installable userscripts, never hosted. */\n#plm-floating-helper[data-workspace-preview] .pfh-workspace {\n  grid-column: 1 / -1;\n  display: flex;\n  min-width: 0;\n  min-height: 0;\n  height: 100%;\n  gap: 12px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav {\n  flex: 0 0 64px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  min-height: 0;\n  padding: 12px 0;\n  box-sizing: border-box;\n  background: rgba(255,255,255,.72);\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\n  border-radius: 16px;\n  overflow-y: auto;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-features,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-aux {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-features {\n  min-height: 0;\n  overflow-y: auto;\n  flex: 1 1 auto;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-aux {\n  flex: 0 0 auto;\n  margin-top: auto;\n  padding-top: 18px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button {\n  position: relative;\n  display: grid;\n  place-items: center;\n  width: 40px;\n  height: 40px;\n  padding: 0;\n  border: 0;\n  border-radius: 12px;\n  background: transparent;\n  color: var(--pfh-theme-muted, #8793ad);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button > span:not(.pfh-icon) {\n  display: none;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button .pfh-icon {\n  border: 0;\n  background: transparent;\n  color: inherit;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button:hover,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button.is-active {\n  background: var(--pfh-theme-soft, #f4efff);\n  color: var(--pfh-theme-primary, #7c3aed);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button:disabled {\n  opacity: .35;\n  cursor: default;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button .pfh-notification-badge {\n  display: none;\n  position: absolute;\n  top: 0;\n  right: 0;\n  min-width: 15px;\n  padding: 1px 3px;\n  border-radius: 8px;\n  background: #ef4444;\n  color: #fff;\n  font-size: 10px;\n  font-style: normal;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button.has-unread .pfh-notification-badge {\n  display: block;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button.has-settings-notice::after {\n  content: '';\n  position: absolute;\n  top: 4px;\n  right: 4px;\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #f59e0b;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-viewport {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  overflow: auto;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-stage {\n  display: grid;\n  grid-template-columns: minmax(0,1fr);\n  height: 100%;\n  min-height: 0;\n  gap: 12px;\n}\n#plm-floating-helper[data-workspace-preview] .is-sku-view .pfh-workspace-stage {\n  min-width: 860px;\n  grid-template-columns: minmax(360px,1.5fr) minmax(420px,1fr);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-list-pane {\n  min-width: 0;\n  min-height: 0;\n  overflow: hidden;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace:not(.is-sku-view) .pfh-workspace-list-pane {\n  display: none;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-search-host {\n  min-width: 0;\n  margin: 0 0 12px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-search-host .pfh-search {\n  display: flex;\n  width: 100%;\n  min-width: 0;\n  max-width: none;\n  margin: 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-search-host .pfh-search-box {\n  flex: 1 1 auto;\n  min-width: 0;\n}\n#plm-floating-helper[data-workspace-preview] .is-sku-view .pfh-sku-view-switch {\n  display: none;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  width: 100%;\n  min-height: 104px;\n  padding: 12px 8px;\n  box-sizing: border-box;\n  text-align: left;\n  white-space: normal;\n  border: 0;\n  border-bottom: 1px solid var(--pfh-theme-border, #e8e2ff);\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text, #17213a);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row:hover,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row.is-active {\n  background: var(--pfh-theme-soft, #f4efff);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row.is-active {\n  box-shadow: inset 3px 0 var(--pfh-theme-primary, #7c3aed);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-thumb {\n  flex: 0 0 78px;\n  width: 78px;\n  height: 78px;\n  margin: 0;\n  background: #fff;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-thumb img {\n  object-fit: contain;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-image-empty {\n  display: grid;\n  justify-items: center;\n  gap: 4px;\n  font-size: 10px;\n  color: var(--pfh-theme-muted, #8793ad);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-product {\n  flex: 1 1 auto;\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  min-width: 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-product strong {\n  display: -webkit-box;\n  -webkit-line-clamp: 2;\n  -webkit-box-orient: vertical;\n  overflow: hidden;\n  overflow-wrap: anywhere;\n  font-size: 13px;\n  font-weight: 700;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-product small {\n  font-size: 11px;\n  color: var(--pfh-theme-primary, #7c3aed);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row-meta {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 6px 12px;\n  font-size: 11px;\n  color: var(--pfh-theme-muted, #8793ad);\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-pin {\n  flex: 0 0 auto;\n  opacity: .3;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-pin.is-pinned,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row:hover .pfh-workspace-pin {\n  opacity: 1;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row:focus-visible,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button:focus-visible {\n  outline: 2px solid var(--pfh-theme-primary, #7c3aed);\n  outline-offset: -2px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card {\n  display: grid;\n  grid-template-columns: 78px minmax(0,1fr);\n  align-items: start;\n  gap: 12px;\n  min-width: 0;\n  padding: 8px 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card > .pfh-product-thumb {\n  width: 78px;\n  height: 78px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card .pfh-thumb-frame {\n  width: 78px;\n  height: 78px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card > .pfh-detail-card-content {\n  display: grid;\n  min-width: 0;\n  gap: 10px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-controls {\n  grid-column: 1 / -1;\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  min-width: 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-controls > .pfh-detail-view-button {\n  flex: 1 1 auto;\n}\n";
@@ -22298,6 +22299,8 @@
       state.toolsActiveTool = 'unit';
     }
     panel.dataset.view = state.view || 'home';
+    if (!['detail', 'parameterImage', 'sizeImage'].includes(state.view)) state.skuFilterOpen = false;
+    renderSkuFilterModal(panel);
     renderWorkspacePreviewShell(panel);
     if (state.view === 'productDevelopmentTasks') panel.style.setProperty('overflow', 'visible', 'important');
     else panel.style.removeProperty('overflow');
@@ -23251,6 +23254,7 @@
     const signature = renderSkuListHtml(true);
     if (list.pfhSkuRenderSignature === signature && list.querySelector('.pfh-sku-list-content')) {
       syncWorkspaceSkuSelection(panel);
+      renderSkuFilterModal(panel);
       syncSkuImageColorControls(panel);
       return;
     }
@@ -23260,6 +23264,7 @@
     list.pfhSkuRenderSignature = signature;
     setupSkuViewFusion(list);
     syncWorkspaceSkuSelection(panel);
+    renderSkuFilterModal(panel);
     syncSkuImageColorControls(panel);
     if (focusedSearch) {
       focusedSearch.focus({ preventScroll: true });
@@ -23273,6 +23278,7 @@
 
   const skuSearchFacetCache = new Map();
   const SKU_IMAGE_COLOR_CACHE_KEY = 'plm-floating-helper:sku-image-colors:v1';
+  const SKU_IMAGE_COLOR_ALGORITHM_VERSION = 2;
   const SKU_IMAGE_COLORS = Object.freeze([
     ['red', '红色'], ['orange', '橙色'], ['yellow', '黄色'], ['green', '绿色'],
     ['blue', '蓝色'], ['purple', '紫色'], ['pink', '粉色'], ['brown', '棕色'],
@@ -23310,14 +23316,14 @@
   function getSkuImageColor(item) {
     const entry = skuImageColorCache[item.sku];
     const url = getSkuImageColorSource(item);
-    if (!url || !entry || entry.url !== url) return 'unknown';
+    if (!url || !entry || entry.url !== url || entry.algorithmVersion !== SKU_IMAGE_COLOR_ALGORITHM_VERSION) return 'unknown';
     return SKU_IMAGE_COLORS.some(([id]) => id === entry.color) ? entry.color : 'unknown';
   }
 
   function skuPixelColor(r, g, b) {
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
     const delta = max - min, saturation = max ? delta / max : 0;
-    if (max < 55) return 'black';
+    if (max < 15 || (max < 55 && saturation < .35)) return 'black';
     if (saturation < .16) return min > 212 ? 'white' : 'gray';
     let hue = delta ? (max === r ? (g - b) / delta : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4) * 60 : 0;
     if (hue < 0) hue += 360;
@@ -23327,8 +23333,8 @@
     if (hue < 15 || hue >= 345) return 'red';
     if (hue < 45) return 'orange';
     if (hue < 70) return 'yellow';
-    if (hue < 170) return 'green';
-    if (hue < 260) return 'blue';
+    if (hue < 190) return 'green';
+    if (hue < 245) return 'blue';
     if (hue < 325) return 'purple';
     return 'pink';
   }
@@ -23363,7 +23369,10 @@
         if (background[y * width + x]) continue;
         const color = skuPixelColor(pixels[offset], pixels[offset + 1], pixels[offset + 2]);
         // Center weighting reduces the influence of studio margins and borders.
-        const weight = x > width * .15 && x < width * .85 && y > height * .1 && y < height * .9 ? 2 : 1;
+        let weight = x > width * .15 && x < width * .85 && y > height * .1 && y < height * .9 ? 2 : 1;
+        const max = Math.max(pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+        const min = Math.min(pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+        if (!['white', 'gray', 'black'].includes(color)) weight *= .35 + .65 * (max ? (max - min) / max : 0);
         visible += weight;
         if (['white', 'gray', 'black'].includes(color)) neutrals[color] = (neutrals[color] || 0) + weight;
         else { colors[color] = (colors[color] || 0) + weight; colored += weight; }
@@ -23423,7 +23432,7 @@
     return state.index.map((item) => ({ sku: item.sku, url: getSkuImageColorSource(item) })).filter(({ sku, url }) => {
       if (!url) return false;
       const cached = skuImageColorCache[sku];
-      if (!cached || cached.url !== url) return true;
+      if (!cached || cached.url !== url || cached.algorithmVersion !== SKU_IMAGE_COLOR_ALGORITHM_VERSION) return true;
       if (cached.status === 'ready') return false;
       const retryAfter = Number(cached.updatedAt || 0) + (Number(cached.attempts || 0) >= 3 ? 86400000 : 1800000);
       return retryFailed || now >= retryAfter;
@@ -23475,8 +23484,8 @@
       if (!force && Date.now() - lastRefresh < 1500) return;
       lastRefresh = Date.now();
       const panel = document.getElementById(PANEL_ID);
-      if (panel && panel.querySelector('.pfh-sku-filter-panel')) {
-        if (state.skuFilters.imageColor) renderSkuList(panel);
+      if (panel) {
+        if (state.skuFilters.imageColor && ['detail', 'parameterImage', 'sizeImage'].includes(state.view)) renderSkuList(panel);
         syncSkuImageColorControls(panel);
       }
     };
@@ -23487,12 +23496,12 @@
         const item = items[cursor++];
         const url = item.url;
         const cached = skuImageColorCache[item.sku];
-        if (url && (!cached || cached.url !== url || cached.status !== 'ready')) {
+        if (url && (!cached || cached.url !== url || cached.status !== 'ready' || cached.algorithmVersion !== SKU_IMAGE_COLOR_ALGORITHM_VERSION)) {
           try {
             const color = await identifySkuImageColor(url);
-            skuImageColorCache[item.sku] = { url, color, status: 'ready', updatedAt: Date.now(), attempts: 0 };
+            skuImageColorCache[item.sku] = { url, color, status: 'ready', updatedAt: Date.now(), attempts: 0, algorithmVersion: SKU_IMAGE_COLOR_ALGORITHM_VERSION };
           } catch (_) {
-            skuImageColorCache[item.sku] = { url, color: 'unknown', status: 'failed', updatedAt: Date.now(), attempts: cached && cached.url === url ? Number(cached.attempts || 0) + 1 : 1 };
+            skuImageColorCache[item.sku] = { url, color: 'unknown', status: 'failed', updatedAt: Date.now(), attempts: cached && cached.url === url && cached.algorithmVersion === SKU_IMAGE_COLOR_ALGORITHM_VERSION ? Number(cached.attempts || 0) + 1 : 1, algorithmVersion: SKU_IMAGE_COLOR_ALGORITHM_VERSION };
             skuImageColorScan.failed++;
           }
         }
@@ -23511,8 +23520,10 @@
     return skuImageColorScan.promise;
   }
 
-  function skuImageColorFilterHtml() {
-    return '<label><span>效果图主色</span><select data-sku-filter="imageColor"><option value="">全部颜色</option>' + SKU_IMAGE_COLORS.map(([id, label]) => '<option value="' + id + '"' + (state.skuFilters.imageColor === id ? ' selected' : '') + '>' + label + '</option>').join('') + '</select></label>' +
+  function skuImageColorFilterHtml(signature) {
+    const selected = signature ? '' : state.skuFilters.imageColor || '';
+    return '<fieldset class="pfh-sku-color-field"><legend>效果图主色</legend><div class="pfh-sku-color-options" role="group" aria-label="效果图主色">' + [['', '全部颜色'], ...SKU_IMAGE_COLORS].map(([id, label]) =>
+      '<button type="button" class="pfh-sku-color-option" data-action="sku-filter-color" data-sku-color="' + id + '" aria-pressed="' + (selected === id) + '" title="' + label + '"><i class="pfh-sku-color-dot" aria-hidden="true"></i><span>' + (id === 'unknown' ? '未识别' : label) + '</span></button>').join('') + '</div></fieldset>' +
       '<span class="pfh-sku-filter-loading" data-sku-color-progress></span><button type="button" data-action="sku-color-scan">继续建索引 / 重试</button><button type="button" data-action="sku-color-stop" hidden>暂停索引</button>';
   }
 
@@ -23571,23 +23582,69 @@
     });
   }
 
-  function skuFilterOptionsHtml(field, label) {
+  function skuFilterOptionsHtml(field, label, signature) {
     const values = Array.from(new Set(state.index.map((item) => getSkuSearchFacet(item)[field]).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN'));
-    const selected = state.skuFilters[field] || '';
+    const selected = signature ? '' : state.skuFilters[field] || '';
     return '<label><span>' + escapeHtml(label) + '</span><select data-sku-filter="' + field + '"' + (skuSearchFacetsReady ? '' : ' disabled') + '><option value="">全部</option>' +
       values.map((value) => '<option value="' + escapeHtml(value) + '"' + (value === selected ? ' selected' : '') + '>' + escapeHtml(value) + '</option>').join('') + '</select></label>';
   }
 
-  function renderSkuFilterPanel() {
+  function renderSkuFilterPanel(signature) {
     if (!state.skuFilterOpen) return '';
     if (!skuSearchFacetsReady) return '<div class="pfh-sku-filter-panel"><span class="pfh-sku-filter-loading">正在读取 SKU 筛选项…</span></div>';
     return '<div class="pfh-sku-filter-panel">' +
-      skuFilterOptionsHtml('developer', '开发人员') +
-      skuFilterOptionsHtml('brand', '品牌') +
-      skuFilterOptionsHtml('status', '项目状态') +
-      skuFilterOptionsHtml('designType', '设计类型') +
-      skuImageColorFilterHtml() +
-      '<button type="button" data-action="sku-filter-clear"' + (hasSkuFilters() ? '' : ' disabled') + '>清除筛选</button></div>';
+      skuFilterOptionsHtml('developer', '开发人员', signature) +
+      skuFilterOptionsHtml('brand', '品牌', signature) +
+      skuFilterOptionsHtml('status', '项目状态', signature) +
+      skuFilterOptionsHtml('designType', '设计类型', signature) +
+      skuImageColorFilterHtml(signature) + '</div>';
+  }
+
+  function closeSkuFilterModal(panel) {
+    state.skuFilterOpen = false;
+    renderSkuFilterModal(panel);
+    const trigger = panel.querySelector('[data-action="sku-filter-toggle"]');
+    if (trigger) trigger.focus({ preventScroll: true });
+  }
+
+  function renderSkuFilterModal(panel) {
+    if (!panel) return;
+    const trigger = panel.querySelector('[data-action="sku-filter-toggle"]');
+    if (trigger) trigger.setAttribute('aria-expanded', String(state.skuFilterOpen));
+    let layer = panel.querySelector('.pfh-sku-filter-modal');
+    if (!state.skuFilterOpen) { if (layer) layer.remove(); return; }
+    let style = document.getElementById(PANEL_ID + '-sku-filter-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = PANEL_ID + '-sku-filter-style';
+      style.textContent = SKU_FILTER_MODAL_CSS;
+      document.documentElement.appendChild(style);
+    }
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'pfh-sku-filter-modal';
+      layer.dataset.action = 'sku-filter-close';
+      layer.innerHTML = '<section class="pfh-sku-filter-dialog" role="dialog" aria-modal="true" aria-labelledby="pfh-sku-filter-title"><header><div><strong id="pfh-sku-filter-title">筛选产品</strong><small>条件可组合使用，选择后立即更新结果</small></div><button type="button" data-action="sku-filter-close" aria-label="关闭筛选">×</button></header><div class="pfh-sku-filter-body"></div><footer><button type="button" data-action="sku-filter-clear">清除筛选</button><button type="button" data-action="sku-filter-close">完成</button></footer></section>';
+      panel.appendChild(layer);
+      window.requestAnimationFrame(() => {
+        if (layer.isConnected) layer.querySelector('button[data-action="sku-filter-close"]').focus({ preventScroll: true });
+      });
+    }
+    const body = layer.querySelector('.pfh-sku-filter-body');
+    const signature = renderSkuFilterPanel(true);
+    if (body.pfhSignature !== signature) {
+      body.innerHTML = renderSkuFilterPanel();
+      body.pfhSignature = signature;
+    }
+    body.querySelectorAll('select[data-sku-filter]').forEach((select) => {
+      const value = state.skuFilters[select.dataset.skuFilter] || '';
+      if (select.value !== value) select.value = value;
+    });
+    body.querySelectorAll('button[data-sku-color]').forEach((button) => {
+      const active = button.dataset.skuColor === (state.skuFilters.imageColor || '');
+      button.setAttribute('aria-pressed', String(active));
+    });
+    syncSkuImageColorControls(panel);
   }
 
   function getUploadSkuPickerContext() {
@@ -23691,7 +23748,7 @@
       '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">\u7011\u5e03\u6d41</button></div>' +
       '<label class="pfh-sku-sort"><span>\u6392\u5e8f</span>' + listSortMenu + '</label></div>';
     const activeFilterCount = Object.values(state.skuFilters).filter(Boolean).length;
-    const filterTools = '<div class="pfh-sku-filter-toolbar"><button type="button" data-action="sku-filter-toggle" aria-expanded="' + String(state.skuFilterOpen) + '" class="' + (activeFilterCount ? 'is-active' : '') + '">筛选' + (activeFilterCount ? ' · ' + activeFilterCount : '') + '</button><span>' + (activeFilterCount ? '已按条件筛选' : '开发人员、品牌、状态、设计类型、效果图主色') + '</span></div>' + renderSkuFilterPanel();
+    const filterTools = '<div class="pfh-sku-filter-toolbar"><button type="button" data-action="sku-filter-toggle" aria-haspopup="dialog" aria-expanded="' + String(imageSignature ? false : state.skuFilterOpen) + '" class="' + (activeFilterCount ? 'is-active' : '') + '">筛选' + (activeFilterCount ? ' · ' + activeFilterCount : '') + '</button><span>' + (activeFilterCount ? '已按条件筛选' : '开发人员、品牌、状态、设计类型、效果图主色') + '</span></div>';
     const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span><button type="button" class="pfh-sku-add-button" data-action="sku-manual-add-open" title="批量添加 SKU" aria-label="批量添加 SKU">+</button></div>' + (isWorkspaceSkuView() ? '<div class="pfh-workspace-search-host"></div>' : '') + listTools + filterTools;
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
@@ -36437,6 +36494,19 @@ self.onmessage = async function(event) {
     if (action === 'sku-filter-toggle') {
       state.skuFilterOpen = !state.skuFilterOpen;
       if (state.skuFilterOpen) loadSkuSearchFacets();
+      renderSkuFilterModal(ensurePanel());
+      return;
+    }
+    if (action === 'sku-filter-close') {
+      if (actionTarget.classList.contains('pfh-sku-filter-modal') && event.target !== actionTarget) return;
+      closeSkuFilterModal(ensurePanel());
+      return;
+    }
+    if (action === 'sku-filter-color') {
+      const color = actionTarget.getAttribute('data-sku-color') || '';
+      if (color && !SKU_IMAGE_COLORS.some(([id]) => id === color)) return;
+      state.skuFilters.imageColor = color;
+      state.skuPage = 1;
       renderSkuList(ensurePanel());
       return;
     }
@@ -37500,6 +37570,25 @@ self.onmessage = async function(event) {
   }
 
   function handlePanelKeydown(event) {
+    if (state.skuFilterOpen && (event.key === 'Escape' || event.key === 'Tab')) {
+      const panel = ensurePanel();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeSkuFilterModal(panel);
+        return;
+      }
+      const dialog = panel.querySelector('.pfh-sku-filter-dialog');
+      const controls = dialog && Array.from(dialog.querySelectorAll('button:not(:disabled):not([hidden]),select:not(:disabled),input:not(:disabled),[tabindex="0"]')).filter((node) => node.getClientRects().length);
+      if (controls && controls.length) {
+        const first = controls[0], last = controls[controls.length - 1];
+        if ((event.shiftKey && event.target === first) || (!event.shiftKey && event.target === last)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+          return;
+        }
+      }
+    }
     if (myProfile.open && event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
