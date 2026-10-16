@@ -1,0 +1,94 @@
+/* Unified ledger surface; embedded for local validation without a hosted CSS update. */
+#plm-floating-helper[data-pfh-theme][data-view="ledger"] .pfh-ledger-page.pfh-ledger-unified {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  box-sizing: border-box;
+  padding: 16px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 18px;
+  background: var(--pfh-theme-surface);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.86);
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified > .pfh-ledger-hero {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 0 16px;
+  border: 0;
+  border-bottom: 1px solid var(--pfh-theme-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-hero-tabs {
+  top: 0;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified > .pfh-ledger-workbench-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 12px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-content-anchor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  height: 100%;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-tools-panel {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-list {
+  flex: 1 1 auto;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-trash-entry {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-trash-entry .pfh-icon {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-trash-entry:hover,
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-trash-entry.is-active {
+  border-color: var(--pfh-theme-border-strong);
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary);
+}
