@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.80
+// @version      2.9.81
 // @description  [布局验证版] Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.80';
+  const SCRIPT_VERSION = '2.9.81';
   // Replaced only by build-userscript-release.js --workspace-preview.
   const WORKSPACE_PREVIEW = true;
   const WORKSPACE_PREVIEW_CSS = "/* Experimental module: embedded only by --workspace-preview, never hosted. */\n#plm-floating-helper[data-workspace-preview] .pfh-workspace {\n  grid-column: 1 / -1;\n  display: flex;\n  min-width: 0;\n  min-height: 0;\n  height: 100%;\n  gap: 12px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav {\n  flex: 0 0 64px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  min-height: 0;\n  padding: 12px 0;\n  box-sizing: border-box;\n  background: rgba(255,255,255,.72);\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\n  border-radius: 16px;\n  overflow-y: auto;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-features,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-aux {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-features {\n  min-height: 0;\n  overflow-y: auto;\n  flex: 1 1 auto;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-aux {\n  flex: 0 0 auto;\n  margin-top: auto;\n  padding-top: 18px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button {\n  position: relative;\n  display: grid;\n  place-items: center;\n  width: 40px;\n  height: 40px;\n  padding: 0;\n  border: 0;\n  border-radius: 12px;\n  background: transparent;\n  color: var(--pfh-theme-muted, #8793ad);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button > span:not(.pfh-icon) {\n  display: none;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button .pfh-icon {\n  border: 0;\n  background: transparent;\n  color: inherit;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button:hover,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button.is-active {\n  background: var(--pfh-theme-soft, #f4efff);\n  color: var(--pfh-theme-primary, #7c3aed);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button:disabled {\n  opacity: .35;\n  cursor: default;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button .pfh-notification-badge {\n  display: none;\n  position: absolute;\n  top: 0;\n  right: 0;\n  min-width: 15px;\n  padding: 1px 3px;\n  border-radius: 8px;\n  background: #ef4444;\n  color: #fff;\n  font-size: 10px;\n  font-style: normal;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button.has-unread .pfh-notification-badge {\n  display: block;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button.has-settings-notice::after {\n  content: '';\n  position: absolute;\n  top: 4px;\n  right: 4px;\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #f59e0b;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-viewport {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  overflow: auto;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-stage {\n  display: grid;\n  grid-template-columns: minmax(0,1fr);\n  height: 100%;\n  min-height: 0;\n  gap: 12px;\n}\n#plm-floating-helper[data-workspace-preview] .is-sku-view .pfh-workspace-stage {\n  min-width: 860px;\n  grid-template-columns: minmax(360px,1.5fr) minmax(420px,1fr);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-list-pane {\n  min-width: 0;\n  min-height: 0;\n  overflow: hidden;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace:not(.is-sku-view) .pfh-workspace-list-pane {\n  display: none;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-search-host {\n  min-width: 0;\n  margin: 0 0 12px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-search-host .pfh-search {\n  display: flex;\n  width: 100%;\n  min-width: 0;\n  max-width: none;\n  margin: 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-search-host .pfh-search-box {\n  flex: 1 1 auto;\n  min-width: 0;\n}\n#plm-floating-helper[data-workspace-preview] .is-sku-view .pfh-sku-view-switch {\n  display: none;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  width: 100%;\n  min-height: 104px;\n  padding: 12px 8px;\n  box-sizing: border-box;\n  text-align: left;\n  white-space: normal;\n  border: 0;\n  border-bottom: 1px solid var(--pfh-theme-border, #e8e2ff);\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text, #17213a);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row:hover,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row.is-active {\n  background: var(--pfh-theme-soft, #f4efff);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row.is-active {\n  box-shadow: inset 3px 0 var(--pfh-theme-primary, #7c3aed);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-thumb {\n  flex: 0 0 78px;\n  width: 78px;\n  height: 78px;\n  margin: 0;\n  background: #fff;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-thumb img {\n  object-fit: contain;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-image-empty {\n  display: grid;\n  justify-items: center;\n  gap: 4px;\n  font-size: 10px;\n  color: var(--pfh-theme-muted, #8793ad);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-product {\n  flex: 1 1 auto;\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  min-width: 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-product strong {\n  display: -webkit-box;\n  -webkit-line-clamp: 2;\n  -webkit-box-orient: vertical;\n  overflow: hidden;\n  overflow-wrap: anywhere;\n  font-size: 13px;\n  font-weight: 700;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-product small {\n  font-size: 11px;\n  color: var(--pfh-theme-primary, #7c3aed);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row-meta {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 6px 12px;\n  font-size: 11px;\n  color: var(--pfh-theme-muted, #8793ad);\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-pin {\n  flex: 0 0 auto;\n  opacity: .3;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-pin.is-pinned,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row:hover .pfh-workspace-pin {\n  opacity: 1;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row:focus-visible,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button:focus-visible {\n  outline: 2px solid var(--pfh-theme-primary, #7c3aed);\n  outline-offset: -2px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card {\n  display: grid;\n  grid-template-columns: 78px minmax(0,1fr);\n  align-items: start;\n  gap: 12px;\n  min-width: 0;\n  padding: 8px 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card > .pfh-product-thumb {\n  width: 78px;\n  height: 78px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card .pfh-thumb-frame {\n  width: 78px;\n  height: 78px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card > .pfh-detail-card-content {\n  display: grid;\n  min-width: 0;\n  gap: 10px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-controls {\n  grid-column: 1 / -1;\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  min-width: 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-controls > .pfh-detail-view-button {\n  flex: 1 1 auto;\n}\n";
@@ -2684,6 +2684,7 @@
   const LAUNCHER_POSITION_KEY = 'plm-floating-helper:launcher-position';
   const SPLIT_KEY = 'plm-floating-helper:split-width';
   const SIZE_KEY = 'plm-floating-helper:size';
+  const WORKSPACE_SIZE_KEY = 'plm-floating-helper:size:workspace';
   const DEFAULT_PANEL_WIDTH = 890;
   const DEFAULT_PANEL_HEIGHT = 943;
   const INITIAL_LAYOUT = Object.freeze({
@@ -16441,7 +16442,7 @@
     materialWatchAttempts: 0,
     ignoreOutsideClickUntil: 0,
     splitWidth: loadSplitWidth(),
-    panelSize: loadPanelSize(),
+    panelSize: null,
     developerSettingsTapCount: 0,
     developerSettingsTapAt: 0,
     developerInsightsUnlocked: false,
@@ -16731,6 +16732,7 @@
     feedbackError: '',
     feedbackLoadedName: '',
   };
+  state.panelSize = loadPanelSize();
   state.workMode = normalizeProductDevelopmentWorkMode(state.settings && state.settings.workMode);
   installObservability();
   if (isGoogleTranslatePage()) {
@@ -22158,8 +22160,61 @@
     state.detailViewPreviousTab = '';
   }
 
+  function isWorkspaceLayoutEnabled() {
+    return WORKSPACE_PREVIEW && state.settings.workspaceLayout !== 'classic';
+  }
+
   function isWorkspaceSkuView() {
-    return WORKSPACE_PREVIEW && ['detail', 'parameterImage', 'sizeImage'].includes(state.view);
+    return isWorkspaceLayoutEnabled() && ['detail', 'parameterImage', 'sizeImage'].includes(state.view);
+  }
+
+  function setWorkspaceLayoutEnabled(enabled) {
+    if (!WORKSPACE_PREVIEW) return;
+    if (isWorkspaceLayoutEnabled() === enabled) return;
+    state.settings.workspaceLayout = enabled ? 'workspace' : 'classic';
+    state.panelSize = loadPanelSize();
+    saveSettings(state.settings);
+    renderShell();
+    const panel = document.getElementById(PANEL_ID);
+    if (panel) {
+      applyPanelSize(panel);
+      applySplitWidth(panel);
+      panel.style.right = clamp(Number.parseFloat(panel.style.right) || 0, 0, Math.max(0, window.innerWidth - Number.parseFloat(panel.style.width) - 8)) + 'px';
+      panel.style.bottom = clamp(Number.parseFloat(panel.style.bottom) || 0, 0, Math.max(0, window.innerHeight - Number.parseFloat(panel.style.height) - 8)) + 'px';
+    }
+  }
+
+  function workspaceLayoutSettingsHtml() {
+    if (!WORKSPACE_PREVIEW) return '';
+    const enabled = isWorkspaceLayoutEnabled();
+    return settingsCardHtml('界面布局', enabled ? '新版三栏' : '经典视图',
+      '<div class="pfh-pixel-room-toggle"><label><input type="checkbox" role="switch" class="pfh-workspace-layout-enabled" aria-checked="' + enabled + '"' + (enabled ? ' checked' : '') + '><span>使用新版三栏视图</span></label></div><div class="pfh-about-note">关闭后使用经典布局；切换立即生效。两种视图分别记住手动调整的窗口大小。</div>');
+  }
+
+  function restoreWorkspaceClassicShell(panel) {
+    const workspace = panel.querySelector('.pfh-workspace');
+    delete panel.dataset.workspacePreview;
+    if (!workspace) return;
+    const main = panel.querySelector('.pfh-main');
+    ['.pfh-list', '.pfh-splitter', '.pfh-detail'].forEach((selector) => {
+      const node = workspace.querySelector(selector);
+      if (node) main.appendChild(node);
+    });
+    const actions = panel.querySelector('.pfh-header .pfh-actions');
+    const close = actions.querySelector('[data-action="panel-close"]');
+    ['home-main', 'notifications', 'about'].forEach((action) => {
+      const button = workspace.querySelector('[data-action="' + action + '"]');
+      if (!button) return;
+      button.classList.remove('pfh-workspace-nav-button', 'is-active');
+      button.removeAttribute('aria-current');
+      button.removeAttribute('title');
+      actions.insertBefore(button, close);
+    });
+    const search = panel.pfhWorkspaceSearch || panel.querySelector('.pfh-search');
+    if (search) panel.querySelector('.pfh-heading').appendChild(search);
+    panel.pfhWorkspaceSearch = null;
+    panel.querySelector('.pfh-edition-badge b').textContent = PRODUCT_EDITION.label;
+    workspace.remove();
   }
 
   function workspaceNavigationButtonHtml(entry) {
@@ -22170,6 +22225,10 @@
 
   function renderWorkspacePreviewShell(panel) {
     if (!WORKSPACE_PREVIEW) return;
+    if (!isWorkspaceLayoutEnabled()) {
+      restoreWorkspaceClassicShell(panel);
+      return;
+    }
     panel.dataset.workspacePreview = 'true';
     let style = document.getElementById(PANEL_ID + '-workspace-preview-style');
     if (!style) {
@@ -22866,7 +22925,7 @@
       '<nav class="pfh-about-actions pfh-settings-tabs" aria-label="设置页面"><button type="button" data-action="settings-page" data-settings-page="general" aria-pressed="' + (state.settingsPage !== 'shortcuts') + '">常规设置</button><button type="button" data-action="settings-page" data-settings-page="shortcuts" aria-pressed="' + (state.settingsPage === 'shortcuts') + '">快捷键</button></nav>',
       ...(state.settingsPage === 'shortcuts' ? [renderShortcutSettings()] : [
       settingsGroupHtml('cloud', '版本更新', renderScriptUpdateCard()),
-      settingsGroupHtml('appearance', '\u5916\u89c2', themeBody),
+      settingsGroupHtml('appearance', '\u5916\u89c2', workspaceLayoutSettingsHtml() + themeBody),
       settingsGroupHtml('export', '\u5bfc\u51fa\u504f\u597d', exportCard),
       settingsGroupHtml('data', '\u6570\u636e\u4e0e\u5907\u4efd', cloudBackupCard + cacheCard),
       settingsGroupHtml('connect', '\u8fde\u63a5', desktopBridgeSettingsHtml()),
@@ -27359,7 +27418,7 @@
         referenceLink +
         '</div>'
       : '';
-    const actions = '<div class="' + (WORKSPACE_PREVIEW ? 'pfh-workspace-detail-controls' : 'pfh-title-actions') + ' pfh-detail-card-actions">' +
+    const actions = '<div class="' + (isWorkspaceLayoutEnabled() ? 'pfh-workspace-detail-controls' : 'pfh-title-actions') + ' pfh-detail-card-actions">' +
       '<button type="button" class="pfh-detail-view-button pfh-title-open-detail" data-action="open-detail"><span>查看详情</span><span aria-hidden="true">›</span></button>' +
       '<div class="pfh-detail-secondary-actions">' +
         (state.skuEditMode
@@ -27367,7 +27426,7 @@
           : '<button type="button" class="pfh-detail-edit-button pfh-title-open-detail" data-action="sku-edit-open" title="编辑数据" aria-label="编辑数据">' + iconHtml('edit') + '<span>编辑</span></button><button type="button" class="pfh-detail-more-button" data-action="sku-detail-more" data-sku="' + escapeHtml(sku) + '" aria-label="更多操作" aria-expanded="' + (menuOpen ? 'true' : 'false') + '"><span class="pfh-detail-more-dots"><i></i><i></i><i></i></span></button>') +
       '</div>' +
       '</div>';
-    return '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="' + (WORKSPACE_PREVIEW ? 'pfh-workspace-detail-card' : 'pfh-title-meta pfh-sku-detail-card') + '">' +
+    return '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="' + (isWorkspaceLayoutEnabled() ? 'pfh-workspace-detail-card' : 'pfh-title-meta pfh-sku-detail-card') + '">' +
       productThumbHtml(data) +
       '<div class="pfh-detail-card-content"><div class="pfh-detail-card-heading"><span class="pfh-detail-sku-badge" data-action="copy-sku" title="点击复制 SKU">' + iconHtml('tag') + '<span>' + escapeHtml(sku) + '</span></span><strong class="pfh-detail-product-title" data-action="copy-title-meta" title="' + escapeHtml(L.copyHint) + '">' + escapeHtml(title) + '</strong></div>' +
       metaHtml + infoHtml + '</div>' +
@@ -37917,6 +37976,10 @@ self.onmessage = async function(event) {
   }
 
   function handlePanelChange(event) {
+    if (event.target?.classList?.contains('pfh-workspace-layout-enabled')) {
+      setWorkspaceLayoutEnabled(event.target.checked === true);
+      return;
+    }
     if (event.target?.classList?.contains('pfh-pixel-room-animation')) {
       state.settings.pixelRoomAnimation = event.target.checked === true;
       saveSettings(state.settings);
@@ -41114,9 +41177,10 @@ self.onmessage = async function(event) {
   }
 
   function openFirstCachedDetail() {
-    const previewItem = WORKSPACE_PREVIEW ? workspaceInitialSkuItem() : null;
-    const first = WORKSPACE_PREVIEW ? (previewItem && previewItem.sku || '') : (state.index[0] && state.index[0].sku ? state.index[0].sku : '');
-    if (!WORKSPACE_PREVIEW && !first && !state.settings.collectionEnabled) {
+    const workspaceEnabled = isWorkspaceLayoutEnabled();
+    const previewItem = workspaceEnabled ? workspaceInitialSkuItem() : null;
+    const first = workspaceEnabled ? (previewItem && previewItem.sku || '') : (state.index[0] && state.index[0].sku ? state.index[0].sku : '');
+    if (!workspaceEnabled && !first && !state.settings.collectionEnabled) {
       showToast(L.emptyList);
       return;
     }
@@ -41132,7 +41196,7 @@ self.onmessage = async function(event) {
     // Avoid rendering the same detail view twice. renderShell() sorts the local
     // catalog, so the duplicate pass was especially noticeable on large lists.
     expandPanel({ render: false });
-    renderShell(first ? '正在后台检查新的设计分配...' : WORKSPACE_PREVIEW ? '' : L.openingDetail);
+    renderShell(first ? '正在后台检查新的设计分配...' : workspaceEnabled ? '' : L.openingDetail);
     if (!state.settings.collectionEnabled) return;
     window.setTimeout(() => {
       if (state.assignedDesignTaskSyncPromise) return;
@@ -50924,6 +50988,7 @@ self.onmessage = async function(event) {
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       const settings = { ...defaults, ...(saved || {}) };
+      settings.workspaceLayout = settings.workspaceLayout === 'classic' ? 'classic' : 'workspace';
       // The removed collection switch must not leave existing installations paused.
       settings.collectionEnabled = true;
       const previousBackupStatus = settings.cloudBackupStatus;
@@ -51923,9 +51988,16 @@ self.onmessage = async function(event) {
     }
   }
 
+  function getPanelSizeStorageKey() {
+    return isWorkspaceLayoutEnabled() ? WORKSPACE_SIZE_KEY : SIZE_KEY;
+  }
+
   function loadPanelSize() {
     try {
-      const value = typeof GM_getValue === 'function' ? GM_getValue(SIZE_KEY, null) : JSON.parse(localStorage.getItem(SIZE_KEY) || 'null');
+      const key = getPanelSizeStorageKey();
+      let value = typeof GM_getValue === 'function' ? GM_getValue(key, null) : JSON.parse(localStorage.getItem(key) || 'null');
+      // Seed the new view from the existing size until it is resized manually.
+      if (!value && key !== SIZE_KEY) value = typeof GM_getValue === 'function' ? GM_getValue(SIZE_KEY, null) : JSON.parse(localStorage.getItem(SIZE_KEY) || 'null');
       if (value && Number.isFinite(value.width) && Number.isFinite(value.height)) {
         // 仅把旧版内置默认值迁移到新默认值，用户主动保存过的尺寸保持不变。
         if (Number(value.width) === 686 && Number(value.height) === 906) {
@@ -51945,13 +52017,14 @@ self.onmessage = async function(event) {
   function savePanelSize(size) {
     const maxHeight = getPanelMaxHeight();
     const value = {
-      width: clamp(size.width, 640, Math.min(1180, window.innerWidth - 24)),
+      width: clamp(size.width, 520, Math.min(1180, window.innerWidth - 24)),
       height: clamp(size.height, 520, maxHeight),
     };
     state.panelSize = value;
     try {
-      if (typeof GM_setValue === 'function') GM_setValue(SIZE_KEY, value);
-      else localStorage.setItem(SIZE_KEY, JSON.stringify(value));
+      const key = getPanelSizeStorageKey();
+      if (typeof GM_setValue === 'function') GM_setValue(key, value);
+      else localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
       console.warn('PLM floating helper size save failed:', error);
     }

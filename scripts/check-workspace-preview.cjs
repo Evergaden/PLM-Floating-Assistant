@@ -36,7 +36,7 @@ const context = vm.createContext({
   setupSkuViewFusion: () => {}, syncSkuImageColorControls: () => {}, document: {}, window: {}, URL,
 });
 [
-  'escapeHtml', 'isWorkspaceSkuView', 'getSkuListMode', 'getSkuListImageUrl',
+  'escapeHtml', 'isWorkspaceLayoutEnabled', 'isWorkspaceSkuView', 'getSkuListMode', 'getSkuListImageUrl',
   'getSkuPlaceholderUrl', 'skuProgressiveImageHtml', 'workspaceSkuRowHtml',
   'renderSkuListHtml', 'syncWorkspaceSkuSelection', 'renderSkuList',
   'setupSkuProgressiveImages', 'workspaceNavigationButtonHtml', 'workspaceInitialSkuItem',
@@ -117,4 +117,70 @@ const metadataVersion = source.match(/@version\s+(\S+)/)[1];
 assert.equal(metadataVersion, source.match(/const SCRIPT_VERSION = '([^']+)'/)[1]);
 assert.ok(full.includes('@version      ' + metadataVersion));
 assert.ok(min.includes('@version      ' + metadataVersion));
+checkWorkspaceLayoutSwitch();
 console.log('Workspace preview checks passed: rows, images, pagination, filtering, selection DOM, permissions, isolated builds.');
+
+function checkWorkspaceLayoutSwitch() {
+  const stored = new Map([['classic-size', { width: 780, height: 800 }]]);
+  const settings = { skuListMode: 'waterfall', theme: 'test-theme' };
+  const testState = { settings, selectedSku: 'KEEP', skuPage: 3, view: 'about' };
+  let renders = 0;
+  const runtime = vm.createContext({
+    WORKSPACE_PREVIEW: true, state: testState, SIZE_KEY: 'classic-size', WORKSPACE_SIZE_KEY: 'workspace-size',
+    DEFAULT_PANEL_WIDTH: 890, DEFAULT_PANEL_HEIGHT: 943, PANEL_ID: 'test',
+    GM_getValue: (key, fallback) => stored.get(key) || fallback,
+    GM_setValue: (key, value) => stored.set(key, JSON.parse(JSON.stringify(value))),
+    saveSettings: (value) => stored.set('settings', JSON.stringify(value)), renderShell: () => renders++,
+    document: { getElementById: () => null }, window: { innerWidth: 1600, innerHeight: 1200 },
+    getPanelMaxHeight: () => 1100, clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
+    settingsCardHtml: (title, badge, body) => title + badge + body,
+  });
+  ['isWorkspaceLayoutEnabled', 'isWorkspaceSkuView', 'getSkuListMode', 'getPanelSizeStorageKey', 'loadPanelSize', 'savePanelSize', 'setWorkspaceLayoutEnabled', 'workspaceLayoutSettingsHtml'].forEach((name) => vm.runInContext(functionText(name), runtime));
+  assert.equal(runtime.isWorkspaceLayoutEnabled(), true, 'Existing preview installations default to new view');
+  assert.equal(runtime.loadPanelSize().width, 780, 'New size starts from legacy preference');
+  runtime.savePanelSize({ width: 1100, height: 940 });
+  runtime.setWorkspaceLayoutEnabled(false);
+  assert.equal(runtime.isWorkspaceLayoutEnabled(), false);
+  assert.equal(testState.panelSize.width, 780);
+  assert.equal(runtime.getSkuListMode(), 'waterfall', 'Classic view restores the saved list preference');
+  assert.ok(runtime.workspaceLayoutSettingsHtml().includes('aria-checked="false"'));
+  runtime.savePanelSize({ width: 560, height: 700 });
+  runtime.setWorkspaceLayoutEnabled(true);
+  assert.equal(testState.panelSize.width, 1100);
+  assert.equal(testState.panelSize.height, 940);
+  runtime.setWorkspaceLayoutEnabled(false);
+  assert.equal(testState.panelSize.width, 560, 'Manual narrow width survives round trip');
+  assert.equal(stored.get('workspace-size').width, 1100);
+  assert.equal(stored.get('classic-size').width, 560);
+  assert.equal(JSON.parse(stored.get('settings')).workspaceLayout, 'classic', 'Selection persists');
+  assert.equal(testState.selectedSku, 'KEEP'); assert.equal(testState.skuPage, 3);
+  assert.equal(testState.settings.theme, 'test-theme');
+  const before = renders; runtime.setWorkspaceLayoutEnabled(false); assert.equal(renders, before, 'Unchanged switch does not redraw');
+  assert.equal(renders, 3);
+
+  // Simulated DOM verifies the original nodes return to their original slots.
+  const list = { id: 'list' }, splitter = { id: 'splitter', listener: 'keep' }, detail = { id: 'detail' }, search = { id: 'search', value: 'keep search' };
+  const close = { id: 'close' }, buttonIds = ['home-main', 'notifications', 'about'];
+  const buttons = Object.fromEntries(buttonIds.map((id) => [id, { id, classList: { remove: () => {} }, removeAttribute: () => {} }]));
+  const actions = { children: [close], querySelector: () => close, insertBefore: (node, target) => actions.children.splice(actions.children.indexOf(target), 0, node) };
+  const heading = { children: [], appendChild: (node) => heading.children.push(node) }, badge = {};
+  const main = { children: [], appendChild: (node) => main.children.push(node) };
+  let removed = false;
+  const workspace = {
+    querySelector: (selector) => ({ '.pfh-list': list, '.pfh-splitter': splitter, '.pfh-detail': detail }[selector] || buttons[(selector.match(/data-action="([^"]+)"/) || [])[1]]),
+    remove: () => { removed = true; main.children = main.children.filter((node) => node !== workspace); },
+  };
+  main.children.push(workspace);
+  const panel = { dataset: { workspacePreview: 'true' }, pfhWorkspaceSearch: search, querySelector: (selector) => ({
+    '.pfh-workspace': removed ? null : workspace, '.pfh-main': main, '.pfh-header .pfh-actions': actions,
+    '.pfh-heading': heading, '.pfh-edition-badge b': badge,
+  }[selector]) };
+  runtime.PRODUCT_EDITION = { label: 'TEST' };
+  vm.runInContext(functionText('restoreWorkspaceClassicShell'), runtime);
+  runtime.restoreWorkspaceClassicShell(panel);
+  assert.deepEqual(main.children, [list, splitter, detail]);
+  assert.deepEqual(actions.children.map((node) => node.id), [...buttonIds, 'close']);
+  assert.equal(heading.children[0], search); assert.equal(search.value, 'keep search');
+  assert.equal(splitter.listener, 'keep'); assert.equal(panel.dataset.workspacePreview, undefined);
+  runtime.restoreWorkspaceClassicShell(panel); // Idempotent after classic mode is restored.
+}
