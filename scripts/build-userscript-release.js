@@ -13,12 +13,17 @@ const outputPath = path.join(root, 'outputs', workspacePreview
   ? 'plm-material-summary.min.preview.user.js'
   : 'plm-material-summary.min.user.js');
 let source = fs.readFileSync(sourcePath, 'utf8');
+// All installable builds need the layout CSS because users can switch at runtime.
+// This generated literal is synced from the canonical ui-src module.
+const cssPath = path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'workspace-preview.css');
+const css = fs.readFileSync(cssPath, 'utf8');
+if (!/^  const WORKSPACE_PREVIEW_CSS = .*;$/m.test(source)) throw new Error('Workspace CSS build marker is missing');
+const syncedSource = source.replace(/^  const WORKSPACE_PREVIEW_CSS = .*;$/m, () => '  const WORKSPACE_PREVIEW_CSS = ' + JSON.stringify(css) + ';');
+if (syncedSource !== source) fs.writeFileSync(sourcePath, syncedSource, 'utf8');
+source = syncedSource;
 if (workspacePreview) {
-  const cssPath = path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'workspace-preview.css');
-  const css = fs.readFileSync(cssPath, 'utf8');
   source = source
     .replace("const WORKSPACE_PREVIEW = false;", 'const WORKSPACE_PREVIEW = true;')
-    .replace("const WORKSPACE_PREVIEW_CSS = '';", () => 'const WORKSPACE_PREVIEW_CSS = ' + JSON.stringify(css) + ';')
     // Preserve @name/@namespace so updating retains the manager's GM cache.
     .replace('// @description  ', '// @description  [布局验证版] ');
   if (!source.includes('const WORKSPACE_PREVIEW = true;') || !source.includes(css.slice(0, 50))) {

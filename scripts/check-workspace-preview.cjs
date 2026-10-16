@@ -109,10 +109,11 @@ assert.ok(full.includes('const WORKSPACE_PREVIEW = true;'));
 assert.ok(full.includes('const WORKSPACE_PREVIEW_CSS = ' + JSON.stringify(css) + ';'));
 assert.equal(full
   .replace('const WORKSPACE_PREVIEW = true;', 'const WORKSPACE_PREVIEW = false;')
-  .replace('const WORKSPACE_PREVIEW_CSS = ' + JSON.stringify(css) + ';', "const WORKSPACE_PREVIEW_CSS = '';")
   .replace('// @description  [布局验证版] ', '// @description  '), source, 'Full test package matches current source');
 assert.ok(min.includes('布局验证版') && min.includes('pfh-workspace-stage'));
-assert.ok(!normal.includes('Experimental module: embedded only'));
+assert.ok(normal.includes('pfh-workspace-stage'), 'Normal minified build includes optional layout CSS');
+assert.ok(normal.includes('使用新版三栏视图'), 'Normal minified build exposes the layout switch');
+assert.ok(source.includes('const WORKSPACE_PREVIEW_CSS = ' + JSON.stringify(css) + ';'), 'Normal full build includes canonical layout CSS');
 const metadataVersion = source.match(/@version\s+(\S+)/)[1];
 assert.equal(metadataVersion, source.match(/const SCRIPT_VERSION = '([^']+)'/)[1]);
 assert.ok(full.includes('@version      ' + metadataVersion));
@@ -157,6 +158,15 @@ function checkWorkspaceLayoutSwitch() {
   assert.equal(testState.settings.theme, 'test-theme');
   const before = renders; runtime.setWorkspaceLayoutEnabled(false); assert.equal(renders, before, 'Unchanged switch does not redraw');
   assert.equal(renders, 3);
+  runtime.WORKSPACE_PREVIEW = false;
+  delete testState.settings.workspaceLayout;
+  assert.equal(runtime.isWorkspaceLayoutEnabled(), false, 'Normal installation defaults to classic');
+  assert.ok(runtime.workspaceLayoutSettingsHtml().includes('使用新版三栏视图'), 'Normal installation displays the switch');
+  runtime.setWorkspaceLayoutEnabled(true);
+  assert.equal(runtime.isWorkspaceLayoutEnabled(), true, 'Normal installation can enable the new layout');
+  assert.equal(testState.panelSize.width, 1100, 'Normal installation retains separate workspace size');
+  runtime.setWorkspaceLayoutEnabled(false);
+  assert.equal(testState.panelSize.width, 560);
 
   // Simulated DOM verifies the original nodes return to their original slots.
   const list = { id: 'list' }, splitter = { id: 'splitter', listener: 'keep' }, detail = { id: 'detail' }, search = { id: 'search', value: 'keep search' };

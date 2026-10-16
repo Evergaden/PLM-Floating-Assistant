@@ -1,4 +1,4 @@
-/* Experimental module: embedded only by --workspace-preview, never hosted. */
+/* Optional workspace layout: embedded in installable userscripts, never hosted. */
 #plm-floating-helper[data-workspace-preview] .pfh-workspace {
   grid-column: 1 / -1;
   display: flex;
