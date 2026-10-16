@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.79
+// @version      2.9.80
 // @description  [布局验证版] Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.79';
+  const SCRIPT_VERSION = '2.9.80';
   // Replaced only by build-userscript-release.js --workspace-preview.
   const WORKSPACE_PREVIEW = true;
   const WORKSPACE_PREVIEW_CSS = "/* Experimental module: embedded only by --workspace-preview, never hosted. */\n#plm-floating-helper[data-workspace-preview] .pfh-workspace {\n  grid-column: 1 / -1;\n  display: flex;\n  min-width: 0;\n  min-height: 0;\n  height: 100%;\n  gap: 12px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav {\n  flex: 0 0 64px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  min-height: 0;\n  padding: 12px 0;\n  box-sizing: border-box;\n  background: rgba(255,255,255,.72);\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\n  border-radius: 16px;\n  overflow-y: auto;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-features,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-aux {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  align-items: center;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-features {\n  min-height: 0;\n  overflow-y: auto;\n  flex: 1 1 auto;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-aux {\n  flex: 0 0 auto;\n  margin-top: auto;\n  padding-top: 18px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button {\n  position: relative;\n  display: grid;\n  place-items: center;\n  width: 40px;\n  height: 40px;\n  padding: 0;\n  border: 0;\n  border-radius: 12px;\n  background: transparent;\n  color: var(--pfh-theme-muted, #8793ad);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button > span:not(.pfh-icon) {\n  display: none;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button .pfh-icon {\n  border: 0;\n  background: transparent;\n  color: inherit;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button:hover,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button.is-active {\n  background: var(--pfh-theme-soft, #f4efff);\n  color: var(--pfh-theme-primary, #7c3aed);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button:disabled {\n  opacity: .35;\n  cursor: default;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button .pfh-notification-badge {\n  display: none;\n  position: absolute;\n  top: 0;\n  right: 0;\n  min-width: 15px;\n  padding: 1px 3px;\n  border-radius: 8px;\n  background: #ef4444;\n  color: #fff;\n  font-size: 10px;\n  font-style: normal;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button.has-unread .pfh-notification-badge {\n  display: block;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button.has-settings-notice::after {\n  content: '';\n  position: absolute;\n  top: 4px;\n  right: 4px;\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: #f59e0b;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-viewport {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  overflow: auto;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-stage {\n  display: grid;\n  grid-template-columns: minmax(0,1fr);\n  height: 100%;\n  min-height: 0;\n  gap: 12px;\n}\n#plm-floating-helper[data-workspace-preview] .is-sku-view .pfh-workspace-stage {\n  min-width: 860px;\n  grid-template-columns: minmax(360px,1.5fr) minmax(420px,1fr);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-list-pane {\n  min-width: 0;\n  min-height: 0;\n  overflow: hidden;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace:not(.is-sku-view) .pfh-workspace-list-pane {\n  display: none;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-search-host {\n  min-width: 0;\n  margin: 0 0 12px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-search-host .pfh-search {\n  display: flex;\n  width: 100%;\n  min-width: 0;\n  max-width: none;\n  margin: 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-search-host .pfh-search-box {\n  flex: 1 1 auto;\n  min-width: 0;\n}\n#plm-floating-helper[data-workspace-preview] .is-sku-view .pfh-sku-view-switch {\n  display: none;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  width: 100%;\n  min-height: 104px;\n  padding: 12px 8px;\n  box-sizing: border-box;\n  text-align: left;\n  white-space: normal;\n  border: 0;\n  border-bottom: 1px solid var(--pfh-theme-border, #e8e2ff);\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text, #17213a);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row:hover,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row.is-active {\n  background: var(--pfh-theme-soft, #f4efff);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row.is-active {\n  box-shadow: inset 3px 0 var(--pfh-theme-primary, #7c3aed);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-thumb {\n  flex: 0 0 78px;\n  width: 78px;\n  height: 78px;\n  margin: 0;\n  background: #fff;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-thumb img {\n  object-fit: contain;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-image-empty {\n  display: grid;\n  justify-items: center;\n  gap: 4px;\n  font-size: 10px;\n  color: var(--pfh-theme-muted, #8793ad);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-product {\n  flex: 1 1 auto;\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  min-width: 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-product strong {\n  display: -webkit-box;\n  -webkit-line-clamp: 2;\n  -webkit-box-orient: vertical;\n  overflow: hidden;\n  overflow-wrap: anywhere;\n  font-size: 13px;\n  font-weight: 700;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-product small {\n  font-size: 11px;\n  color: var(--pfh-theme-primary, #7c3aed);\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row-meta {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 6px 12px;\n  font-size: 11px;\n  color: var(--pfh-theme-muted, #8793ad);\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-pin {\n  flex: 0 0 auto;\n  opacity: .3;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-pin.is-pinned,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row:hover .pfh-workspace-pin {\n  opacity: 1;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-row:focus-visible,\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-nav-button:focus-visible {\n  outline: 2px solid var(--pfh-theme-primary, #7c3aed);\n  outline-offset: -2px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card {\n  display: grid;\n  grid-template-columns: 78px minmax(0,1fr);\n  align-items: start;\n  gap: 12px;\n  min-width: 0;\n  padding: 8px 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card > .pfh-product-thumb {\n  width: 78px;\n  height: 78px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card .pfh-thumb-frame {\n  width: 78px;\n  height: 78px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-card > .pfh-detail-card-content {\n  display: grid;\n  min-width: 0;\n  gap: 10px;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-controls {\n  grid-column: 1 / -1;\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  min-width: 0;\n}\n#plm-floating-helper[data-workspace-preview] .pfh-workspace-detail-controls > .pfh-detail-view-button {\n  flex: 1 1 auto;\n}\n";
@@ -16459,6 +16459,9 @@
     searchQuery: '',
     skuFilters: { developer: '', brand: '', status: '', designType: '', imageColor: '' },
     skuFilterOpen: false,
+    skuImageColorIndexTimer: 0,
+    skuImageColorIndexPaused: false,
+    skuImageColorIndexDirty: false,
     view: firstTutorial ? 'home' : 'home',
     settings: loadSettings(),
     workMode: 'daily',
@@ -16797,6 +16800,8 @@
   scheduleLegacyManualSkuLedgerMigration(1800);
   scheduleMissingManualSkuImageRefresh(2600);
   window.setTimeout(() => startManualSkuAddQueue(), 700);
+  // Defer until all modules initialize; indexing is independent of filtering.
+  window.setTimeout(() => scheduleSkuImageColorIndex(0), 15000);
   if (shouldStartUploadWorkerOnLoad()) {
     window.setTimeout(() => processUploadQueue(), 1200);
   }
@@ -23241,7 +23246,9 @@
   }
 
   function getSkuImageColorSource(item) {
-    return getSkuListImageUrl(loadData(item.sku) || item) || getSkuListImageUrl(item);
+    // The lightweight catalog mirrors image fields. Filtering must not load
+    // hundreds of complete GM records or start any image requests.
+    return getSkuListImageUrl(item);
   }
 
   function getSkuImageColor(item) {
@@ -23313,14 +23320,19 @@
 
   async function identifySkuImageColor(url) {
     const blob = await fetchLedgerAiImageBlob(getLedgerThumbnailUrl(url));
-    const objectUrl = URL.createObjectURL(blob);
-    let timer;
+    if (blob.size > 8 * 1024 * 1024) throw new Error('Image exceeds color index size limit');
+    let objectUrl = '', timer, image, canvas;
     try {
-      const image = await Promise.race([
-        loadImage(objectUrl),
-        new Promise((_, reject) => { timer = window.setTimeout(() => reject(new Error('Image decode timeout')), 10000); }),
-      ]);
-      const canvas = document.createElement('canvas');
+      if (typeof window.createImageBitmap === 'function') {
+        image = await window.createImageBitmap(blob, { resizeWidth: 80, resizeHeight: 80, resizeQuality: 'low' });
+      } else {
+        objectUrl = URL.createObjectURL(blob);
+        image = await Promise.race([
+          loadImage(objectUrl),
+          new Promise((_, reject) => { timer = window.setTimeout(() => reject(new Error('Image decode timeout')), 10000); }),
+        ]);
+      }
+      canvas = document.createElement('canvas');
       const ratio = 80 / Math.max(image.naturalWidth || image.width || 1, image.naturalHeight || image.height || 1);
       canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width || 1) * ratio));
       canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height || 1) * ratio));
@@ -23330,7 +23342,10 @@
       return classifySkuImagePixels(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
     } finally {
       window.clearTimeout(timer);
-      URL.revokeObjectURL(objectUrl);
+      if (image && typeof image.close === 'function') image.close();
+      else if (image) image.src = '';
+      if (canvas) { canvas.width = 0; canvas.height = 0; }
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     }
   }
 
@@ -23339,21 +23354,69 @@
     const progress = panel.querySelector('[data-sku-color-progress]');
     if (!progress) return;
     progress.textContent = skuImageColorScan.running
-      ? (skuImageColorScan.stop ? '正在停止… ' : '正在识别主色，结果逐步补齐：') + skuImageColorScan.completed + '/' + skuImageColorScan.total + (skuImageColorScan.failed ? '，失败 ' + skuImageColorScan.failed + ' 张' : '')
-      : '已识别 ' + state.index.filter((item) => getSkuImageColor(item) !== 'unknown').length + '/' + state.index.length + ' 个产品；可识别新增图片或重试失败项。';
+      ? (skuImageColorScan.stop ? '正在暂停… ' : '后台建立颜色索引：') + skuImageColorScan.completed + '/' + skuImageColorScan.total + (skuImageColorScan.failed ? '，失败 ' + skuImageColorScan.failed + ' 张' : '')
+      : '颜色索引 ' + state.index.filter((item) => getSkuImageColor(item) !== 'unknown').length + '/' + state.index.length + (state.skuImageColorIndexPaused ? '，已暂停；点击继续。' : '；筛选直接查索引，新增图片会自动补齐。');
     const start = panel.querySelector('[data-action="sku-color-scan"]');
     const stop = panel.querySelector('[data-action="sku-color-stop"]');
     if (start) start.disabled = skuImageColorScan.running;
     if (stop) { stop.hidden = !skuImageColorScan.running; stop.disabled = skuImageColorScan.stop; }
   }
 
-  function startSkuImageColorScan() {
+  function getSkuImageColorIndexTasks(retryFailed) {
+    const now = Date.now();
+    return state.index.map((item) => ({ sku: item.sku, url: getSkuImageColorSource(item) })).filter(({ sku, url }) => {
+      if (!url) return false;
+      const cached = skuImageColorCache[sku];
+      if (!cached || cached.url !== url) return true;
+      if (cached.status === 'ready') return false;
+      const retryAfter = Number(cached.updatedAt || 0) + (Number(cached.attempts || 0) >= 3 ? 86400000 : 1800000);
+      return retryFailed || now >= retryAfter;
+    });
+  }
+
+  function scheduleSkuImageColorIndex(delay) {
+    if (delay == null) state.skuImageColorIndexDirty = true;
+    if (state.skuImageColorIndexPaused) return;
+    window.clearTimeout(state.skuImageColorIndexTimer);
+    state.skuImageColorIndexTimer = window.setTimeout(() => {
+      state.skuImageColorIndexTimer = 0;
+      if (navigator.onLine === false) { scheduleSkuImageColorIndex(60000); return; }
+      if (skuImageColorScan.running) { skuImageColorScan.dirty = true; return; }
+      startSkuImageColorScan({ automatic: true }).catch(() => {
+        scheduleSkuImageColorIndex(1800000);
+      });
+    }, Math.max(0, delay == null ? 5000 : delay));
+  }
+
+  function waitForSkuImageColorIdle() {
+    return new Promise((resolve) => {
+      window.setTimeout(() => {
+        if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(resolve, { timeout: 1000 });
+        else resolve();
+      }, 80);
+    });
+  }
+
+  function pauseSkuImageColorIndex() {
+    state.skuImageColorIndexPaused = true;
+    window.clearTimeout(state.skuImageColorIndexTimer);
+    state.skuImageColorIndexTimer = 0;
+    skuImageColorScan.stop = true;
+    syncSkuImageColorControls(document.getElementById(PANEL_ID));
+  }
+
+  function startSkuImageColorScan(options) {
     if (skuImageColorScan.running) return skuImageColorScan.promise;
-    const items = state.index.slice();
-    Object.assign(skuImageColorScan, { running: true, stop: false, completed: 0, total: items.length, failed: 0 });
+    if (options && options.automatic && state.skuImageColorIndexPaused) return Promise.resolve();
+    window.clearTimeout(state.skuImageColorIndexTimer);
+    state.skuImageColorIndexTimer = 0;
+    state.skuImageColorIndexPaused = false;
+    const items = getSkuImageColorIndexTasks(!(options && options.automatic));
+    state.skuImageColorIndexDirty = false;
+    Object.assign(skuImageColorScan, { running: true, stop: false, dirty: false, completed: 0, total: items.length, failed: 0 });
     let cursor = 0, lastRefresh = 0;
     const refresh = (force) => {
-      if (!force && Date.now() - lastRefresh < 600) return;
+      if (!force && Date.now() - lastRefresh < 1500) return;
       lastRefresh = Date.now();
       const panel = document.getElementById(PANEL_ID);
       if (panel && panel.querySelector('.pfh-sku-filter-panel')) {
@@ -23363,36 +23426,38 @@
     };
     const worker = async () => {
       while (!skuImageColorScan.stop && cursor < items.length) {
+        await waitForSkuImageColorIdle();
+        if (skuImageColorScan.stop) break;
         const item = items[cursor++];
-        const url = getSkuImageColorSource(item);
+        const url = item.url;
         const cached = skuImageColorCache[item.sku];
         if (url && (!cached || cached.url !== url || cached.status !== 'ready')) {
           try {
             const color = await identifySkuImageColor(url);
-            skuImageColorCache[item.sku] = { url, color, status: 'ready', updatedAt: Date.now() };
+            skuImageColorCache[item.sku] = { url, color, status: 'ready', updatedAt: Date.now(), attempts: 0 };
           } catch (_) {
-            skuImageColorCache[item.sku] = { url, color: 'unknown', status: 'failed', updatedAt: Date.now() };
+            skuImageColorCache[item.sku] = { url, color: 'unknown', status: 'failed', updatedAt: Date.now(), attempts: cached && cached.url === url ? Number(cached.attempts || 0) + 1 : 1 };
             skuImageColorScan.failed++;
           }
         }
         skuImageColorScan.completed++;
         if (skuImageColorScan.completed % 20 === 0) saveSkuImageColorCache();
         refresh(false);
-        await new Promise((resolve) => window.setTimeout(resolve, 0));
       }
     };
     refresh(true);
-    skuImageColorScan.promise = Promise.all([worker(), worker()]).finally(() => {
+    skuImageColorScan.promise = worker().finally(() => {
       skuImageColorScan.running = false;
       saveSkuImageColorCache();
       refresh(true);
+      if (!state.skuImageColorIndexPaused) scheduleSkuImageColorIndex(skuImageColorScan.dirty || state.skuImageColorIndexDirty ? 1000 : 1800000);
     });
     return skuImageColorScan.promise;
   }
 
   function skuImageColorFilterHtml() {
     return '<label><span>效果图主色</span><select data-sku-filter="imageColor"><option value="">全部颜色</option>' + SKU_IMAGE_COLORS.map(([id, label]) => '<option value="' + id + '"' + (state.skuFilters.imageColor === id ? ' selected' : '') + '>' + label + '</option>').join('') + '</select></label>' +
-      '<span class="pfh-sku-filter-loading" data-sku-color-progress></span><button type="button" data-action="sku-color-scan">识别 / 更新主色</button><button type="button" data-action="sku-color-stop" hidden>停止识别</button>';
+      '<span class="pfh-sku-filter-loading" data-sku-color-progress></span><button type="button" data-action="sku-color-scan">继续建索引 / 重试</button><button type="button" data-action="sku-color-stop" hidden>暂停索引</button>';
   }
 
   let skuSearchFacetsReady = false;
@@ -36330,8 +36395,7 @@ self.onmessage = async function(event) {
       return;
     }
     if (action === 'sku-color-stop') {
-      skuImageColorScan.stop = true;
-      syncSkuImageColorControls(ensurePanel());
+      pauseSkuImageColorIndex();
       return;
     }
     if (action === 'sku-list-mode') {
@@ -37877,7 +37941,6 @@ self.onmessage = async function(event) {
       state.skuFilters[skuFilterField] = event.target.value || '';
       state.skuPage = 1;
       renderSkuList(ensurePanel());
-      if (skuFilterField === 'imageColor' && state.skuFilters.imageColor) startSkuImageColorScan();
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-cache-value-type')) {
@@ -51600,6 +51663,7 @@ self.onmessage = async function(event) {
     state.index.unshift(item);
     skuSearchFacetCache.set(item.sku, { developer: item.developerName, brand: item.brand, status: item.projectStatus, designType: item.designType });
     saveIndex();
+    if (!old || getSkuListImageUrl(old) !== getSkuListImageUrl(item)) scheduleSkuImageColorIndex();
   }
 
   function togglePin(sku) {

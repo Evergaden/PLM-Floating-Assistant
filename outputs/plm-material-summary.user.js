@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.79
+// @version      2.9.80
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.79';
+  const SCRIPT_VERSION = '2.9.80';
   // Replaced only by build-userscript-release.js --workspace-preview.
   const WORKSPACE_PREVIEW = false;
   const WORKSPACE_PREVIEW_CSS = '';
@@ -16459,6 +16459,9 @@
     searchQuery: '',
     skuFilters: { developer: '', brand: '', status: '', designType: '', imageColor: '' },
     skuFilterOpen: false,
+    skuImageColorIndexTimer: 0,
+    skuImageColorIndexPaused: false,
+    skuImageColorIndexDirty: false,
     view: firstTutorial ? 'home' : 'home',
     settings: loadSettings(),
     workMode: 'daily',
@@ -16797,6 +16800,8 @@
   scheduleLegacyManualSkuLedgerMigration(1800);
   scheduleMissingManualSkuImageRefresh(2600);
   window.setTimeout(() => startManualSkuAddQueue(), 700);
+  // Defer until all modules initialize; indexing is independent of filtering.
+  window.setTimeout(() => scheduleSkuImageColorIndex(0), 15000);
   if (shouldStartUploadWorkerOnLoad()) {
     window.setTimeout(() => processUploadQueue(), 1200);
   }
@@ -23241,7 +23246,9 @@
   }
 
   function getSkuImageColorSource(item) {
-    return getSkuListImageUrl(loadData(item.sku) || item) || getSkuListImageUrl(item);
+    // The lightweight catalog mirrors image fields. Filtering must not load
+    // hundreds of complete GM records or start any image requests.
+    return getSkuListImageUrl(item);
   }
 
   function getSkuImageColor(item) {
@@ -23313,14 +23320,19 @@
 
   async function identifySkuImageColor(url) {
     const blob = await fetchLedgerAiImageBlob(getLedgerThumbnailUrl(url));
-    const objectUrl = URL.createObjectURL(blob);
-    let timer;
+    if (blob.size > 8 * 1024 * 1024) throw new Error('Image exceeds color index size limit');
+    let objectUrl = '', timer, image, canvas;
     try {
-      const image = await Promise.race([
-        loadImage(objectUrl),
-        new Promise((_, reject) => { timer = window.setTimeout(() => reject(new Error('Image decode timeout')), 10000); }),
-      ]);
-      const canvas = document.createElement('canvas');
+      if (typeof window.createImageBitmap === 'function') {
+        image = await window.createImageBitmap(blob, { resizeWidth: 80, resizeHeight: 80, resizeQuality: 'low' });
+      } else {
+        objectUrl = URL.createObjectURL(blob);
+        image = await Promise.race([
+          loadImage(objectUrl),
+          new Promise((_, reject) => { timer = window.setTimeout(() => reject(new Error('Image decode timeout')), 10000); }),
+        ]);
+      }
+      canvas = document.createElement('canvas');
       const ratio = 80 / Math.max(image.naturalWidth || image.width || 1, image.naturalHeight || image.height || 1);
       canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width || 1) * ratio));
       canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height || 1) * ratio));
@@ -23330,7 +23342,10 @@
       return classifySkuImagePixels(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
     } finally {
       window.clearTimeout(timer);
-      URL.revokeObjectURL(objectUrl);
+      if (image && typeof image.close === 'function') image.close();
+      else if (image) image.src = '';
+      if (canvas) { canvas.width = 0; canvas.height = 0; }
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     }
   }
 
@@ -23339,21 +23354,69 @@
     const progress = panel.querySelector('[data-sku-color-progress]');
     if (!progress) return;
     progress.textContent = skuImageColorScan.running
-      ? (skuImageColorScan.stop ? '正在停止… ' : '正在识别主色，结果逐步补齐：') + skuImageColorScan.completed + '/' + skuImageColorScan.total + (skuImageColorScan.failed ? '，失败 ' + skuImageColorScan.failed + ' 张' : '')
-      : '已识别 ' + state.index.filter((item) => getSkuImageColor(item) !== 'unknown').length + '/' + state.index.length + ' 个产品；可识别新增图片或重试失败项。';
+      ? (skuImageColorScan.stop ? '正在暂停… ' : '后台建立颜色索引：') + skuImageColorScan.completed + '/' + skuImageColorScan.total + (skuImageColorScan.failed ? '，失败 ' + skuImageColorScan.failed + ' 张' : '')
+      : '颜色索引 ' + state.index.filter((item) => getSkuImageColor(item) !== 'unknown').length + '/' + state.index.length + (state.skuImageColorIndexPaused ? '，已暂停；点击继续。' : '；筛选直接查索引，新增图片会自动补齐。');
     const start = panel.querySelector('[data-action="sku-color-scan"]');
     const stop = panel.querySelector('[data-action="sku-color-stop"]');
     if (start) start.disabled = skuImageColorScan.running;
     if (stop) { stop.hidden = !skuImageColorScan.running; stop.disabled = skuImageColorScan.stop; }
   }
 
-  function startSkuImageColorScan() {
+  function getSkuImageColorIndexTasks(retryFailed) {
+    const now = Date.now();
+    return state.index.map((item) => ({ sku: item.sku, url: getSkuImageColorSource(item) })).filter(({ sku, url }) => {
+      if (!url) return false;
+      const cached = skuImageColorCache[sku];
+      if (!cached || cached.url !== url) return true;
+      if (cached.status === 'ready') return false;
+      const retryAfter = Number(cached.updatedAt || 0) + (Number(cached.attempts || 0) >= 3 ? 86400000 : 1800000);
+      return retryFailed || now >= retryAfter;
+    });
+  }
+
+  function scheduleSkuImageColorIndex(delay) {
+    if (delay == null) state.skuImageColorIndexDirty = true;
+    if (state.skuImageColorIndexPaused) return;
+    window.clearTimeout(state.skuImageColorIndexTimer);
+    state.skuImageColorIndexTimer = window.setTimeout(() => {
+      state.skuImageColorIndexTimer = 0;
+      if (navigator.onLine === false) { scheduleSkuImageColorIndex(60000); return; }
+      if (skuImageColorScan.running) { skuImageColorScan.dirty = true; return; }
+      startSkuImageColorScan({ automatic: true }).catch(() => {
+        scheduleSkuImageColorIndex(1800000);
+      });
+    }, Math.max(0, delay == null ? 5000 : delay));
+  }
+
+  function waitForSkuImageColorIdle() {
+    return new Promise((resolve) => {
+      window.setTimeout(() => {
+        if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(resolve, { timeout: 1000 });
+        else resolve();
+      }, 80);
+    });
+  }
+
+  function pauseSkuImageColorIndex() {
+    state.skuImageColorIndexPaused = true;
+    window.clearTimeout(state.skuImageColorIndexTimer);
+    state.skuImageColorIndexTimer = 0;
+    skuImageColorScan.stop = true;
+    syncSkuImageColorControls(document.getElementById(PANEL_ID));
+  }
+
+  function startSkuImageColorScan(options) {
     if (skuImageColorScan.running) return skuImageColorScan.promise;
-    const items = state.index.slice();
-    Object.assign(skuImageColorScan, { running: true, stop: false, completed: 0, total: items.length, failed: 0 });
+    if (options && options.automatic && state.skuImageColorIndexPaused) return Promise.resolve();
+    window.clearTimeout(state.skuImageColorIndexTimer);
+    state.skuImageColorIndexTimer = 0;
+    state.skuImageColorIndexPaused = false;
+    const items = getSkuImageColorIndexTasks(!(options && options.automatic));
+    state.skuImageColorIndexDirty = false;
+    Object.assign(skuImageColorScan, { running: true, stop: false, dirty: false, completed: 0, total: items.length, failed: 0 });
     let cursor = 0, lastRefresh = 0;
     const refresh = (force) => {
-      if (!force && Date.now() - lastRefresh < 600) return;
+      if (!force && Date.now() - lastRefresh < 1500) return;
       lastRefresh = Date.now();
       const panel = document.getElementById(PANEL_ID);
       if (panel && panel.querySelector('.pfh-sku-filter-panel')) {
@@ -23363,36 +23426,38 @@
     };
     const worker = async () => {
       while (!skuImageColorScan.stop && cursor < items.length) {
+        await waitForSkuImageColorIdle();
+        if (skuImageColorScan.stop) break;
         const item = items[cursor++];
-        const url = getSkuImageColorSource(item);
+        const url = item.url;
         const cached = skuImageColorCache[item.sku];
         if (url && (!cached || cached.url !== url || cached.status !== 'ready')) {
           try {
             const color = await identifySkuImageColor(url);
-            skuImageColorCache[item.sku] = { url, color, status: 'ready', updatedAt: Date.now() };
+            skuImageColorCache[item.sku] = { url, color, status: 'ready', updatedAt: Date.now(), attempts: 0 };
           } catch (_) {
-            skuImageColorCache[item.sku] = { url, color: 'unknown', status: 'failed', updatedAt: Date.now() };
+            skuImageColorCache[item.sku] = { url, color: 'unknown', status: 'failed', updatedAt: Date.now(), attempts: cached && cached.url === url ? Number(cached.attempts || 0) + 1 : 1 };
             skuImageColorScan.failed++;
           }
         }
         skuImageColorScan.completed++;
         if (skuImageColorScan.completed % 20 === 0) saveSkuImageColorCache();
         refresh(false);
-        await new Promise((resolve) => window.setTimeout(resolve, 0));
       }
     };
     refresh(true);
-    skuImageColorScan.promise = Promise.all([worker(), worker()]).finally(() => {
+    skuImageColorScan.promise = worker().finally(() => {
       skuImageColorScan.running = false;
       saveSkuImageColorCache();
       refresh(true);
+      if (!state.skuImageColorIndexPaused) scheduleSkuImageColorIndex(skuImageColorScan.dirty || state.skuImageColorIndexDirty ? 1000 : 1800000);
     });
     return skuImageColorScan.promise;
   }
 
   function skuImageColorFilterHtml() {
     return '<label><span>效果图主色</span><select data-sku-filter="imageColor"><option value="">全部颜色</option>' + SKU_IMAGE_COLORS.map(([id, label]) => '<option value="' + id + '"' + (state.skuFilters.imageColor === id ? ' selected' : '') + '>' + label + '</option>').join('') + '</select></label>' +
-      '<span class="pfh-sku-filter-loading" data-sku-color-progress></span><button type="button" data-action="sku-color-scan">识别 / 更新主色</button><button type="button" data-action="sku-color-stop" hidden>停止识别</button>';
+      '<span class="pfh-sku-filter-loading" data-sku-color-progress></span><button type="button" data-action="sku-color-scan">继续建索引 / 重试</button><button type="button" data-action="sku-color-stop" hidden>暂停索引</button>';
   }
 
   let skuSearchFacetsReady = false;
@@ -36330,8 +36395,7 @@ self.onmessage = async function(event) {
       return;
     }
     if (action === 'sku-color-stop') {
-      skuImageColorScan.stop = true;
-      syncSkuImageColorControls(ensurePanel());
+      pauseSkuImageColorIndex();
       return;
     }
     if (action === 'sku-list-mode') {
@@ -37877,7 +37941,6 @@ self.onmessage = async function(event) {
       state.skuFilters[skuFilterField] = event.target.value || '';
       state.skuPage = 1;
       renderSkuList(ensurePanel());
-      if (skuFilterField === 'imageColor' && state.skuFilters.imageColor) startSkuImageColorScan();
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-cache-value-type')) {
@@ -51600,6 +51663,7 @@ self.onmessage = async function(event) {
     state.index.unshift(item);
     skuSearchFacetCache.set(item.sku, { developer: item.developerName, brand: item.brand, status: item.projectStatus, designType: item.designType });
     saveIndex();
+    if (!old || getSkuListImageUrl(old) !== getSkuListImageUrl(item)) scheduleSkuImageColorIndex();
   }
 
   function togglePin(sku) {
