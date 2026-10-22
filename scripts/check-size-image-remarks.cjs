@@ -1,0 +1,32 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const source = fs.readFileSync(path.join(__dirname, '../outputs/plm-material-summary.user.js'), 'utf8');
+function extract(name) {
+  const from = source.indexOf('  function ' + name + '(');
+  assert(from >= 0, name);
+  return source.slice(from, source.indexOf('\n  }', from) + 4);
+}
+const context = vm.createContext({ cleanCopywritingLine: (text) => text.trim() });
+for (const name of ['collectSizeImageRemark', 'getSizeImageRemarks', 'getSizeImageSpecRemark', 'getSizeImageTitle']) vm.runInContext(extract(name), context);
+const labels = ['标签（圆弧 玻璃 食品2年）', '标签（圆弧 玻璃 食品2年）（仅限返工使用）'];
+const data = { printSizeLabel: labels.join('；'), sizeImageCustomFlatTitle: labels.join('；') };
+const specs = labels.map((labelText, index) => ({ index, labelText, kind: 'label', remark: context.collectSizeImageRemark(labelText, []) }));
+const combined = context.getSizeImageRemarks(data).label;
+const first = context.getSizeImageTitle('label', data, true, true, combined, specs[0]);
+const second = context.getSizeImageTitle('label', data, true, true, combined, specs[1]);
+assert.equal(first, '标签（圆弧 玻璃 食品2年）');
+assert.equal(second, '标签（圆弧 玻璃 食品2年 仅限返工使用）');
+assert(!first.includes('；'));
+assert(!first.includes('返工'));
+data.sizeImageCustomFlatRemark = combined;
+assert.equal(context.getSizeImageTitle('label', data, true, true, combined, specs[0]), first, 'legacy custom form combined remarks must be separated');
+assert.equal(context.getSizeImageTitle('label', data, true, true, '我的备注', specs[0]), '标签（我的备注 圆弧）');
+assert.equal(context.getSizeImageTitle('label', data, false, true, combined, specs[0]), '标签');
+const plain = { printSizeLabel: '标签；标签（仅限返工使用）' };
+assert.equal(context.getSizeImageTitle('label', plain, true, false, undefined, { index: 0, labelText: '标签', remark: '' }), '标签', 'empty per-label remark must not inherit another label');
+assert.equal(context.getSizeImageTitle('carton', { packageSizeLabel: '纸盒（内卡）' }, true, false), '纸盒（内卡）');
+assert(source.includes('customRemark, spec);'), 'main-thread renderer must pass selected spec');
+assert(source.includes('session.labelRemarkTexts[spec.key], spec)'), 'worker title metadata must pass selected spec');
+console.log('PASS: isolated dual-label titles and remarks, legacy combined defaults, empty remarks, custom text, toggles and both rendering paths.');
