@@ -217,7 +217,9 @@
     window.addEventListener('error', (event) => {
       const target = event.target;
       const resource = target && (target.src || target.href) || '';
-      if (resource && /exceljs|jszip|ali-oss|plm-material-summary|plm-floating-helper/i.test(resource)) {
+      if (resource && target && /^(SCRIPT|LINK)$/i.test(target.tagName || '')
+        && !/^(data|blob):/i.test(resource)
+        && /exceljs|jszip|ali-oss|plm-material-summary|plm-floating-helper/i.test(String(resource).split(/[?#]/, 1)[0])) {
         reportDiagnostic('依赖资源加载失败', { feature: 'resource', action: sanitizeDiagnosticText(resource, 120), severity: 'error' });
         return;
       }

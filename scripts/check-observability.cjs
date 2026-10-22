@@ -86,10 +86,17 @@ function extract(source, start, end) {
   const before = f.queue().length;
   f.listeners.get('error')({ target: { src: 'https://example.com/unrelated.js' } });
   assert.equal(f.queue().length, before, 'unrelated page errors must be ignored');
-  f.listeners.get('error')({ target: { src: 'https://cdn.example.com/exceljs.min.js' } });
+  f.listeners.get('error')({ target: { tagName: 'SCRIPT', src: 'https://cdn.example.com/exceljs.min.js' } });
   assert.equal(f.queue().length, before + 1);
-  f.listeners.get('error')({ target: { src: 'https://cdn.example.com/exceljs/' + 'A'.repeat(4 * 1024 * 1024) } });
+  f.listeners.get('error')({ target: { tagName: 'SCRIPT', src: 'https://cdn.example.com/exceljs/' + 'A'.repeat(4 * 1024 * 1024) } });
   assert.equal(f.queue().length, before + 2, 'long failed resource must be reported without another runtime error');
+  for (const target of [
+    { tagName: 'VIDEO', src: 'data:video/mp4;base64,exceljs' + 'A'.repeat(100000) },
+    { tagName: 'IMG', src: 'https://example.com/plm-floating-helper.png' },
+    { tagName: 'SCRIPT', src: 'data:text/javascript,exceljs' },
+    { tagName: 'SCRIPT', src: 'https://example.com/other.js?token=exceljs' },
+  ]) f.listeners.get('error')({ target });
+  assert.equal(f.queue().length, before + 2, 'media and dependency names in data/query strings are not failed dependencies');
   f.run("runDiagnosticAction(function download() { throw new Error('download failed'); }, { target: null })");
   assert.equal(f.queue().at(-1).action, 'download');
   const afterAction = f.queue().length;

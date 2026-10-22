@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.85
+// @version      2.9.86
 // @description  [布局验证版] Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.85';
+  const SCRIPT_VERSION = '2.9.86';
   const LEDGER_WORKSPACE_CSS = "/* Unified ledger surface; embedded for local validation without a hosted CSS update. */\n#plm-floating-helper[data-pfh-theme][data-view=\"ledger\"] .pfh-ledger-page.pfh-ledger-unified {\n  display: flex;\n  flex-direction: column;\n  gap: 0;\n  box-sizing: border-box;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 18px;\n  background: var(--pfh-theme-surface);\n  box-shadow: inset 0 1px 0 rgba(255,255,255,.86);\n}\n\n#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified > .pfh-ledger-hero {\n  flex: 0 0 auto;\n  margin: 0;\n  padding: 0 0 16px;\n  border: 0;\n  border-bottom: 1px solid var(--pfh-theme-border);\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n}\n\n#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-hero-tabs {\n  top: 0;\n}\n\n#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified > .pfh-ledger-workbench-shell {\n  flex: 1 1 auto;\n  min-height: 0;\n  margin: 0;\n  padding: 12px 0 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n}\n\n#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-content-anchor {\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  min-height: 0;\n  height: 100%;\n}\n\n#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-tools-panel {\n  flex: 0 0 auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n}\n\n#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-list {\n  flex: 1 1 auto;\n}\n\n#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-trash-entry {\n  display: grid;\n  place-items: center;\n  flex: 0 0 36px;\n  width: 36px;\n  min-width: 36px;\n  height: 36px;\n  min-height: 36px;\n  padding: 0;\n  border: 1px solid transparent;\n  border-radius: 10px;\n  background: transparent;\n  box-shadow: none;\n}\n\n#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-trash-entry .pfh-icon {\n  width: 20px;\n  height: 20px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  color: inherit;\n  box-shadow: none;\n}\n\n#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-trash-entry:hover,\n#plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-trash-entry.is-active {\n  border-color: var(--pfh-theme-border-strong);\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n";
   const SKU_FILTER_MODAL_CSS = "#plm-floating-helper .pfh-sku-filter-toolbar {\r\n  display: flex;\r\n  align-items: center;\r\n  gap: 7px;\r\n  min-width: 0;\r\n  margin: 0 0 9px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-toolbar button {\r\n  flex: 0 0 auto;\r\n  min-height: 27px;\r\n  padding: 0 11px;\r\n  border: 1px solid var(--pfh-theme-border, #d8deea);\r\n  border-radius: 999px;\r\n  background: var(--pfh-theme-surface, #fff);\r\n  color: var(--pfh-theme-text, #253047);\r\n  font-size: 11px;\r\n  cursor: pointer;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-toolbar button.is-active,\r\n#plm-floating-helper .pfh-sku-filter-toolbar button[aria-expanded=\"true\"] {\r\n  border-color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-primary-soft, #f3efff);\r\n  color: var(--pfh-theme-primary-hover, #5b21b6);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-toolbar span {\r\n  min-width: 0;\r\n  overflow: hidden;\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n  font-size: 10px;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-modal {\r\n  position: absolute;\r\n  inset: 0;\r\n  z-index: 2147483645;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  padding: 20px;\r\n  box-sizing: border-box;\r\n  background: rgba(30, 23, 61, .24);\r\n  backdrop-filter: blur(6px);\r\n  border-radius: inherit;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog {\r\n  display: grid;\r\n  grid-template-rows: auto minmax(0,1fr) auto;\r\n  width: 560px;\r\n  max-width: 100%;\r\n  max-height: 100%;\r\n  min-height: 0;\r\n  overflow: hidden;\r\n  border: 1px solid var(--pfh-theme-border, #d8deea);\r\n  border-radius: 22px;\r\n  background: var(--pfh-theme-surface, #fff);\r\n  box-shadow: 0 24px 80px rgba(30, 23, 61, .2);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > header,\r\n#plm-floating-helper .pfh-sku-filter-dialog > footer {\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: space-between;\r\n  gap: 12px;\r\n  padding: 18px 22px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > header > div {\r\n  display: grid;\r\n  gap: 5px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > header strong {\r\n  font-size: 17px;\r\n  color: var(--pfh-theme-text, #253047);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > header small {\r\n  font-size: 11px;\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > header button {\r\n  width: 32px;\r\n  height: 32px;\r\n  border: 0;\r\n  border-radius: 50%;\r\n  font-size: 22px;\r\n  background: var(--pfh-theme-surface-alt, #fbfaff);\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-body {\r\n  min-height: 0;\r\n  overflow: auto;\r\n  overscroll-behavior: contain;\r\n  padding: 0 22px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog .pfh-sku-filter-panel {\r\n  display: grid;\r\n  gap: 14px;\r\n  margin: 0;\r\n  padding: 0 0 14px;\r\n  border: 0;\r\n  border-radius: 0;\r\n  background: transparent;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-panel label {\r\n  display: grid;\r\n  grid-template-columns: 58px minmax(0, 1fr);\r\n  align-items: center;\r\n  gap: 7px;\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n  font-size: 11px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-panel select {\r\n  width: 100%;\r\n  min-width: 0;\r\n  height: 29px;\r\n  padding: 0 7px;\r\n  border: 1px solid var(--pfh-theme-border, #d8deea);\r\n  border-radius: 8px;\r\n  background: var(--pfh-theme-surface, #fff);\r\n  color: var(--pfh-theme-text, #253047);\r\n  font-size: 11px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-panel > button {\r\n  justify-self: end;\r\n  min-height: 26px;\r\n  padding: 0 9px;\r\n  border: 0;\r\n  background: transparent;\r\n  color: var(--pfh-theme-primary-hover, #5b21b6);\r\n  font-size: 11px;\r\n  cursor: pointer;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-loading {\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n  font-size: 11px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-field {\r\n  min-width: 0;\r\n  margin: 4px 0 0;\r\n  padding: 0;\r\n  border: 0;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-field legend {\r\n  padding: 0 0 12px;\r\n  font-size: 12px;\r\n  color: var(--pfh-theme-text, #253047);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-options {\r\n  display: grid;\r\n  grid-template-columns: repeat(auto-fit,minmax(60px,1fr));\r\n  gap: 10px 6px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-options .pfh-sku-color-option {\r\n  display: grid;\r\n  justify-items: center;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 8px 3px;\r\n  border: 1px solid transparent;\r\n  border-radius: 12px;\r\n  background: transparent;\r\n  color: var(--pfh-theme-muted, #7a82a0);\r\n  font-size: 11px;\r\n  white-space: normal;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-options .pfh-sku-color-option[aria-pressed=\"true\"] {\r\n  border-color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-primary-soft, #f3efff);\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-option .pfh-sku-color-dot {\r\n  display: block;\r\n  width: 30px;\r\n  height: 30px;\r\n  box-sizing: border-box;\r\n  border: 1px solid rgba(80,80,100,.2);\r\n  border-radius: 50%;\r\n  box-shadow: inset 0 1px 3px rgba(255,255,255,.3);\r\n}\r\n\r\n#plm-floating-helper [data-sku-color=\"\"] .pfh-sku-color-dot { background: conic-gradient(#e35c64,#e7b83e,#54a576,#4890d6,#9672cc,#e35c64); }\r\n#plm-floating-helper [data-sku-color=\"red\"] .pfh-sku-color-dot { background: #df5360; }\r\n#plm-floating-helper [data-sku-color=\"orange\"] .pfh-sku-color-dot { background: #e99346; }\r\n#plm-floating-helper [data-sku-color=\"yellow\"] .pfh-sku-color-dot { background: #e7c74b; }\r\n#plm-floating-helper [data-sku-color=\"green\"] .pfh-sku-color-dot { background: #55a477; }\r\n#plm-floating-helper [data-sku-color=\"blue\"] .pfh-sku-color-dot { background: #4e8dce; }\r\n#plm-floating-helper [data-sku-color=\"purple\"] .pfh-sku-color-dot { background: #9972c7; }\r\n#plm-floating-helper [data-sku-color=\"pink\"] .pfh-sku-color-dot { background: #dfa0bd; }\r\n#plm-floating-helper [data-sku-color=\"brown\"] .pfh-sku-color-dot { background: #93694a; }\r\n#plm-floating-helper [data-sku-color=\"beige\"] .pfh-sku-color-dot { background: #dfcfab; }\r\n#plm-floating-helper [data-sku-color=\"black\"] .pfh-sku-color-dot { background: #30323c; }\r\n#plm-floating-helper [data-sku-color=\"white\"] .pfh-sku-color-dot { background: #fff; }\r\n#plm-floating-helper [data-sku-color=\"gray\"] .pfh-sku-color-dot { background: #aaaeb6; }\r\n#plm-floating-helper [data-sku-color=\"unknown\"] .pfh-sku-color-dot { background: repeating-linear-gradient(135deg,#fff 0 5px,#dce0e8 5px 7px); }\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > footer {\r\n  border-top: 1px solid var(--pfh-theme-border, #d8deea);\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > footer button {\r\n  min-height: 34px;\r\n  padding: 0 18px;\r\n  border-radius: 11px;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-filter-dialog > footer button:last-child {\r\n  background: var(--pfh-theme-primary, #7c3aed);\r\n  color: #fff;\r\n  border-color: transparent;\r\n}\r\n\r\n#plm-floating-helper .pfh-sku-color-option:focus-visible {\r\n  outline: 2px solid var(--pfh-theme-primary, #7c3aed);\r\n  outline-offset: 2px;\r\n}\r\n";
   // Selects the default layout only; both builds support the settings switch.
@@ -4631,7 +4631,9 @@
     window.addEventListener('error', (event) => {
       const target = event.target;
       const resource = target && (target.src || target.href) || '';
-      if (resource && /exceljs|jszip|ali-oss|plm-material-summary|plm-floating-helper/i.test(resource)) {
+      if (resource && target && /^(SCRIPT|LINK)$/i.test(target.tagName || '')
+        && !/^(data|blob):/i.test(resource)
+        && /exceljs|jszip|ali-oss|plm-material-summary|plm-floating-helper/i.test(String(resource).split(/[?#]/, 1)[0])) {
         reportDiagnostic('依赖资源加载失败', { feature: 'resource', action: sanitizeDiagnosticText(resource, 120), severity: 'error' });
         return;
       }
@@ -42073,6 +42075,7 @@ self.onmessage = async function(event) {
               break;
             } catch (error) {
               lastError = error;
+              if (error && error.name === 'AbortError') throw error;
               if (attempt >= EXCEL_BATCH_PREPARE_RETRIES) break;
               state.batchExcelStatus = sku + ' 页面仍在加载，等待重试 ' + attempt + '/' + EXCEL_BATCH_PREPARE_RETRIES;
               addLog('warn', 'Excel 批量补全等待页面加载', sku + ' | 第 ' + attempt + ' 次失败：' + formatErrorMessage(error));
@@ -42093,6 +42096,13 @@ self.onmessage = async function(event) {
             ? sku + ' \u8fd8\u7f3a\uff1a' + prepared.missing.join('\u3001') + '\uff0c\u4ecd\u53ef\u751f\u6210 Excel'
             : sku + ' API \u5df2\u5237\u65b0\uff0c\u7b49\u5f85\u4e0b\u8f7d';
         } catch (error) {
+          if (error && error.name === 'AbortError') {
+            updateExcelBatchQueueEntry(sku, { status: 'pending', error: '' });
+            state.batchExcelWorkerPaused = true;
+            state.batchExcelStatus = '已暂停补全，当前产品保留在队列中，可点击继续';
+            addLog('info', 'Excel 批量补全已暂停', sku + ' | ' + formatErrorMessage(error));
+            break;
+          }
           const message = formatErrorMessage(error) || '\u672a\u77e5\u9519\u8bef';
           updateExcelBatchQueueEntry(sku, { status: 'error', error: message, missing: getExcelBatchCacheSnapshot(sku).missing });
           state.batchExcelStatus = sku + ' \u8865\u5168\u5931\u8d25\uff1a' + message;
@@ -43454,7 +43464,11 @@ self.onmessage = async function(event) {
         flowToken: token,
       });
       const resolvedImageInfo = previewImageInfo && previewImageInfo.isSkuDesignImage ? previewImageInfo : getCachedSkuImageInfo(sku);
-      if (!isDrawerProductFlowCurrent(sku, token, drawer)) throw new Error('\u7528\u6237\u5df2\u5207\u6362\u9875\u7b7e\uff0cExcel \u8865\u5145\u8bfb\u53d6\u5df2\u53d6\u6d88');
+      if (!isDrawerProductFlowCurrent(sku, token, drawer)) {
+        const error = new Error('\u7528\u6237\u5df2\u5207\u6362\u9875\u7b7e\uff0cExcel \u8865\u5145\u8bfb\u53d6\u5df2\u53d6\u6d88');
+        error.name = 'AbortError';
+        throw error;
+      }
       Object.assign(extra, {
         englishName: cleanEnglishProductName(extractLineAfter(productText, 'PRODUCT NAME'), cachedData.brand) || extra.englishName,
         chineseName: extractLineAfter(productText, '\u5546\u54c1\u540d\u79f0') || extra.chineseName,
@@ -49136,25 +49150,33 @@ self.onmessage = async function(event) {
     const chunkCount = Math.ceil(data.length / CLOUD_BACKUP_CHUNK_SIZE);
     if (!data || chunkCount > CLOUD_BACKUP_MAX_CHUNKS) throw createCloudBackupTooLargeError();
     const snapshotId = createCloudBackupSnapshotId();
-    for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
-      const chunk = data.slice(chunkIndex * CLOUD_BACKUP_CHUNK_SIZE, (chunkIndex + 1) * CLOUD_BACKUP_CHUNK_SIZE);
+    // Re-upload the same immutable snapshot once if an older server pruned it
+    // while another window was committing its backup. Never retry other conflicts.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
+        const chunk = data.slice(chunkIndex * CLOUD_BACKUP_CHUNK_SIZE, (chunkIndex + 1) * CLOUD_BACKUP_CHUNK_SIZE);
+        try {
+          await cloudRequest('/backup/chunk', {
+            method: 'POST',
+            body: { backupId, version, snapshotId, chunkIndex, chunkCount, data: chunk },
+          });
+        } catch (error) {
+          if (error && error.status === 404) throw createCloudBackupTooLargeError();
+          throw error;
+        }
+      }
+      const manifest = { ...envelope, chunked: true, snapshotId, chunkCount, chunkSize: CLOUD_BACKUP_CHUNK_SIZE };
+      delete manifest.data;
       try {
-        await cloudRequest('/backup/chunk', {
+        const response = await cloudRequest('/backup/save', {
           method: 'POST',
-          body: { backupId, version, snapshotId, chunkIndex, chunkCount, data: chunk },
+          body: { backupId, version, payload: manifest },
         });
+        return { ...(response || {}), chunked: true, bytes: data.length };
       } catch (error) {
-        if (error && error.status === 404) throw createCloudBackupTooLargeError();
-        throw error;
+        if (attempt || Number(error && error.status) !== 409 || !/backup chunks incomplete/i.test(String(error && error.message || ''))) throw error;
       }
     }
-    const manifest = { ...envelope, chunked: true, snapshotId, chunkCount, chunkSize: CLOUD_BACKUP_CHUNK_SIZE };
-    delete manifest.data;
-    const response = await cloudRequest('/backup/save', {
-      method: 'POST',
-      body: { backupId, version, payload: manifest },
-    });
-    return { ...(response || {}), chunked: true, bytes: data.length };
   }
 
   async function loadCloudBackupRecord(backupKey) {

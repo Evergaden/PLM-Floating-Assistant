@@ -22,6 +22,7 @@ function fixture(settings = {}) {
   let saved;
   const context = vm.createContext({
     crypto: webcrypto, Uint8Array, Date,
+    myProfile: { open: false },
     console: { warn() {} },
     state: { settings: { cloudBackupKey: input.value, ...settings }, index: [], cloudBackupRunning: false },
     L: { cloudBackupReady: 'ready', cloudBackupSaving: 'saving', cloudBackupSavedAt: 'saved', cloudBackupSaved: 'saved', cloudBackupFailed: 'failed' },
@@ -80,6 +81,7 @@ function fixture(settings = {}) {
   const legacy = fixture();
   Object.assign(legacy.context, {
     SKU_LIST_PREFERENCE_VERSION: 1, DEFAULT_THEME_ID: 'default', THEME_SKIN_VERSION: 1,
+    WORKSPACE_PREVIEW: false,
     DEFAULT_HOME_FEATURE_GROUPS: [], DEFAULT_PRODUCT_DEVELOPMENT_FEATURE_GROUPS: [], SETTINGS_KEY: 'settings',
     normalizeHomeFeatureGroups: (value) => value,
     normalizeProductDevelopmentFeatureGroups: (value) => value,

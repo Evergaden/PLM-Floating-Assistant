@@ -934,10 +934,11 @@ async function handleBackupSave(request, env) {
   if (chunked) {
     await env.DB.prepare(`
       DELETE FROM user_backup_chunks
-      WHERE user_id = ? AND snapshot_id != ?
+      WHERE user_id = ? AND snapshot_id != ? AND created_at < datetime('now', '-1 day')
     `).bind(identity.userId, snapshotId).run();
   } else {
-    await env.DB.prepare('DELETE FROM user_backup_chunks WHERE user_id = ?').bind(identity.userId).run();
+    // Other windows may still be uploading, or downloading the previous snapshot.
+    await env.DB.prepare("DELETE FROM user_backup_chunks WHERE user_id = ? AND created_at < datetime('now', '-1 day')").bind(identity.userId).run();
   }
   await env.DB.prepare(`
     INSERT INTO plm_users (user_name, script_version, last_backup_at, last_seen_at)
