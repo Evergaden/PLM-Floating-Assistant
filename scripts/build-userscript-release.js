@@ -59,6 +59,9 @@ const npxArgs = [
   workspacePreview ? fullOutputPath : sourcePath,
   '--compress',
   '--mangle',
+  // Worker source serializes functions and calls them by name inside strings.
+  // Preserve those names and their references in compressed installable builds.
+  '--keep-fnames',
   '--comments',
   'false',
   ...(preview ? ['--format', 'beautify=true,semicolons=false,max_line_len=2000'] : []),
