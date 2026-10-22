@@ -6,12 +6,13 @@
   <meta name="theme-color" content="#f5f6fa">
   <title>标签工作室</title>
   <meta name="description" content="输入商品编码，粘贴商品图，批量导出标签 PSD、印刷图和尺寸说明图。">
-  <link rel="stylesheet" href="./app.css?v=1">
-  <script defer src="./engine.js?v=1"></script>
-  <script defer src="./app.js?v=1"></script>
+  <link rel="stylesheet" href="./app.css?v=2">
+  <script defer src="./icons.js?v=2"></script>
+  <script defer src="./engine.js?v=2"></script>
+  <script defer src="./app.js?v=2"></script>
 </head>
 <body id="label-studio">
-  <header class="topbar"><a class="brand" href="./"><span class="brand-icon" aria-hidden="true">▧</span><span>标签工作室<small>LABEL STUDIO</small></span></a><span class="privacy"><i></i>图片仅在本机处理</span></header>
+  <header class="topbar"><a class="brand" href="./"><span class="brand-icon" aria-hidden="true"><span data-icon="tag" aria-hidden="true"></span></span><span>标签工作室<small>LABEL STUDIO</small></span></a><span class="privacy"><span data-icon="shield" aria-hidden="true"></span>图片仅在本机处理</span></header>
   <main>
     <div class="intro"><div><div class="eyebrow">从商品图，到可交付文件</div><h1>标签制作，简单一点。</h1><p>输入编码，粘贴图片。其余的，交给工作室。</p></div><div class="spec"><span>当前标签规格</span><strong>4 <b>×</b> 3 <small>cm</small></strong><span>原版布局 · Code128 条码</span></div></div>
     <div class="workspace">
@@ -19,8 +20,8 @@
         <div class="section-head"><h2><span class="step">01</span>添加商品</h2><span class="muted">支持批量</span></div>
         <label for="sku-input" class="field-label">商品编码 / SKU</label>
         <textarea id="sku-input" rows="4" placeholder="SKU00012345&#10;SKU00012346&#10;多个编码可用换行、空格或逗号分隔" spellcheck="false"></textarea>
-        <button id="add" class="primary full">加入制作列表 <span aria-hidden="true">＋</span></button>
-        <div class="list-head"><h3>制作列表 <span id="count">0</span></h3><button id="clear" class="text-button" disabled>清空</button></div>
+        <button id="add" class="primary full">加入制作列表 <span data-icon="plus" aria-hidden="true"></span></button>
+        <div class="list-head"><h3>制作列表 <span id="count">0</span></h3><button id="clear" class="text-button" disabled><span data-icon="trash" aria-hidden="true"></span>清空</button></div>
         <div id="queue" class="queue"><div class="list-empty">添加商品编码，开始制作第一张标签。</div></div>
         <div class="intake-foot"><span class="status-dot"></span><span id="queue-summary">等待添加商品</span></div>
       </aside>
@@ -31,18 +32,18 @@
             <label class="dropzone" id="dropzone" tabindex="0" aria-label="选择或粘贴当前商品图片">
               <input id="image-input" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
               <img id="source-image" alt="当前商品图" hidden>
-              <div id="drop-copy"><span class="upload-icon" aria-hidden="true">↥</span><strong>粘贴或拖入商品图</strong><span>也可以点击选择图片</span><kbd>Ctrl / ⌘ + V</kbd></div>
+              <div id="drop-copy"><span class="upload-icon" aria-hidden="true"><span data-icon="upload" aria-hidden="true"></span></span><strong>粘贴或拖入商品图</strong><span>也可以点击选择图片</span><kbd>Ctrl / ⌘ + V</kbd></div>
               <span class="replace-hint" id="replace-hint" hidden>点击替换图片 · 或直接粘贴新图</span>
             </label>
             <p class="image-help">每个编码对应一张图。批量拖入时，图片文件名包含完整 SKU 即可自动匹配。</p>
           </div>
           <div class="preview-area">
-            <div class="preview-toolbar"><div class="segments" role="tablist" aria-label="预览类型"><button id="tab-print" role="tab" aria-selected="true" data-view="print">标签预览</button><button id="tab-size" role="tab" aria-selected="false" data-view="size">尺寸说明图</button></div><span id="preview-meta">4 × 3 cm</span></div>
-            <div class="preview-stage" id="preview-stage"><div class="preview-empty" id="preview-empty"><span aria-hidden="true">▤</span><strong>你的标签，即将在这里呈现</strong><p>选择商品并粘贴图片，实时查看生成效果。</p></div><img id="preview-image" alt="标签预览" hidden></div>
+            <div class="preview-toolbar"><div class="segments" role="tablist" aria-label="预览类型"><button id="tab-print" role="tab" aria-selected="true" data-view="print"><span data-icon="image" aria-hidden="true"></span>标签预览</button><button id="tab-size" role="tab" aria-selected="false" data-view="size"><span data-icon="ruler" aria-hidden="true"></span>尺寸说明图</button></div><span id="preview-meta">4 × 3 cm</span></div>
+            <div class="preview-stage" id="preview-stage"><div class="preview-empty" id="preview-empty"><span class="empty-icon" aria-hidden="true"><span data-icon="preview" aria-hidden="true"></span></span><strong>你的标签，即将在这里呈现</strong><p>选择商品并粘贴图片，实时查看生成效果。</p></div><img id="preview-image" alt="标签预览" hidden></div>
             <div class="preview-caption"><span id="item-status">等待商品图片</span><span>产品图 + 条码 + 商品编码</span></div>
           </div>
         </div>
-        <div class="export-bar"><div><strong>导出交付文件</strong><p>PSD · 印刷 JPG · 尺寸说明 JPG <span class="flat-note">（PSD 为合并图像，与原版一致）</span></p></div><div class="export-actions"><button id="download-current" class="secondary" disabled>下载当前 ZIP</button><button id="download-all" class="primary" disabled>批量导出 ZIP <span aria-hidden="true">↓</span></button></div></div>
+        <div class="export-bar"><div><strong>导出交付文件</strong><p>PSD · 印刷 JPG · 尺寸说明 JPG <span class="flat-note">（PSD 为合并图像，与原版一致）</span></p></div><div class="export-actions"><button id="download-current" class="secondary" disabled><span data-icon="file" aria-hidden="true"></span>下载当前 ZIP</button><button id="download-all" class="primary" disabled>批量导出 ZIP <span data-icon="download" aria-hidden="true"></span></button></div></div>
       </section>
     </div>
     <div class="bottom-note"><span>无需连接 PLM · 无需安装插件 · 图片不上传服务器</span><span>LABEL STUDIO / 01</span></div>

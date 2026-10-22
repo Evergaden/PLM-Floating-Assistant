@@ -2,6 +2,7 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const engine = window.LabelEngine;
+  const icon = (name) => window.LabelIcons[name] || '';
   const state = { items: [], selected: '', view: 'print', exporting: false, toastTimer: 0 };
   const selected = () => state.items.find((item) => item.sku === state.selected);
   const escape = (text) => String(text).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -22,7 +23,7 @@
     if (invalid.length) return toast('编码仅支持英文字母、数字、下划线和连字符，请检查：' + invalid.slice(0, 3).join('、'));
     if (!skus.length) return toast('请先输入商品编码');
     const additions = skus.filter((sku) => !state.items.some((item) => item.sku === sku));
-    if (state.items.length + additions.length > 100) return toast('每批最多 100 个编码，请分批制作');
+    if (state.items.length + additions.length > 20) return toast('高清 PSD 每批最多 20 个编码，请分批制作');
     additions.forEach((sku) => state.items.push({ sku, image: '', version: 0, result: null, job: null, status: '', error: '' }));
     state.selected = additions[0] || skus[0];
     $('sku-input').value = '';
@@ -44,7 +45,7 @@
   function render() {
     $('count').textContent = state.items.length;
     $('queue').innerHTML = state.items.length ? state.items.map((item) =>
-      '<div class="queue-row' + (item.sku === state.selected ? ' selected' : '') + '"><button class="queue-select" data-select="' + escape(item.sku) + '" aria-pressed="' + (item.sku === state.selected) + '"><span class="queue-thumb">' + (item.image ? '<img src="' + item.image + '" alt="">' : '▧') + '</span><span class="queue-text"><strong>' + escape(item.sku) + '</strong><small class="' + (item.error ? 'error' : item.result ? 'ready' : '') + '">' + escape(item.error || item.status || (item.image ? '等待生成' : '待添加商品图')) + '</small></span></button><button class="remove" data-remove="' + escape(item.sku) + '" aria-label="移除 ' + escape(item.sku) + '" title="移除此商品"' + (state.exporting ? ' disabled' : '') + '>×</button></div>'
+      '<div class="queue-row' + (item.sku === state.selected ? ' selected' : '') + '"><button class="queue-select" data-select="' + escape(item.sku) + '" aria-pressed="' + (item.sku === state.selected) + '"><span class="queue-thumb">' + (item.image ? '<img src="' + item.image + '" alt="">' : icon('image')) + '</span><span class="queue-text"><strong>' + escape(item.sku) + '</strong><small class="' + (item.error ? 'error' : item.result ? 'ready' : '') + '">' + escape(item.error || item.status || (item.image ? '等待生成' : '待添加商品图')) + '</small></span></button><button class="remove" data-remove="' + escape(item.sku) + '" aria-label="移除 ' + escape(item.sku) + '" title="移除此商品"' + (state.exporting ? ' disabled' : '') + '>' + icon('x') + '</button></div>'
     ).join('') : '<div class="list-empty">添加商品编码，开始制作第一张标签。</div>';
     const ready = state.items.filter((item) => item.image).length;
     $('queue-summary').textContent = state.items.length ? ready + ' / ' + state.items.length + ' 个商品已添加图片' : '等待添加商品';
@@ -53,7 +54,7 @@
     $('sku-input').disabled = state.exporting;
     $('image-input').disabled = state.exporting;
     $('download-all').disabled = !ready || state.exporting;
-    $('download-all').textContent = state.exporting ? '正在打包…' : '批量导出 ZIP ↓';
+    $('download-all').innerHTML = (state.exporting ? '正在打包… ' + icon('loader') : '批量导出 ZIP ' + icon('download'));
     const item = selected();
     $('download-current').disabled = !item || !item.image || state.exporting;
     $('active-sku').textContent = item ? item.sku : '未选择商品';
@@ -87,12 +88,10 @@
       try {
         const print = await engine.renderToyLabelPrintCanvas({ sku: item.sku, widthCm: 4, heightCm: 3, productImage: { dataUrl: image } });
         const size = await engine.renderToyLabelPreviewCanvas({ sku: item.sku, widthCm: 4, heightCm: 3, printCanvas: print });
-        const [printBlob, sizeBlob] = await Promise.all([engine.canvasToBlob(print, 'image/jpeg', .95), engine.canvasToBlob(size, 'image/jpeg', .95)]);
-        // Existing layout is 300 pixels/cm: 1200x900 at 762ppi = 4x3cm.
-        const psdBlob = engine.canvasToFlatPsdBlob(print, 762);
+        const [printBlob, sizeBlob, masterBlob] = await Promise.all([engine.canvasToBlob(print, 'image/jpeg', 1), engine.canvasToBlob(size, 'image/jpeg', 1), engine.canvasToBlob(print, 'image/png')]);
         print.width = print.height = size.width = size.height = 1;
         if (item.version !== version || !state.items.includes(item)) return;
-        item.result = { printBlob, sizeBlob, psdBlob, printUrl: URL.createObjectURL(printBlob), sizeUrl: URL.createObjectURL(sizeBlob) };
+        item.result = { printBlob, sizeBlob, masterBlob, printUrl: URL.createObjectURL(printBlob), sizeUrl: URL.createObjectURL(sizeBlob) };
         item.status = '已生成 · 可导出';
       } catch (error) {
         if (item.version === version) {
@@ -211,6 +210,7 @@
       render();
       return toast('有 ' + missing.length + ' 个商品未添加图片，请先补齐后批量导出');
     }
+    if (items.length > 20) return toast('高清 PSD 文件较大，每次最多导出 20 个，请分批制作');
     state.exporting = true;
     render();
     try {
@@ -220,9 +220,17 @@
         toast('正在准备 ' + (i + 1) + ' / ' + items.length + '：' + item.sku);
         await generate(item);
         if (!item.result) throw new Error(item.sku + ' 生成失败，请重新添加图片后导出');
+        // Encode the PSD only when exporting, not for every queued preview.
+        const bitmap = await createImageBitmap(item.result.masterBlob);
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width; canvas.height = bitmap.height;
+        canvas.getContext('2d').drawImage(bitmap, 0, 0);
+        bitmap.close();
+        const psdBlob = engine.canvasToFlatPsdBlob(canvas, engine.PRINT_DPI);
+        canvas.width = canvas.height = 1;
         const prefix = batch ? item.sku + '/' : '';
         files.push(
-          { name: prefix + item.sku + ' 标签（4x3cm）.psd', blob: item.result.psdBlob },
+          { name: prefix + item.sku + ' 标签（4x3cm）.psd', blob: psdBlob },
           { name: prefix + item.sku + ' 标签印刷4x3cm.jpg', blob: item.result.printBlob },
           { name: prefix + item.sku + ' 标签尺寸说明图.jpg', blob: item.result.sizeBlob }
         );

@@ -2,8 +2,8 @@
 (() => {
   'use strict';
   async function renderToyLabelPrintCanvas(options) {
-    const width = Math.round((Number(options.widthCm) || 4) * 300);
-    const height = Math.round((Number(options.heightCm) || 3) * 300);
+    const width = Math.round((Number(options.widthCm) || 4) * 750);
+    const height = Math.round((Number(options.heightCm) || 3) * 750);
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -40,6 +40,7 @@
     canvas.width = 3000;
     canvas.height = 3000;
     const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#000';
@@ -118,14 +119,37 @@
     });
   }
 
-  function drawImageContained(ctx, image, x, y, w, h) {
-    const iw = image.naturalWidth || image.width || 1;
-    const ih = image.naturalHeight || image.height || 1;
-    const ratio = Math.min(w / iw, h / ih);
-    const dw = iw * ratio;
-    const dh = ih * ratio;
-    ctx.drawImage(image, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+// Web-only quality adapter. Layout stays identical to the userscript.
+function drawImageContained(ctx, image, x, y, w, h) {
+  const iw = image.naturalWidth || image.width || 1;
+  const ih = image.naturalHeight || image.height || 1;
+  const ratio = Math.min(w / iw, h / ih);
+  const dw = iw * ratio;
+  const dh = ih * ratio;
+  let source = image;
+  let sw = iw, sh = ih;
+  // Halve large reductions in stages rather than discarding fine detail in
+  // one low-quality browser sampling step. Never upscale the source here.
+  while (sw > dw * 2 && sh > dh * 2) {
+    const next = document.createElement('canvas');
+    next.width = Math.max(1, Math.round(sw / 2));
+    next.height = Math.max(1, Math.round(sh / 2));
+    const context = next.getContext('2d');
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(source, 0, 0, next.width, next.height);
+    if (source !== image) source.width = source.height = 1;
+    source = next;
+    sw = next.width;
+    sh = next.height;
   }
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(source, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  ctx.restore();
+  if (source !== image) source.width = source.height = 1;
+}
 
   function trimImageWhitespace(image) {
     const iw = image.naturalWidth || image.width || 1;
@@ -256,5 +280,5 @@
     }
     return new Blob([bytes], { type: 'image/vnd.adobe.photoshop' });
   }
-  window.LabelEngine = Object.freeze({renderToyLabelPrintCanvas, renderToyLabelPreviewCanvas, canvasToBlob, canvasToFlatPsdBlob});
+  window.LabelEngine = Object.freeze({renderToyLabelPrintCanvas, renderToyLabelPreviewCanvas, canvasToBlob, canvasToFlatPsdBlob, PRINT_DPI:1905});
 })();
