@@ -21,6 +21,7 @@ let catalog = Array.from({ length: 23 }, (_, n) => ({
   skuImageUrl: n === 0 ? 'https://example.com/effect.png?a=1&b=2' : '',
 }));
 const context = vm.createContext({
+  lucianEmptySearchHtml: () => 'No matches',
   WORKSPACE_PREVIEW: true, state,
   loadData: (sku) => catalog.find((item) => item.sku === sku),
   getProductThumbUrl: (data) => data.skuImageUrl,
@@ -35,6 +36,7 @@ const context = vm.createContext({
   renderCompactPager: () => '', L: { noSearchResult: 'No matches', emptyList: 'Empty' },
   setupSkuViewFusion: () => {}, syncSkuImageColorControls: () => {}, renderSkuFilterModal: () => {}, document: {}, window: {}, URL,
 });
+Object.defineProperty(state, 'index', { get: () => catalog });
 [
   'escapeHtml', 'isWorkspaceLayoutEnabled', 'isWorkspaceSkuView', 'getSkuListMode', 'getSkuListImageUrl',
   'getSkuPlaceholderUrl', 'skuProgressiveImageHtml', 'workspaceSkuRowHtml',

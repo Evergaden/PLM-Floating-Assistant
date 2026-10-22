@@ -192,7 +192,8 @@
   ],
   "experimentalSources": [
     { "path": "modules/workspace-preview.css", "mode": "module" },
-    { "path": "modules/ledger-workspace.css", "mode": "module" }
+    { "path": "modules/ledger-workspace.css", "mode": "module" },
+    { "path": "modules/lucian-preview.css", "mode": "module" }
   ],
   "budgets": {
     "important": 1814,

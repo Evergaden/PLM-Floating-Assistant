@@ -1,0 +1,346 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLM 交互效果验证</title><style>
+body{margin:0;background:#eeebf9;font:14px/1.6 system-ui,"Microsoft YaHei",sans-serif;color:#253047}main{--pfh-theme-surface:#fff;--pfh-theme-surface-alt:#f5f3ff;--pfh-theme-text:#253047;--pfh-theme-muted:#7a82a0;--pfh-theme-primary:#7c3aed;--pfh-theme-primary-soft:#eee8ff;--pfh-theme-border:#ddd6ef;--pfh-theme-border-strong:#b7a6f4;padding:28px;min-height:100vh;box-sizing:border-box}main.dark{--pfh-theme-surface:#242131;--pfh-theme-surface-alt:#302b40;--pfh-theme-text:#f0ecff;--pfh-theme-muted:#b8b0d2;--pfh-theme-primary:#b7a4ff;--pfh-theme-primary-soft:#39304f;--pfh-theme-border:#49405d;--pfh-theme-border-strong:#8f7bb8;background:#191623;color:var(--pfh-theme-text)}header{max-width:1180px;margin:0 auto 24px}h1{font-size:25px;margin:0}header p{color:var(--pfh-theme-muted)}.demo-grid{max-width:1180px;margin:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:24px}.demo-page{min-width:0;padding:14px;border:1px solid var(--pfh-theme-border);border-radius:18px}.demo-page h2{font-size:16px;margin:0 0 4px}.demo-page>p{font-size:12px;color:var(--pfh-theme-muted)}.demo-control{cursor:pointer;border:1px solid var(--pfh-theme-border);border-radius:10px;padding:9px 14px;color:var(--pfh-theme-primary);background:var(--pfh-theme-surface);margin:4px 0 16px}.demo-results p{padding:18px;border-radius:14px;background:var(--pfh-theme-surface)}#compare-slot{display:flex;justify-content:center}@media(max-width:500px){main{padding:12px}.demo-page{padding:10px}}
+/* Lucian UX/UI Prompt #092 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#092 */
+#plm-floating-helper .pfh-lucian.u092{position:relative;width:340px;height:480px;display:flex;flex-direction:column;padding:16px;border-radius:30px;background:var(--ux-surface);box-shadow:0 0 0 1px var(--ux-line),0 30px 60px -36px var(--ux-shadow-strong);overflow:hidden}
+#plm-floating-helper .pfh-lucian .u092-q{display:flex;align-items:center;gap:8px;height:46px;flex:none;padding:0 6px 0 14px;border-radius:15px;background:var(--ux-surface-2);transition:box-shadow .2s}
+#plm-floating-helper .pfh-lucian .u092-q:focus-within{box-shadow:inset 0 0 0 2px var(--ux-accent)}
+#plm-floating-helper .pfh-lucian .u092-q>svg{width:18px;height:18px;flex:none;fill:none;stroke:var(--ux-ink-3);stroke-width:2.2;stroke-linecap:round}
+#plm-floating-helper .pfh-lucian .u092-in{flex:1;min-width:0;height:100%;border:0;padding:0;background:transparent;font:inherit;font-size:15px;font-weight:var(--pfh-font-weight-heading, 700);color:var(--ux-ink)}
+#plm-floating-helper .pfh-lucian .u092-in:focus-visible{outline:none}
+#plm-floating-helper .pfh-lucian .u092-in::placeholder{color:var(--ux-ink-3)}
+#plm-floating-helper .pfh-lucian .u092-x{width:34px;height:34px;border:0;padding:0;border-radius:50%;display:grid;place-items:center;background:transparent;color:var(--ux-ink-3);transition:opacity .2s,transform .3s var(--ux-spring)}
+#plm-floating-helper .pfh-lucian .u092-x:hover{color:var(--ux-ink);background:var(--ux-surface-3)}
+#plm-floating-helper .pfh-lucian .u092-x[hidden]{display:grid;opacity:0;transform:scale(.6);pointer-events:none}
+#plm-floating-helper .pfh-lucian .u092-x svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+#plm-floating-helper .pfh-lucian .u092-fs{display:flex;align-items:center;gap:6px;height:34px;flex:none;margin-top:10px}
+#plm-floating-helper .pfh-lucian .u092-ch{display:inline-flex;align-items:center;gap:4px;max-width:140px;height:32px;padding:0 6px 0 12px;border:0;border-radius:999px;background:var(--ux-ink);color:var(--ux-page);font-size:12.5px;font-weight:var(--pfh-font-weight-heading, 700);white-space:nowrap;overflow:hidden;transition:max-width .32s var(--ux-ease),padding .32s var(--ux-ease),margin .32s var(--ux-ease),opacity .2s,transform .3s var(--ux-spring)}
+#plm-floating-helper .pfh-lucian .u092-ch svg{width:16px;height:16px;flex:none;padding:3px;border-radius:50%;background:color-mix(in srgb,var(--ux-page) 18%,transparent);fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+#plm-floating-helper .pfh-lucian .u092-ch:hover{transform:translateY(-1px)}
+#plm-floating-helper .pfh-lucian .u092-ch:active{transform:scale(.94)}
+#plm-floating-helper .pfh-lucian .u092-ch.out{max-width:0;padding:0;margin-right:-6px;opacity:0}
+#plm-floating-helper .pfh-lucian .u092-ch.in{animation:u092-chin .4s var(--ux-spring) backwards}
+@keyframes u092-chin{from{opacity:0;transform:scale(.7)}}
+#plm-floating-helper .pfh-lucian .u092-rs{margin-left:auto;height:32px;padding:0 10px;border:0;border-radius:999px;display:inline-flex;align-items:center;gap:5px;background:transparent;font-size:12px;font-weight:var(--pfh-font-weight-heading, 700);color:var(--ux-ink-3);white-space:nowrap;transition:opacity .25s,color .2s}
+#plm-floating-helper .pfh-lucian .u092-rs:hover{color:var(--ux-ink)}
+#plm-floating-helper .pfh-lucian .u092-rs svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#plm-floating-helper .pfh-lucian .u092-rs[hidden]{display:inline-flex;opacity:0;visibility:hidden}
+#plm-floating-helper .pfh-lucian .u092-meta{display:flex;align-items:center;justify-content:space-between;height:30px;flex:none;margin-top:6px;font-size:12.5px;font-weight:var(--pfh-font-weight-heading, 700);color:var(--ux-ink-3)}
+#plm-floating-helper .pfh-lucian .u092-meta b{display:inline-block;color:var(--ux-ink);font-variant-numeric:tabular-nums}
+#plm-floating-helper .pfh-lucian .u092-typo{border:0;padding:0;background:transparent;font-size:12.5px;font-weight:var(--pfh-font-weight-heading, 700);color:var(--ux-accent);text-decoration:underline;text-underline-offset:3px;animation:u092-chin .4s var(--ux-spring)}
+#plm-floating-helper .pfh-lucian .u092-typo[hidden]{display:none}
+#plm-floating-helper .pfh-lucian .u092-area{position:relative;flex:1;min-height:0}
+#plm-floating-helper .pfh-lucian .u092-grid,#plm-floating-helper .pfh-lucian .u092-none{position:absolute;inset:0;transition:opacity .3s,transform .4s var(--ux-ease),visibility 0s}
+#plm-floating-helper .pfh-lucian .u092-grid{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:min-content;gap:10px;align-content:start}
+#plm-floating-helper .pfh-lucian.u092.empty .u092-grid,#plm-floating-helper .pfh-lucian.u092:not(.empty) .u092-none{opacity:0;visibility:hidden;transform:scale(.97);transition:opacity .2s,transform .3s,visibility 0s .3s}
+#plm-floating-helper .pfh-lucian .u092-tile{padding:8px 8px 10px;border-radius:18px;background:var(--ux-surface-2);transition:transform .3s var(--ux-spring)}
+#plm-floating-helper .pfh-lucian .u092-tile:hover{transform:translateY(-2px)}
+#plm-floating-helper .pfh-lucian .u092-tile.new{animation:u092-up .5s var(--ux-spring) backwards;animation-delay:calc(var(--i) * 70ms)}
+@keyframes u092-up{from{opacity:0;transform:translateY(14px) scale(.95)}}
+#plm-floating-helper .pfh-lucian .u092-sw{display:grid;place-items:center;height:62px;border-radius:13px;background:var(--g)}
+#plm-floating-helper .pfh-lucian .u092-sw svg{width:46px;height:28px}
+#plm-floating-helper .pfh-lucian .u092-tile b{display:block;margin:8px 2px 0;font-size:13px;font-weight:var(--pfh-font-weight-heading, 700);letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#plm-floating-helper .pfh-lucian .u092-tile small{display:block;margin:1px 2px 0;font-size:11.5px;font-weight:var(--pfh-font-weight-heading, 700);color:var(--ux-ink-3)}
+#plm-floating-helper .pfh-lucian .u092-more{grid-column:1/-1;font-size:12px;font-weight:var(--pfh-font-weight-heading, 700);color:var(--ux-ink-3);text-align:center}
+#plm-floating-helper .pfh-lucian .u092-none{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:4px}
+#plm-floating-helper .pfh-lucian .u092-art{width:150px;height:92px}
+#plm-floating-helper .pfh-lucian .u092-art svg{width:100%;height:100%;overflow:visible}
+#plm-floating-helper .pfh-lucian .u092-shelf{stroke:var(--ux-line-2);stroke-width:3;stroke-linecap:round;stroke-dasharray:2 9}
+#plm-floating-helper .pfh-lucian .u092-lens{animation:u092-scan 3.6s ease-in-out infinite}
+@keyframes u092-scan{0%{transform:translate(0,0) rotate(0)}100%{transform:translate(0,0) rotate(0)}25%{transform:translate(46px,10px) rotate(8deg)}50%{transform:translate(78px,-4px) rotate(-4deg)}75%{transform:translate(30px,-8px) rotate(-10deg)}}
+#plm-floating-helper .pfh-lucian .u092-lens circle{fill:color-mix(in srgb,var(--ux-accent) 12%,transparent);stroke:var(--ux-ink);stroke-width:5}
+#plm-floating-helper .pfh-lucian .u092-lens path{stroke:var(--ux-ink);stroke-width:7;stroke-linecap:round}
+#plm-floating-helper .pfh-lucian .u092-lens .gl{fill:none;stroke:#fff;stroke-opacity:.7;stroke-width:3}
+#plm-floating-helper .pfh-lucian .u092-nt{margin:10px 0 0;font-size:16.5px;font-weight:var(--pfh-font-weight-heading, 700);letter-spacing:-.035em}
+#plm-floating-helper .pfh-lucian .u092-ns{margin:4px 0 0;font-size:12.5px;font-weight:var(--pfh-font-weight-heading, 700);color:var(--ux-ink-3)}
+#plm-floating-helper .pfh-lucian .u092-sgs{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:14px}
+#plm-floating-helper .pfh-lucian .u092-sg{display:flex;align-items:center;gap:8px;width:100%;height:46px;padding:0 12px 0 8px;border:0;border-radius:14px;background:var(--ux-surface-2);font-size:13px;font-weight:var(--pfh-font-weight-heading, 700);color:var(--ux-ink-2);text-align:left;animation:u092-up .45s var(--ux-spring) backwards;animation-delay:calc(var(--i) * 80ms + .1s);transition:background-color .2s,transform .3s var(--ux-spring)}
+#plm-floating-helper .pfh-lucian .u092-sg:hover{background:var(--ux-surface-3);color:var(--ux-ink)}
+#plm-floating-helper .pfh-lucian .u092-sg:active{transform:scale(.97)}
+#plm-floating-helper .pfh-lucian .u092-sg s{height:28px;padding:0 10px;border-radius:999px;display:inline-flex;align-items:center;background:var(--ux-surface);box-shadow:inset 0 0 0 1px var(--ux-line-2);text-decoration:line-through;text-decoration-color:var(--ux-danger);font-size:12.5px;font-weight:var(--pfh-font-weight-heading, 700);color:var(--ux-ink)}
+#plm-floating-helper .pfh-lucian .u092-sg span{flex:1}
+#plm-floating-helper .pfh-lucian .u092-sg b{color:var(--ux-accent)}
+#plm-floating-helper .pfh-lucian .u092-sg svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s var(--ux-spring)}
+#plm-floating-helper .pfh-lucian .u092-sg:hover svg{transform:translateX(3px)}
+#plm-floating-helper .pfh-lucian .u092-sgs.pop{flex-direction:row;justify-content:center;flex-wrap:wrap}
+#plm-floating-helper .pfh-lucian .u092-sgs.pop .u092-sg{width:auto;height:36px;padding:0 14px;border-radius:999px}
+
+/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */
+#plm-floating-helper .pfh-lucian.u083{position:relative;width:350px;height:400px;display:flex;flex-direction:column;padding:20px 20px 18px;border-radius:28px;background:var(--ux-surface);box-shadow:0 0 0 1px var(--ux-line),0 30px 60px -36px var(--ux-shadow-strong);overflow:hidden}
+#plm-floating-helper .pfh-lucian .u083-h{display:flex;align-items:center;gap:10px}
+#plm-floating-helper .pfh-lucian .u083-h i{width:36px;height:36px;border-radius:11px;background:var(--ux-ink);position:relative}
+#plm-floating-helper .pfh-lucian .u083-h i::after{content:"";position:absolute;left:10px;top:11px;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid var(--ux-page)}
+#plm-floating-helper .pfh-lucian .u083-h b{display:block;font-size:15.5px;font-weight:var(--pfh-font-weight-heading, 700);letter-spacing:-.03em}
+#plm-floating-helper .pfh-lucian .u083-h small{display:block;font-size:12px;font-weight:var(--pfh-font-weight-heading, 700);color:var(--ux-ink-3)}
+#plm-floating-helper .pfh-lucian .u083-pill{margin-left:auto;height:26px;padding:0 10px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);font-size:12px;font-weight:var(--pfh-font-weight-heading, 700);transition:background-color .4s,color .4s}
+#plm-floating-helper .pfh-lucian .u083-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;animation:u083-blink 1.2s ease-in-out infinite}
+#plm-floating-helper .pfh-lucian.u083.is-done .u083-pill::before{animation:none}
+@keyframes u083-blink{50%{opacity:.3}}
+#plm-floating-helper .pfh-lucian .u083-trk{position:relative;height:6px;margin:18px 0 6px;border-radius:3px;background:var(--ux-surface-3);overflow:hidden}
+#plm-floating-helper .pfh-lucian .u083-seg{position:absolute;top:0;bottom:0;border-radius:inherit;background:var(--ux-accent);transition:opacity .4s}
+#plm-floating-helper .pfh-lucian .u083-seg.a{animation:u083-a 1.6s cubic-bezier(.65,.05,.35,1) infinite}
+#plm-floating-helper .pfh-lucian .u083-seg.b{animation:u083-b 1.6s cubic-bezier(.25,.6,.4,1) .55s infinite}
+@keyframes u083-a{0%{left:-35%;right:100%}60%{left:100%;right:-90%}100%{left:100%;right:-90%}}
+@keyframes u083-b{0%{left:-200%;right:100%}60%{left:107%;right:-8%}100%{left:107%;right:-8%}}
+#plm-floating-helper .pfh-lucian .u083-fill{position:absolute;left:0;top:0;bottom:0;width:100%;border-radius:inherit;background:var(--ux-accent);transform-origin:0 50%;transform:scaleX(var(--p,0));opacity:0;transition:transform .5s var(--ux-ease),opacity .3s,background-color .4s}
+#plm-floating-helper .pfh-lucian.u083.is-det .u083-seg{opacity:0}
+#plm-floating-helper .pfh-lucian.u083.is-det .u083-fill{opacity:1}
+#plm-floating-helper .pfh-lucian.u083.is-done .u083-fill{background:var(--ux-mint)}
+#plm-floating-helper .pfh-lucian .u083-meta{display:flex;justify-content:space-between;font-size:12px;font-weight:var(--pfh-font-weight-heading, 700);color:var(--ux-ink-3);font-variant-numeric:tabular-nums}
+#plm-floating-helper .pfh-lucian .u083-log{flex:1;margin:12px 0 0;padding:12px;border-radius:16px;background:var(--ux-surface-2);list-style:none;overflow:hidden;display:flex;flex-direction:column;gap:7px;font-size:12.5px;font-weight:var(--pfh-font-weight-heading, 700);line-height:1.4}
+#plm-floating-helper .pfh-lucian .u083-log li{display:flex;align-items:center;gap:8px;color:var(--ux-ink-2);animation:u083-in .4s var(--ux-ease)}
+@keyframes u083-in{from{opacity:0;transform:translateY(8px)}}
+#plm-floating-helper .pfh-lucian .u083-log time{color:var(--ux-ink-3);font:400 11.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+#plm-floating-helper .pfh-lucian .u083-st{width:14px;height:14px;flex:none;position:relative}
+#plm-floating-helper .pfh-lucian .u083-st::before{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--ux-accent);border-right-color:transparent;animation:u083-spin .7s linear infinite}
+#plm-floating-helper .pfh-lucian .u083-log li.ok .u083-st::before{border:0;animation:none;background:var(--ux-mint);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.4l2.6 2.6L11 4.6' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/100% no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.4l2.6 2.6L11 4.6' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/100% no-repeat}
+#plm-floating-helper .pfh-lucian .u083-log li.ok{color:var(--ux-ink-3)}
+@keyframes u083-spin{to{transform:rotate(360deg)}}
+#plm-floating-helper .pfh-lucian .u083-re{margin-top:12px;height:44px;border:0;border-radius:14px;background:var(--ux-ink);color:var(--ux-page);font-size:14px;font-weight:var(--pfh-font-weight-heading, 700);transition:opacity .3s,transform .3s var(--ux-spring)}
+#plm-floating-helper .pfh-lucian .u083-re:active{transform:scale(.97)}
+#plm-floating-helper .pfh-lucian .u083-re[aria-disabled="true"]{opacity:.35}
+#plm-floating-helper .pfh-lucian .u083-re:focus-visible{outline:2px solid var(--ux-accent);outline-offset:2px}
+
+/* Lucian UX/UI Prompt #060 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#060 */
+#plm-floating-helper .pfh-lucian.u060{--x:50%;position:relative;width:330px;height:460px;border-radius:30px;overflow:hidden;isolation:isolate;cursor:ew-resize;user-select:none;-webkit-user-select:none;touch-action:pan-y;box-shadow:0 30px 60px -32px rgba(10,10,40,.55)}
+#plm-floating-helper .pfh-lucian.u060:focus-visible{outline:2px solid var(--ux-accent);outline-offset:4px}
+#plm-floating-helper .pfh-lucian .u060-l{position:absolute;inset:0}
+#plm-floating-helper .pfh-lucian .u060-l svg{width:100%;height:100%;display:block}
+#plm-floating-helper .pfh-lucian .u060-night{clip-path:inset(0 0 0 var(--x))}
+#plm-floating-helper .pfh-lucian .u060-line{position:absolute;top:0;bottom:0;left:var(--x);width:2px;margin-left:-1px;background:rgba(255,255,255,.95);box-shadow:0 0 16px rgba(0,0,0,.35);z-index:2}
+#plm-floating-helper .pfh-lucian .u060-hd{position:absolute;top:50%;left:var(--x);width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;background:rgba(255,255,255,.95);color:#16151B;box-shadow:0 12px 26px -8px rgba(0,0,0,.55);display:grid;place-items:center;z-index:3;transition:transform .4s var(--ux-spring),width .3s,height .3s}
+#plm-floating-helper .pfh-lucian.u060:hover .u060-hd{transform:scale(1.06)}
+#plm-floating-helper .pfh-lucian.u060.drag .u060-hd{transform:scale(1.18)}
+#plm-floating-helper .pfh-lucian .u060-hd svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s var(--ux-spring)}
+#plm-floating-helper .pfh-lucian.u060.drag .u060-hd svg{transform:scaleX(1.25)}
+#plm-floating-helper .pfh-lucian .u060-tag{position:absolute;top:18px;z-index:4;height:30px;padding:0 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:var(--pfh-font-weight-heading, 700);transition:opacity .3s}
+#plm-floating-helper .pfh-lucian .u060-tag svg{width:14px;height:14px}
+#plm-floating-helper .pfh-lucian .u060-tag.d{left:16px;background:rgba(255,255,255,.75);color:#7A4A0F}
+#plm-floating-helper .pfh-lucian .u060-tag.n{right:16px;background:rgba(14,12,40,.6);color:#E6E2FF}
+#plm-floating-helper .pfh-lucian .u060-tag.fade{opacity:0}
+#plm-floating-helper .pfh-lucian .u060-cap{position:absolute;left:18px;right:18px;bottom:18px;z-index:4;display:flex;justify-content:space-between;align-items:flex-end;color:#fff;text-shadow:0 1px 10px rgba(0,0,0,.35);pointer-events:none}
+#plm-floating-helper .pfh-lucian .u060-cap b{font-size:20px;font-weight:var(--pfh-font-weight-heading, 700);letter-spacing:-.04em}
+#plm-floating-helper .pfh-lucian .u060-cap small{display:block;font-size:12px;font-weight:var(--pfh-font-weight-heading, 700);opacity:.85}
+#plm-floating-helper .pfh-lucian .u060-cap em{font-style:normal;font-size:13px;font-weight:var(--pfh-font-weight-heading, 700);font-variant-numeric:tabular-nums}
+
+/* Lucian UX/UI Prompt theme adaptation · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/ */
+#plm-floating-helper .pfh-lucian {
+  --ux-page: var(--pfh-theme-surface, #fff);
+  --ux-surface: var(--pfh-theme-surface, #fff);
+  --ux-surface-2: var(--pfh-theme-surface-alt, #f5f3ff);
+  --ux-surface-3: var(--pfh-theme-primary-soft, #eee8ff);
+  --ux-ink: var(--pfh-theme-text, #253047);
+  --ux-ink-2: var(--pfh-theme-text, #253047);
+  --ux-ink-3: var(--pfh-theme-muted, #7a82a0);
+  --ux-line: var(--pfh-theme-border, #ddd6ef);
+  --ux-line-2: var(--pfh-theme-border-strong, #b7a6f4);
+  --ux-accent: var(--pfh-theme-primary, #7c3aed);
+  --ux-mint: #119c72;
+  --ux-warn: #d6731e;
+  --ux-danger: #d93a55;
+  --ux-shadow-strong: var(--pfh-theme-shadow-soft, rgba(40,30,80,.3));
+  --ux-ease: cubic-bezier(.2,.8,.2,1);
+  --ux-spring: cubic-bezier(.34,1.45,.64,1);
+  box-sizing: border-box;
+  max-width: 100%;
+  font-family: inherit;
+}
+#plm-floating-helper .pfh-lucian *,
+#plm-floating-helper .pfh-lucian *::before,
+#plm-floating-helper .pfh-lucian *::after { box-sizing: border-box; }
+#plm-floating-helper .pfh-lucian button { cursor: pointer; font-family: inherit; }
+#plm-floating-helper .pfh-lucian :focus-visible { outline: 2px solid var(--ux-accent); outline-offset: 3px; }
+/* Fit the existing sidebar and queue; preserve the original motion and controls. */
+#plm-floating-helper .pfh-lucian.u092 { height: auto; min-height: 340px; margin: 8px auto; box-shadow: none; }
+#plm-floating-helper .pfh-lucian.u092 .u092-fs { flex-wrap: wrap; height: auto; min-height: 34px; }
+#plm-floating-helper .pfh-lucian.u092 .u092-none { position: relative; padding-top: 16px; }
+#plm-floating-helper .pfh-lucian.u083 { width: 100%; height: auto; margin: 0 0 14px; box-shadow: inset 0 0 0 1px var(--ux-line); }
+#plm-floating-helper .pfh-lucian.u083 .u083-log { max-height: 118px; flex: none; }
+#plm-floating-helper .pfh-lucian.u083 .u083-log .is-waiting .u083-st::before { animation: none; border-color: var(--ux-line-2); }
+#plm-floating-helper .pfh-lucian.u083 .u083-log .is-error .u083-st::before { content: '!'; animation: none; border: 0; color: var(--ux-danger); text-align: center; }
+#plm-floating-helper .pfh-lucian.u083.is-paused .u083-pill::before,
+#plm-floating-helper .pfh-lucian.u083.is-det .u083-seg { animation-play-state: paused; }
+#plm-floating-helper .pfh-lucian.u060 { flex: 0 1 330px; }
+#plm-floating-helper .pfh-lucian.u060 .u060-l img { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--ux-surface); pointer-events: none; }
+#plm-floating-helper .pfh-lucian.u060 .u060-cap { color: var(--ux-ink); text-shadow: none; background: var(--ux-surface); border-radius: 10px; padding: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  #plm-floating-helper .ux.pfh-lucian:is(.u092,.u083,.u060) *,
+  #plm-floating-helper .ux.pfh-lucian:is(.u092,.u083,.u060) *::before,
+  #plm-floating-helper .ux.pfh-lucian:is(.u092,.u083,.u060) *::after { animation-duration: .001ms; animation-iteration-count: 1; transition-duration: .001ms; }
+}
+</style><main id="plm-floating-helper"><header><h1>PLM 交互效果验证</h1><p>这是独立演示，使用示例产品与模拟进度，不读取或修改 PLM 数据。滑杆和按钮均可实际操作。</p><button class="demo-control" id="theme">切换明暗主题</button></header><div class="demo-grid"><section class="demo-page"><h2>① 无结果筛选提示</h2><p>A 品牌＋蓝色没有交集，点击建议移除一个条件。</p><button class="demo-control" id="reset-search">重新制造无结果</button><div id="empty-slot"></div></section><section class="demo-page"><h2>② Excel 队列进度</h2><p>点击后演示等待条转为确定进度，总共六个任务。</p><button class="demo-control" id="start-progress">开始／重新演示</button><div data-lucian-excel-slot></div></section><section class="demo-page"><h2>③ 修改前后对比</h2><p>示例包装：拖动、点击、双击复位；左右方向键也可控制。</p><div id="compare-slot"></div></section></div></main><script>
+const PANEL_ID = 'plm-floating-helper';
+const state = { skuFilters: {brand:'A',imageColor:'blue'}, searchQuery:'', batchExcelWorkerRunning:false };
+const data = [{name:'绿色包装 · A 品牌',brand:'A',color:'green'}, {name:'蓝色包装 · B 品牌',brand:'B',color:'blue'}];
+let queue = Array.from({length:6}, (_,i)=>({sku:'演示 SKU '+(i+1), status:'pending'}));
+const escapeHtml = value => String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const getFilteredSearchMatches = (tokens, filters = state.skuFilters) => data.filter(item => (!filters.brand || item.brand === filters.brand) && (!filters.imageColor || item.color === filters.imageColor));
+const loadExcelBatchQueue = () => queue;
+function renderSkuList() {
+ const items = getFilteredSearchMatches([]);
+ document.querySelector('#empty-slot').innerHTML = items.length ? '<div class="demo-results">'+items.map(item=>'<p>'+escapeHtml(item.name)+'</p>').join('')+'</div>' : lucianEmptySearchHtml([]);
+}
+// Lucian UX/UI Prompt #092 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#092
+// Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083
+// Lucian UX/UI Prompt #060 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#060
+  function ensureLucianPreviewStyles() {
+    if (document.getElementById(PANEL_ID + '-lucian-style')) return;
+    const style = document.createElement('style');
+    style.id = PANEL_ID + '-lucian-style';
+    style.textContent = LUCIAN_PREVIEW_CSS;
+    document.documentElement.appendChild(style);
+  }
+
+  function lucianEmptySearchHtml(tokens) {
+    const labels = { developer: '开发人员', brand: '品牌', status: '项目状态', designType: '设计类型', imageColor: '效果图主色' };
+    const options = Object.keys(labels).filter((field) => state.skuFilters[field]).map((field) => ({
+      field, label: labels[field], count: getFilteredSearchMatches(tokens, { ...state.skuFilters, [field]: '' }).length,
+    })).filter((item) => item.count > 0).sort((a, b) => b.count - a.count).slice(0, 2);
+    const queryCount = tokens.length ? getFilteredSearchMatches([], state.skuFilters).length : 0;
+    if (!options.length && queryCount) options.push({ field: 'query', label: '搜索关键词', count: queryCount });
+    const chips = Object.keys(labels).filter((field) => state.skuFilters[field]).map((field) => '<button type="button" class="u092-ch in" data-action="lucian-filter-remove" data-field="' + field + '" aria-label="移除' + labels[field] + '">' + escapeHtml(labels[field]) + ' ×</button>').join('');
+    const suggestions = options.map((item, index) => '<button type="button" class="u092-sg" style="--i:' + index + '" data-action="lucian-filter-remove" data-field="' + item.field + '"><s>' + escapeHtml(item.label) + '</s><span>移除后显示 <b>' + item.count + ' 条</b></span><svg viewBox="0 0 15 15" aria-hidden="true"><path d="M3 7.5h9M8.5 4l3.5 3.5L8.5 11"/></svg></button>').join('');
+    return '<section class="ux pfh-lucian u092 empty" aria-label="搜索建议"><div class="u092-fs">' + chips + '</div><div class="u092-none"><div class="u092-art" aria-hidden="true"><svg viewBox="0 0 150 92"><path class="u092-shelf" d="M8 30h134M8 56h134M8 82h134"/><g class="u092-lens"><circle cx="34" cy="38" r="20"/><path class="gl" d="M24 30a12 12 0 0 1 8-5"/><path d="M48 52l14 14"/></g></svg></div><p class="u092-nt">没有匹配的产品</p><p class="u092-ns">' + (suggestions ? '试着放宽一个条件' : '换个关键词，或清除筛选再试') + '</p><div class="u092-sgs">' + suggestions + '<button type="button" class="u092-sg" data-action="lucian-filter-remove" data-field="all">清除搜索和筛选</button></div></div></section>';
+  }
+
+  function handleLucianFilterAction(event, panel) {
+    const button = event.target && event.target.closest && event.target.closest('[data-action="lucian-filter-remove"]');
+    if (!button) return false;
+    const field = button.dataset.field;
+    if (button.disabled) return true;
+    button.disabled = true;
+    const root = button.closest('.u092');
+    if (root) root.querySelectorAll('.u092-ch').forEach((chip) => { if (field === 'all' || chip.dataset.field === field) chip.classList.add('out'); });
+    window.setTimeout(() => {
+      if (field === 'all') Object.keys(state.skuFilters).forEach((key) => { state.skuFilters[key] = ''; });
+      else if (Object.prototype.hasOwnProperty.call(state.skuFilters, field)) state.skuFilters[field] = '';
+      if (field === 'all' || field === 'query') {
+        state.searchQuery = '';
+        panel.querySelectorAll('.pfh-search-input').forEach((input) => { input.value = ''; });
+      }
+      state.skuPage = 1;
+      renderSkuList(panel);
+      const focus = panel.querySelector('[data-action="lucian-filter-remove"]') || panel.querySelector('[data-action="sku-filter-toggle"]');
+      if (focus) focus.focus({ preventScroll: true });
+    }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 330);
+    return true;
+  }
+
+  function syncLucianExcelProgress(panel) {
+    const slot = panel.querySelector('[data-lucian-excel-slot]');
+    if (!slot) return;
+    let root = panel.pfhLucianExcelProgress;
+    if (!root) {
+      root = document.createElement('section');
+      root.className = 'ux pfh-lucian u083';
+      root.setAttribute('aria-label', 'Excel 队列进度');
+      root.innerHTML = '<div class="u083-h"><i aria-hidden="true"></i><span><b>Excel 队列</b><small>按实际处理结果更新</small></span><span class="u083-pill" role="status" aria-live="polite"></span></div><div class="u083-trk" role="progressbar" aria-label="队列处理进度" aria-valuemin="0" aria-valuemax="100"><span class="u083-seg a"></span><span class="u083-seg b"></span><span class="u083-fill"></span></div><div class="u083-meta"><span class="u083-l"></span><span class="u083-r"></span></div><ol class="u083-log" aria-label="当前队列"></ol>';
+      panel.pfhLucianExcelProgress = root;
+    }
+    if (root.parentNode !== slot) slot.appendChild(root);
+    const queue = loadExcelBatchQueue();
+    const settled = queue.filter((item) => ['ready', 'partial', 'downloaded', 'error'].includes(item.status)).length;
+    const errors = queue.filter((item) => item.status === 'error').length;
+    const running = Boolean(state.batchExcelWorkerRunning || state.batchExcelDownloadRunning);
+    const paused = Boolean(state.batchExcelWorkerPaused);
+    const done = Boolean(queue.length && settled === queue.length && !running && !errors);
+    const progress = queue.length ? settled / queue.length : 0;
+    root.classList.toggle('is-det', settled > 0 || !running || paused);
+    root.classList.toggle('is-done', done);
+    root.classList.toggle('is-paused', paused || !running);
+    root.querySelector('.u083-pill').textContent = paused ? '已暂停' : running ? '处理中' : done ? '已完成' : errors ? '有失败项' : '待开始';
+    root.querySelector('.u083-pill').style.setProperty('--c', errors ? 'var(--ux-danger)' : done ? 'var(--ux-mint)' : 'var(--ux-accent)');
+    root.querySelector('.u083-l').textContent = state.batchExcelCurrentSku || (queue.length ? '已处理 ' + settled + ' / ' + queue.length : '加入 SKU 后显示进度');
+    root.querySelector('.u083-r').textContent = Math.round(progress * 100) + '%';
+    const track = root.querySelector('.u083-trk');
+    if (running && !settled && !paused) track.removeAttribute('aria-valuenow');
+    else track.setAttribute('aria-valuenow', Math.round(progress * 100));
+    root.querySelector('.u083-fill').style.setProperty('--p', progress);
+    const names = { pending: '等待补全', preparing: '正在补全', ready: '资料完整', partial: '有缺失字段', downloaded: '已下载', error: '失败，待重试' };
+    const visible = queue.filter((item) => item.status === 'preparing').concat(queue.filter((item) => item.status !== 'preparing')).slice(0, 4);
+    const log = root.querySelector('.u083-log');
+    const signature = String(running) + ':' + paused + '|' + visible.map((item) => item.sku + ':' + item.status).join('|');
+    if (log.pfhSignature !== signature) {
+      log.innerHTML = visible.map((item) => '<li class="' + (item.status === 'error' ? 'is-error' : ['ready', 'partial', 'downloaded'].includes(item.status) ? 'ok' : item.status === 'preparing' && running && !paused ? '' : 'is-waiting') + '"><span class="u083-st" aria-hidden="true"></span><span>' + escapeHtml(item.sku) + ' · ' + escapeHtml(names[item.status] || item.status) + '</span></li>').join('');
+      log.pfhSignature = signature;
+    }
+  }
+
+  function lucianComparisonHtml(item) {
+    if (!item || !item.parentUrl || !item.url || item.parentUrl === item.url) return '';
+    return '<div class="ux pfh-lucian u060" tabindex="0" role="slider" aria-label="原图与修改图对比，修改图占比" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><div class="u060-l u060-day"><img src="' + escapeHtml(item.parentUrl) + '" alt="修改前原图" draggable="false"></div><div class="u060-l u060-night"><img src="' + escapeHtml(item.url) + '" alt="修改后图片" draggable="false"></div><span class="u060-line" aria-hidden="true"></span><span class="u060-hd" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l-5 6 5 6M15 6l5 6-5 6"/></svg></span><span class="u060-tag d">原图</span><span class="u060-tag n">修改图</span><div class="u060-cap" aria-hidden="true"><span><small>拖动对比 · 双击复位</small></span><em>50 / 50</em></div></div>';
+  }
+
+  function bindLucianComparisons(container) {
+    container.querySelectorAll('.pfh-lucian.u060').forEach((root) => {
+      if (root.pfhBound) return;
+      root.pfhBound = true;
+      let x = 50, raf = 0, drag = false;
+      const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function set(value) {
+        x = Math.max(0, Math.min(100, value));
+        root.style.setProperty('--x', x.toFixed(2) + '%');
+        root.setAttribute('aria-valuenow', Math.round(100 - x));
+        root.setAttribute('aria-valuetext', '修改图 ' + Math.round(100 - x) + '%');
+        root.querySelector('.u060-cap em').textContent = '原 ' + Math.round(x) + ' / 改 ' + (100 - Math.round(x));
+        root.querySelector('.u060-tag.d').classList.toggle('fade', x < 30);
+        root.querySelector('.u060-tag.n').classList.toggle('fade', x > 70);
+      }
+      function glide(to) {
+        window.cancelAnimationFrame(raf);
+        if (reduced()) { set(to); return; }
+        let velocity = 0;
+        function step() {
+          if (!root.isConnected) return;
+          velocity += (to - x) * .14 - velocity * .38;
+          set(x + velocity);
+          if (Math.abs(to - x) > .05 || Math.abs(velocity) > .05) raf = window.requestAnimationFrame(step);
+          else set(to);
+        }
+        step();
+      }
+      const pctAt = (event) => { const rect = root.getBoundingClientRect(); return rect.width ? (event.clientX - rect.left) / rect.width * 100 : 50; };
+      root.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        event.stopPropagation();
+        drag = true;
+        root.setPointerCapture(event.pointerId);
+        root.classList.add('drag');
+        glide(pctAt(event));
+      });
+      root.addEventListener('pointermove', (event) => { if (drag) { window.cancelAnimationFrame(raf); set(pctAt(event)); } });
+      const up = () => { drag = false; root.classList.remove('drag'); };
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((name) => root.addEventListener(name, up));
+      root.addEventListener('dblclick', () => glide(50));
+      root.addEventListener('click', (event) => event.stopPropagation());
+      root.addEventListener('keydown', (event) => {
+        const delta = event.key === 'ArrowRight' ? 5 : event.key === 'ArrowLeft' ? -5 : 0;
+        if (delta || event.key === 'Home' || event.key === 'End') {
+          event.preventDefault(); event.stopPropagation();
+          glide(event.key === 'Home' ? 0 : event.key === 'End' ? 100 : x + delta);
+        }
+      });
+      set(50);
+    });
+  }
+
+document.querySelector('#empty-slot').addEventListener('click', event => handleLucianFilterAction(event, document.querySelector('#plm-floating-helper')));
+document.querySelector('#reset-search').onclick = () => { state.skuFilters={brand:'A',imageColor:'blue'}; renderSkuList(); };
+let timer = 0;
+document.querySelector('#start-progress').onclick = () => {
+ clearInterval(timer); queue.forEach(item=>item.status='pending'); queue[0].status='preparing'; state.batchExcelWorkerRunning=true; state.batchExcelWorkerPaused=false; state.batchExcelCurrentSku=queue[0].sku;
+ syncLucianExcelProgress(document.querySelector('#plm-floating-helper'));
+ let index=0;
+ timer=setInterval(()=>{
+  queue[index].status='ready'; index++;
+  if(index<queue.length){ queue[index].status='preparing'; state.batchExcelCurrentSku=queue[index].sku; }
+  else { clearInterval(timer); state.batchExcelWorkerRunning=false; state.batchExcelCurrentSku=''; }
+  syncLucianExcelProgress(document.querySelector('#plm-floating-helper'));
+ },1600);
+};
+window.addEventListener('pagehide',()=>clearInterval(timer));
+document.querySelector('#theme').onclick = () => document.querySelector('#plm-floating-helper').classList.toggle('dark');
+const art = (color,label) => 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="330" height="460" viewBox="0 0 330 460"><rect width="330" height="460" fill="#f4f2fb"/><ellipse cx="165" cy="376" rx="85" ry="12" fill="#d3cce8"/><rect x="89" y="88" width="152" height="280" rx="18" fill="'+color+'"/><rect x="101" y="100" width="128" height="256" rx="12" fill="none" stroke="white" opacity=".4"/><text x="165" y="184" fill="white" text-anchor="middle" font-family="Arial" font-size="28">PLM</text><text x="165" y="221" fill="white" text-anchor="middle" font-family="Arial" font-size="16">'+label+'</text><path d="M125 270h80M125 285h60" stroke="white" opacity=".7" stroke-width="5"/></svg>');
+document.querySelector('#compare-slot').innerHTML=lucianComparisonHtml({parentUrl:art('#28735c','ORIGINAL'),url:art('#427bc3','REVISED')});
+bindLucianComparisons(document.querySelector('#compare-slot'));
+renderSkuList(); syncLucianExcelProgress(document.querySelector('#plm-floating-helper'));
+</script></html>

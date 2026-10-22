@@ -13,19 +13,25 @@ const outputPath = path.join(root, 'outputs', workspacePreview
   ? 'plm-material-summary.min.preview.user.js'
   : 'plm-material-summary.min.user.js');
 let source = fs.readFileSync(sourcePath, 'utf8');
+const lucianModule = fs.readFileSync(path.join(root, 'src', 'lucian-preview.module.js'), 'utf8').trimEnd();
+const lucianModulePattern = /  \/\/ <lucian-preview-module>[\s\S]*?  \/\/ <\/lucian-preview-module>/;
+if (!lucianModulePattern.test(source)) throw new Error('Lucian module build marker is missing');
+source = source.replace(lucianModulePattern, () => '  // <lucian-preview-module>\n' + lucianModule + '\n  // </lucian-preview-module>');
 // All installable builds need the layout CSS because users can switch at runtime.
 // This generated literal is synced from the canonical ui-src module.
 const cssPath = path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'workspace-preview.css');
 const css = fs.readFileSync(cssPath, 'utf8');
 if (!/^  const WORKSPACE_PREVIEW_CSS = .*;$/m.test(source)) throw new Error('Workspace CSS build marker is missing');
 let syncedSource = source.replace(/^  const WORKSPACE_PREVIEW_CSS = .*;$/m, () => '  const WORKSPACE_PREVIEW_CSS = ' + JSON.stringify(css) + ';');
+const lucianCss = fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'lucian-preview.css'), 'utf8');
+syncedSource = syncedSource.replace(/^  const LUCIAN_PREVIEW_CSS = .*;$/m, () => '  const LUCIAN_PREVIEW_CSS = ' + JSON.stringify(lucianCss) + ';');
 const filterCss = fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'sku-search-filters.css'), 'utf8');
 if (!/^  const SKU_FILTER_MODAL_CSS = .*;$/m.test(syncedSource)) throw new Error('Filter CSS build marker is missing');
 syncedSource = syncedSource.replace(/^  const SKU_FILTER_MODAL_CSS = .*;$/m, () => '  const SKU_FILTER_MODAL_CSS = ' + JSON.stringify(filterCss) + ';');
 const ledgerCss = fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'ledger-workspace.css'), 'utf8');
 if (!/^  const LEDGER_WORKSPACE_CSS = .*;$/m.test(syncedSource)) throw new Error('Ledger CSS build marker is missing');
 syncedSource = syncedSource.replace(/^  const LEDGER_WORKSPACE_CSS = .*;$/m, () => '  const LEDGER_WORKSPACE_CSS = ' + JSON.stringify(ledgerCss) + ';');
-if (syncedSource !== source) fs.writeFileSync(sourcePath, syncedSource, 'utf8');
+if (syncedSource !== fs.readFileSync(sourcePath, 'utf8')) fs.writeFileSync(sourcePath, syncedSource, 'utf8');
 source = syncedSource;
 if (workspacePreview) {
   source = source
