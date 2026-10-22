@@ -25,6 +25,7 @@ function fixture() {
       addEventListener: (type, handler) => listeners.set(type, handler),
     },
     cloudRequest: async () => ({ ok: true }),
+    recordNetworkPermissionResult: () => {},
     showToast: () => {}, formatErrorMessage: (error) => error.message || String(error),
   });
   vm.runInContext(moduleSource, context);
@@ -55,6 +56,24 @@ function extract(source, start, end) {
   assert.equal(f.queue()[2].action, 'GET /api/Product/GetProductList');
   assert.equal(f.queue()[2].sku, 'SKU00000003');
   assert(!f.run("sanitizeDiagnosticText('token=private Bearer abc.def https://host/path?secret=hidden', 600)").includes('private'));
+  for (const source of [moduleSource, scriptSource]) {
+    const sanitizer = extract(source, '  function sanitizeDiagnosticText(', '  function diagnosticHash(');
+    const context = vm.createContext({});
+    vm.runInContext(sanitizer, context);
+    for (const input of [
+      'A'.repeat(4 * 1024 * 1024),
+      'data:image/png;base64,' + 'A'.repeat(4 * 1024 * 1024),
+      'https://cdn.example.com/exceljs/' + 'A'.repeat(4 * 1024 * 1024),
+      'token=' + 'private'.repeat(100000),
+    ]) {
+      context.input = input;
+      const result = vm.runInContext('sanitizeDiagnosticText(input, 120)', context, { timeout: 1000 });
+      assert(result.length <= 120);
+      assert(!result.includes('A'.repeat(180)));
+      assert(!result.includes('private'));
+    }
+    assert.equal(vm.runInContext("sanitizeDiagnosticText('HTTP 500: upload failed', 600)", context), 'HTTP 500: upload failed');
+  }
   f.context.cloudRequest = async () => { throw new Error('offline'); };
   await f.run('flushDiagnosticQueue()');
   assert.equal(f.queue().length, 3, 'failed delivery must remain queued');
@@ -69,6 +88,8 @@ function extract(source, start, end) {
   assert.equal(f.queue().length, before, 'unrelated page errors must be ignored');
   f.listeners.get('error')({ target: { src: 'https://cdn.example.com/exceljs.min.js' } });
   assert.equal(f.queue().length, before + 1);
+  f.listeners.get('error')({ target: { src: 'https://cdn.example.com/exceljs/' + 'A'.repeat(4 * 1024 * 1024) } });
+  assert.equal(f.queue().length, before + 2, 'long failed resource must be reported without another runtime error');
   f.run("runDiagnosticAction(function download() { throw new Error('download failed'); }, { target: null })");
   assert.equal(f.queue().at(-1).action, 'download');
   const afterAction = f.queue().length;

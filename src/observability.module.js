@@ -33,11 +33,14 @@
 
   function sanitizeDiagnosticText(value, maxLength) {
     return String(value || '')
+      // Bound work before redaction; resource URLs can contain multi-megabyte data.
+      .slice(0, 16384)
       .replace(/data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/gi, '[image]')
       .replace(/(authorization|cookie|token|password|backup(?:Key|Password)|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
       .replace(/Bearer\s+[a-z0-9._~-]+/gi, 'Bearer [redacted]')
       .replace(/https?:\/\/([^\s?#]+)[^\s]*/gi, 'https://$1/[redacted]')
-      .replace(/[a-z0-9+/]{180,}={0,2}/gi, '[large-data]')
+      // A simple character run avoids V8 stack exhaustion from a large {180,} repeat.
+      .replace(/[a-z0-9+/]+={0,2}/gi, (run) => run.length >= 180 ? '[large-data]' : run)
       .slice(0, maxLength || 600);
   }
 
