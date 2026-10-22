@@ -9,3 +9,5 @@
 网页源文件在当前目录；CSS 的唯一源在 `../modules/label-studio.css`。运行 `npm run ui:build` 生成 `static/label-studio/`，`npm run ui:check` 检查产物。`build-label-studio.cjs` 提取现有 userscript 排版函数，并应用网页专用分辨率及 `render-quality.js` 的缩图适配。界面图标直接由已安装的 Lucide React 库构建，库许可证随静态文件发布，不依赖 CDN，不手绘 SVG 路径。
 
 网页不连接 PLM、不上传图片，也不自动回传 BOM。无需更新 userscript。
+
+PSD 使用标准 PackBits/RLE 无损压缩，像素、色彩和物理尺寸保持一致；对于难以压缩的图像，自动回退到未压缩存储，避免文件反而变大。`psd-export.js` 是网页 PSD 编码源。

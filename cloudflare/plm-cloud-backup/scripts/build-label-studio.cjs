@@ -34,6 +34,7 @@ const functions = names.map((name) => {
     code = code.replace('const ctx = canvas.getContext(\'2d\');', "const ctx = canvas.getContext('2d');\n    ctx.imageSmoothingQuality = 'high';");
   }
   if (name === 'drawImageContained') code = fs.readFileSync(path.join(root, 'ui-src/label-studio/render-quality.js'), 'utf8').replace(/\r\n/g, '\n').trimEnd();
+  if (name === 'canvasToFlatPsdBlob') code = fs.readFileSync(path.join(root, 'ui-src/label-studio/psd-export.js'), 'utf8').replace(/\r\n/g, '\n').trimEnd();
   return code;
 });
 const engine = '// Generated from the existing userscript by build-label-studio.cjs.\n' +
