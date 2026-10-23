@@ -31,6 +31,9 @@ syncedSource = syncedSource.replace(/^  const SKU_FILTER_MODAL_CSS = .*;$/m, () 
 const ledgerCss = fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'ledger-workspace.css'), 'utf8');
 if (!/^  const LEDGER_WORKSPACE_CSS = .*;$/m.test(syncedSource)) throw new Error('Ledger CSS build marker is missing');
 syncedSource = syncedSource.replace(/^  const LEDGER_WORKSPACE_CSS = .*;$/m, () => '  const LEDGER_WORKSPACE_CSS = ' + JSON.stringify(ledgerCss) + ';');
+const historyCss = fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'data-log-trigger.css'), 'utf8');
+if (!/^  const DETAIL_HISTORY_CSS = .*;$/m.test(syncedSource)) throw new Error('Detail history CSS build marker is missing');
+syncedSource = syncedSource.replace(/^  const DETAIL_HISTORY_CSS = .*;$/m, () => '  const DETAIL_HISTORY_CSS = ' + JSON.stringify(historyCss) + ';');
 if (syncedSource !== fs.readFileSync(sourcePath, 'utf8')) fs.writeFileSync(sourcePath, syncedSource, 'utf8');
 source = syncedSource;
 if (workspacePreview) {
