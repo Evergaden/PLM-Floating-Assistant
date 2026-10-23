@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.92
+// @version      2.9.93
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,8 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.92';
+  const SCRIPT_VERSION = '2.9.93';
+  const HOME_COLLECTION_CSS = "/* Always-visible collection status; no nested cards or full-home redraws. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  margin: 0;\n  font-size: 14px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  color: var(--pfh-theme-primary);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection progress {\n  display: block;\n  width: 100%;\n  height: 6px;\n  border: 0;\n  accent-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
   function openLocalImageDb() {
@@ -17393,7 +17394,7 @@
       state.assignedDesignTaskAutoSyncTimer = 0;
       let nextDelay = ASSIGNED_DESIGN_TASK_SYNC_COOLDOWN_MS;
       try {
-        if (state.settings.collectionEnabled && state.workMode !== 'product-development'
+        if (state.settings.collectionEnabled && !state.catalogSyncRunning && state.workMode !== 'product-development'
           && /\/projectManagementChemicalNew/.test(location.pathname)) {
           await syncAssignedDesignTasksFromApi();
         }
@@ -17414,9 +17415,10 @@
     const pageSignatures = new Set();
     let total = 0;
     for (let page = 1; ; page += 1) {
+      if (catalog && options.beforePage) await options.beforePage(page);
       const payload = await fetchPlmJson((catalog ? '/api/ChemicalNewAll/GetList' : ASSIGNED_DESIGN_TASK_ENDPOINT) + '?page=' + page + '&pageSize=' + ASSIGNED_DESIGN_TASK_PAGE_SIZE
         + '&sort_field=' + encodeURIComponent(catalog ? 'create_at' : ASSIGNED_DESIGN_TASK_SORT_FIELD)
-        + '&sort_asc=' + String(ASSIGNED_DESIGN_TASK_SORT_ASC));
+        + '&sort_asc=' + String(ASSIGNED_DESIGN_TASK_SORT_ASC), catalog ? { singleAttempt: true } : undefined);
       if (payload && payload.success === false) {
         throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || '\u8bbe\u8ba1\u4efb\u52a1\u6570\u636e\u8bfb\u53d6\u5931\u8d25');
       }
@@ -17430,7 +17432,7 @@
       if (pageSignatures.has(signature)) throw new Error('设计任务接口返回重复分页，已停止读取并保留已有缓存');
       pageSignatures.add(signature);
       rows.push(...pageRows);
-      if (catalog && options.onProgress) options.onProgress(rows.length, total);
+      if (catalog && options.onProgress) options.onProgress(rows.length, total, page);
       if ((total && rows.length >= total) || (!total && pageRows.length < ASSIGNED_DESIGN_TASK_PAGE_SIZE)) break;
     }
     if (String(findCurrentPlmUserName() || '').replace(/\s+/g, '').toLowerCase() !== currentUserName) {
@@ -17451,30 +17453,68 @@
     return Array.from(deduped.values());
   }
 
+  function toggleCatalogCollectionPause() {
+    if (!state.catalogSyncRunning || state.catalogCollection.phase === 'saving') return;
+    state.catalogSyncPaused = !state.catalogSyncPaused;
+    state.catalogCollection.phase = state.catalogSyncPaused ? 'paused' : 'waiting';
+    if (!state.catalogSyncPaused && state.catalogSyncResume) { const resume = state.catalogSyncResume; state.catalogSyncResume = null; resume(); }
+    refreshHomeCollectionCard();
+  }
+
   async function syncAllCatalogProducts() {
     if (state.catalogSyncRunning) return;
     if (!state.settings.collectionEnabled) { showToast('请先在设置中开启自动采集'); return; }
     state.catalogSyncRunning = true;
+    state.catalogSyncPaused = false;
+    state.catalogCollection = { phase: 'reading', count: 0, total: 0, page: 0, startedAt: Date.now() };
     const update = (text) => document.querySelectorAll('#' + PANEL_ID + ' [data-action="sku-sync-all"]').forEach(button => {
       button.disabled = state.catalogSyncRunning; button.textContent = text;
     });
     update('同步中…');
+    refreshHomeCollectionCard();
+    showToast('开始分批采集全部产品，可在首页查看进度或暂停');
+    const currentUser = String(findCurrentPlmUserName() || '').replace(/\s+/g, '').toLowerCase();
     try {
-      const rows = await fetchAssignedDesignTaskRows({ catalog: true, onProgress: (count, total) => update(count + '/' + (total || '?')) });
+      if (state.assignedDesignTaskSyncPromise) {
+        try { await state.assignedDesignTaskSyncPromise; } catch (_) { /* The manual scan reports its own errors. */ }
+        await wait(2000);
+      }
+      const rows = await fetchAssignedDesignTaskRows({ catalog: true,
+        beforePage: async (page) => {
+          if (page > 1) {
+            state.catalogCollection.phase = state.catalogSyncPaused ? 'paused' : 'waiting';
+            refreshHomeCollectionCard();
+            await wait(2000 + Math.floor(Math.random() * 1001));
+          }
+          if (state.catalogSyncPaused) await new Promise(resolve => { state.catalogSyncResume = resolve; });
+          if (!state.settings.collectionEnabled) throw new Error('采集已关闭，已停止翻页');
+          if (String(findCurrentPlmUserName() || '').replace(/\s+/g, '').toLowerCase() !== currentUser) throw new Error('登录用户发生变化，已停止采集');
+          state.catalogCollection.phase = 'reading'; refreshHomeCollectionCard();
+        },
+        onProgress: (count, total, page) => {
+          Object.assign(state.catalogCollection, { count, total, page });
+          update(count + '/' + (total || '?')); refreshHomeCollectionCard();
+        },
+      });
       if (!state.settings.collectionEnabled) throw new Error('采集已关闭，未写入本地');
+      state.catalogCollection.phase = 'saving'; refreshHomeCollectionCard();
       const result = syncProjectListRowsToCache(rows, { source: 'all-products-api', skipLedger: true, render: false, cacheLog: '全部产品列表已同步到本地' });
       state.catalogSyncRunning = false;
+      Object.assign(state.catalogCollection, { phase: 'done', added: result.addedCount, unique: rows.length, finishedAt: Date.now() });
       renderShell();
       showToast('已同步 ' + rows.length + ' 个产品，新增 ' + result.addedCount + ' 个 SKU');
     } catch (error) {
+      Object.assign(state.catalogCollection, { phase: 'error', error: formatErrorMessage(error) });
       addLog('warn', '全部产品同步失败，保留已有缓存', formatErrorMessage(error));
       showToast('全部产品同步失败：' + formatErrorMessage(error));
     } finally {
-      state.catalogSyncRunning = false; update('同步全部');
+      state.catalogSyncRunning = false; state.catalogSyncPaused = false; state.catalogSyncResume = null;
+      update('同步全部'); refreshHomeCollectionCard();
     }
   }
 
   function syncAssignedDesignTasksFromApi(options) {
+    if (state.catalogSyncRunning) return Promise.resolve({ skipped: true, catalogRunning: true });
     if (!state.settings.collectionEnabled) return Promise.resolve({ fetchedCount: 0, changedCount: 0, addedCount: 0, ledgerChangedCount: 0, ledgerAddedCount: 0, disabled: true });
     if (state.assignedDesignTaskSyncPromise) return state.assignedDesignTaskSyncPromise;
     const now = Date.now();
@@ -20449,15 +20489,15 @@
     return merged;
   }
 
-  async function fetchPlmJson(url) {
-    try { return await fetchPlmJsonRequest(url); }
+  async function fetchPlmJson(url, options) {
+    try { return await fetchPlmJsonRequest(url, options); }
     catch (error) {
       reportDiagnosticRequest(error, url, 'plm-api', 'GET');
       throw error;
     }
   }
 
-  async function fetchPlmJsonRequest(url) {
+  async function fetchPlmJsonRequest(url, options) {
     const baseRequestHeaders = {
       Accept: 'application/json, text/plain, */*',
       'x-app-code': 'PLM',
@@ -20496,12 +20536,13 @@
     // false “PLM 读取失败”.
     for (let attempt = 0; attempt < 3; attempt += 1) {
       if (attempt > 0) await wait(attempt === 1 ? 100 : 220);
-      const headers = attempt === 0
+      const headers = attempt === 0 && !(options && options.singleAttempt)
         ? baseRequestHeaders
         : { ...baseRequestHeaders, ...getPlmAuthHeaders() };
       try {
         return await requestFromPage(headers);
       } catch (error) {
+        if (options && options.singleAttempt) throw error;
         pageErrors.push(error);
         if (!isRetryable(error)) break;
       }
@@ -21907,6 +21948,12 @@
   }
 
   function ensurePanel() {
+    if (!document.getElementById(PANEL_ID + '-home-collection-style')) {
+      const style = document.createElement('style');
+      style.id = PANEL_ID + '-home-collection-style';
+      style.textContent = HOME_COLLECTION_CSS;
+      document.documentElement.appendChild(style);
+    }
     if (!document.getElementById(PANEL_ID + '-detail-history-style')) {
       const style = document.createElement('style');
       style.id = PANEL_ID + '-detail-history-style';
@@ -29635,6 +29682,45 @@
       || DEFAULT_HOME_GREETINGS[0];
   }
 
+  function homeCollectionCardHtml() {
+    const task = state.catalogCollection || {};
+    const phase = task.phase || 'idle';
+    const labels = { idle: '未开始', reading: '正在读取', waiting: '等待下一批', paused: '已暂停', saving: '正在保存', done: '已完成', error: '已停止' };
+    const count = Number(task.count) || 0, total = Number(task.total) || 0;
+    const percent = total ? Math.min(100, Math.round(count / total * 100)) : 0;
+    const running = Boolean(state.catalogSyncRunning);
+    const note = phase === 'error' ? '本轮未写入，已有缓存保留。' + (task.error || '')
+      : phase === 'done' ? '已保存 ' + task.unique + ' 个 SKU，新增 ' + task.added + ' 个。'
+      : phase === 'paused' ? '当前请求返回后停止翻页；继续时从下一页读取。'
+      : '每批 20 条，批次间隔 2–3 秒；异常即停止，不自动重试。';
+    return '<section class="pfh-home-panel pfh-home-collection" aria-label="采集详情"><header><h3>采集详情</h3><span data-collection-status role="status">' + escapeHtml(labels[phase] || labels.idle) + '</span></header>' +
+      '<div class="pfh-home-collection-summary"><strong>全部产品</strong><span>' + count + ' / ' + (total || '—') + ' 条 · 已读 ' + (Number(task.page) || 0) + ' 页</span></div>' +
+      '<progress max="100" value="' + percent + '" aria-label="全部产品采集进度">' + percent + '%</progress>' +
+      '<p>' + escapeHtml(note) + '</p><footer><small>只读取列表基础信息，不逐个打开产品详情。</small>' +
+      (running ? '<button type="button" data-action="catalog-collection-toggle" aria-pressed="' + String(Boolean(state.catalogSyncPaused)) + '"' + (phase === 'saving' ? ' disabled' : '') + '>' + (state.catalogSyncPaused ? '继续采集' : '暂停采集') + '</button>'
+        : '<button type="button" data-action="sku-sync-all">' + (phase === 'error' ? '重新采集' : phase === 'done' ? '再次采集' : '开始采集') + '</button>') + '</footer></section>';
+  }
+
+  function refreshHomeCollectionCard() {
+    const card = document.querySelector('#' + PANEL_ID + ' .pfh-home-collection');
+    if (!card) return;
+    const template = document.createElement('template'); template.innerHTML = homeCollectionCardHtml();
+    const next = template.content.firstElementChild;
+    // Keep the action node stable while progress updates arrive.
+    ['[data-collection-status]', '.pfh-home-collection-summary', 'p', 'footer small'].forEach(selector => {
+      const current = card.querySelector(selector), updated = next.querySelector(selector);
+      if (current && updated) current.innerHTML = updated.innerHTML;
+    });
+    card.querySelector('progress').value = next.querySelector('progress').value;
+    const button = card.querySelector('footer button'), updated = next.querySelector('footer button');
+    if (button && updated) {
+      button.textContent = updated.textContent; button.disabled = updated.disabled;
+      button.dataset.action = updated.dataset.action;
+      if (updated.hasAttribute('aria-pressed')) button.setAttribute('aria-pressed', updated.getAttribute('aria-pressed'));
+      else button.removeAttribute('aria-pressed');
+    }
+  }
+
   function homeViewHtml(statusText) {
     if (state.workMode === 'product-development' && state.productDevelopmentView !== 'home') return productDevelopmentViewHtml(statusText);
     const period = Number(state.homeChartPeriod) === 30 ? 30 : 7;
@@ -29682,6 +29768,7 @@
         '<article class="pfh-home-metric"><small>今日新分配</small><div><strong>' + stats.today + '</strong><span>个任务</span></div><p class="pfh-home-compare' + compareClass + '"><b>' + escapeHtml(compareBadge) + '</b><span>' + escapeHtml(compareText) + '</span></p><footer><span><small>昨日</small><b>' + stats.yesterday + '</b></span><span><small>今日已定稿</small><b>' + stats.finalizedToday + '</b></span><span><small>完成率</small><b>' + (stats.today ? stats.completionRate + '%' : '--') + '</b></span></footer></article>' +
         '<div class="pfh-home-carousel"><div class="pfh-home-carousel-viewport"><div class="pfh-home-carousel-track">' + carouselSlides + '</div></div><nav class="pfh-home-carousel-nav" aria-label="主页模块切换"><span class="pfh-home-carousel-indicator" aria-hidden="true"></span>' + carouselModules.map((module, index) => '<button type="button" aria-label="' + escapeHtml(module.label) + '" aria-pressed="' + String(index === state.homeCarouselIndex) + '"></button>').join('') + '</nav></div>' +
       '</div>' +
+      homeCollectionCardHtml() +
       '<div class="pfh-home-lower">' +
         '<section class="pfh-home-panel pfh-home-feature-panel' + (state.homeFeatureEditMode ? ' is-editing' : '') + (isProductDevelopment ? ' is-product-development' : '') + '"><div class="pfh-home-panel-title"><h3 data-work-mode-title>' + (isProductDevelopment ? '开发功能' : '常用功能') + '</h3>' + featureEditActions + '</div>' +
           '<div class="pfh-home-feature-viewport"><div class="' + featureTrackClass + '">' + dailyFeaturePage + productDevelopmentHomeFeaturePageHtml() + '</div></div>' +
@@ -36743,6 +36830,9 @@ self.onmessage = async function(event) {
       clearSearch();
       return;
     }
+    if (action === 'catalog-collection-toggle') {
+      toggleCatalogCollectionPause(); return;
+    }
     if (action === 'sku-sync-all') { syncAllCatalogProducts(); return; }
     if (action === 'sku-filter-toggle') {
       state.skuFilterOpen = !state.skuFilterOpen;
@@ -41541,7 +41631,7 @@ self.onmessage = async function(event) {
       if (state.assignedDesignTaskSyncPromise) return;
       syncAssignedDesignTasksFromApi({ deferRender: true }).then((syncResult) => {
         if (syncResult && syncResult.skipped) {
-          showToast('五分钟内已查询过，暂不重复请求');
+          showToast(syncResult.catalogRunning ? '全部产品正在分批采集，可在首页查看进度' : '五分钟内已查询过，暂不重复请求');
           return;
         }
         if (state.view === 'detail' && !state.selectedSku && state.index[0] && state.index[0].sku) {

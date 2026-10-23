@@ -6,11 +6,14 @@ const source = fs.readFileSync(path.join(__dirname, '../outputs/plm-material-sum
 const start = source.indexOf('  function scheduleAssignedDesignTaskAutoSync(');
 const code = source.slice(start, source.indexOf('  function collectProjectAllListRows(', start));
 const row = (id, owner = '张三', date = '2026/10/05') => ({ id, product_code: 'SKU' + id, design_work_user_name: owner, design_assign_at: date });
-function setup(fetcher) {
+function setup(fetcher, options = {}) {
   let user = '张三'; let reads = 0; let commits = 0; let lastOptions;
   const timers = [];
+  const delays = [];
   const context = {
     PANEL_ID: 'plm-floating-helper',
+    wait: async ms => { delays.push(ms); if (options.onWait) options.onWait(context); },
+    refreshHomeCollectionCard() {},
     state: { settings: { collectionEnabled: true }, workMode: 'daily' },
     location: { pathname: '/projectManagementChemicalNew' },
     window: { setTimeout(callback, delay) { timers.push({ callback, delay }); return timers.length; } },
@@ -30,7 +33,7 @@ function setup(fetcher) {
     syncProjectListRowsToCache(rows, options) { commits++; lastOptions = options; return { fetchedCount: rows.length, addedCount: rows.length }; },
   };
   vm.createContext(context); vm.runInContext(code, context);
-  return { context, timers, user(value) { user = value; }, reads: () => reads, commits: () => commits, options: () => lastOptions };
+  return { context, timers, delays, user(value) { user = value; }, reads: () => reads, commits: () => commits, options: () => lastOptions };
 }
 (async () => {
   const all = Array.from({ length: 2100 }, (_, i) => row(i, i % 2 ? '李四' : '张三'));
@@ -49,10 +52,27 @@ function setup(fetcher) {
   assert.equal(catalog.commits(), 1);
   assert.equal(catalog.options().skipLedger, true, 'all-products sync never populates personal ledger');
   assert.equal(catalog.context.state.catalogSyncRunning, false);
+  assert.equal(catalog.delays.length, 104, 'waits between all 105 catalog pages');
+  assert(catalog.delays.every(ms => ms >= 2000 && ms <= 3000), 'catalog pacing is 2 to 3 seconds');
+  assert.equal(catalog.context.state.catalogCollection.phase, 'done');
+  assert.equal(catalog.context.state.catalogCollection.count, 2100);
+  let pausedOnce = false;
+  const pause = setup(page => ({ rows: all.slice((page - 1) * 20, page * 20), total: 40 }), {
+    onWait(context) { if (!pausedOnce) { pausedOnce = true; context.toggleCatalogCollectionPause(); } },
+  });
+  const pausedRun = pause.context.syncAllCatalogProducts();
+  while (!pause.context.state.catalogSyncResume) await new Promise(resolve => setImmediate(resolve));
+  assert.equal(pause.reads(), 1, 'paused scan does not send the next page');
+  assert.equal(pause.context.state.catalogCollection.phase, 'paused');
+  assert.equal((await pause.context.syncAssignedDesignTasksFromApi()).catalogRunning, true, 'automatic scan does not overlap manual collection');
+  pause.context.toggleCatalogCollectionPause(); await pausedRun;
+  assert.equal(pause.reads(), 2, 'resume continues from the next page without restarting');
   const failedCatalog = setup(() => { throw new Error('network'); });
   await failedCatalog.context.syncAllCatalogProducts();
   assert.equal(failedCatalog.commits(), 0, 'failed catalog fetch retains existing data');
   assert.equal(failedCatalog.context.state.catalogSyncRunning, false, 'retry button is restored after failure');
+  assert.equal(failedCatalog.context.state.catalogCollection.phase, 'error');
+  assert.equal(failedCatalog.reads(), 1, 'failed collection does not automatically retry');
 
   const partial = setup(page => ({ rows: page === 1 ? [row(1)] : [row(2), row(3)], total: 3 }));
   assert.equal((await partial.context.fetchAssignedDesignTaskRows()).length, 3, 'known total overrides short pages');

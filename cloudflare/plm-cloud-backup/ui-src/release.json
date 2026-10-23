@@ -191,6 +191,7 @@
     }
   ],
   "experimentalSources": [
+    { "path": "modules/home-collection.css", "mode": "module" },
     { "path": "modules/workspace-preview.css", "mode": "module" },
     { "path": "modules/ledger-workspace.css", "mode": "module" },
     { "path": "modules/lucian-preview.css", "mode": "module" }
