@@ -97,6 +97,7 @@ const classes = new Set();
 const frame = { querySelector: () => null, classList: { add: (name) => classes.add(name) } };
 const attrs = { 'data-sku-image': 'https://example.com/broken.png' };
 const image = { getAttribute: (name) => attrs[name], removeAttribute: (name) => delete attrs[name], closest: () => frame };
+context.setLocalImageSource = (image, url) => { image.src = url; };
 context.setupSkuProgressiveImages({ querySelectorAll: () => [image] });
 assert.equal(image.src, 'https://example.com/broken.png');
 image.onerror();

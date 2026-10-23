@@ -13,6 +13,31 @@ const outputPath = path.join(root, 'outputs', workspacePreview
   ? 'plm-material-summary.min.preview.user.js'
   : 'plm-material-summary.min.user.js');
 let source = fs.readFileSync(sourcePath, 'utf8');
+const localImageModule = fs.readFileSync(path.join(root, 'src', 'local-image-cache.module.js'), 'utf8').trimEnd();
+const localImagePattern = /  \/\/ <local-image-cache-module>[\s\S]*?  \/\/ <\/local-image-cache-module>/;
+if (!localImagePattern.test(source)) throw new Error('Local image cache module marker is missing');
+source = source.replace(localImagePattern, () => '  // <local-image-cache-module>\n' + localImageModule + '\n  // </local-image-cache-module>');
+// Retire frame declarations from the old compressed workflow bridge. Canonical
+// ledger-workspace.css now owns these surfaces; bridge !important rules used to
+// silently defeat the flat layout, including fullscreen and narrow windows.
+const zlib = require('zlib');
+const postcss = require(path.join(root, 'cloudflare', 'plm-cloud-backup', 'node_modules', 'postcss'));
+const patchPattern = /(function getWorkflowPatchCssText\(\) \{[\s\S]*?const encoded =\s*)([\s\S]*?)(;\s*const codec =)/;
+source = source.replace(patchPattern, (match, before, encoded, after) => {
+  const base64 = [...encoded.matchAll(/'([^']+)'/g)].map(item => item[1]).join('');
+  const text = zlib.gunzipSync(Buffer.from(base64, 'base64')).toString('utf8');
+  const ast = postcss.parse(text.split('#${PANEL_ID}').join('#plm-floating-helper'));
+  const frame = /\.pfh-ledger-(?:page|hero|workbench-shell|tools-panel|tools-body|controlbar)$/;
+  const properties = /^(?:display|grid-template-rows|flex|gap|margin|padding|border(?:-.+)?|background(?:-.+)?|box-shadow|overflow)$/;
+  let changed = false;
+  ast.walkRules(rule => {
+    if (!rule.selectors.every(selector => frame.test(selector.trim()))) return;
+    rule.walkDecls(decl => { if (properties.test(decl.prop)) { decl.remove(); changed = true; } });
+    if (!rule.nodes.length) rule.remove();
+  });
+  if (!changed) return match;
+  return before + "'" + zlib.gzipSync(ast.toString()).toString('base64') + "'" + after;
+});
 const lucianModule = fs.readFileSync(path.join(root, 'src', 'lucian-preview.module.js'), 'utf8').trimEnd();
 const lucianModulePattern = /  \/\/ <lucian-preview-module>[\s\S]*?  \/\/ <\/lucian-preview-module>/;
 if (!lucianModulePattern.test(source)) throw new Error('Lucian module build marker is missing');

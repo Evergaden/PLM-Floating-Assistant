@@ -7,9 +7,10 @@ const start = source.indexOf('  function scheduleAssignedDesignTaskAutoSync(');
 const code = source.slice(start, source.indexOf('  function collectProjectAllListRows(', start));
 const row = (id, owner = '张三', date = '2026/10/05') => ({ id, product_code: 'SKU' + id, design_work_user_name: owner, design_assign_at: date });
 function setup(fetcher) {
-  let user = '张三'; let reads = 0; let commits = 0;
+  let user = '张三'; let reads = 0; let commits = 0; let lastOptions;
   const timers = [];
   const context = {
+    PANEL_ID: 'plm-floating-helper',
     state: { settings: { collectionEnabled: true }, workMode: 'daily' },
     location: { pathname: '/projectManagementChemicalNew' },
     window: { setTimeout(callback, delay) { timers.push({ callback, delay }); return timers.length; } },
@@ -25,10 +26,11 @@ function setup(fetcher) {
     normalizeAssignedDesignTaskRow: item => ({ sku: item.product_code, designAssignedAt: item.design_assign_at }),
     parseSkuListTime: date => Date.parse(date) || 0,
     addLog() {},
-    syncProjectListRowsToCache(rows) { commits++; return { fetchedCount: rows.length }; },
+    document: { querySelectorAll: () => [] }, renderShell() {}, showToast() {},
+    syncProjectListRowsToCache(rows, options) { commits++; lastOptions = options; return { fetchedCount: rows.length, addedCount: rows.length }; },
   };
   vm.createContext(context); vm.runInContext(code, context);
-  return { context, timers, user(value) { user = value; }, reads: () => reads, commits: () => commits };
+  return { context, timers, user(value) { user = value; }, reads: () => reads, commits: () => commits, options: () => lastOptions };
 }
 (async () => {
   const all = Array.from({ length: 2100 }, (_, i) => row(i, i % 2 ? '李四' : '张三'));
@@ -40,6 +42,17 @@ function setup(fetcher) {
   assert.equal((await large.context.syncAssignedDesignTasksFromApi()).skipped, true);
   large.user('李四');
   assert.equal((await large.context.syncAssignedDesignTasksFromApi()).fetchedCount, 1050, 'cooldown does not block a changed account');
+
+  const catalog = setup(page => ({ rows: all.slice((page - 1) * 20, page * 20), total: all.length }));
+  assert.equal((await catalog.context.fetchAssignedDesignTaskRows({ catalog: true })).length, 2100, 'all-products includes other designers');
+  await catalog.context.syncAllCatalogProducts();
+  assert.equal(catalog.commits(), 1);
+  assert.equal(catalog.options().skipLedger, true, 'all-products sync never populates personal ledger');
+  assert.equal(catalog.context.state.catalogSyncRunning, false);
+  const failedCatalog = setup(() => { throw new Error('network'); });
+  await failedCatalog.context.syncAllCatalogProducts();
+  assert.equal(failedCatalog.commits(), 0, 'failed catalog fetch retains existing data');
+  assert.equal(failedCatalog.context.state.catalogSyncRunning, false, 'retry button is restored after failure');
 
   const partial = setup(page => ({ rows: page === 1 ? [row(1)] : [row(2), row(3)], total: 3 }));
   assert.equal((await partial.context.fetchAssignedDesignTaskRows()).length, 3, 'known total overrides short pages');
