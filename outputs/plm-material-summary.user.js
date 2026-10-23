@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.93
+// @version      2.9.94
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,8 +38,8 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.93';
-  const HOME_COLLECTION_CSS = "/* Always-visible collection status; no nested cards or full-home redraws. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  margin: 0;\n  font-size: 14px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  color: var(--pfh-theme-primary);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection progress {\n  display: block;\n  width: 100%;\n  height: 6px;\n  border: 0;\n  accent-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n";
+  const SCRIPT_VERSION = '2.9.94';
+  const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  margin: 0;\n  font-size: 14px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  color: var(--pfh-theme-primary);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
   function openLocalImageDb() {
@@ -29288,6 +29288,8 @@
       slides.forEach((slide, slideIndex) => {
         slide.setAttribute('aria-hidden', slideIndex === state.homeCarouselIndex ? 'false' : 'true');
         slide.inert = slideIndex !== state.homeCarouselIndex;
+        const collection = slide.querySelector('.pfh-home-collection');
+        if (collection) animateHomeCollectionProgress(collection);
       });
       updatePixelRoom();
       setupPixelRoomAnimation();
@@ -29693,12 +29695,13 @@
       : phase === 'done' ? '已保存 ' + task.unique + ' 个 SKU，新增 ' + task.added + ' 个。'
       : phase === 'paused' ? '当前请求返回后停止翻页；继续时从下一页读取。'
       : '每批 20 条，批次间隔 2–3 秒；异常即停止，不自动重试。';
-    return '<section class="pfh-home-panel pfh-home-collection" aria-label="采集详情"><header><h3>采集详情</h3><span data-collection-status role="status">' + escapeHtml(labels[phase] || labels.idle) + '</span></header>' +
+    const progressClass = 'ux pfh-lucian u083 pfh-home-collection-progress' + (total || !running || state.catalogSyncPaused ? ' is-det' : '') + (phase === 'done' ? ' is-done' : '') + (state.catalogSyncPaused || !running ? ' is-paused' : '');
+    return '<article class="pfh-home-panel pfh-home-collection" aria-label="采集详情"><header><h3>采集详情</h3><span data-collection-status role="status">' + escapeHtml(labels[phase] || labels.idle) + '</span></header>' +
       '<div class="pfh-home-collection-summary"><strong>全部产品</strong><span>' + count + ' / ' + (total || '—') + ' 条 · 已读 ' + (Number(task.page) || 0) + ' 页</span></div>' +
-      '<progress max="100" value="' + percent + '" aria-label="全部产品采集进度">' + percent + '%</progress>' +
+      '<div class="' + progressClass + '"><div class="u083-trk" role="progressbar" aria-label="全部产品采集进度" aria-valuemin="0" aria-valuemax="100"' + (total || !running ? ' aria-valuenow="' + percent + '"' : '') + '><span class="u083-seg a" aria-hidden="true"></span><span class="u083-seg b" aria-hidden="true"></span><span class="u083-fill" style="--p:' + (percent / 100) + '" aria-hidden="true"></span></div><div class="u083-meta"><span class="u083-l">' + escapeHtml(labels[phase] || labels.idle) + '</span><span class="u083-r">' + (total || !running ? percent + '%' : '准备中') + '</span></div></div>' +
       '<p>' + escapeHtml(note) + '</p><footer><small>只读取列表基础信息，不逐个打开产品详情。</small>' +
       (running ? '<button type="button" data-action="catalog-collection-toggle" aria-pressed="' + String(Boolean(state.catalogSyncPaused)) + '"' + (phase === 'saving' ? ' disabled' : '') + '>' + (state.catalogSyncPaused ? '继续采集' : '暂停采集') + '</button>'
-        : '<button type="button" data-action="sku-sync-all">' + (phase === 'error' ? '重新采集' : phase === 'done' ? '再次采集' : '开始采集') + '</button>') + '</footer></section>';
+        : '<button type="button" data-action="sku-sync-all">' + (phase === 'error' ? '重新采集' : phase === 'done' ? '再次采集' : '开始采集') + '</button>') + '</footer></article>';
   }
 
   function refreshHomeCollectionCard() {
@@ -29711,7 +29714,15 @@
       const current = card.querySelector(selector), updated = next.querySelector(selector);
       if (current && updated) current.innerHTML = updated.innerHTML;
     });
-    card.querySelector('progress').value = next.querySelector('progress').value;
+    const progress = card.querySelector('.pfh-home-collection-progress'), updatedProgress = next.querySelector('.pfh-home-collection-progress');
+    const fill = progress.querySelector('.u083-fill');
+    const previous = fill.style.getPropertyValue('--p');
+    progress.className = updatedProgress.className;
+    fill.style.setProperty('--p', updatedProgress.querySelector('.u083-fill').style.getPropertyValue('--p'));
+    progress.querySelector('.u083-meta').innerHTML = updatedProgress.querySelector('.u083-meta').innerHTML;
+    const track = progress.querySelector('.u083-trk'), updatedTrack = updatedProgress.querySelector('.u083-trk');
+    if (updatedTrack.hasAttribute('aria-valuenow')) track.setAttribute('aria-valuenow', updatedTrack.getAttribute('aria-valuenow')); else track.removeAttribute('aria-valuenow');
+    animateHomeCollectionProgress(card, previous);
     const button = card.querySelector('footer button'), updated = next.querySelector('footer button');
     if (button && updated) {
       button.textContent = updated.textContent; button.disabled = updated.disabled;
@@ -29719,6 +29730,27 @@
       if (updated.hasAttribute('aria-pressed')) button.setAttribute('aria-pressed', updated.getAttribute('aria-pressed'));
       else button.removeAttribute('aria-pressed');
     }
+  }
+
+  // Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083
+  function animateHomeCollectionProgress(card, previous) {
+    const progress = card && card.querySelector('.pfh-home-collection-progress');
+    if (!progress) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const hidden = card.closest('.pfh-home-carousel-slide')?.getAttribute('aria-hidden') === 'true';
+    const unknown = !progress.classList.contains('is-det') && !progress.classList.contains('is-paused');
+    const fill = progress.querySelector('.u083-fill');
+    if (fill.pfhProgressAnimation && (reduced || hidden || (previous != null && previous !== fill.style.getPropertyValue('--p')))) { fill.pfhProgressAnimation.cancel(); fill.pfhProgressAnimation = null; }
+    if (!reduced && !hidden && previous != null && previous !== fill.style.getPropertyValue('--p') && fill.animate) {
+      fill.pfhProgressAnimation = fill.animate([{ transform: 'scaleX(' + (Number(previous) || 0) + ')' }, { transform: 'scaleX(' + (Number(fill.style.getPropertyValue('--p')) || 0) + ')' }], { duration: 500, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    }
+    progress.querySelectorAll('.u083-seg').forEach((segment, index) => {
+      if (reduced || hidden || !unknown) {
+        if (segment.pfhProgressAnimation) { segment.pfhProgressAnimation.cancel(); segment.pfhProgressAnimation = null; }
+      } else if (!segment.pfhProgressAnimation && segment.animate) {
+        segment.pfhProgressAnimation = segment.animate(index ? [{ left: '-200%', right: '100%' }, { left: '107%', right: '-8%', offset: .6 }, { left: '107%', right: '-8%' }] : [{ left: '-35%', right: '100%' }, { left: '100%', right: '-90%', offset: .6 }, { left: '100%', right: '-90%' }], { duration: 1600, delay: index ? 550 : 0, iterations: Infinity, easing: index ? 'cubic-bezier(.25,.6,.4,1)' : 'cubic-bezier(.65,.05,.35,1)' });
+      }
+    });
   }
 
   function homeViewHtml(statusText) {
@@ -29757,6 +29789,7 @@
     const carouselModules = [
       { id: 'trend', label: state.settings.pixelRoomEnabled === true ? '窗边日常' : '新任务趋势', html: state.settings.pixelRoomEnabled === true ? pixelRoomCardHtml() : homeTrendCardHtml(stats, chart, period, chartSummary) },
       { id: 'todo', label: '待办项', html: homeTodoCardHtml() },
+      { id: 'collection', label: '采集详情', html: homeCollectionCardHtml() },
     ];
     const carouselSlides = carouselModules.map((module) => '<div class="pfh-home-carousel-slide" data-module-id="' + module.id + '" data-module-label="' + escapeHtml(module.label) + '">' + module.html + '</div>').join('');
     const status = statusText || greeting.subtitle || '常用功能与今日进度集中在这里';
@@ -29768,7 +29801,6 @@
         '<article class="pfh-home-metric"><small>今日新分配</small><div><strong>' + stats.today + '</strong><span>个任务</span></div><p class="pfh-home-compare' + compareClass + '"><b>' + escapeHtml(compareBadge) + '</b><span>' + escapeHtml(compareText) + '</span></p><footer><span><small>昨日</small><b>' + stats.yesterday + '</b></span><span><small>今日已定稿</small><b>' + stats.finalizedToday + '</b></span><span><small>完成率</small><b>' + (stats.today ? stats.completionRate + '%' : '--') + '</b></span></footer></article>' +
         '<div class="pfh-home-carousel"><div class="pfh-home-carousel-viewport"><div class="pfh-home-carousel-track">' + carouselSlides + '</div></div><nav class="pfh-home-carousel-nav" aria-label="主页模块切换"><span class="pfh-home-carousel-indicator" aria-hidden="true"></span>' + carouselModules.map((module, index) => '<button type="button" aria-label="' + escapeHtml(module.label) + '" aria-pressed="' + String(index === state.homeCarouselIndex) + '"></button>').join('') + '</nav></div>' +
       '</div>' +
-      homeCollectionCardHtml() +
       '<div class="pfh-home-lower">' +
         '<section class="pfh-home-panel pfh-home-feature-panel' + (state.homeFeatureEditMode ? ' is-editing' : '') + (isProductDevelopment ? ' is-product-development' : '') + '"><div class="pfh-home-panel-title"><h3 data-work-mode-title>' + (isProductDevelopment ? '开发功能' : '常用功能') + '</h3>' + featureEditActions + '</div>' +
           '<div class="pfh-home-feature-viewport"><div class="' + featureTrackClass + '">' + dailyFeaturePage + productDevelopmentHomeFeaturePageHtml() + '</div></div>' +
