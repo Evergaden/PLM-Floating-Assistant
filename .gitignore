@@ -21,3 +21,15 @@ outputs/packaging-fronts/
 *.tmp
 Thumbs.db
 .DS_Store
+
+# Local wrangler / one-off output dumps
+.wrangler-config-local/
+output/
+
+# Generated export dumps (keep curated outputs/assets tracked)
+outputs/*.zip
+outputs/*_image_review/
+outputs/cover-serum-flat-600ppi/
+outputs/fem-tinted-serum-label-600ppi/
+outputs/Cover_Serum_*/
+outputs/FEM_*/
