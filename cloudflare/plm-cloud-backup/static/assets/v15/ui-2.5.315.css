@@ -11333,11 +11333,13 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
 }
 
 #plm-floating-helper .pfh-product-development-template-picker,
-#plm-floating-helper .pfh-product-development-copywriting-toolbar > button {
+#plm-floating-helper .pfh-product-development-copywriting-toolbar > button,
+#plm-floating-helper .pfh-product-development-copywriting-more-toggle {
   display: inline-flex;
   min-height: 34px;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   box-sizing: border-box;
   white-space: nowrap;
   padding: 0 10px;
@@ -11351,21 +11353,105 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
 }
 
 #plm-floating-helper .pfh-product-development-copywriting-toolbar > button:hover,
-#plm-floating-helper .pfh-product-development-template-picker:hover {
+#plm-floating-helper .pfh-product-development-template-picker:hover,
+#plm-floating-helper .pfh-product-development-copywriting-more-item:hover {
   border-color: var(--pfh-theme-primary);
   background: var(--pfh-theme-primary-soft);
   color: var(--pfh-theme-primary);
 }
 
+#plm-floating-helper .pfh-product-development-copywriting-more {
+  position: relative;
+  display: inline-flex;
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-more-toggle > .pfh-icon svg {
+  width: 12px;
+  height: 12px;
+  transition: transform .25s cubic-bezier(.34,1.56,.64,1);
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-more.is-open .pfh-product-development-copywriting-more-toggle > .pfh-icon svg {
+  transform: rotate(180deg);
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  display: none;
+  min-width: 150px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 10px;
+  background: var(--pfh-theme-surface);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .16);
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-more.is-open .pfh-product-development-copywriting-more-menu {
+  display: flex;
+  transform-origin: top left;
+  animation: pfh-product-development-menu-pop .22s cubic-bezier(.34,1.56,.64,1);
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-more-item {
+  display: inline-flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  box-sizing: border-box;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pfh-theme-muted);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+#plm-floating-helper .pfh-product-development-template-picker input {
+  display: none;
+}
+
+@keyframes pfh-product-development-menu-pop {
+  from { opacity: 0; transform: scale(.92) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 #plm-floating-helper .pfh-product-development-copywriting-toolbar-output {
+  gap: 5px;
+  min-height: 36px;
+  padding: 0 14px;
   border-color: var(--pfh-theme-primary);
   background: var(--pfh-theme-primary);
   color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--pfh-theme-primary) 32%, transparent);
+  transition: transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease, background .2s ease;
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-toolbar-output > .pfh-icon svg {
+  width: 13px;
+  height: 13px;
 }
 
 #plm-floating-helper .pfh-product-development-copywriting-toolbar-output:hover {
   background: var(--pfh-theme-primary-hover);
   color: #fff;
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--pfh-theme-primary) 42%, transparent);
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-toolbar-output:active {
+  transform: scale(.95);
 }
 
 #plm-floating-helper .pfh-product-development-copywriting-ingredient-count {
@@ -11374,10 +11460,6 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
   color: var(--pfh-theme-muted);
   font-size: 9px;
   white-space: nowrap;
-}
-
-#plm-floating-helper .pfh-product-development-template-picker input {
-  display: none;
 }
 
 #plm-floating-helper .pfh-product-development-download-row {
@@ -11735,7 +11817,6 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
     flex-basis: 100%;
   }
 
-  #plm-floating-helper .pfh-product-development-copywriting-toolbar .pfh-product-development-template-picker,
   #plm-floating-helper .pfh-product-development-copywriting-toolbar > button {
     flex: 1 1 0;
   }

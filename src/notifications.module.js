@@ -1,10 +1,22 @@
-
   const NOTIFICATION_CACHE_KEY = 'plm-floating-helper:notifications:v1';
   const NOTIFICATION_REFRESH_MS = 5 * 60 * 1000;
   const HOME_GREETING_CACHE_KEY = 'plm-floating-helper:home-greetings:v1';
   const HOME_TODO_KEY = 'plm-floating-helper:home-todos:v1';
   let homeCarouselTimer = 0;
   let homeClockTimer = 0;
+  let pixelRoomOvertime = false;
+  let pixelRoomDay = '';
+  let pixelRoomAnimationFrame = 0;
+  let pixelRoomVisibilityBound = false;
+  let pixelRoomWeather = null;
+  let pixelRoomWeatherLoaded = false;
+  let pixelRoomWeatherPromise = null;
+  let pixelRoomWeatherNextAttempt = 0;
+  let pixelRoomRestUntil = 0;
+  let pixelRoomCatCommand = null;
+  let pixelRoomLastCat = null;
+  let pixelRoomPicture = null;
+  let pixelRoomPictureLoaded = false;
   let homeClockSyncTimer = 0;
   let homeClockOffsetMs = 0;
   let homeClockSyncedAt = 0;

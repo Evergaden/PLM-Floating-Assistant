@@ -1,4 +1,3 @@
-
   const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v3';
   const CLOUD_RECOVERY_SESSION_KEY = 'plm-floating-helper:cloud-recovery:v1';
   const CLOUD_RECOVERY_REFRESH_MAX_AGE_MS = 10 * 60 * 1000;
@@ -401,6 +400,9 @@
     const load = async () => {
       const workbook = new Excel.Workbook();
       await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
+      const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
+      if (sheet) sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'N');
+      workbook.calcProperties.fullCalcOnLoad = true;
       return workbook;
     };
     try {

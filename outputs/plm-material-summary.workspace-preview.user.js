@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.9.94
+// @version      2.9.95
 // @description  [布局验证版] Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,8 +38,8 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.9.94';
-  const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  margin: 0;\n  font-size: 14px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  color: var(--pfh-theme-primary);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n";
+  const SCRIPT_VERSION = '2.9.95';
+  const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
   function openLocalImageDb() {
@@ -6421,7 +6421,7 @@
     Object.freeze({ pattern: /\bGUMM(?:Y|IES)\b/i, en: 'GUMMIES', zh: '粒软糖' }),
   ]);
   const PRODUCT_DEVELOPMENT_FEATURES = Object.freeze([
-    Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder', requiresSku: false }),
+    Object.freeze({ id: 'tasks', title: '我的开发', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder', requiresSku: false }),
     Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取全部图片文字，生成中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
     Object.freeze({ id: 'copywriting', title: 'A-D 文案 DOCX', subtitle: '按当前 SKU 成分和卖点生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
     Object.freeze({ id: 'ingredientFacts', title: '制作成分表', subtitle: '按需加载云端人类或宠物模板摘要，编辑后导出 PDF', action: 'product-development-ingredient-open', icon: 'batchExcel', requiresSku: false }),
@@ -13604,7 +13604,7 @@
   function productDevelopmentHistoryViewHtml() {
     return '<div class="pfh-product-development pfh-product-development-subview">' +
       productDevelopmentSubviewHeaderHtml('LOCAL HISTORY', '本地历史') +
-      '<section class="pfh-product-development-section pfh-product-development-history"><header><div><small>LOCAL HISTORY</small><h3>已生成记录</h3></div><span>最多保留 ' + PRODUCT_DEVELOPMENT_MAX_HISTORY + ' 条</span></header><div>' + productDevelopmentHistoryHtml(PRODUCT_DEVELOPMENT_MAX_HISTORY) + '</div></section>' +
+      '<section class="pfh-product-development-section pfh-product-development-history"><header><div><small>LOCAL HISTORY</small><h3>已生成记录</h3></div></header><div>' + productDevelopmentHistoryHtml(PRODUCT_DEVELOPMENT_MAX_HISTORY) + '</div></section>' +
       '<p class="pfh-product-development-note">图片历史可直接查看和下载已保存的 PNG；文案历史保存完整 A-D 内容，刷新后仍可预览并重新构建 DOCX。所有结果只保存在本地，不向 PLM 回写。</p></div>';
   }
 
@@ -13633,7 +13633,7 @@
       productDevelopmentSkuSummaryHtml(snapshot) +
       productDevelopmentEvidenceHtml(snapshot) +
       '<section class="pfh-product-development-section"><header><div><small>FUNCTION MAP</small><h3>开发功能</h3></div><span>共用浮窗布局，和设计任务分区</span></header><div class="pfh-product-development-grid">' + cards + '</div></section>' +
-      '<section class="pfh-product-development-section pfh-product-development-history"><header><div><small>LOCAL HISTORY</small><h3>本地历史</h3></div><span>最多保留 ' + PRODUCT_DEVELOPMENT_MAX_HISTORY + ' 条</span></header><div>' + productDevelopmentHistoryHtml() + '</div></section>' +
+      '<section class="pfh-product-development-section pfh-product-development-history"><header><div><small>LOCAL HISTORY</small><h3>本地历史</h3></div></header><div>' + productDevelopmentHistoryHtml() + '</div></section>' +
       '<p class="pfh-product-development-note">合规提示：AI 结果只能作为草稿，必须人工核对品牌、禁词、成分和平台规则；侵权图、文案和详情字段不自动写回，BOM 仅在明确点击保存后调用 PLM 接口。</p></div>';
   }
 
@@ -29540,7 +29540,6 @@
       icon: 'history',
       title: '本地历史',
       description: '查看已生成的对照图和文案记录',
-      meta: normalizeProductDevelopmentHistory(state.productDevelopmentHistory).length + ' 条记录',
     }]);
   }
 
@@ -29696,7 +29695,7 @@
       : phase === 'paused' ? '当前请求返回后停止翻页；继续时从下一页读取。'
       : '每批 20 条，批次间隔 2–3 秒；异常即停止，不自动重试。';
     const progressClass = 'ux pfh-lucian u083 pfh-home-collection-progress' + (total || !running || state.catalogSyncPaused ? ' is-det' : '') + (phase === 'done' ? ' is-done' : '') + (state.catalogSyncPaused || !running ? ' is-paused' : '');
-    return '<article class="pfh-home-panel pfh-home-collection" aria-label="采集详情"><header><h3>采集详情</h3><span data-collection-status role="status">' + escapeHtml(labels[phase] || labels.idle) + '</span></header>' +
+    return '<article class="pfh-home-panel pfh-home-collection" aria-label="采集详情"><header><div class="pfh-home-collection-heading"><h3>采集详情</h3><small>同步全部产品列表缓存</small></div><span data-collection-status role="status">' + escapeHtml(labels[phase] || labels.idle) + '</span></header>' +
       '<div class="pfh-home-collection-summary"><strong>全部产品</strong><span>' + count + ' / ' + (total || '—') + ' 条 · 已读 ' + (Number(task.page) || 0) + ' 页</span></div>' +
       '<div class="' + progressClass + '"><div class="u083-trk" role="progressbar" aria-label="全部产品采集进度" aria-valuemin="0" aria-valuemax="100"' + (total || !running ? ' aria-valuenow="' + percent + '"' : '') + '><span class="u083-seg a" aria-hidden="true"></span><span class="u083-seg b" aria-hidden="true"></span><span class="u083-fill" style="--p:' + (percent / 100) + '" aria-hidden="true"></span></div><div class="u083-meta"><span class="u083-l">' + escapeHtml(labels[phase] || labels.idle) + '</span><span class="u083-r">' + (total || !running ? percent + '%' : '准备中') + '</span></div></div>' +
       '<p>' + escapeHtml(note) + '</p><footer><small>只读取列表基础信息，不逐个打开产品详情。</small>' +

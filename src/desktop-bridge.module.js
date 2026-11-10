@@ -1,4 +1,3 @@
-
   const DESKTOP_BRIDGE_URL = 'ws://127.0.0.1:37191';
   const DESKTOP_BRIDGE_TOKEN_KEY = 'plm_desktop_bridge_token';
   let desktopBridgeSocket = null;
@@ -589,6 +588,7 @@
     setCell(sheet, 'B4', excelData.name || extra.chineseName || '');
     setCell(sheet, 'C4', '');
     setCell(sheet, 'E4', compactText(packQty));
+    sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'N');
     setCell(sheet, 'G4', excelData.sku || '');
     if (excelData.singleBottle) setCell(sheet, 'H4', '瓶装');
     else sheet.getCell('H4').value = { formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"盒装",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"袋装",""))' };
@@ -605,11 +605,11 @@
     if (shouldOmitToyProductSize(excelData)) {
       sheet.spliceColumns(9, 1);
       sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"盒装",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"袋装",""))' };
-      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+      sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'M');
       sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","净重",IF(RIGHT(L4,2)="ml","容量","规格"))' };
     } else if (shouldRemoveExcelPackageSizeColumn(excelData)) {
       sheet.spliceColumns(10, 1);
-      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"kg"' };
+      sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'M');
       sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="g","净重",IF(RIGHT(L4,2)="ml","容量","规格"))' };
     }
     if (imageInfo) {

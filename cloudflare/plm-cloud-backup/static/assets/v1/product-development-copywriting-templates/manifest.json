@@ -89,6 +89,22 @@
       "path": "v1/product-development-copywriting-templates/lozenge.docx",
       "bytes": 82132,
       "sha256": "fb935a2614d5104ed3ec77946be02ed467802dbfb555278111b2085e301a8aa2"
+    },
+    {
+      "id": "regular-ndc",
+      "label": "常规涉NDC",
+      "fileName": "（ndc）24国语言健康保健类、贴类涉ndc文案模板.docx",
+      "path": "v1/product-development-copywriting-templates/regular-ndc.docx",
+      "bytes": 105603,
+      "sha256": "3639756c75be3e1d7c347cbe28f41054dadd96084530afafdf8cec328caa0c3e"
+    },
+    {
+      "id": "regular-non-ndc",
+      "label": "常规非NDC",
+      "fileName": "(非ndc)24国语言美妆、个护类产品文案模板.docx",
+      "path": "v1/product-development-copywriting-templates/regular-non-ndc.docx",
+      "bytes": 104184,
+      "sha256": "9eb0fd09d70fa193a9cb96651018186aa0e9188338f3d6d7423fc33fe8136428"
     }
   ]
 }

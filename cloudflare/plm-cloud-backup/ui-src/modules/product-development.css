@@ -136,7 +136,7 @@
   border: 1px solid var(--pfh-theme-border);
   border-radius: 999px;
   background: var(--pfh-theme-surface);
-  box-shadow: 0 8px 20px var(--pfh-theme-shadow-soft);
+  box-shadow: none;
 }
 
 #plm-floating-helper .pfh-work-mode-switch button {
@@ -160,7 +160,6 @@
 #plm-floating-helper .pfh-work-mode-switch button.is-active {
   color: #fff;
   background: linear-gradient(135deg, var(--pfh-theme-primary), var(--pfh-theme-primary-hover));
-  box-shadow: 0 5px 13px var(--pfh-theme-shadow-soft);
 }
 
 #plm-floating-helper .pfh-product-development {
@@ -170,8 +169,8 @@
   max-height: 100%;
   flex-direction: column;
   align-content: initial;
-  gap: 14px;
-  padding: 4px 2px 24px;
+  gap: 12px;
+  padding: 2px 2px 20px;
   color: var(--pfh-theme-text);
   overflow-x: hidden;
   overflow-y: auto;
@@ -209,9 +208,9 @@
 #plm-floating-helper .pfh-product-development-section,
 #plm-floating-helper .pfh-product-development-work-card {
   border: 1px solid var(--pfh-theme-border);
-  border-radius: 18px;
-  background: linear-gradient(140deg, var(--pfh-theme-surface), var(--pfh-theme-surface-alt));
-  box-shadow: 0 12px 28px var(--pfh-theme-shadow-soft);
+  border-radius: 14px;
+  background: var(--pfh-theme-surface);
+  box-shadow: none;
 }
 
 #plm-floating-helper .pfh-product-development-hero {
@@ -327,26 +326,26 @@
 }
 
 #plm-floating-helper .pfh-product-development-section {
-  padding: 17px;
+  padding: 0;
 }
 
 #plm-floating-helper .pfh-product-development-section > header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 13px;
+  margin-bottom: 10px;
 }
 
 #plm-floating-helper .pfh-product-development-section > header h3 {
-  margin: 4px 0 0;
+  margin: 0;
   color: var(--pfh-theme-text);
-  font-size: 16px;
+  font-size: 15px;
 }
 
 #plm-floating-helper .pfh-product-development-section > header > span {
   color: var(--pfh-theme-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 #plm-floating-helper .pfh-product-development-grid {
@@ -363,13 +362,11 @@
   border: 1px solid var(--pfh-theme-border);
   border-radius: 14px;
   background: var(--pfh-theme-surface);
-  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+  transition: border-color .2s ease;
 }
 
 #plm-floating-helper .pfh-product-development-card:not(.is-disabled):hover {
   border-color: var(--pfh-theme-primary);
-  box-shadow: 0 10px 22px var(--pfh-theme-shadow-soft);
-  transform: translateY(-2px);
 }
 
 #plm-floating-helper .pfh-product-development-card.is-disabled {
@@ -394,7 +391,7 @@
 
 #plm-floating-helper .pfh-product-development-card-head i {
   color: var(--pfh-theme-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-style: normal;
 }
 
@@ -468,8 +465,6 @@
 
 #plm-floating-helper .pfh-product-development-history-row:hover {
   background: var(--pfh-theme-primary-soft);
-  box-shadow: 0 8px 18px var(--pfh-theme-shadow-soft);
-  transform: translateY(-1px);
 }
 
 #plm-floating-helper .pfh-product-development-history-row:focus-visible {
@@ -544,19 +539,28 @@
 #plm-floating-helper .pfh-product-development-subview-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  min-height: 34px;
 }
 
-#plm-floating-helper .pfh-product-development-subview-head > button {
-  min-height: 31px;
-  padding: 0 11px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+#plm-floating-helper .pfh-product-development-subview-head strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--pfh-theme-text);
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#plm-floating-helper .pfh-product-development-subview-head > span {
+  flex: none;
   color: var(--pfh-theme-muted);
-  font: inherit;
-  font-size: 10px;
-  cursor: pointer;
+  font-size: 12px;
+}
+
+#plm-floating-helper .pfh-product-development-subview-head > .pfh-upload-back:hover {
+  color: var(--pfh-theme-primary-hover);
 }
 
 #plm-floating-helper .pfh-product-development-review-view {
@@ -590,7 +594,7 @@
 #plm-floating-helper .pfh-product-development-review-head > button:hover {
   background: var(--pfh-theme-primary-soft);
   color: var(--pfh-theme-primary);
-  box-shadow: inset 0 0 0 1px var(--pfh-theme-border-strong), 0 8px 18px var(--pfh-theme-shadow-soft);
+  box-shadow: inset 0 0 0 1px var(--pfh-theme-border-strong);
   transform: translateX(-2px);
 }
 
@@ -644,7 +648,7 @@
   padding: 12px 14px;
   border-radius: 16px;
   background: var(--pfh-theme-surface);
-  box-shadow: 0 8px 24px var(--pfh-theme-shadow-soft);
+  box-shadow: none;
 }
 
 #plm-floating-helper .pfh-product-development-review-view > .pfh-product-development-context-icon {
@@ -660,9 +664,9 @@
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--pfh-theme-border);
-  border-radius: 22px;
+  border-radius: 16px;
   background: var(--pfh-theme-surface);
-  box-shadow: 0 16px 38px var(--pfh-theme-shadow-soft);
+  box-shadow: none;
 }
 
 #plm-floating-helper .pfh-product-development-review-launch-main {
@@ -689,7 +693,7 @@
   border-radius: 11px;
   background: linear-gradient(135deg, var(--pfh-theme-primary), var(--pfh-theme-primary-hover));
   color: #fff;
-  box-shadow: 0 8px 18px var(--pfh-theme-shadow-soft);
+  box-shadow: none;
   font-size: 11px;
   letter-spacing: .06em;
 }
@@ -797,16 +801,15 @@
   border-radius: 12px;
   background: linear-gradient(135deg, var(--pfh-theme-primary), var(--pfh-theme-primary-hover));
   color: #fff;
-  box-shadow: 0 10px 22px var(--pfh-theme-shadow-soft);
+  box-shadow: none;
   font: inherit;
   font-size: 11px;
   cursor: pointer;
-  transition: box-shadow .2s ease, transform .2s ease, opacity .2s ease;
+  transition: opacity .2s ease;
 }
 
 #plm-floating-helper .pfh-product-development-review-action > button:hover:not(:disabled) {
-  box-shadow: 0 14px 28px var(--pfh-theme-shadow-soft);
-  transform: translateY(-1px);
+  filter: brightness(1.05);
 }
 
 #plm-floating-helper .pfh-product-development-review-action > button:disabled {
@@ -955,11 +958,11 @@
   display: grid;
   min-width: 0;
   gap: 14px;
-  padding: 19px 20px 20px;
+  padding: 16px;
   border: 1px solid var(--pfh-theme-border);
-  border-radius: 22px;
-  background: linear-gradient(145deg, var(--pfh-theme-surface), var(--pfh-theme-surface-alt));
-  box-shadow: 0 14px 34px var(--pfh-theme-shadow-soft);
+  border-radius: 16px;
+  background: var(--pfh-theme-surface);
+  box-shadow: none;
 }
 
 #plm-floating-helper .pfh-product-development-review-results > header {
@@ -1015,7 +1018,6 @@
   border-radius: 13px;
   background: var(--pfh-theme-primary-soft);
   color: var(--pfh-theme-primary);
-  box-shadow: 0 8px 18px var(--pfh-theme-shadow-soft);
 }
 
 #plm-floating-helper .pfh-product-development-review-workspace > .pfh-product-development-result-empty > span .pfh-icon,
@@ -1253,11 +1255,18 @@
 }
 
 #plm-floating-helper .pfh-product-development-review-editor-float {
-  position: absolute;
+  position: fixed;
   z-index: 30;
   inset: 0;
   display: none;
   min-width: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
 }
 
 #plm-floating-helper .pfh-product-development-review-editor-float.is-open {
@@ -1271,25 +1280,155 @@
   height: 100%;
   padding: 0;
   border: 0;
-  border-radius: 18px;
-  background: rgba(15, 23, 42, .22);
+  background: rgba(15, 23, 42, .3);
   backdrop-filter: blur(3px);
   cursor: default;
 }
 
 #plm-floating-helper .pfh-product-development-review-editor-float > .pfh-product-development-review-editor {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  bottom: 12px;
-  width: min(820px, calc(100% - 24px));
-  max-width: calc(100% - 24px);
-  max-height: calc(100% - 24px);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(1240px, 94vw);
+  max-width: none;
+  max-height: min(880px, 92vh);
   box-sizing: border-box;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   padding: 16px;
   border-color: rgba(139, 106, 200, .3);
   box-shadow: 0 22px 56px rgba(31, 25, 55, .24);
+}
+
+#plm-floating-helper .pfh-product-development-review-editor.is-compare > header {
+  flex: 0 0 auto;
+}
+
+#plm-floating-helper .pfh-product-development-review-editor-compare {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 2px;
+}
+
+#plm-floating-helper .pfh-product-development-review-editor-compare > .pfh-product-development-review-editor-actions {
+  grid-column: 1 / -1;
+}
+
+#plm-floating-helper .pfh-product-development-review-editor.is-compare > .pfh-product-development-review-editor-actions {
+  flex: 0 0 auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--pfh-theme-border);
+}
+
+#plm-floating-helper .pfh-product-development-review-col {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+#plm-floating-helper .pfh-product-development-review-col-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid #c4b5fd;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+#plm-floating-helper .pfh-product-development-review-col-head small {
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+  font-weight: 400;
+}
+
+#plm-floating-helper .pfh-product-development-review-col.is-original-col .pfh-product-development-review-col-head {
+  border-bottom-color: #93b4f5;
+}
+
+#plm-floating-helper .pfh-product-development-review-col.is-revised-col .pfh-product-development-review-col-head {
+  border-bottom-color: #7dd8cf;
+}
+
+#plm-floating-helper .pfh-product-development-review-col.is-image img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 10px;
+  background: var(--pfh-theme-control-surface);
+}
+
+#plm-floating-helper .pfh-product-development-review-col.is-image .pfh-product-development-review-compare-thumb {
+  margin-top: 2px;
+}
+
+#plm-floating-helper .pfh-product-development-review-line {
+  display: grid;
+  gap: 5px;
+  padding: 7px 8px 8px;
+  border-bottom: 1px dashed var(--pfh-theme-border);
+}
+
+#plm-floating-helper .pfh-product-development-review-line.is-risk {
+  border-radius: 10px;
+  background: rgba(239, 68, 68, .06);
+}
+
+#plm-floating-helper .pfh-product-development-review-line-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#plm-floating-helper .pfh-product-development-review-line-head b {
+  min-width: 22px;
+  padding: 1px 4px;
+  border-radius: 6px;
+  background: #eef1f6;
+  color: #53647d;
+  font-size: 9px;
+  text-align: center;
+}
+
+#plm-floating-helper .pfh-product-development-review-line.is-risk .pfh-product-development-review-line-head b {
+  background: #fee2e2;
+  color: #b42318;
+}
+
+#plm-floating-helper .pfh-product-development-review-line-head button {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pfh-theme-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+
+#plm-floating-helper .pfh-product-development-review-line-head button:hover {
+  color: #b42318;
+}
+
+#plm-floating-helper .pfh-product-development-review-line-note {
+  margin: 0;
+  color: #b42318;
+  font-size: 9px;
+  line-height: 1.5;
 }
 
 #plm-floating-helper .pfh-product-development-review-editor-float > .pfh-product-development-review-editor > header {
@@ -1609,6 +1748,77 @@
   display: none;
 }
 
+#plm-floating-helper .pfh-product-development-copywriting-more {
+  position: relative;
+  flex: none;
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-more-toggle {
+  display: inline-flex;
+  width: 34px;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 8px;
+  background: var(--pfh-theme-control-surface);
+  color: var(--pfh-theme-muted);
+  cursor: pointer;
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-more-toggle:hover,
+#plm-floating-helper .pfh-product-development-copywriting-more.is-open .pfh-product-development-copywriting-more-toggle {
+  border-color: var(--pfh-theme-primary);
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary);
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: none;
+  min-width: 168px;
+  padding: 5px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 10px;
+  background: var(--pfh-theme-surface);
+  box-shadow: 0 10px 26px var(--pfh-theme-shadow-soft, rgba(47, 32, 104, .14));
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-more.is-open .pfh-product-development-copywriting-more-menu {
+  display: grid;
+  gap: 4px;
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-more-menu .pfh-product-development-copywriting-more-item,
+#plm-floating-helper .pfh-product-development-copywriting-more-menu .pfh-product-development-template-picker {
+  display: inline-flex;
+  width: 100%;
+  min-height: 30px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--pfh-theme-text);
+  font: inherit;
+  font-size: 10px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+#plm-floating-helper .pfh-product-development-copywriting-more-menu .pfh-product-development-copywriting-more-item:hover,
+#plm-floating-helper .pfh-product-development-copywriting-more-menu .pfh-product-development-template-picker:hover {
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary);
+}
+
 #plm-floating-helper .pfh-product-development-download-row {
   display: flex;
   align-items: center;
@@ -1673,18 +1883,36 @@
 
 #plm-floating-helper .pfh-product-development-one-shot-source {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
 #plm-floating-helper .pfh-product-development-one-shot-source-item {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   min-width: 0;
-  gap: 3px;
+  gap: 3px 12px;
   padding: 9px 10px;
   border: 1px solid var(--pfh-theme-border);
   border-radius: 11px;
   background: var(--pfh-theme-control-surface);
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-source-item small {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-source-item strong {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+#plm-floating-helper .pfh-product-development-one-shot-source-item span {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  align-self: center;
 }
 
 #plm-floating-helper .pfh-product-development-one-shot-source-item small,
@@ -2050,13 +2278,13 @@
   }
 
   #plm-floating-helper .pfh-product-development-review-editor-float.is-open > .pfh-product-development-review-editor {
-    top: 6px;
-    right: 6px;
-    bottom: 6px;
-    width: calc(100% - 12px);
-    max-width: calc(100% - 12px);
-    max-height: calc(100% - 12px);
+    width: 96vw;
+    max-height: 94vh;
     padding: 12px;
+  }
+
+  #plm-floating-helper .pfh-product-development-review-editor-compare {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   #plm-floating-helper .pfh-product-development-review-editor-float > .pfh-product-development-review-editor > header {
@@ -2361,8 +2589,8 @@
   padding: 16px;
   border: 1px solid var(--pfh-theme-border);
   border-radius: 16px;
-  background: linear-gradient(140deg, var(--pfh-theme-surface), var(--pfh-theme-surface-alt));
-  box-shadow: 0 10px 24px var(--pfh-theme-shadow-soft);
+  background: var(--pfh-theme-surface);
+  box-shadow: none;
 }
 
 #plm-floating-helper .pfh-product-development-product-naming > header,
@@ -2477,6 +2705,76 @@
   border-color: var(--pfh-theme-primary);
   box-shadow: 0 0 0 3px var(--pfh-theme-primary-soft);
   background: var(--pfh-theme-surface);
+}
+
+#plm-floating-helper .pfh-product-development-preview-zoom {
+  cursor: zoom-in;
+  transition: filter .2s ease;
+}
+
+#plm-floating-helper .pfh-product-development-preview-zoom:hover {
+  filter: brightness(1.03);
+}
+
+#plm-floating-helper .pfh-product-development-raw-material-group {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+#plm-floating-helper .pfh-product-development-raw-material-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+#plm-floating-helper .pfh-product-development-raw-material-group-head button {
+  padding: 2px 8px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 8px;
+  background: var(--pfh-theme-control-surface);
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+  cursor: pointer;
+  transition: border-color .2s ease, color .2s ease;
+}
+
+#plm-floating-helper .pfh-product-development-raw-material-group-head button:hover {
+  border-color: var(--pfh-theme-primary);
+  color: var(--pfh-theme-primary);
+}
+
+#plm-floating-helper .pfh-product-development-raw-material-row {
+  position: relative;
+}
+
+#plm-floating-helper .pfh-product-development-raw-material-row .pfh-product-development-review-editor-columns {
+  padding-right: 18px;
+}
+
+#plm-floating-helper .pfh-product-development-raw-material-remove {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pfh-theme-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+
+#plm-floating-helper .pfh-product-development-raw-material-remove:hover {
+  color: #b42318;
 }
 
 #plm-floating-helper .pfh-product-development-detail-banner {
@@ -2672,8 +2970,8 @@
   padding: 11px;
   border: 1px solid var(--pfh-theme-border-strong);
   border-radius: 16px;
-  background: linear-gradient(140deg, var(--pfh-theme-surface), var(--pfh-theme-control-surface));
-  box-shadow: 0 10px 24px var(--pfh-theme-shadow-soft);
+  background: var(--pfh-theme-surface);
+  box-shadow: none;
 }
 
 #plm-floating-helper .pfh-product-development-material-planner > header {
@@ -3066,191 +3364,38 @@
   }
 }
 
-/* The development SKU picker floats outside the assistant so the detail workspace keeps its full width. */
-#plm-floating-helper .pfh-product-development-task-sidebar {
-  display: none;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] {
-  overflow: visible;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] > .pfh-full {
-  overflow: hidden;
-  border-radius: inherit;
-}
-
+/* The development mode reuses the daily split layout: SKU list on the left, workspace on the right. */
 #plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
-  gap: 0;
-  padding: 0;
+  grid-template-columns: minmax(150px, var(--pfh-list-width, 244px)) 6px minmax(0, 1fr);
+  gap: 4px;
+  padding: 14px;
   overflow: hidden;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main > .pfh-list,
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main > .pfh-splitter {
-  display: none;
 }
 
 #plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-detail {
-  grid-column: 1;
+  grid-column: 3;
   grid-row: 1;
   width: 100%;
   min-width: 0;
   height: 100%;
 }
 
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar {
-  position: absolute;
-  top: var(--pfh-product-development-task-sidebar-top, 90px);
-  right: auto;
-  left: calc(100% + 10px);
-  bottom: 14px;
-  z-index: 140;
-  width: 34px;
-  min-width: 34px;
-  max-width: calc(100vw - 24px);
-  display: block;
-  transition: width .28s cubic-bezier(.25, 1.2, .35, 1);
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar.is-open,
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:hover,
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:focus-within {
-  width: clamp(260px, 30vw, 320px);
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 12px;
-  border: 1px solid var(--pfh-theme-border);
-  border-radius: 14px;
-  background: var(--pfh-theme-surface);
-  box-shadow: 0 18px 44px var(--pfh-theme-shadow, rgba(47, 32, 104, .18)), inset 0 1px 0 rgba(255, 255, 255, .86);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-8px) scale(.985);
-  transform-origin: left center;
-  transition: opacity .18s ease, transform .28s cubic-bezier(.25, 1.2, .35, 1);
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar.is-open .pfh-product-development-task-sidebar-body,
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:hover .pfh-product-development-task-sidebar-body,
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:focus-within .pfh-product-development-task-sidebar-body {
-  opacity: 1;
-  pointer-events: auto;
-  transform: none;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-rail {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  width: 34px;
-  min-width: 34px;
-  height: 100%;
-  min-height: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 16px 7px;
-  border: 1px solid var(--pfh-theme-border-strong);
-  border-radius: 14px;
-  background: var(--pfh-theme-surface);
-  color: var(--pfh-theme-primary);
-  box-shadow: 0 12px 30px var(--pfh-theme-shadow-soft, rgba(47, 32, 104, .14));
-  cursor: pointer;
-  font: inherit;
-  font-size: 11px;
-  line-height: 1.15;
-  writing-mode: vertical-rl;
-  transition: opacity .16s ease, background .16s ease, border-color .16s ease;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-rail:hover,
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-rail:focus-visible {
-  border-color: var(--pfh-theme-primary);
-  background: var(--pfh-theme-primary-soft);
-  outline: none;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-rail i {
-  display: block;
-  color: var(--pfh-theme-primary-hover);
-  font-size: 18px;
-  font-style: normal;
-  line-height: 1;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar.is-open .pfh-product-development-task-sidebar-rail,
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:hover .pfh-product-development-task-sidebar-rail,
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:focus-within .pfh-product-development-task-sidebar-rail {
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-list-head {
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-list .pfh-development-list-header {
   gap: 6px;
   min-height: 34px;
   margin: 0 0 10px;
   padding: 0 2px;
 }
 
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-list-head strong {
-  flex: 0 0 auto;
-  font-weight: 700;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-list-head > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-collapse {
-  display: grid;
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  min-height: 24px;
-  flex: 0 0 24px;
-  place-items: center;
-  padding: 0;
-  border: 1px solid var(--pfh-theme-border);
-  border-radius: 8px;
-  background: var(--pfh-theme-surface-alt);
-  color: var(--pfh-theme-primary);
-  font-size: 17px;
-  line-height: 1;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-collapse:hover,
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-collapse:focus-visible {
-  border-color: var(--pfh-theme-border-strong);
-  background: var(--pfh-theme-primary-soft);
-  color: var(--pfh-theme-primary-hover);
-  outline: none;
-}
-
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-sku-list-content {
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-list .pfh-sku-list-content {
   display: flex;
   min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
 }
 
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-sku-scroll {
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-list .pfh-sku-scroll {
   min-height: 0;
   flex: 1 1 auto;
   overflow-x: hidden;
@@ -3258,9 +3403,142 @@
   padding: 6px 5px 10px 0;
 }
 
-#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-list-pager {
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-list .pfh-list-pager {
   flex: 0 0 auto;
   margin-top: 8px;
   padding-top: 9px;
   border-top: 1px solid var(--pfh-theme-border);
+}
+
+/* Workspace preview shell hosts the list in its own pane; reset the split grid placement there. */
+#plm-floating-helper[data-workspace-preview][data-view="productDevelopmentTasks"] .pfh-detail {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+/* Guard: the dev split layout must keep its list even if a stale is-full class appears. */
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main.is-full {
+  grid-template-columns: minmax(150px, var(--pfh-list-width, 244px)) 6px minmax(0, 1fr);
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main.is-full .pfh-list {
+  display: flex;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main.is-full .pfh-splitter {
+  display: block;
+}
+
+#plm-floating-helper[data-workspace-preview][data-view="productDevelopmentTasks"] .pfh-list .pfh-sku-scroll {
+  padding: 4px 2px 10px 0;
+}
+
+/* Narrow right workspace: stack the main list/detail split, but keep form
+   fields two per row so long forms stay short. */
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-review-launch {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-form-grid,
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-product-naming-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#plm-floating-helper .pfh-plm-material-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px;
+}
+
+#plm-floating-helper .pfh-plm-material-card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 14px;
+  background: var(--pfh-theme-surface);
+  transition: border-color .2s ease;
+}
+
+#plm-floating-helper .pfh-plm-material-card:hover {
+  border-color: var(--pfh-theme-primary);
+}
+
+#plm-floating-helper .pfh-plm-material-thumb {
+  flex: none;
+  width: 58px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 10px;
+  background: var(--pfh-theme-surface-alt);
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+}
+
+#plm-floating-helper .pfh-plm-material-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+#plm-floating-helper .pfh-plm-material-info {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+#plm-floating-helper .pfh-plm-material-info strong {
+  overflow: hidden;
+  color: var(--pfh-theme-text);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#plm-floating-helper .pfh-plm-material-info code {
+  overflow: hidden;
+  color: var(--pfh-theme-muted);
+  font-family: inherit;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#plm-floating-helper .pfh-plm-material-info small {
+  overflow: hidden;
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#plm-floating-helper .pfh-plm-material-type-chip {
+  flex: none;
+  align-self: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary-hover);
+  font-size: 9px;
+}
+
+#plm-floating-helper .pfh-plm-material-empty {
+  padding: 26px 14px;
+  border: 1px dashed var(--pfh-theme-border);
+  border-radius: 12px;
+  color: var(--pfh-theme-muted);
+  font-size: 11px;
+  text-align: center;
 }

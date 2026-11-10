@@ -381,7 +381,23 @@ async function callPreferredAiText(env, options, validate) {
         ...requestOptions,
         timeoutMs: Number(requestOptions.primaryTimeoutMs || requestOptions.timeoutMs || 25000),
       };
-      result = await callModelScopeText(primaryConfig, primaryOptions);
+      // ModelScope 对新验证账号/突发请求会返回限流错误；短暂退避后重试，避免用户手点重试越点越堵。
+      const rateLimitPattern = /rate increased too quickly|rate limit|too many requests|429|overloaded|temporarily unavailable/i;
+      result = await (async () => {
+        let lastError = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (attempt) {
+            await new Promise((resolve) => setTimeout(resolve, attempt === 1 ? 3000 : 8000));
+          }
+          try {
+            return await callModelScopeText(primaryConfig, primaryOptions);
+          } catch (error) {
+            lastError = error;
+            if (!rateLimitPattern.test(String(error && error.message || ''))) throw error;
+          }
+        }
+        throw lastError;
+      })();
       const value = validate ? await validate(result) : null;
       return { result, value };
     } catch (error) {
@@ -940,6 +956,15 @@ async function handleBackupSave(request, env) {
     // Other windows may still be uploading, or downloading the previous snapshot.
     await env.DB.prepare("DELETE FROM user_backup_chunks WHERE user_id = ? AND created_at < datetime('now', '-1 day')").bind(identity.userId).run();
   }
+  // Occasionally prune analytics rows so the free-tier D1 stays well under quota.
+  if (Math.random() < 0.02) {
+    try {
+      await env.DB.prepare("DELETE FROM insight_events WHERE created_at < datetime('now', '-60 days')").run();
+      await env.DB.prepare("DELETE FROM diagnostic_events WHERE received_at < datetime('now', '-60 days')").run();
+    } catch (pruneError) {
+      // Best-effort only.
+    }
+  }
   await env.DB.prepare(`
     INSERT INTO plm_users (user_name, script_version, last_backup_at, last_seen_at)
     VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -973,6 +998,21 @@ async function handleBackupChunkSave(request, env) {
       chunk_data = excluded.chunk_data,
       created_at = CURRENT_TIMESTAMP
   `).bind(identity.userId, snapshotId, chunkIndex, chunkCount, data).run();
+  // Reclaim stale snapshots on every chunk write, so an interrupted or failed
+  // finalize can never wedge the account at the D1 size limit. Each user keeps
+  // every snapshot from the last 24h plus the newest two older ones.
+  try {
+    await env.DB.prepare(`
+      DELETE FROM user_backup_chunks
+      WHERE user_id = ? AND created_at < datetime('now', '-1 day')
+        AND (
+          SELECT COUNT(DISTINCT d.snapshot_id) FROM user_backup_chunks d
+          WHERE d.user_id = user_backup_chunks.user_id AND d.created_at > user_backup_chunks.created_at
+        ) >= 2
+    `).bind(identity.userId).run();
+  } catch (cleanupError) {
+    // Best-effort only; never block the chunk upload itself.
+  }
   return json({ ok: true, userId: identity.userId, snapshotId, chunkIndex, chunkCount, bytes: data.length });
 }
 
@@ -2081,6 +2121,16 @@ function productDevelopmentNormalizedClaimText(value) {
   return String(value || '').toLowerCase().normalize('NFKC').replace(/[\s_\-–—·.,:;!?()［］【】「」『』]/g, '');
 }
 
+function productDevelopmentIngredientKeysMatch(candidateKeys, expectedKeys) {
+  return candidateKeys.some((candidateKey) => expectedKeys.some((expectedKey) => {
+    if (candidateKey === expectedKey) return true;
+    // 模型可能在成分名两侧加括号注释、后缀或简写；归一化后双向包含（较短的 key 至少 3 个字符）视为同一成分。
+    if (expectedKey.length >= 3 && candidateKey.includes(expectedKey)) return true;
+    if (candidateKey.length >= 3 && expectedKey.includes(candidateKey)) return true;
+    return false;
+  }));
+}
+
 function productDevelopmentIngredientLabelKeys(value, includePairValues) {
   const source = value && typeof value === 'object' ? value : { value };
   const values = [
@@ -3108,7 +3158,7 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
     const expected = expectedIngredients[index] || {};
     const expectedKeys = productDevelopmentIngredientLabelKeys(expected, true);
     const candidateKeys = productDevelopmentIngredientLabelKeys(item, false);
-    if (!item.en || !item.cn || !candidateKeys.length || !expectedKeys.length || !candidateKeys.some((candidateKey) => expectedKeys.includes(candidateKey))) throw new Error('D ingredient ' + (index + 1) + ' does not match PLM input');
+    if (!item.en || !item.cn || !candidateKeys.length || !expectedKeys.length || !productDevelopmentIngredientKeysMatch(candidateKeys, expectedKeys)) throw new Error('D ingredient ' + (index + 1) + ' does not match PLM input');
     if (productDevelopmentChineseCount(item.cn) > 30 || productDevelopmentEnglishWordCount(item.en) > 30) throw new Error('D item ' + (index + 1) + ' exceeds length');
     // ingredientEn/ingredientCn are PLM source labels. Validate their exact
     // match separately, but do not reject generated copy because a source
@@ -3126,7 +3176,11 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
     return '';
   }).find(Boolean);
   if (restricted) throw new Error('copywriting ' + restricted);
-  return { efficacy, advantages, sellingPoints, ingredientFunctions };
+  // 24 国语言产品名翻译（按约定语言顺序），缺项留空由客户端兜底。
+  const productNameTranslations = Array.isArray(source.productNameTranslations)
+    ? source.productNameTranslations.map((item) => cleanText(item, 300)).slice(0, 24)
+    : [];
+  return { efficacy, advantages, sellingPoints, ingredientFunctions, productNameTranslations };
 }
 
 function productDevelopmentOneShotNumber(value) {
@@ -3756,7 +3810,7 @@ async function handleProductDevelopmentOneShot(request, env) {
     : '{"nameEn":"","nameCn":"","latinName":"","sourcePart":"","standardization":"","amountText":"","amountMg":0,"dailyValue":"**","markerActiveMg":0}';
   const responseSchema = ingredientOnly
     ? '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":0,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[' + ingredientRowSchema + '],"otherIngredientsEn":"","otherIngredientsCn":""},"warnings":[]}'
-    : '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":0,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[' + ingredientRowSchema + '],"otherIngredientsEn":"","otherIngredientsCn":""},"copywriting":{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}},"warnings":[]}';
+    : '{"product":{"nameCn":"","nameEn":"","brand":"","productType":"","netContent":""},"ingredientTable":{"title":"' + ingredientTableTitle + '","servingSize":"1 mL","servingsPerContainer":60,"activeTotalMg":0,"standardizedActiveMg":0,"standardizedActivePercent":0,"rows":[' + ingredientRowSchema + '],"otherIngredientsEn":"","otherIngredientsCn":""},"copywriting":{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}],"productNameTranslations":["","","","","","","","","","","","","","","","","","","","","","",""]}},"warnings":[]}';
   const targetAmountInstruction = input.targetActiveMg > 0
     ? '若所有行都是质量单位，活性合计=' + input.targetActiveMg + ' mg；若存在 FU、IU、CFU、GDU 等非质量效价单位，保留包装单位，不要为了满足 mg 目标改写效价。'
     : '未提供质量目标；按产品正面文案的含量/效价和单位输出，不要为了凑模板数量或 mg 总量添加成分。';
@@ -3825,6 +3879,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   if (!body) return json({ ok: false, error: 'application/json body required' }, 400);
   const sku = cleanText(body.sku, 80);
   const name = cleanText(body.name, 300);
+  const englishName = cleanText(body.englishName, 300);
   const brand = cleanText(body.brand, 160);
   const sourcePlainTextCopy = cleanText(
     body.sourcePlainTextCopy || body.infringementPlainTextCopy || body.plainTextCopy,
@@ -3872,6 +3927,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   const basePayload = {
     sku,
     name,
+    englishName,
     productType: cleanText(body.productType, 180),
     netContent: cleanText(body.netContent, 120),
     brand,
@@ -3907,6 +3963,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   const system = [
     commonSystem,
     '一次性完整生成 A-D 四个部分，不要拆分、不要省略、不要用占位符。',
+    'productNameTranslations 必须是恰好 24 个字符串的数组，按以下语言顺序翻译输入的英文产品名（englishName，缺失时按 name 意译为英文产品名再翻）：英语、德语、法语、西班牙语、意大利语、丹麦语、捷克语、瑞典语、希腊语、芬兰语、葡萄牙语、荷兰语、保加利亚语、克罗地亚语、爱沙尼亚语、匈牙利语、爱尔兰语、拉脱维亚语、立陶宛语、马耳他语、波兰语、罗马尼亚语、斯洛伐克语、斯洛文尼亚语。翻译示例（Scalp Soothe Cream）：Scalp Soothe Cream; Kopfhaut Beruhigende Creme; Crème Apaisante Pour Le Cuir Chevelu; Crema Calmante Para El Cuero Cabelludo; Crema Lenitiva Per Il Cuoio Capelluto; Hovedbund Beroligende Creme; Uklidňující Krém Na Pokožku Hlavy; Hudlugnande Kräm För Hårbotten; Κρέμα Καταπράυνσης Τριχωτού Κεφαλιού; Päänahkaa Rentouttava Voide; Creme Calmante Para O Couro Cabeludo; Kalmerende Crème Voor De Hoofdhuid; Крем За Успокояване На Скалпа; Krema Za Umirenje Tjemena; Peanahka Rahustav Kreem; Fejbőr Nyugtató Krém; Uachtar Maolaitheach Do Scalp; Galvas Ādu Nomierinošs Krēms; Galvos Odą Raminantis Kremas; Krema Kalmanti Għall-Qorriegħa; Krem Łagodzący Dla Skóry Głowy; Cremă Calmantă Pentru Scalp; Upokojujúci Krém Na Pokožku Hlavy; Krema Za Pomiritev Lasnega Kože。每个翻译的单词首字母大写，数组中只放翻译文本本身，不要语言名称、编号或引号。',
     'A 产品功效必须正好 4 条；B 产品优势必须正好 4 条；C 产品卖点必须正好 15 条；D 成分功能必须覆盖输入 ingredients 的全部成分，并保持输入顺序。',
     'C 按模板输出 15 条：第 1-4 条必须有 titleEn 和 titleCn，英文标题建议 3-4 个单词但不因标题词数不符而省略或判错，两个标题不得写成分；title 字段不要带编号或冒号，系统会在 Word 中统一补冒号。第 5-15 条 titleEn 和 titleCn 必须为空，不能再写任何小标题，正文必须完整。',
     'C 的正文长度只作参考，不要为了凑字数删掉信息或省略第 5-15 条；输出前逐条检查标题位置、双语完整性和条数。A 每条中文尽量不超过 30 个汉字；B 每条中文尽量不超过 24 个汉字；D 每条中文尽量不超过 30 个汉字。英文句子可使用更完整的自然表达，但应保持简洁。',
@@ -3928,8 +3985,8 @@ async function handleProductDevelopmentCopywriting(request, env) {
       '当前确认的成分表模板：' + (ingredientTemplateLabel || '未指定') + '（' + (ingredientTemplateId || '未指定') + (ingredientTemplateSheetName ? '，工作表 ' + ingredientTemplateSheetName : '') + '）',
       'confirmedIngredientTable=' + (confirmedIngredientTable ? 'true' : 'false'),
       '严格返回完整 JSON，不要 Markdown、代码围栏或解释：',
-      '{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}}',
-      '再次检查：A=4、B=4、C=15、D=输入成分总数；C 的前 4 条有双语标题，后 11 条标题字段为空；每一项 en 和 cn 都必须是非空字符串；不要输出星号、品牌词、禁词或空行。',
+      '{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}],"productNameTranslations":["","","","","","","","","","","","","","","","","","","","","","",""]}}',
+      '再次检查：A=4、B=4、C=15、D=输入成分总数、productNameTranslations 恰好 24 项；C 的前 4 条有双语标题，后 11 条标题字段为空；每一项 en 和 cn 都必须是非空字符串；不要输出星号、品牌词、禁词或空行。',
     ].join('\n'),
   };
   const validateCopywritingCandidate = (candidate) => normalizeProductDevelopmentCopywritingCandidate(
@@ -3971,8 +4028,8 @@ async function handleProductDevelopmentCopywriting(request, env) {
             JSON.stringify(basePayload),
             '这是 JSON 格式重试。',
             '只返回一个完整 JSON 对象，结构严格为：',
-            '{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}}',
-            '再次检查：A=4、B=4、C=15、D=输入成分总数；C 前 4 条有双语标题，后 11 条标题字段为空；每一项 en 和 cn 非空；不要输出星号、品牌词、禁词或空行。',
+            '{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}],"productNameTranslations":["","","","","","","","","","","","","","","","","","","","","","",""]}}',
+            '再次检查：A=4、B=4、C=15、D=输入成分总数、productNameTranslations 恰好 24 项；C 前 4 条有双语标题，后 11 条标题字段为空；每一项 en 和 cn 非空；不要输出星号、品牌词、禁词或空行。',
           ].join('\n'),
         }, validateCopywritingCandidate);
         return copywritingSuccess(retried, ['首次响应格式异常，已自动重新生成'], 'product-development-copywriting-v6-json-retry');
@@ -3986,7 +4043,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
         error = combined;
       }
     }
-    const canRepair = /restricted term|含限制词|asterisk|blank line|星号|空行|exceeds length|超出长度|dosage|frequency|serving|supply|dietary-attribute|quality-process|服用|用量|频次|供应|素食|非转基因|无麸质|质量控制|产品一致性/i.test(String(error && error.message || ''));
+    const canRepair = /restricted term|含限制词|asterisk|blank line|星号|空行|exceeds length|超出长度|dosage|frequency|serving|supply|dietary-attribute|quality-process|服用|用量|频次|供应|素食|非转基因|无麸质|质量控制|产品一致性|D ingredient \d|does not match PLM/i.test(String(error && error.message || ''));
     const candidate = error && Array.isArray(error.aiCandidates) ? error.aiCandidates[0] : null;
     if (canRepair && candidate && candidate.text) {
       try {
@@ -3998,6 +4055,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
             commonSystem,
             '你是文案合规修复助手。下面给出一份已经生成但未通过校验的完整 JSON。保留 A-D 的条数、顺序、成分名称、产品事实和中英文对应关系，只改写命中限制词或格式问题的生成句子。',
             '禁止删除条目，禁止把内容改成空字符串，禁止新增成分、功效、认证、疾病、治疗或数字。',
+            '如果校验失败信息指出 D 成分与输入不匹配（D ingredient … does not match PLM input），必须把对应位置条目的 ingredientEn 和 ingredientCn 修正为输入 ingredients 中同一位置的成分英文名和中文名（可参考输入的 en/cn 翻译补齐），功效句子随之对准该成分，不要改动其他条目。',
             'A-D 不得包含服用频次、单次数量、Serving Size、per serving、daily supply、供应周期、未经输入支持的饮食属性或生产质量背书；Directions 不属于 A-D。',
             '如果校验失败信息指出某条含 dosage、frequency、serving 或 supply claim，必须把该条整句改成中性产品优势/日常支持表达，不要保留数字、capsule、serving、supply、take、daily use 等用法词。',
             '先在内部逐项检查所有 en、cn、titleEn、titleCn，再只返回修复后的完整 JSON；不要解释修复过程，不要复述限制词清单。',
@@ -7829,7 +7887,14 @@ export default {
         path,
         error: error && error.stack || String(error || 'unknown error'),
       });
-      return json({ error: 'internal server error', requestId }, 500);
+      // 已授权调用方（持有 API_KEY）可见真实错误摘要，便于远程定位；未授权请求只返回通用错误。
+      let detail = '';
+      try {
+        if (requireApiKey(request, env)) {
+          detail = cleanText(error && error.stack || error && error.message || String(error || 'unknown error'), 600);
+        }
+      } catch (detailError) { /* ignore */ }
+      return json({ error: 'internal server error' + (detail ? ' | ' + detail : ''), requestId }, 500);
     }
   },
 };

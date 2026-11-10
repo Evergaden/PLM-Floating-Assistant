@@ -54,7 +54,7 @@ function readZipEntries(buffer) {
 (async () => {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   const templates = Array.isArray(manifest.templates) ? manifest.templates : [];
-  if (templates.length !== 11) throw new Error('Expected 11 copywriting templates, received ' + templates.length);
+  if (templates.length !== 13) throw new Error('Expected 13 copywriting templates, received ' + templates.length);
   const productSource = fs.readFileSync(path.join(root, 'src', 'product-development.module.js'), 'utf8');
   const catalogMatch = /const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object\.freeze\((\[[\s\S]*?\])\);/.exec(productSource);
   if (!catalogMatch) throw new Error('Userscript copywriting template catalog is missing');
@@ -71,8 +71,16 @@ function readZipEntries(buffer) {
     if (!documentFile) throw new Error(template.id + ': word/document.xml is missing');
     const xml = documentFile.toString('utf8');
     const text = visibleXmlText(xml).replace(/\s+/g, '');
-    for (const label of ['产品名称', 'A.产品功效', 'B.产品优势', 'C.产品卖点', 'D.成分功能']) {
-      if (!text.includes(label)) throw new Error(template.id + ': missing ' + label);
+    const requiredLabelsByTemplate = {
+      // 常规产品（非食品）模板沿用中文区块名，不带 A-D 编号前缀：
+      // NDC 版为“产品功效/产品优势/产品卖点/成分功能”，非 NDC 版为 A.产品功效/C.产品优势/D.产品卖点/E.成分功能。
+      'regular-ndc': ['产品名称', '产品功效', '产品优势', '产品卖点', '成分功能', '警告语', 'ACTIVE INGREDIENTS', 'INACTIVE INGREDIENTS'],
+      'regular-non-ndc': ['产品名称', '产品功效', '产品优势', '产品卖点', '成分功能', '警告语', 'INGREDIENTS'],
+    };
+    const requiredLabels = requiredLabelsByTemplate[template.id] || ['产品名称', 'A.产品功效', 'B.产品优势', 'C.产品卖点', 'D.成分功能'];
+    for (const label of requiredLabels) {
+      // text 已去除全部空白，标签同样去空白后再比对（兼容 ACTIVE INGREDIENTS 等英文标签）。
+      if (!text.includes(label.replace(/\s+/g, ''))) throw new Error(template.id + ': missing ' + label);
     }
     const mediaCount = Array.from(entries.keys()).filter((name) => /^word\/media\/[^/]+$/i.test(name)).length;
     console.log(template.id + ' | ' + template.label + ' | ' + buffer.length + ' bytes | media=' + mediaCount);

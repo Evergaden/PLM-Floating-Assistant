@@ -18,6 +18,8 @@ const templates = [
   { id: 'gummy', label: '软糖', fileName: '软糖产品文案模版.docx', assetName: 'gummy.docx' },
   { id: 'tea', label: '茶包', fileName: '茶产品文案模版.docx', assetName: 'tea.docx' },
   { id: 'lozenge', label: '口腔含片', fileName: '口腔含片产品文案模版.docx', assetName: 'lozenge.docx' },
+  { id: 'regular-ndc', label: '常规涉NDC', fileName: '（ndc）24国语言健康保健类、贴类涉ndc文案模板.docx', assetName: 'regular-ndc.docx' },
+  { id: 'regular-non-ndc', label: '常规非NDC', fileName: '(非ndc)24国语言美妆、个护类产品文案模板.docx', assetName: 'regular-non-ndc.docx' },
 ];
 
 function describe(template) {
