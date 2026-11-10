@@ -59,7 +59,7 @@ check 套件总耗时 ~2.8s。
 
 ## 遗留待办
 
-- KNOWN-FAIL 的 3 个检查脚本待修复（锚点漂移属测试侧问题，非产品 bug）。
+- KNOWN-FAIL 的 2 个检查脚本待修复（test-home-carousel / test-sku-progressive-images，锚点漂移属测试侧问题，非产品 bug）。check-workspace-preview 已随变体重建自然转绿并移出登记。
 - `@napi-rs/canvas` 依赖待定位（此前会话可能装在临时目录，已被清理）。
 - `.workbuddy` 记忆中的「双写铁律」条目已失效（build-sync 检查已自动化替代），待用户确认后改写。
 - v2.10.35/36 变更的浏览器验证由用户重装 min 后执行（详情/上传/ledger/云备份核心路径）。
