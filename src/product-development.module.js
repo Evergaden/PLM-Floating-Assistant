@@ -339,7 +339,6 @@
   }
 
   function scheduleProductDevelopmentTranslateCloudBackup() {
-    if (typeof isGoogleTranslatePage === 'function' && isGoogleTranslatePage()) return;
     const dirty = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
     if (!dirty || !dirty.sku) return;
     const appState = typeof state !== 'undefined' ? state : null;

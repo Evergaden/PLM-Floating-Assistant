@@ -93,22 +93,6 @@
     return promise;
   }
 
-  // Keep the cross-page bootstrap contract outside replaceable feature modules.
-  // The product-development module is rebuilt independently, while the shared
-  // startup still checks these helpers before the panel is mounted.
-  function isGoogleTranslatePage() {
-    try {
-      return /^translate\.google\.com$/i.test(String(window.location && window.location.hostname || ''));
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function initGoogleTranslateWorkspace() {
-    // The current release does not expose the legacy translation workspace,
-    // but the match/bootstrap path must remain a safe no-op on that host.
-  }
-
   function getExcelJsRuntime() {
     return getLazyExternalRuntime('exceljs');
   }
@@ -116,7 +100,6 @@
   function ensureExcelJsLoaded() {
     const existing = getExcelJsRuntime();
     if (existing) return Promise.resolve(existing);
-    if (isGoogleTranslatePage()) return Promise.reject(new Error('Google 翻译页不加载 ExcelJS'));
     return ensureLazyExternalScript('exceljs');
   }
 

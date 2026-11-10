@@ -126,8 +126,6 @@ function injectModules(output, selectedModules) {
 
 function verifyOutputContract(output) {
   const requiredBootstrapMarkers = [
-    'function isGoogleTranslatePage',
-    'function initGoogleTranslateWorkspace',
     'function productDevelopmentObjectCategoryHints',
   ];
   const missingBootstrapMarkers = requiredBootstrapMarkers.filter((marker) => !output.includes(marker));

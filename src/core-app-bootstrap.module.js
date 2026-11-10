@@ -575,10 +575,6 @@
   state.panelSize = loadPanelSize();
   state.workMode = normalizeProductDevelopmentWorkMode(state.settings && state.settings.workMode);
   installObservability();
-  if (isGoogleTranslatePage()) {
-    initGoogleTranslateWorkspace();
-    return;
-  }
   installPlmApiMonitor();
   const parameterImageFeature = createParameterImageFeature({
     panelId: PANEL_ID,
