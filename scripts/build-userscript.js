@@ -40,7 +40,20 @@ const modules = [
   },
   {
     name: 'product-development',
-    file: path.join(root, 'src', 'product-development.module.js'),
+    files: [
+      path.join(root, 'src', 'product-development', 'pd-foundation.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-task-sync.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-prefill.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-pricing-drafts.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-dom.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-task-views.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-review-copywriting.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-docx-builders.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-copywriting-run.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-one-shot.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-batch-runners.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-dispatcher.module.js'),
+    ],
     requiredSourceMarkers: [
       'function setupProductDevelopmentTaskTabs',
       'function productDevelopmentTaskTabsHtml',
