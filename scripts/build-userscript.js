@@ -14,8 +14,18 @@ const modules = [
         '\n   */\n  const traceNamePinyin = (() => {\n    const module = { exports: {} };\n    const exports = module.exports;\n' + source + '\n    return module.exports.pinyin;\n  })();';
     },
   },
+  {
+    name: 'core-lazy-externals',
+    file: path.join(root, 'src', 'core-lazy-externals.module.js'),
+    requiredSourceMarkers: ['LAZY_EXTERNAL_SCRIPT_DEFINITIONS', 'ASSIGNED_DESIGN_TASK_ENDPOINT'],
+  },
   { name: 'parameter-logo-assets', file: path.join(root, 'src', 'parameter-logo-assets.module.js') },
   { name: 'parameter-image', file: path.join(root, 'src', 'parameter-image.module.js') },
+  {
+    name: 'core-config',
+    file: path.join(root, 'src', 'core-config.module.js'),
+    requiredSourceMarkers: ['STORAGE_PREFIX', 'HOME_FEATURE_DEFINITIONS', 'CLOUD_BACKUP_API_BASE'],
+  },
   { name: 'cloud-assets', file: path.join(root, 'src', 'cloud-assets.module.js') },
   { name: 'icon-assets', file: path.join(root, 'src', 'icon-assets.module.js') },
   { name: 'notifications', file: path.join(root, 'src', 'notifications.module.js') },
@@ -40,12 +50,28 @@ const modules = [
     ],
   },
   { name: 'magic-upload-actions', file: path.join(root, 'src', 'magic-upload-actions.module.js') },
+  {
+    name: 'core-app-main',
+    files: [path.join(root, 'src', 'core-app-main.module.js')],
+    requiredSourceMarkers: ['const state = {', 'function renderShell', 'function renderLedger'],
+  },
+  {
+    name: 'core-app-runtime',
+    files: [path.join(root, 'src', 'core-app-runtime.module.js')],
+    requiredSourceMarkers: ['function handlePanelClick', 'function escapeHtml'],
+  },
 ];
 
 function resolveModuleSource(module) {
+  // A module may be a single `file` or an ordered `files` array; parts are
+  // concatenated in order inside one marker region.
+  const files = module.files || [module.file];
   // Normalize CRLF to LF so the artifact stays deterministic regardless of
   // which editor or checkout wrote the module files (core.autocrlf is on).
-  const rawSource = fs.readFileSync(module.file, 'utf8').replace(/\r\n/g, '\n').trimEnd();
+  const parts = files
+    .map((file) => fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n').trimEnd())
+    .filter((part) => part.length > 0);
+  const rawSource = parts.join('\n');
   const source = module.wrapSource ? module.wrapSource(rawSource) : rawSource;
   if (Array.isArray(module.requiredSourceMarkers)) {
     const missing = module.requiredSourceMarkers.filter((marker) => !source.includes(marker));
@@ -102,7 +128,8 @@ function main() {
   const built = injectModules(output, selectedModules);
   verifyOutputContract(built);
   fs.writeFileSync(outputPath, built, 'utf8');
-  console.log(`Injected ${selectedModules.map((module) => path.relative(root, module.file)).join(', ')} into ${path.relative(root, outputPath)}`);
+  const describeFiles = (module) => (module.files || [module.file]).map((file) => path.relative(root, file)).join(' + ');
+  console.log(`Injected ${selectedModules.map(describeFiles).join(', ')} into ${path.relative(root, outputPath)}`);
 }
 
 if (require.main === module) {

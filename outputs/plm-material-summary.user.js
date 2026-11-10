@@ -357,6 +357,7 @@
     return module.exports.pinyin;
   })();
   // </trace-name-pinyin-module>
+  // <core-lazy-externals-module>
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   const LAZY_EXTERNAL_SCRIPT_DEFINITIONS = Object.freeze({
     exceljs: Object.freeze({
@@ -523,6 +524,7 @@
   let reviewConfirmRequestedAt = 0;
   let insightSyncQueue = Promise.resolve();
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
+  // </core-lazy-externals-module>
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -2962,6 +2964,7 @@
     return { viewHtml, handleAction, handleInput, handleChange, handleDrop, loadRules, generateBridgeAssets };
   }
   // </parameter-image-module>
+  // <core-config-module>
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -3485,6 +3488,7 @@
     }
     root.PLMApiMonitor = { status: () => ({ enabled: Boolean(plmApiMonitorState.enabled), count: plmApiMonitorState.entries.length }), entries: () => plmApiMonitorState.entries.slice(), clear: () => { plmApiMonitorState.entries = []; savePlmApiMonitorState(); }, export: () => downloadBlob(new Blob([JSON.stringify(plmApiMonitorState.entries, null, 2)], { type: 'application/json' }), 'plm-data-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json') };
   }
+  // </core-config-module>
   // <network-diagnostics-module>
   const networkDiagnostics = {
     checking: false, open: false, offerOpen: false, checkedAt: 0, results: [],
@@ -17991,6 +17995,7 @@
     return true;
   }
   // </product-development-module>
+  // <core-app-main-module>
   const CM_TO_INCH = 1 / 2.54;
   const NORMAL_DELTA_CM = 0.2;
   const INNER_CARD_DELTA_CM = 0.5;
@@ -37751,6 +37756,7 @@ self.onmessage = async function(event) {
     event.stopImmediatePropagation();
     handleLedgerMoreAction(button);
   }
+  // </core-app-main-module>
 
   // <magic-upload-actions-module>
   function handleMagicUploadPanelAction(event, actionTarget, action) {
@@ -37903,6 +37909,7 @@ self.onmessage = async function(event) {
   }
   // </magic-upload-actions-module>
 
+  // <core-app-runtime-module>
   function handlePanelClick(event) {
     if (handleLucianFilterAction(event, ensurePanel())) return;
     const skuContextMenu = event.target && event.target.closest && event.target.closest('.pfh-sku-context-menu');
@@ -54331,3 +54338,4 @@ self.onmessage = async function(event) {
 
 
 })();
+  // </core-app-runtime-module>
