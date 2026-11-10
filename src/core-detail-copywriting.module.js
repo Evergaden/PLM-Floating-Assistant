@@ -554,14 +554,6 @@
     return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
   }
 
-  function arrayBufferToBase64(arrayBuffer) {
-    const bytes = new Uint8Array(arrayBuffer || new ArrayBuffer(0));
-    let binary = '';
-    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-      binary += String.fromCharCode.apply(null, bytes.subarray(offset, Math.min(offset + 0x8000, bytes.length)));
-    }
-    return btoa(binary);
-  }
 
   async function extractIngredientPdfText(arrayBuffer) {
     const Pdf = getLazyExternalRuntime('pdfjs') || await ensureLazyExternalScript('pdfjs').catch(() => null);

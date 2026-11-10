@@ -151,39 +151,8 @@
   ]);
   const THEME_BY_ID = Object.freeze(THEME_OPTIONS.reduce((map, theme) => { map[theme.id] = theme; return map; }, Object.create(null)));
 
-  function normalizeThemeId(value) {
-    const id = String(value || '').trim();
-    return THEME_BY_ID[id] ? id : DEFAULT_THEME_ID;
-  }
-
-  function getActiveTheme() {
-    const configuredId = typeof state !== 'undefined' && state.settings ? state.settings.theme : DEFAULT_THEME_ID;
-    return THEME_BY_ID[normalizeThemeId(configuredId)] || THEME_BY_ID[DEFAULT_THEME_ID];
-  }
-
-  function applyThemeToView() {
-    const theme = getActiveTheme();
-    const variables = {
-      '--pfh-theme-primary': theme.primary,
-      '--pfh-theme-primary-hover': theme.primaryHover,
-      '--pfh-theme-primary-soft': theme.primarySoft,
-      '--pfh-theme-secondary': theme.secondary,
-      '--pfh-theme-secondary-soft': theme.secondarySoft,
-      '--pfh-theme-page': theme.page,
-      '--pfh-theme-surface': theme.surface,
-      '--pfh-theme-surface-alt': theme.surfaceAlt,
-      '--pfh-theme-border': theme.border,
-      '--pfh-theme-border-strong': theme.borderStrong,
-      '--pfh-theme-text': theme.text,
-      '--pfh-theme-muted': theme.muted,
-      '--pfh-theme-header': theme.header,
-    };
-    [document.getElementById(PANEL_ID), document.getElementById(LAUNCHER_ID), document.getElementById(PANEL_ID + '-upload-progress'), document.getElementById(PANEL_ID + '-parameter-editor-overlay')].forEach((element) => {
-      if (!element) return;
-      element.dataset.pfhTheme = theme.id;
-      Object.keys(variables).forEach((key) => element.style.setProperty(key, variables[key]));
-    });
-  }
+  // Theme resolution and application live in the ui-loader module, which is
+  // injected later in the file and owns the canonical implementations.
 
   const TUTORIAL_SEEN_KEY = 'plm-floating-helper:tutorial-seen';
   const UPLOAD_QUEUE_KEY = 'plm-floating-helper:upload-queue';
