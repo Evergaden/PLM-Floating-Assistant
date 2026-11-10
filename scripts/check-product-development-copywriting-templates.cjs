@@ -55,7 +55,13 @@ function readZipEntries(buffer) {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   const templates = Array.isArray(manifest.templates) ? manifest.templates : [];
   if (templates.length !== 13) throw new Error('Expected 13 copywriting templates, received ' + templates.length);
-  const productSource = fs.readFileSync(path.join(root, 'src', 'product-development.module.js'), 'utf8');
+  // The module lives as multiple pd-*.module.js parts; order is irrelevant
+  // because only a single catalog literal is extracted below.
+  const pdDir = path.join(root, 'src', 'product-development');
+  const productSource = fs.readdirSync(pdDir)
+    .filter((name) => name.endsWith('.module.js'))
+    .map((name) => fs.readFileSync(path.join(pdDir, name), 'utf8'))
+    .join('\n');
   const catalogMatch = /const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object\.freeze\((\[[\s\S]*?\])\);/.exec(productSource);
   if (!catalogMatch) throw new Error('Userscript copywriting template catalog is missing');
   const catalogContext = vm.createContext({ Object });
