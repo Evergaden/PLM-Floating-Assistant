@@ -1,0 +1,13 @@
+{
+  "name": "plm-floating-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PLM floating assistant userscript, build tooling and check suite.",
+  "scripts": {
+    "build": "node scripts/build-userscript.js",
+    "build:release": "node scripts/build-userscript-release.js",
+    "check": "node scripts/run-checks.cjs && node scripts/check-build-sync.cjs && node --check outputs/plm-material-summary.user.js && git diff --check",
+    "check:fast": "node scripts/run-checks.cjs",
+    "sync": "node scripts/build-userscript.js && node scripts/build-userscript-release.js"
+  }
+}

@@ -41,16 +41,11 @@ const modules = [
   },
   { name: 'magic-upload-actions', file: path.join(root, 'src', 'magic-upload-actions.module.js') },
 ];
-const requestedModules = new Set(process.argv.slice(2));
-const selectedModules = requestedModules.size
-  ? modules.filter((module) => requestedModules.has(module.name))
-  : modules;
-let output = fs.readFileSync(outputPath, 'utf8');
 
-for (const module of selectedModules) {
-  const start = `  // <${module.name}-module>`;
-  const end = `  // </${module.name}-module>`;
-  const rawSource = fs.readFileSync(module.file, 'utf8').trimEnd();
+function resolveModuleSource(module) {
+  // Normalize CRLF to LF so the artifact stays deterministic regardless of
+  // which editor or checkout wrote the module files (core.autocrlf is on).
+  const rawSource = fs.readFileSync(module.file, 'utf8').replace(/\r\n/g, '\n').trimEnd();
   const source = module.wrapSource ? module.wrapSource(rawSource) : rawSource;
   if (Array.isArray(module.requiredSourceMarkers)) {
     const missing = module.requiredSourceMarkers.filter((marker) => !source.includes(marker));
@@ -58,30 +53,60 @@ for (const module of selectedModules) {
       throw new Error(`${module.name} source contract failed; missing: ${missing.join(', ')}`);
     }
   }
-  const startIndex = output.indexOf(start);
-  const endIndex = output.lastIndexOf(end);
-  if (startIndex < 0 || endIndex < startIndex) throw new Error(`${module.name} module markers are missing`);
-  output = output.slice(0, startIndex) + `${start}\n${source}\n${end}` + output.slice(endIndex + end.length);
+  return source;
 }
 
-const requiredBootstrapMarkers = [
-  'function isGoogleTranslatePage',
-  'function initGoogleTranslateWorkspace',
-  'function productDevelopmentObjectCategoryHints',
-];
-const missingBootstrapMarkers = requiredBootstrapMarkers.filter((marker) => !output.includes(marker));
-if (missingBootstrapMarkers.length) {
-  throw new Error(`userscript bootstrap contract failed; missing: ${missingBootstrapMarkers.join(', ')}`);
+// Replaces each selected module's marker region in the userscript source and
+// returns the new full source. Pure: does not touch the filesystem.
+function injectModules(output, selectedModules) {
+  let result = output;
+  for (const module of selectedModules) {
+    const start = `  // <${module.name}-module>`;
+    const end = `  // </${module.name}-module>`;
+    const source = resolveModuleSource(module);
+    const startIndex = result.indexOf(start);
+    const endIndex = result.lastIndexOf(end);
+    if (startIndex < 0 || endIndex < startIndex) throw new Error(`${module.name} module markers are missing`);
+    result = result.slice(0, startIndex) + `${start}\n${source}\n${end}` + result.slice(endIndex + end.length);
+  }
+  return result;
 }
 
-const startupIndex = output.indexOf('\n  injectStyle();');
-if (startupIndex < 0) throw new Error('userscript startup marker is missing');
-for (const name of ['cloud-assets', 'icon-assets', 'notifications', 'desktop-bridge', 'ui-loader']) {
-  const moduleIndex = output.indexOf(`  // <${name}-module>`);
-  if (moduleIndex < 0 || moduleIndex > startupIndex) {
-    throw new Error(`${name} module must be initialized before userscript startup`);
+function verifyOutputContract(output) {
+  const requiredBootstrapMarkers = [
+    'function isGoogleTranslatePage',
+    'function initGoogleTranslateWorkspace',
+    'function productDevelopmentObjectCategoryHints',
+  ];
+  const missingBootstrapMarkers = requiredBootstrapMarkers.filter((marker) => !output.includes(marker));
+  if (missingBootstrapMarkers.length) {
+    throw new Error(`userscript bootstrap contract failed; missing: ${missingBootstrapMarkers.join(', ')}`);
+  }
+
+  const startupIndex = output.indexOf('\n  injectStyle();');
+  if (startupIndex < 0) throw new Error('userscript startup marker is missing');
+  for (const name of ['cloud-assets', 'icon-assets', 'notifications', 'desktop-bridge', 'ui-loader']) {
+    const moduleIndex = output.indexOf(`  // <${name}-module>`);
+    if (moduleIndex < 0 || moduleIndex > startupIndex) {
+      throw new Error(`${name} module must be initialized before userscript startup`);
+    }
   }
 }
 
-fs.writeFileSync(outputPath, output, 'utf8');
-console.log(`Injected ${selectedModules.map((module) => path.relative(root, module.file)).join(', ')} into ${path.relative(root, outputPath)}`);
+function main() {
+  const requestedModules = new Set(process.argv.slice(2));
+  const selectedModules = requestedModules.size
+    ? modules.filter((module) => requestedModules.has(module.name))
+    : modules;
+  const output = fs.readFileSync(outputPath, 'utf8');
+  const built = injectModules(output, selectedModules);
+  verifyOutputContract(built);
+  fs.writeFileSync(outputPath, built, 'utf8');
+  console.log(`Injected ${selectedModules.map((module) => path.relative(root, module.file)).join(', ')} into ${path.relative(root, outputPath)}`);
+}
+
+if (require.main === module) {
+  main();
+}
+
+module.exports = { modules, outputPath, injectModules, resolveModuleSource, verifyOutputContract };

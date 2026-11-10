@@ -3721,7 +3721,6 @@
   // </network-diagnostics-module>
 
   // <cloud-assets-module>
-
   const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v3';
   const CLOUD_RECOVERY_SESSION_KEY = 'plm-floating-helper:cloud-recovery:v1';
   const CLOUD_RECOVERY_REFRESH_MAX_AGE_MS = 10 * 60 * 1000;
@@ -4193,7 +4192,6 @@
   }
   // </icon-assets-module>
   // <notifications-module>
-
   const NOTIFICATION_CACHE_KEY = 'plm-floating-helper:notifications:v1';
   const NOTIFICATION_REFRESH_MS = 5 * 60 * 1000;
   const HOME_GREETING_CACHE_KEY = 'plm-floating-helper:home-greetings:v1';
@@ -4933,7 +4931,6 @@
   }
   // </observability-module>
   // <desktop-bridge-module>
-
   const DESKTOP_BRIDGE_URL = 'ws://127.0.0.1:37191';
   const DESKTOP_BRIDGE_TOKEN_KEY = 'plm_desktop_bridge_token';
   let desktopBridgeSocket = null;
@@ -5572,7 +5569,6 @@
   }
   // </desktop-bridge-module>
   // <ui-loader-module>
-
   const UI_STYLE_ID = 'pfh-ui-styles';
   // Full component and theme CSS is delivered by the versioned cloud UI asset. Keep only the offline skeleton locally.
   let uiFallbackNoticeTimer = 0;
