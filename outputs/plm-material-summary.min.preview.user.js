@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.35
+// @version      2.10.36
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -59,7 +59,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.10.35";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "2.10.36";
     function openLocalImageDb() {
         return openLocalImageDb.promise || (openLocalImageDb.promise = new Promise((e, t) => {
             const n = indexedDB.open("plm-floating-helper-image-cache-v1", 1);
@@ -10410,36 +10410,7 @@
         text: "#5b6a4f",
         muted: "#909e84",
         header: "#f0f7e8"
-    } ]), ke = Object.freeze(Se.reduce((e, t) => (e[t.id] = t, e), Object.create(null)));
-    function normalizeThemeId(e) {
-        const t = String(e || "").trim();
-        return ke[t] ? t : ye;
-    }
-    function getActiveTheme() {
-        const e = void 0 !== ri && ri.settings ? ri.settings.theme : ye;
-        return ke[normalizeThemeId(e)] || ke[ye];
-    }
-    function applyThemeToView() {
-        const n = getActiveTheme(), a = {
-            "--pfh-theme-primary": n.primary,
-            "--pfh-theme-primary-hover": n.primaryHover,
-            "--pfh-theme-primary-soft": n.primarySoft,
-            "--pfh-theme-secondary": n.secondary,
-            "--pfh-theme-secondary-soft": n.secondarySoft,
-            "--pfh-theme-page": n.page,
-            "--pfh-theme-surface": n.surface,
-            "--pfh-theme-surface-alt": n.surfaceAlt,
-            "--pfh-theme-border": n.border,
-            "--pfh-theme-border-strong": n.borderStrong,
-            "--pfh-theme-text": n.text,
-            "--pfh-theme-muted": n.muted,
-            "--pfh-theme-header": n.header
-        };
-        [ document.getElementById(e), document.getElementById(t), document.getElementById(e + "-upload-progress"), document.getElementById(e + "-parameter-editor-overlay") ].forEach(e => {
-            e && (e.dataset.pfhTheme = n.id, Object.keys(a).forEach(t => e.style.setProperty(t, a[t])));
-        });
-    }
-    const xe = "plm-floating-helper:tutorial-seen", De = "plm-floating-helper:upload-queue", Te = "plm-floating-helper:excel-batch-queue", Ce = 3, Ae = "plm-floating-helper:manual-sku-add-queue:v1", Ie = 1100, Pe = 500;
+    } ]), ke = Object.freeze(Se.reduce((e, t) => (e[t.id] = t, e), Object.create(null))), xe = "plm-floating-helper:tutorial-seen", De = "plm-floating-helper:upload-queue", Te = "plm-floating-helper:excel-batch-queue", Ce = 3, Ae = "plm-floating-helper:manual-sku-add-queue:v1", Ie = 1100, Pe = 500;
     let Le = null, Me = null;
     const ze = "plm-floating-helper:upload-history", Ee = "plm-floating-helper:upload-worker-running", je = "plm-floating-helper:upload-worker-states", Fe = Object.freeze([ "standard", "toy-label", "toy-effect", "copyright" ]), Ue = "plm-floating-helper:toy-copywriting-batch", Ne = "plm-floating-helper:toy-label-export-manifest", Re = "plm-floating-helper:logs", Be = "plm-floating-helper:insights", _e = "plm-floating-helper:user-instance", He = "plm-floating-helper:feature-access-cache:v1", Oe = 2592e6, qe = 2592e5, Ve = "plm-floating-helper:daily-ledger", Ke = "plm-floating-helper:daily-ledger-trash", Ge = "plm-floating-helper:daily-ledger-series-excluded", We = "plm-floating-helper:daily-ledger-manual-migration:v1", Qe = 300, Je = "/api/ProjectFormData/GetProductTextAiResult", Ze = "/api/ProjectFormData/CheckGenPicTaskExists", Xe = "/api/ProjectFormData/GetGenPicAiResult", $e = "/api/ProjectFormData/GetRetouchAiResult", Ye = 5e3, et = 60, tt = 12e4, nt = 60, at = 20, rt = 120, ot = 4, it = Object.freeze([ Object.freeze({
         group: "包装与材质",
@@ -34716,12 +34687,6 @@
         if (!e || e.byteLength < 4) return !1;
         const t = new Uint8Array(e, 0, 4);
         return 37 === t[0] && 80 === t[1] && 68 === t[2] && 70 === t[3];
-    }
-    function arrayBufferToBase64(e) {
-        const t = new Uint8Array(e || new ArrayBuffer(0));
-        let n = "";
-        for (let e = 0; e < t.length; e += 32768) n += String.fromCharCode.apply(null, t.subarray(e, Math.min(e + 32768, t.length)));
-        return btoa(n);
     }
     async function extractIngredientPdfText(e) {
         const t = getLazyExternalRuntime("pdfjs") || await ensureLazyExternalScript("pdfjs").catch(() => null);
