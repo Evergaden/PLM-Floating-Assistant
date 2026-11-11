@@ -242,10 +242,32 @@
       };
       // Transient network failures (proxy hiccups, CDN connection resets) show
       // up as GM onerror with no status code. Retry twice with backoff before
-      // giving up; a real HTTP error still fails immediately.
+      // giving up; a real HTTP error still fails immediately. When the GM path
+      // is exhausted, fall back to page-context fetch: the image CDN sends
+      // Access-Control-Allow-Origin: *, and page requests can succeed where
+      // Tampermonkey requests fail (different network path under some PAC /
+      // proxy setups — observed as thumbnails rendering but GM downloads dying).
       const attempts = [0, 600, 1800];
       const attemptCount = attempts.length;
+      const runFetch = (attemptIndex, onFinalFailure) => {
+        fetchWithTimeout(targetUrl, 30000).then((response) => {
+          if (!response.ok) throw new Error('图片下载失败：HTTP ' + response.status);
+          return response.blob();
+        }).then(resolve).catch((error) => {
+          const transient = !(error && /图片下载失败：HTTP/.test(String(error && error.message)));
+          if (transient && attemptIndex + 1 < attemptCount) {
+            setTimeout(() => runFetch(attemptIndex + 1, onFinalFailure), attempts[attemptIndex + 1]);
+            return;
+          }
+          onFinalFailure(error);
+        });
+      };
       if (typeof GM_xmlhttpRequest === 'function') {
+        const runGmFallback = (timeout) => {
+          runFetch(0, () => reject(new Error(timeout
+            ? '图片下载失败：请求超时（直连与备用通道均已重试，请检查网络或代理）'
+            : '图片下载失败：网络错误（直连与备用通道均已重试，请检查网络或代理）')));
+        };
         const run = (attemptIndex) => {
           GM_xmlhttpRequest({
             method: 'GET',
@@ -264,34 +286,21 @@
                 setTimeout(() => run(attemptIndex + 1), attempts[attemptIndex + 1]);
                 return;
               }
-              reject(new Error('图片下载失败：网络错误（已重试 ' + (attemptCount - 1) + ' 次，请检查网络或代理）'));
+              runGmFallback(false);
             },
             ontimeout: () => {
               if (attemptIndex + 1 < attemptCount) {
                 setTimeout(() => run(attemptIndex + 1), attempts[attemptIndex + 1]);
                 return;
               }
-              reject(new Error('图片下载失败：请求超时（已重试 ' + (attemptCount - 1) + ' 次）'));
+              runGmFallback(true);
             },
           });
         };
         run(0);
         return;
       }
-      const runFetch = (attemptIndex) => {
-        fetchWithTimeout(targetUrl, 30000).then((response) => {
-          if (!response.ok) throw new Error('图片下载失败：HTTP ' + response.status);
-          return response.blob();
-        }).then(resolve).catch((error) => {
-          const transient = !(error && /图片下载失败：HTTP/.test(String(error && error.message)));
-          if (transient && attemptIndex + 1 < attemptCount) {
-            setTimeout(() => runFetch(attemptIndex + 1), attempts[attemptIndex + 1]);
-            return;
-          }
-          reject(error);
-        });
-      };
-      runFetch(0);
+      runFetch(0, reject);
     });
   }
 
