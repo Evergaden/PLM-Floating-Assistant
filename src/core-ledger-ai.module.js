@@ -1180,7 +1180,7 @@
       const workerCount = Math.min(LEDGER_AI_IMAGE_DOWNLOAD_CONCURRENCY, images.length);
       let nextIndex = 0;
       let completed = 0;
-      let firstError = null;
+      const failures = [];
       const workers = Array.from({ length: workerCount }, async () => {
         while (true) {
           const index = nextIndex;
@@ -1192,7 +1192,7 @@
             const blob = await fetchLedgerAiImageBlob(item.url);
             downloaded[index] = { item, displayName, blob };
           } catch (error) {
-            firstError = firstError || new Error(displayName + '：' + (formatErrorMessage(error) || '下载失败'));
+            failures.push(displayName + '：' + (formatErrorMessage(error) || '下载失败'));
           } finally {
             completed += 1;
             state.ledgerAiImageDownloadProgress = '并发下载中 ' + completed + '/' + images.length + ' 张' + label + '…';
@@ -1201,10 +1201,13 @@
         }
       });
       await Promise.all(workers);
-      if (firstError) throw firstError;
+      // Partial success still packs a zip; throwing away the completed blobs
+      // because one image failed made every transient network hiccup fatal.
+      const succeeded = downloaded.filter(Boolean);
+      if (!succeeded.length) throw new Error(failures[0] || '全部' + label + '下载失败');
       const files = [];
       const usedNames = Object.create(null);
-      downloaded.forEach((entry) => {
+      succeeded.forEach((entry) => {
         if (!entry || !entry.blob) return;
         const extension = getLedgerAiImageExtension(entry.item, entry.blob);
         const baseFilename = entry.displayName + extension;
@@ -1215,14 +1218,18 @@
           : entry.displayName + '-' + occurrence + extension;
         files.push({ path: filename, blob: entry.blob });
       });
-      state.ledgerAiImageDownloadProgress = '正在打包 ' + images.length + ' 张' + label + '…';
+      state.ledgerAiImageDownloadProgress = '正在打包 ' + files.length + '/' + images.length + ' 张' + label + '…';
       renderLedgerAiImageViewer(ensurePanel());
       const zip = await createStoredZipBlob(files, (done, total) => {
         state.ledgerAiImageDownloadProgress = '正在打包 ' + done + '/' + total + ' 张' + label + '…';
         renderLedgerAiImageViewer(ensurePanel());
       });
       downloadBlob(zip, String(record.sku || 'SKU') + '-' + label + '.zip');
-      showToast(record.sku + ' 的' + label + '已下载');
+      if (failures.length) {
+        showToast(record.sku + ' 的' + label + '已下载 ' + files.length + '/' + images.length + ' 张；失败：' + failures.join('；'));
+      } else {
+        showToast(record.sku + ' 的' + label + '已下载');
+      }
       return true;
     })().catch((error) => {
       showToast('下载' + label + '失败：' + (formatErrorMessage(error) || '网络请求失败'));

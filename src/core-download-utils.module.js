@@ -240,28 +240,58 @@
         }
         reject(new Error('图片响应格式无法识别'));
       };
+      // Transient network failures (proxy hiccups, CDN connection resets) show
+      // up as GM onerror with no status code. Retry twice with backoff before
+      // giving up; a real HTTP error still fails immediately.
+      const attempts = [0, 600, 1800];
+      const attemptCount = attempts.length;
       if (typeof GM_xmlhttpRequest === 'function') {
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: targetUrl,
-          responseType: 'arraybuffer',
-          timeout: 30000,
-          onload: (response) => {
-            if (response.status < 200 || response.status >= 300) {
-              reject(new Error('图片下载失败：HTTP ' + response.status));
-              return;
-            }
-            resolveArrayBuffer(response.response, getLedgerAiImageContentType(response.responseHeaders, targetUrl));
-          },
-          onerror: () => reject(new Error('图片下载失败：网络错误')),
-          ontimeout: () => reject(new Error('图片下载失败：请求超时')),
-        });
+        const run = (attemptIndex) => {
+          GM_xmlhttpRequest({
+            method: 'GET',
+            url: targetUrl,
+            responseType: 'arraybuffer',
+            timeout: 30000,
+            onload: (response) => {
+              if (response.status < 200 || response.status >= 300) {
+                reject(new Error('图片下载失败：HTTP ' + response.status));
+                return;
+              }
+              resolveArrayBuffer(response.response, getLedgerAiImageContentType(response.responseHeaders, targetUrl));
+            },
+            onerror: () => {
+              if (attemptIndex + 1 < attemptCount) {
+                setTimeout(() => run(attemptIndex + 1), attempts[attemptIndex + 1]);
+                return;
+              }
+              reject(new Error('图片下载失败：网络错误（已重试 ' + (attemptCount - 1) + ' 次，请检查网络或代理）'));
+            },
+            ontimeout: () => {
+              if (attemptIndex + 1 < attemptCount) {
+                setTimeout(() => run(attemptIndex + 1), attempts[attemptIndex + 1]);
+                return;
+              }
+              reject(new Error('图片下载失败：请求超时（已重试 ' + (attemptCount - 1) + ' 次）'));
+            },
+          });
+        };
+        run(0);
         return;
       }
-      fetchWithTimeout(targetUrl, 30000).then((response) => {
-        if (!response.ok) throw new Error('图片下载失败：HTTP ' + response.status);
-        return response.blob();
-      }).then(resolve).catch(reject);
+      const runFetch = (attemptIndex) => {
+        fetchWithTimeout(targetUrl, 30000).then((response) => {
+          if (!response.ok) throw new Error('图片下载失败：HTTP ' + response.status);
+          return response.blob();
+        }).then(resolve).catch((error) => {
+          const transient = !(error && /图片下载失败：HTTP/.test(String(error && error.message)));
+          if (transient && attemptIndex + 1 < attemptCount) {
+            setTimeout(() => runFetch(attemptIndex + 1), attempts[attemptIndex + 1]);
+            return;
+          }
+          reject(error);
+        });
+      };
+      runFetch(0);
     });
   }
 

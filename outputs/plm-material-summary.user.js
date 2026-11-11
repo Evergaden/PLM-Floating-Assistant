@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.37
+// @version      2.10.38
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.37';
+  const SCRIPT_VERSION = '2.10.38';
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
@@ -46032,28 +46032,58 @@ self.onmessage = async function(event) {
         }
         reject(new Error('图片响应格式无法识别'));
       };
+      // Transient network failures (proxy hiccups, CDN connection resets) show
+      // up as GM onerror with no status code. Retry twice with backoff before
+      // giving up; a real HTTP error still fails immediately.
+      const attempts = [0, 600, 1800];
+      const attemptCount = attempts.length;
       if (typeof GM_xmlhttpRequest === 'function') {
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: targetUrl,
-          responseType: 'arraybuffer',
-          timeout: 30000,
-          onload: (response) => {
-            if (response.status < 200 || response.status >= 300) {
-              reject(new Error('图片下载失败：HTTP ' + response.status));
-              return;
-            }
-            resolveArrayBuffer(response.response, getLedgerAiImageContentType(response.responseHeaders, targetUrl));
-          },
-          onerror: () => reject(new Error('图片下载失败：网络错误')),
-          ontimeout: () => reject(new Error('图片下载失败：请求超时')),
-        });
+        const run = (attemptIndex) => {
+          GM_xmlhttpRequest({
+            method: 'GET',
+            url: targetUrl,
+            responseType: 'arraybuffer',
+            timeout: 30000,
+            onload: (response) => {
+              if (response.status < 200 || response.status >= 300) {
+                reject(new Error('图片下载失败：HTTP ' + response.status));
+                return;
+              }
+              resolveArrayBuffer(response.response, getLedgerAiImageContentType(response.responseHeaders, targetUrl));
+            },
+            onerror: () => {
+              if (attemptIndex + 1 < attemptCount) {
+                setTimeout(() => run(attemptIndex + 1), attempts[attemptIndex + 1]);
+                return;
+              }
+              reject(new Error('图片下载失败：网络错误（已重试 ' + (attemptCount - 1) + ' 次，请检查网络或代理）'));
+            },
+            ontimeout: () => {
+              if (attemptIndex + 1 < attemptCount) {
+                setTimeout(() => run(attemptIndex + 1), attempts[attemptIndex + 1]);
+                return;
+              }
+              reject(new Error('图片下载失败：请求超时（已重试 ' + (attemptCount - 1) + ' 次）'));
+            },
+          });
+        };
+        run(0);
         return;
       }
-      fetchWithTimeout(targetUrl, 30000).then((response) => {
-        if (!response.ok) throw new Error('图片下载失败：HTTP ' + response.status);
-        return response.blob();
-      }).then(resolve).catch(reject);
+      const runFetch = (attemptIndex) => {
+        fetchWithTimeout(targetUrl, 30000).then((response) => {
+          if (!response.ok) throw new Error('图片下载失败：HTTP ' + response.status);
+          return response.blob();
+        }).then(resolve).catch((error) => {
+          const transient = !(error && /图片下载失败：HTTP/.test(String(error && error.message)));
+          if (transient && attemptIndex + 1 < attemptCount) {
+            setTimeout(() => runFetch(attemptIndex + 1), attempts[attemptIndex + 1]);
+            return;
+          }
+          reject(error);
+        });
+      };
+      runFetch(0);
     });
   }
 
@@ -49509,7 +49539,7 @@ self.onmessage = async function(event) {
       const workerCount = Math.min(LEDGER_AI_IMAGE_DOWNLOAD_CONCURRENCY, images.length);
       let nextIndex = 0;
       let completed = 0;
-      let firstError = null;
+      const failures = [];
       const workers = Array.from({ length: workerCount }, async () => {
         while (true) {
           const index = nextIndex;
@@ -49521,7 +49551,7 @@ self.onmessage = async function(event) {
             const blob = await fetchLedgerAiImageBlob(item.url);
             downloaded[index] = { item, displayName, blob };
           } catch (error) {
-            firstError = firstError || new Error(displayName + '：' + (formatErrorMessage(error) || '下载失败'));
+            failures.push(displayName + '：' + (formatErrorMessage(error) || '下载失败'));
           } finally {
             completed += 1;
             state.ledgerAiImageDownloadProgress = '并发下载中 ' + completed + '/' + images.length + ' 张' + label + '…';
@@ -49530,10 +49560,13 @@ self.onmessage = async function(event) {
         }
       });
       await Promise.all(workers);
-      if (firstError) throw firstError;
+      // Partial success still packs a zip; throwing away the completed blobs
+      // because one image failed made every transient network hiccup fatal.
+      const succeeded = downloaded.filter(Boolean);
+      if (!succeeded.length) throw new Error(failures[0] || '全部' + label + '下载失败');
       const files = [];
       const usedNames = Object.create(null);
-      downloaded.forEach((entry) => {
+      succeeded.forEach((entry) => {
         if (!entry || !entry.blob) return;
         const extension = getLedgerAiImageExtension(entry.item, entry.blob);
         const baseFilename = entry.displayName + extension;
@@ -49544,14 +49577,18 @@ self.onmessage = async function(event) {
           : entry.displayName + '-' + occurrence + extension;
         files.push({ path: filename, blob: entry.blob });
       });
-      state.ledgerAiImageDownloadProgress = '正在打包 ' + images.length + ' 张' + label + '…';
+      state.ledgerAiImageDownloadProgress = '正在打包 ' + files.length + '/' + images.length + ' 张' + label + '…';
       renderLedgerAiImageViewer(ensurePanel());
       const zip = await createStoredZipBlob(files, (done, total) => {
         state.ledgerAiImageDownloadProgress = '正在打包 ' + done + '/' + total + ' 张' + label + '…';
         renderLedgerAiImageViewer(ensurePanel());
       });
       downloadBlob(zip, String(record.sku || 'SKU') + '-' + label + '.zip');
-      showToast(record.sku + ' 的' + label + '已下载');
+      if (failures.length) {
+        showToast(record.sku + ' 的' + label + '已下载 ' + files.length + '/' + images.length + ' 张；失败：' + failures.join('；'));
+      } else {
+        showToast(record.sku + ' 的' + label + '已下载');
+      }
       return true;
     })().catch((error) => {
       showToast('下载' + label + '失败：' + (formatErrorMessage(error) || '网络请求失败'));
