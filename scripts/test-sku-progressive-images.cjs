@@ -15,16 +15,16 @@ class Observer {
 }
 const sandbox = { URL, IntersectionObserver: Observer, window: { location: { origin: 'https://plm.westmonth.cn' }, IntersectionObserver: Observer, matchMedia: () => ({ matches: false }) }, iconHtml: () => '<svg></svg>', escapeHtml: (value) => value };
 vm.createContext(sandbox);
-vm.runInContext(extract('  function getLedgerThumbnailUrl(', '  function ledgerSelectionToolbarHtml(') + extract('  function getSkuPlaceholderUrl(', '  function skuListCardHtml('), sandbox);
+vm.runInContext(extract('  // <local-image-cache-module>', '  // </local-image-cache-module>') + extract('  function getLedgerThumbnailUrl(', '  function ledgerSelectionToolbarHtml(') + extract('  function getSkuPlaceholderUrl(', '  function skuListCardHtml('), sandbox);
 assert.match(sandbox.getSkuPlaceholderUrl('https://oss-pro.plm.westmonth.cn/a.jpg'), /w_32/);
 assert.equal(sandbox.getSkuPlaceholderUrl('https://oss-pro.plm.westmonth.cn/a.jpg?Signature=abc&Expires=12'), '');
 assert.equal(sandbox.getSkuPlaceholderUrl('https://example.org/a.jpg'), '');
 assert.doesNotMatch(sandbox.skuProgressiveImageHtml('https://example.org/a.jpg'), / src=/);
-function fixture() {
+function fixture(imageUrl) {
   const classes = new Set(), motions = [];
   const placeholder = { getAttribute: () => 'tiny.jpg', removeAttribute() {}, remove() { this.removed = true; }, animate() { return {}; } };
   const frame = { classList: { add: (value) => classes.add(value), contains: (value) => classes.has(value) }, querySelector: () => placeholder };
-  const image = { attrs: { 'data-sku-image': 'original.jpg', 'data-sku-reveal': 'pending' }, getAttribute(key) { return this.attrs[key]; }, removeAttribute(key) { delete this.attrs[key]; }, closest: () => frame, isConnected: true, naturalWidth: 100, complete: false, decode: async () => {}, animate(frames, options) { motions.push({ frames, options }); } };
+  const image = { attrs: { 'data-sku-image': imageUrl || 'original.jpg', 'data-sku-reveal': 'pending' }, getAttribute(key) { return this.attrs[key]; }, removeAttribute(key) { delete this.attrs[key]; }, closest: () => frame, isConnected: true, naturalWidth: 100, complete: false, decode: async () => {}, animate(frames, options) { motions.push({ frames, options }); } };
   const root = {};
   const scope = { querySelectorAll: () => image.attrs['data-sku-reveal'] ? [image] : [], querySelector: () => root };
   return { classes, motions, placeholder, image, scope, root };
@@ -47,13 +47,13 @@ function fixture() {
   assert.ok(f.classes.has('is-image-ready'));
   assert.equal(f.motions[0].options.duration, 500);
   assert.equal(f.motions[0].frames[0].transform, 'scale(1.04)');
-  assert.match(sandbox.skuProgressiveImageHtml('original.jpg'), /src="original.jpg"/);
+  assert.match(sandbox.skuProgressiveImageHtml('original.jpg'), /data-local-image="original.jpg"/);
   assert.doesNotMatch(sandbox.skuProgressiveImageHtml('original.jpg'), /data-sku-reveal|placeholder/);
   assert.match(sandbox.skuProgressiveImageHtml('changed.jpg'), /data-sku-reveal/);
   assert.match(sandbox.skuProgressiveImageHtml('original.jpg', true), /data-sku-reveal/, 'Render signatures must remain stable after an image is revealed');
   sandbox.setupSkuProgressiveImages(f.scope);
   assert.equal(disconnected, 2);
-  const reduced = fixture();
+  const reduced = fixture('reduced.jpg');
   sandbox.window.matchMedia = () => ({ matches: true });
   sandbox.setupSkuProgressiveImages(reduced.scope);
   revealCallback([{ target: reduced.image, isIntersecting: true }]);
@@ -82,6 +82,10 @@ function fixture() {
   const list = { querySelector: () => ({}), set innerHTML(value) { listWrites++; this.markup = value; } };
   sandbox.renderSkuListHtml = (signatureOnly) => signatureOnly ? signature : '<cards>';
   sandbox.setupSkuViewFusion = () => setups++;
+  sandbox.isWorkspaceSkuView = () => false;
+  sandbox.syncWorkspaceSkuSelection = () => {};
+  sandbox.renderSkuFilterModal = () => {};
+  sandbox.syncSkuImageColorControls = () => {};
   vm.runInContext(extract('  function renderSkuList(', '  function isUploadSkuPickerMode('), sandbox);
   const panel = { querySelector: () => list };
   sandbox.renderSkuList(panel);
