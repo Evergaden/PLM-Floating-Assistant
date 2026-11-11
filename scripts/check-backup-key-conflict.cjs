@@ -21,7 +21,8 @@ function fixture(settings = {}) {
   let requests = 0;
   let saved;
   const context = vm.createContext({
-    crypto: webcrypto, Uint8Array, Date,
+    crypto: webcrypto, Uint8Array, Date, TextEncoder,
+    getCloudBackupCryptoApi: () => webcrypto,
     myProfile: { open: false },
     console: { warn() {} },
     state: { settings: { cloudBackupKey: input.value, ...settings }, index: [], cloudBackupRunning: false },
@@ -47,6 +48,7 @@ function fixture(settings = {}) {
   vm.runInContext([
     section('  function diagnosticHash(', '  function makeDiagnosticCode('),
     section('  function redactCloudBackupOwnerMismatch(', '  function saveLogs('),
+    section('  async function computeCloudBackupPayloadHash(', '  async function deriveCloudBackupCryptoKey'),
     section('  function getCloudBackupKey()', '  function getCloudBackupOwnerName()'),
     section('  function getCloudBackupStatusText()', '  function getInsightAiModelSetting()'),
     section('  function setCloudBackupStatus(', '  async function restoreCloudBackup()'),

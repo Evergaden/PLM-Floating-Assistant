@@ -1000,16 +1000,26 @@ async function handleBackupChunkSave(request, env) {
   `).bind(identity.userId, snapshotId, chunkIndex, chunkCount, data).run();
   // Reclaim stale snapshots on every chunk write, so an interrupted or failed
   // finalize can never wedge the account at the D1 size limit. Each user keeps
-  // every snapshot from the last 24h plus the newest two older ones.
+  // the newest two snapshots regardless of age: the 2026-11-10 incident showed
+  // the previous "everything from the last 24h + two older ones" policy lets
+  // high-frequency editors stack hundreds of ~4MB snapshots and exhaust the
+  // 500MB D1 quota within a day.
   try {
     await env.DB.prepare(`
       DELETE FROM user_backup_chunks
-      WHERE user_id = ? AND created_at < datetime('now', '-1 day')
-        AND (
-          SELECT COUNT(DISTINCT d.snapshot_id) FROM user_backup_chunks d
-          WHERE d.user_id = user_backup_chunks.user_id AND d.created_at > user_backup_chunks.created_at
-        ) >= 2
-    `).bind(identity.userId).run();
+      WHERE user_id = ? AND snapshot_id IN (
+        SELECT snapshot_id FROM (
+          SELECT snapshot_id,
+            ROW_NUMBER() OVER (
+              PARTITION BY user_id
+              ORDER BY MAX(created_at) DESC, snapshot_id DESC
+            ) AS rn
+          FROM user_backup_chunks
+          WHERE user_id = ?
+          GROUP BY snapshot_id
+        ) WHERE rn > 2
+      )
+    `).bind(identity.userId, identity.userId).run();
   } catch (cleanupError) {
     // Best-effort only; never block the chunk upload itself.
   }

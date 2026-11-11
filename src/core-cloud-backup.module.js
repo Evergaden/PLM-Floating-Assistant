@@ -377,6 +377,21 @@
       .join('');
   }
 
+  // Stable content hash for skip-if-unchanged uploads. exportedAt is stamped
+  // per build, so it must be stripped or every snapshot would hash differently
+  // and the dedupe would never fire.
+  async function computeCloudBackupPayloadHash(payload) {
+    const stable = payload && typeof payload === 'object' ? { ...payload } : {};
+    delete stable.exportedAt;
+    const digest = await getCloudBackupCryptoApi().subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(JSON.stringify(stable))
+    );
+    return Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
   async function deriveCloudBackupCryptoKey(backupKey, salt, iterations) {
     const cryptoApi = getCloudBackupCryptoApi();
     const requestedIterations = Number(iterations);
@@ -848,14 +863,29 @@
       ];
       let response;
       let uploadedMode = '';
+      let uploadedHash = '';
+      const lastUpload = state.settings.cloudBackupLastUpload || null;
       for (let attemptIndex = 0; attemptIndex < backupAttempts.length; attemptIndex += 1) {
         const attempt = backupAttempts[attemptIndex];
         if (attemptIndex > 0) {
           addLog('warn', '\u4e91\u5907\u4efd' + backupAttempts[attemptIndex - 1].label + '\u5feb\u7167\u8d85\u9650\uff0c\u6539\u7528' + attempt.label + '\u5feb\u7167\u91cd\u8bd5', state.index.length + ' \u4e2a\u7f16\u7801');
         }
-        try {
-          response = await uploadCloudBackupEnvelope(backupId, backupKey, SCRIPT_VERSION, await encodeCloudBackupPayload(attempt.build(), backupKey));
+        const attemptPayload = attempt.build();
+        const attemptHash = await computeCloudBackupPayloadHash(attemptPayload);
+        if (lastUpload && lastUpload.backupId === backupId && lastUpload.hash === attemptHash) {
+          // Cloud already holds this exact content; skip the transfer entirely.
+          // High-frequency auto backups used to push a full ~4MB snapshot on
+          // every 8s debounce even when nothing changed, stacking hundreds of
+          // snapshots until D1 hit its size cap (2026-11-10 incident).
+          response = { ok: true, userId: backupId, unchanged: true };
           uploadedMode = attempt.label;
+          uploadedHash = attemptHash;
+          break;
+        }
+        try {
+          response = await uploadCloudBackupEnvelope(backupId, backupKey, SCRIPT_VERSION, await encodeCloudBackupPayload(attemptPayload, backupKey));
+          uploadedMode = attempt.label;
+          uploadedHash = attemptHash;
           break;
         } catch (error) {
           const cloudData = error && error.cloudData ? error.cloudData : {};
@@ -869,13 +899,22 @@
       myProfile.backupKey = '';
       if (myProfile.open) refreshMyProfileBackup();
       state.settings.cloudBackupConflictKeyHash = '';
+      state.settings.cloudBackupLastUpload = { backupId, hash: uploadedHash, at: Date.now() };
+      saveSettings(state.settings);
       const downgraded = uploadedMode && uploadedMode !== '\u5b8c\u6574';
       const chunked = Boolean(response.chunked);
+      const unchanged = Boolean(response.unchanged);
+      const translateDirtyAfter = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
+      if (!translateDirtyAfter || Number(translateDirtyAfter.updatedAt) <= translateDirtyAt) writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
+      if (unchanged) {
+        setCloudBackupStatus(L.cloudBackupUpToDate + ' \u00b7 ' + state.index.length + '\u4e2a\u7f16\u7801');
+        addLog('info', '\u4e91\u5907\u5907\u4efd\u5185\u5bb9\u65e0\u53d8\u5316\uff0c\u8df3\u8fc7\u4e0a\u4f20', state.index.length + ' \u4e2a\u7f16\u7801');
+        if (!(options && options.silent)) showToast(L.cloudBackupUpToDate);
+        return true;
+      }
       const backupModeText = downgraded ? '\uff08' + uploadedMode + (chunked ? '\u00b7\u5206\u7247' : '') + '\uff09' : (chunked ? '\uff08\u5206\u7247\uff09' : '');
       setCloudBackupStatus('密钥验证通过 · ' + L.cloudBackupSavedAt + ' ' + new Date().toLocaleTimeString() + '\uff0c' + state.index.length + '\u4e2a\u7f16\u7801' + backupModeText);
       addLog('success', downgraded ? '\u4e91\u5907\u4efd' + uploadedMode + '\u4e0a\u4f20\u6210\u529f' : '\u4e91\u5907\u4efd\u4e0a\u4f20\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801' + (chunked ? '\u00b7\u5206\u7247' : ''));
-      const translateDirtyAfter = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
-      if (!translateDirtyAfter || Number(translateDirtyAfter.updatedAt) <= translateDirtyAt) writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
       if (!(options && options.silent)) showToast(L.cloudBackupSaved);
       return true;
     } catch (error) {

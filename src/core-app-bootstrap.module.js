@@ -95,6 +95,7 @@
     cloudBackupRestore: '\u6062\u590d\u5907\u4efd',
     cloudBackupSaving: '\u6b63\u5728\u4e0a\u4f20\u4e91\u5907\u4efd...',
     cloudBackupSaved: '\u4e91\u5907\u4efd\u5df2\u4e0a\u4f20',
+    cloudBackupUpToDate: '\u5907\u4efd\u5df2\u662f\u6700\u65b0\uff0c\u65e0\u9700\u91cd\u65b0\u4e0a\u4f20',
     cloudBackupReady: '\u672a\u8fde\u63a5',
     cloudBackupSavedAt: '\u5df2\u4e0a\u4f20',
     cloudBackupRestoring: '\u6b63\u5728\u6062\u590d\u4e91\u5907\u4efd...',

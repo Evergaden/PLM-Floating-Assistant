@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.36
+// @version      2.10.37
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.36';
+  const SCRIPT_VERSION = '2.10.37';
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
@@ -18043,6 +18043,7 @@
     cloudBackupRestore: '\u6062\u590d\u5907\u4efd',
     cloudBackupSaving: '\u6b63\u5728\u4e0a\u4f20\u4e91\u5907\u4efd...',
     cloudBackupSaved: '\u4e91\u5907\u4efd\u5df2\u4e0a\u4f20',
+    cloudBackupUpToDate: '\u5907\u4efd\u5df2\u662f\u6700\u65b0\uff0c\u65e0\u9700\u91cd\u65b0\u4e0a\u4f20',
     cloudBackupReady: '\u672a\u8fde\u63a5',
     cloudBackupSavedAt: '\u5df2\u4e0a\u4f20',
     cloudBackupRestoring: '\u6b63\u5728\u6062\u590d\u4e91\u5907\u4efd...',
@@ -50858,6 +50859,21 @@ self.onmessage = async function(event) {
       .join('');
   }
 
+  // Stable content hash for skip-if-unchanged uploads. exportedAt is stamped
+  // per build, so it must be stripped or every snapshot would hash differently
+  // and the dedupe would never fire.
+  async function computeCloudBackupPayloadHash(payload) {
+    const stable = payload && typeof payload === 'object' ? { ...payload } : {};
+    delete stable.exportedAt;
+    const digest = await getCloudBackupCryptoApi().subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(JSON.stringify(stable))
+    );
+    return Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
   async function deriveCloudBackupCryptoKey(backupKey, salt, iterations) {
     const cryptoApi = getCloudBackupCryptoApi();
     const requestedIterations = Number(iterations);
@@ -51329,14 +51345,29 @@ self.onmessage = async function(event) {
       ];
       let response;
       let uploadedMode = '';
+      let uploadedHash = '';
+      const lastUpload = state.settings.cloudBackupLastUpload || null;
       for (let attemptIndex = 0; attemptIndex < backupAttempts.length; attemptIndex += 1) {
         const attempt = backupAttempts[attemptIndex];
         if (attemptIndex > 0) {
           addLog('warn', '\u4e91\u5907\u4efd' + backupAttempts[attemptIndex - 1].label + '\u5feb\u7167\u8d85\u9650\uff0c\u6539\u7528' + attempt.label + '\u5feb\u7167\u91cd\u8bd5', state.index.length + ' \u4e2a\u7f16\u7801');
         }
-        try {
-          response = await uploadCloudBackupEnvelope(backupId, backupKey, SCRIPT_VERSION, await encodeCloudBackupPayload(attempt.build(), backupKey));
+        const attemptPayload = attempt.build();
+        const attemptHash = await computeCloudBackupPayloadHash(attemptPayload);
+        if (lastUpload && lastUpload.backupId === backupId && lastUpload.hash === attemptHash) {
+          // Cloud already holds this exact content; skip the transfer entirely.
+          // High-frequency auto backups used to push a full ~4MB snapshot on
+          // every 8s debounce even when nothing changed, stacking hundreds of
+          // snapshots until D1 hit its size cap (2026-11-10 incident).
+          response = { ok: true, userId: backupId, unchanged: true };
           uploadedMode = attempt.label;
+          uploadedHash = attemptHash;
+          break;
+        }
+        try {
+          response = await uploadCloudBackupEnvelope(backupId, backupKey, SCRIPT_VERSION, await encodeCloudBackupPayload(attemptPayload, backupKey));
+          uploadedMode = attempt.label;
+          uploadedHash = attemptHash;
           break;
         } catch (error) {
           const cloudData = error && error.cloudData ? error.cloudData : {};
@@ -51350,13 +51381,22 @@ self.onmessage = async function(event) {
       myProfile.backupKey = '';
       if (myProfile.open) refreshMyProfileBackup();
       state.settings.cloudBackupConflictKeyHash = '';
+      state.settings.cloudBackupLastUpload = { backupId, hash: uploadedHash, at: Date.now() };
+      saveSettings(state.settings);
       const downgraded = uploadedMode && uploadedMode !== '\u5b8c\u6574';
       const chunked = Boolean(response.chunked);
+      const unchanged = Boolean(response.unchanged);
+      const translateDirtyAfter = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
+      if (!translateDirtyAfter || Number(translateDirtyAfter.updatedAt) <= translateDirtyAt) writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
+      if (unchanged) {
+        setCloudBackupStatus(L.cloudBackupUpToDate + ' \u00b7 ' + state.index.length + '\u4e2a\u7f16\u7801');
+        addLog('info', '\u4e91\u5907\u5907\u4efd\u5185\u5bb9\u65e0\u53d8\u5316\uff0c\u8df3\u8fc7\u4e0a\u4f20', state.index.length + ' \u4e2a\u7f16\u7801');
+        if (!(options && options.silent)) showToast(L.cloudBackupUpToDate);
+        return true;
+      }
       const backupModeText = downgraded ? '\uff08' + uploadedMode + (chunked ? '\u00b7\u5206\u7247' : '') + '\uff09' : (chunked ? '\uff08\u5206\u7247\uff09' : '');
       setCloudBackupStatus('密钥验证通过 · ' + L.cloudBackupSavedAt + ' ' + new Date().toLocaleTimeString() + '\uff0c' + state.index.length + '\u4e2a\u7f16\u7801' + backupModeText);
       addLog('success', downgraded ? '\u4e91\u5907\u4efd' + uploadedMode + '\u4e0a\u4f20\u6210\u529f' : '\u4e91\u5907\u4efd\u4e0a\u4f20\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801' + (chunked ? '\u00b7\u5206\u7247' : ''));
-      const translateDirtyAfter = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
-      if (!translateDirtyAfter || Number(translateDirtyAfter.updatedAt) <= translateDirtyAt) writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
       if (!(options && options.silent)) showToast(L.cloudBackupSaved);
       return true;
     } catch (error) {
