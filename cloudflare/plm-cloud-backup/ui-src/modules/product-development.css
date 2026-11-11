@@ -2777,27 +2777,6 @@
   color: #b42318;
 }
 
-#plm-floating-helper .pfh-product-development-detail-banner {
-  display: grid;
-  gap: 3px;
-  padding: 10px 11px;
-  border: 1px solid var(--pfh-theme-primary-soft);
-  border-radius: 10px;
-  background: var(--pfh-theme-primary-soft);
-  color: var(--pfh-theme-muted);
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-#plm-floating-helper .pfh-product-development-detail-banner strong {
-  color: var(--pfh-theme-primary);
-}
-
-#plm-floating-helper .pfh-product-development-detail-banner em {
-  color: #a23b46;
-  font-style: normal;
-}
-
 #plm-floating-helper .pfh-product-development-detail-meta {
   display: flex;
   flex-wrap: wrap;

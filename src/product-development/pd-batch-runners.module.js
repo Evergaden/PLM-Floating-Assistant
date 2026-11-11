@@ -742,7 +742,7 @@
   function productDevelopmentIngredientEditorHtml(editor) {
     if (!editor) return '<div class="pfh-product-development-result-empty">选择模板后会显示可编辑内容。</div>';
     const cells = Array.isArray(editor.cells) ? editor.cells : [];
-    return '<section class="pfh-product-development-review-editor"><header><div><small>云端模板摘要</small><h3>编辑当前工作表</h3></div><span>' + cells.length + ' 个可编辑单元格</span></header><p class="pfh-product-development-form-note">以下文字来自云端模板摘要；修改后按原成分表 PDF 版式导出，不需要导入模板文件。</p><div class="pfh-product-development-review-editor-list">' + cells.map(productDevelopmentIngredientCellInputHtml).join('') + '</div></section>';
+    return '<section class="pfh-product-development-review-editor"><header><div><small>云端模板摘要</small><h3>编辑当前工作表</h3></div><span>' + cells.length + ' 个可编辑单元格</span></header><p class="pfh-product-development-form-note">文字来自云端模板摘要；修改后按原成分表 PDF 版式导出。</p><div class="pfh-product-development-review-editor-list">' + cells.map(productDevelopmentIngredientCellInputHtml).join('') + '</div></section>';
   }
 
   function productDevelopmentIngredientFactsHtml() {

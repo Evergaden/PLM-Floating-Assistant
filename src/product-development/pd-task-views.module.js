@@ -1,6 +1,6 @@
 
   function productDevelopmentReadonlyDetailHtml(detail) {
-    if (!detail) return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>正在读取只读字段…</span></header><div class="pfh-product-development-form-empty">正在读取 BOM 和建品字段；默认不写入 PLM。</div></section>';
+    if (!detail) return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>正在读取只读字段…</span></header><div class="pfh-product-development-form-empty">正在读取 BOM 和建品字段…</div></section>';
     const formSku = String(detail.sku || '').trim().toUpperCase();
     const productPlmBusy = state.productDevelopmentProductSaveSku === formSku;
     const productSaveStatus = detail.productDetailDraftDirty
@@ -21,8 +21,8 @@
       ? '<span>本地建议中文名：<b>' + escapeHtml(localNaming.chineseProductName || '待补充') + '</b></span><span>本地建议英文名：<b>' + escapeHtml(localNaming.englishProductName || '待补充') + '</b></span>'
       : '';
     const sourceHint = detail.cacheSource === 'local-cache'
-      ? '本地缓存 · 5分钟内免重复读取'
-      : '已读取 PLM · 可本地填写 · 更新时间 ' + String(detail.loadedAt || '');
+      ? '本地缓存' + (detail.loadedAt ? ' · 更新时间 ' + String(detail.loadedAt) : '')
+      : '已读取 PLM · 更新时间 ' + String(detail.loadedAt || '');
     const domFillBusy = state.productDevelopmentDomFillSku === formSku;
     const domFillDisabled = domFillBusy || productPlmBusy ? ' disabled' : '';
     const page1Fields = PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS.map((definition) => ({ ...definition, formGroup: 'page1' }));
@@ -33,14 +33,16 @@
     const attachmentSummary = attachments.length
       ? attachments.map((item) => '<span>' + escapeHtml(item.label) + '：' + escapeHtml(item.displayValue || item.status || '待手动上传') + '</span>').join('')
       : '<span>产品正面图、产品文案 DOCX：请在 PLM 页面 2 手动上传</span>';
-    return '<section class="pfh-product-development-detail-form"><header><div><small>建品资料</small><h3>填写建品信息</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + productSaveStatusClass + '">' + escapeHtml(domFillBusy ? '正在填写 PLM…' : productSaveStatus) + '</span><button type="button" class="is-primary" data-action="product-development-product-fill-page1" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + '>一键填写页面1</button><button type="button" class="is-primary" data-action="product-development-product-fill-page2" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + '>一键填写页面2</button><button type="button" data-action="product-development-product-save-local" data-product-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" data-action="product-development-product-save-plm" data-product-sku="' + escapeHtml(formSku) + '"' + (productPlmBusy ? ' disabled' : '') + '>' + (productPlmBusy ? '正在保存…' : '保存建品到 PLM') + '</button></div></header>' +
-      '<div class="pfh-product-development-detail-banner"><strong>有值就填，空白字段会自动跳过。</strong><span>先在 PLM 页面 1 点击“页面1”，进入页面 2 后点击“页面2”；按钮只填写当前表单，不会自动点下一步或保存。</span><span>' + escapeHtml(sourceHint) + '</span>' + (detail.error ? '<em>' + escapeHtml(detail.error) + '</em>' : '') + '</div>' +
+    return '<section class="pfh-product-development-detail-form"><header><div><small>建品资料</small><h3>填写建品信息</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + productSaveStatusClass + '">' + escapeHtml(domFillBusy ? '正在填写 PLM…' : productSaveStatus) + '</span><button type="button" class="is-primary" data-action="product-development-product-fill-page1" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">一键填写页面1</button><button type="button" class="is-primary" data-action="product-development-product-fill-page2" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">一键填写页面2</button><button type="button" data-action="product-development-product-save-local" data-product-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" data-action="product-development-product-save-plm" data-product-sku="' + escapeHtml(formSku) + '"' + (productPlmBusy ? ' disabled' : '') + '>' + (productPlmBusy ? '正在保存…' : '保存建品到 PLM') + '</button></div></header>' +
+      (detail.error
+        ? '<p class="pfh-product-development-material-plm-status is-error">' + escapeHtml(detail.error) + '</p>'
+        : '<div class="pfh-product-development-detail-meta"><span>' + escapeHtml(sourceHint) + '</span></div>') +
       productPlmStatus +
       (localNamingMeta ? '<div class="pfh-product-development-detail-meta">' + localNamingMeta + '</div>' : '') +
       '<section class="pfh-product-development-form-section"><h4>页面 1 · 建品基础信息（' + page1Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page1Fields, (field) => productDevelopmentPage1FieldValue(detail, field.key)) + '</div></section>' +
       '<section class="pfh-product-development-form-section"><h4>页面 2 · 产品详情（' + page2Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page2Fields, (field) => productDevelopmentPrefillProductFieldValue(detail, field)) + '</div></section>' +
       '<section class="pfh-product-development-form-section"><h4>页面 2 · 采购明细（' + procurementFields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(procurementFields, (field) => productDevelopmentProcurementFieldValue(detail, field.key)) + '</div></section>' +
-      '<section class="pfh-product-development-form-section"><h4>页面 2 · 文件上传</h4><div class="pfh-product-development-detail-meta">' + attachmentSummary + '</div><small class="pfh-product-development-form-note">产品正面图和产品文案 DOCX 属于浏览器文件控件，页面 2 按钮不会伪造文件路径；请在 PLM 中手动选择文件。</small></section></section>';
+      '<section class="pfh-product-development-form-section"><h4>页面 2 · 文件上传</h4><div class="pfh-product-development-detail-meta">' + attachmentSummary + '</div></section></section>';
   }
 
   function productDevelopmentGoogleTranslate(text, sourceLang, targetLang) {
@@ -237,7 +239,7 @@
     const draft = productDevelopmentRawMaterialNormalizeDraft(result && result.rawMaterialDraft);
     if (!draft.efficacyItems.length && !draft.ingredientItems.length) return '';
     const busy = state.productDevelopmentRawMaterialTranslateBusy;
-    return '<section class="pfh-product-development-plain-copy pfh-product-development-raw-material"><header><div><small>RAW MATERIAL REQUEST</small><h3>原料需求</h3></div><span>逐条可编辑 · 是否为NDC 留空不填</span></header>' +
+    return '<section class="pfh-product-development-plain-copy pfh-product-development-raw-material"><header><div><small>RAW MATERIAL REQUEST</small><h3>原料需求</h3></div><span>是否为 NDC：留空不填</span></header>' +
       productDevelopmentRawMaterialGroupHtml('产品功效', 'efficacy', draft.efficacyItems) +
       productDevelopmentRawMaterialGroupHtml('开发提供的成分（原料需求表）', 'ingredients', draft.ingredientItems) +
       '<div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-raw-material-translate"' + (busy ? ' disabled' : '') + '>' + (busy ? '正在翻译…' : '英文翻译为中文') + '</button><button type="button" data-action="product-development-raw-material-copy" data-raw-copy-field="efficacy"' + (draft.efficacyItems.length ? '' : ' disabled') + '>复制功效</button><button type="button" data-action="product-development-raw-material-copy" data-raw-copy-field="ingredients"' + (draft.ingredientItems.length ? '' : ' disabled') + '>复制成分</button></div></section>';

@@ -784,8 +784,7 @@
   function productDevelopmentPlainTextCopyHtml(result) {
     const value = productDevelopmentCleanText(result && (result.plainTextCopy || result.approvedPlainText || result.finalCopy), 12000);
     return '<section class="pfh-product-development-plain-copy"><header><div><small>APPROVED PLAIN COPY</small><h3>纯文字文案版本</h3></div><span>仅本地缓存 · 输入即保存</span></header>' +
-      '<textarea class="pfh-product-development-plain-copy-input" data-review-plain-copy rows="6" aria-label="用户确定的纯文字文案版本" placeholder="把用户确定好的纯文字文案粘贴到这里；输入后会自动保存到当前 SKU 缓存，不需要点击确定。">' + escapeHtml(value) + '</textarea>' +
-      '<small>仅作为当前 SKU 的本地缓存备忘，不会调用 API、不会写入 PLM，也不会触发重新生成对照图。</small></section>';
+      '<textarea class="pfh-product-development-plain-copy-input" data-review-plain-copy rows="6" aria-label="用户确定的纯文字文案版本" placeholder="粘贴用户确定好的纯文字文案，输入即自动保存。">' + escapeHtml(value) + '</textarea></section>';
   }
 
   function productDevelopmentReviewCopyContext(result) {

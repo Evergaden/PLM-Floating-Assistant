@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.38
+// @version      2.10.40
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.38';
+  const SCRIPT_VERSION = '2.10.40';
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
@@ -10731,7 +10731,7 @@
     const specification = productDevelopmentCleanText(row && row.specification || productDevelopmentMaterialPackSpec(detail), 160);
     const status = row && row.joinId ? '已绑定' : (productMainId ? '待保存' : '待绑定');
     const statusClass = status === '已绑定' ? ' is-ready' : (status === '待绑定' ? ' is-missing' : '');
-    return '<article class="pfh-product-development-product-binding"><header><div><strong>成品绑定</strong><span>保存 BOM 时自动绑定当前产品</span></div><em class="' + statusClass + '">' + escapeHtml(status) + '</em></header><div class="pfh-product-development-binding-grid"><div><small>产品编码</small><b>' + escapeHtml(code || '待补充') + '</b></div><div><small>产品名称</small><b>' + escapeHtml(name || '待补充') + '</b></div><div><small>规格型号</small><b>' + escapeHtml(specification || '按 PLM 成品记录') + '</b></div></div><p>保存 BOM 时会自动保留当前产品绑定。</p></article>';
+    return '<article class="pfh-product-development-product-binding"><header><div><strong>成品绑定</strong><span>保存 BOM 时自动绑定当前产品</span></div><em class="' + statusClass + '">' + escapeHtml(status) + '</em></header><div class="pfh-product-development-binding-grid"><div><small>产品编码</small><b>' + escapeHtml(code || '待补充') + '</b></div><div><small>产品名称</small><b>' + escapeHtml(name || '待补充') + '</b></div><div><small>规格型号</small><b>' + escapeHtml(specification || '按 PLM 成品记录') + '</b></div></div></article>';
   }
 
   function productDevelopmentMaterialCardHtml(kind, draft, sku, baseName) {
@@ -10740,7 +10740,7 @@
     const isInstruction = kind === 'instruction';
     const title = isBox ? '纸盒' : isLabel ? '标签' : '说明书';
     if (!draft || draft.enabled === false) {
-      return '<article class="pfh-product-development-material-card is-disabled"><header><div class="pfh-product-development-material-card-title"><strong>' + escapeHtml(title) + '（本地不需要）</strong><span>已从本地物料填写中移除</span></div><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="true">恢复' + escapeHtml(title) + '</button></header><p>已有 PLM 绑定不会自动删除；如需重新填写，可点击恢复。</p></article>';
+      return '<article class="pfh-product-development-material-card is-disabled"><header><div class="pfh-product-development-material-card-title"><strong>' + escapeHtml(title) + '（本地不需要）</strong><span>已从本地物料填写中移除</span></div><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="true">恢复' + escapeHtml(title) + '</button></header><p>已有 PLM 绑定不会自动删除。</p></article>';
     }
     const priceText = draft.price || (isInstruction ? '' : '按尺寸自动计算');
     const dimensionFields = isInstruction
@@ -10798,7 +10798,7 @@
     const anyBomBusy = plmBusy || bomDomFillBusy;
     const plmStatus = detail.bomPlmSaveMessage ? '<p class="pfh-product-development-material-plm-status' + (detail.bomPlmSaveState === 'error' ? ' is-error' : ' is-saved') + '">' + escapeHtml(detail.bomPlmSaveMessage) + '</p>' : '';
     const existingBom = '<section class="pfh-product-development-form-section pfh-product-development-bom-existing"><h4>PLM 当前绑定 BOM（' + escapeHtml(String((detail.bomRows || []).length)) + ' 项）</h4>' + productDevelopmentReadonlyBomHtml(detail.bomRows || [], formSku) + '</section>';
-    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM 绑定</small><h3>填写 BOM 物料</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-bom-fill-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + '>' + (bomDomFillBusy ? '正在填入…' : '一键填入 PLM BOM') + '</button><button type="button" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : 'API 直接保存') + '</button></div></header><p class="pfh-product-development-material-note">纸盒和标签可按产品需要移除；说明书从“印刷”入口填写；返工产品编码有值时会从“成品”入口执行搜索。一键填入不会选择成品搜索结果或点击“批量保存”。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div>' + existingBom + '</section>';
+    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM 绑定</small><h3>填写 BOM 物料</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-bom-fill-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + ' title="只填写 BOM 表单，不会选择成品搜索结果或点击“批量保存”">' + (bomDomFillBusy ? '正在填入…' : '一键填入 PLM BOM') + '</button><button type="button" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : 'API 直接保存') + '</button></div></header><p class="pfh-product-development-material-note">说明书从“印刷”入口填写；返工产品编码有值时会从“成品”入口执行搜索。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div>' + existingBom + '</section>';
   }
 
   function productDevelopmentReadonlyAttachmentHtml(item, index, formSku) {
@@ -10813,7 +10813,7 @@
   }
 
   function productDevelopmentReadonlyDetailHtml(detail) {
-    if (!detail) return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>正在读取只读字段…</span></header><div class="pfh-product-development-form-empty">正在读取 BOM 和建品字段；默认不写入 PLM。</div></section>';
+    if (!detail) return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>正在读取只读字段…</span></header><div class="pfh-product-development-form-empty">正在读取 BOM 和建品字段…</div></section>';
     const formSku = String(detail.sku || '').trim().toUpperCase();
     const productPlmBusy = state.productDevelopmentProductSaveSku === formSku;
     const productSaveStatus = detail.productDetailDraftDirty
@@ -10834,8 +10834,8 @@
       ? '<span>本地建议中文名：<b>' + escapeHtml(localNaming.chineseProductName || '待补充') + '</b></span><span>本地建议英文名：<b>' + escapeHtml(localNaming.englishProductName || '待补充') + '</b></span>'
       : '';
     const sourceHint = detail.cacheSource === 'local-cache'
-      ? '本地缓存 · 5分钟内免重复读取'
-      : '已读取 PLM · 可本地填写 · 更新时间 ' + String(detail.loadedAt || '');
+      ? '本地缓存' + (detail.loadedAt ? ' · 更新时间 ' + String(detail.loadedAt) : '')
+      : '已读取 PLM · 更新时间 ' + String(detail.loadedAt || '');
     const domFillBusy = state.productDevelopmentDomFillSku === formSku;
     const domFillDisabled = domFillBusy || productPlmBusy ? ' disabled' : '';
     const page1Fields = PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS.map((definition) => ({ ...definition, formGroup: 'page1' }));
@@ -10846,14 +10846,16 @@
     const attachmentSummary = attachments.length
       ? attachments.map((item) => '<span>' + escapeHtml(item.label) + '：' + escapeHtml(item.displayValue || item.status || '待手动上传') + '</span>').join('')
       : '<span>产品正面图、产品文案 DOCX：请在 PLM 页面 2 手动上传</span>';
-    return '<section class="pfh-product-development-detail-form"><header><div><small>建品资料</small><h3>填写建品信息</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + productSaveStatusClass + '">' + escapeHtml(domFillBusy ? '正在填写 PLM…' : productSaveStatus) + '</span><button type="button" class="is-primary" data-action="product-development-product-fill-page1" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + '>一键填写页面1</button><button type="button" class="is-primary" data-action="product-development-product-fill-page2" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + '>一键填写页面2</button><button type="button" data-action="product-development-product-save-local" data-product-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" data-action="product-development-product-save-plm" data-product-sku="' + escapeHtml(formSku) + '"' + (productPlmBusy ? ' disabled' : '') + '>' + (productPlmBusy ? '正在保存…' : '保存建品到 PLM') + '</button></div></header>' +
-      '<div class="pfh-product-development-detail-banner"><strong>有值就填，空白字段会自动跳过。</strong><span>先在 PLM 页面 1 点击“页面1”，进入页面 2 后点击“页面2”；按钮只填写当前表单，不会自动点下一步或保存。</span><span>' + escapeHtml(sourceHint) + '</span>' + (detail.error ? '<em>' + escapeHtml(detail.error) + '</em>' : '') + '</div>' +
+    return '<section class="pfh-product-development-detail-form"><header><div><small>建品资料</small><h3>填写建品信息</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + productSaveStatusClass + '">' + escapeHtml(domFillBusy ? '正在填写 PLM…' : productSaveStatus) + '</span><button type="button" class="is-primary" data-action="product-development-product-fill-page1" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">一键填写页面1</button><button type="button" class="is-primary" data-action="product-development-product-fill-page2" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">一键填写页面2</button><button type="button" data-action="product-development-product-save-local" data-product-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" data-action="product-development-product-save-plm" data-product-sku="' + escapeHtml(formSku) + '"' + (productPlmBusy ? ' disabled' : '') + '>' + (productPlmBusy ? '正在保存…' : '保存建品到 PLM') + '</button></div></header>' +
+      (detail.error
+        ? '<p class="pfh-product-development-material-plm-status is-error">' + escapeHtml(detail.error) + '</p>'
+        : '<div class="pfh-product-development-detail-meta"><span>' + escapeHtml(sourceHint) + '</span></div>') +
       productPlmStatus +
       (localNamingMeta ? '<div class="pfh-product-development-detail-meta">' + localNamingMeta + '</div>' : '') +
       '<section class="pfh-product-development-form-section"><h4>页面 1 · 建品基础信息（' + page1Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page1Fields, (field) => productDevelopmentPage1FieldValue(detail, field.key)) + '</div></section>' +
       '<section class="pfh-product-development-form-section"><h4>页面 2 · 产品详情（' + page2Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page2Fields, (field) => productDevelopmentPrefillProductFieldValue(detail, field)) + '</div></section>' +
       '<section class="pfh-product-development-form-section"><h4>页面 2 · 采购明细（' + procurementFields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(procurementFields, (field) => productDevelopmentProcurementFieldValue(detail, field.key)) + '</div></section>' +
-      '<section class="pfh-product-development-form-section"><h4>页面 2 · 文件上传</h4><div class="pfh-product-development-detail-meta">' + attachmentSummary + '</div><small class="pfh-product-development-form-note">产品正面图和产品文案 DOCX 属于浏览器文件控件，页面 2 按钮不会伪造文件路径；请在 PLM 中手动选择文件。</small></section></section>';
+      '<section class="pfh-product-development-form-section"><h4>页面 2 · 文件上传</h4><div class="pfh-product-development-detail-meta">' + attachmentSummary + '</div></section></section>';
   }
 
   function productDevelopmentGoogleTranslate(text, sourceLang, targetLang) {
@@ -11050,7 +11052,7 @@
     const draft = productDevelopmentRawMaterialNormalizeDraft(result && result.rawMaterialDraft);
     if (!draft.efficacyItems.length && !draft.ingredientItems.length) return '';
     const busy = state.productDevelopmentRawMaterialTranslateBusy;
-    return '<section class="pfh-product-development-plain-copy pfh-product-development-raw-material"><header><div><small>RAW MATERIAL REQUEST</small><h3>原料需求</h3></div><span>逐条可编辑 · 是否为NDC 留空不填</span></header>' +
+    return '<section class="pfh-product-development-plain-copy pfh-product-development-raw-material"><header><div><small>RAW MATERIAL REQUEST</small><h3>原料需求</h3></div><span>是否为 NDC：留空不填</span></header>' +
       productDevelopmentRawMaterialGroupHtml('产品功效', 'efficacy', draft.efficacyItems) +
       productDevelopmentRawMaterialGroupHtml('开发提供的成分（原料需求表）', 'ingredients', draft.ingredientItems) +
       '<div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-raw-material-translate"' + (busy ? ' disabled' : '') + '>' + (busy ? '正在翻译…' : '英文翻译为中文') + '</button><button type="button" data-action="product-development-raw-material-copy" data-raw-copy-field="efficacy"' + (draft.efficacyItems.length ? '' : ' disabled') + '>复制功效</button><button type="button" data-action="product-development-raw-material-copy" data-raw-copy-field="ingredients"' + (draft.ingredientItems.length ? '' : ' disabled') + '>复制成分</button></div></section>';
@@ -13199,8 +13201,7 @@
   function productDevelopmentPlainTextCopyHtml(result) {
     const value = productDevelopmentCleanText(result && (result.plainTextCopy || result.approvedPlainText || result.finalCopy), 12000);
     return '<section class="pfh-product-development-plain-copy"><header><div><small>APPROVED PLAIN COPY</small><h3>纯文字文案版本</h3></div><span>仅本地缓存 · 输入即保存</span></header>' +
-      '<textarea class="pfh-product-development-plain-copy-input" data-review-plain-copy rows="6" aria-label="用户确定的纯文字文案版本" placeholder="把用户确定好的纯文字文案粘贴到这里；输入后会自动保存到当前 SKU 缓存，不需要点击确定。">' + escapeHtml(value) + '</textarea>' +
-      '<small>仅作为当前 SKU 的本地缓存备忘，不会调用 API、不会写入 PLM，也不会触发重新生成对照图。</small></section>';
+      '<textarea class="pfh-product-development-plain-copy-input" data-review-plain-copy rows="6" aria-label="用户确定的纯文字文案版本" placeholder="粘贴用户确定好的纯文字文案，输入即自动保存。">' + escapeHtml(value) + '</textarea></section>';
   }
 
   function productDevelopmentReviewCopyContext(result) {
@@ -16908,7 +16909,7 @@
   function productDevelopmentIngredientEditorHtml(editor) {
     if (!editor) return '<div class="pfh-product-development-result-empty">选择模板后会显示可编辑内容。</div>';
     const cells = Array.isArray(editor.cells) ? editor.cells : [];
-    return '<section class="pfh-product-development-review-editor"><header><div><small>云端模板摘要</small><h3>编辑当前工作表</h3></div><span>' + cells.length + ' 个可编辑单元格</span></header><p class="pfh-product-development-form-note">以下文字来自云端模板摘要；修改后按原成分表 PDF 版式导出，不需要导入模板文件。</p><div class="pfh-product-development-review-editor-list">' + cells.map(productDevelopmentIngredientCellInputHtml).join('') + '</div></section>';
+    return '<section class="pfh-product-development-review-editor"><header><div><small>云端模板摘要</small><h3>编辑当前工作表</h3></div><span>' + cells.length + ' 个可编辑单元格</span></header><p class="pfh-product-development-form-note">文字来自云端模板摘要；修改后按原成分表 PDF 版式导出。</p><div class="pfh-product-development-review-editor-list">' + cells.map(productDevelopmentIngredientCellInputHtml).join('') + '</div></section>';
   }
 
   function productDevelopmentIngredientFactsHtml() {
@@ -46034,10 +46035,32 @@ self.onmessage = async function(event) {
       };
       // Transient network failures (proxy hiccups, CDN connection resets) show
       // up as GM onerror with no status code. Retry twice with backoff before
-      // giving up; a real HTTP error still fails immediately.
+      // giving up; a real HTTP error still fails immediately. When the GM path
+      // is exhausted, fall back to page-context fetch: the image CDN sends
+      // Access-Control-Allow-Origin: *, and page requests can succeed where
+      // Tampermonkey requests fail (different network path under some PAC /
+      // proxy setups — observed as thumbnails rendering but GM downloads dying).
       const attempts = [0, 600, 1800];
       const attemptCount = attempts.length;
+      const runFetch = (attemptIndex, onFinalFailure) => {
+        fetchWithTimeout(targetUrl, 30000).then((response) => {
+          if (!response.ok) throw new Error('图片下载失败：HTTP ' + response.status);
+          return response.blob();
+        }).then(resolve).catch((error) => {
+          const transient = !(error && /图片下载失败：HTTP/.test(String(error && error.message)));
+          if (transient && attemptIndex + 1 < attemptCount) {
+            setTimeout(() => runFetch(attemptIndex + 1, onFinalFailure), attempts[attemptIndex + 1]);
+            return;
+          }
+          onFinalFailure(error);
+        });
+      };
       if (typeof GM_xmlhttpRequest === 'function') {
+        const runGmFallback = (timeout) => {
+          runFetch(0, () => reject(new Error(timeout
+            ? '图片下载失败：请求超时（直连与备用通道均已重试，请检查网络或代理）'
+            : '图片下载失败：网络错误（直连与备用通道均已重试，请检查网络或代理）')));
+        };
         const run = (attemptIndex) => {
           GM_xmlhttpRequest({
             method: 'GET',
@@ -46056,34 +46079,21 @@ self.onmessage = async function(event) {
                 setTimeout(() => run(attemptIndex + 1), attempts[attemptIndex + 1]);
                 return;
               }
-              reject(new Error('图片下载失败：网络错误（已重试 ' + (attemptCount - 1) + ' 次，请检查网络或代理）'));
+              runGmFallback(false);
             },
             ontimeout: () => {
               if (attemptIndex + 1 < attemptCount) {
                 setTimeout(() => run(attemptIndex + 1), attempts[attemptIndex + 1]);
                 return;
               }
-              reject(new Error('图片下载失败：请求超时（已重试 ' + (attemptCount - 1) + ' 次）'));
+              runGmFallback(true);
             },
           });
         };
         run(0);
         return;
       }
-      const runFetch = (attemptIndex) => {
-        fetchWithTimeout(targetUrl, 30000).then((response) => {
-          if (!response.ok) throw new Error('图片下载失败：HTTP ' + response.status);
-          return response.blob();
-        }).then(resolve).catch((error) => {
-          const transient = !(error && /图片下载失败：HTTP/.test(String(error && error.message)));
-          if (transient && attemptIndex + 1 < attemptCount) {
-            setTimeout(() => runFetch(attemptIndex + 1), attempts[attemptIndex + 1]);
-            return;
-          }
-          reject(error);
-        });
-      };
-      runFetch(0);
+      runFetch(0, reject);
     });
   }
 
