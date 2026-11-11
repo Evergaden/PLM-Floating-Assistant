@@ -4,7 +4,7 @@ const code = source.slice(source.indexOf('  function setupHomeCarousel('), sourc
 const element = () => ({ style: {}, attrs: {}, events: {}, motions: [], animate(frames, options) { this.motions.push({ frames, options }); return { cancel() {} }; }, addEventListener(type, callback) { this.events[type] = callback; }, setAttribute(name, value) { this.attrs[name] = value; }, focus() {} });
 const viewport = element(), track = element(), indicator = element(), nav = element(), carousel = element();
 const slides = [element(), element(), element()];
-slides.forEach((slide, index) => { slide.getAttribute = () => '模块' + index; });
+slides.forEach((slide, index) => { slide.getAttribute = () => '模块' + index; slide.querySelector = () => null; });
 const buttons = slides.map((_, index) => ({ ...element(), offsetLeft: index * 24, offsetWidth: 24 }));
 nav.querySelector = () => indicator; nav.querySelectorAll = () => buttons;
 carousel.querySelector = (selector) => selector.includes('viewport') ? viewport : selector.includes('track') ? track : nav;
