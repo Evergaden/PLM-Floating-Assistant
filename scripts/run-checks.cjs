@@ -16,10 +16,7 @@ const root = path.resolve(__dirname, '..');
 const scriptsDir = path.join(root, 'scripts');
 
 // Filename -> why it is allowed to fail today. Remove the entry when fixed.
-const KNOWN_FAILURES = {
-  'test-sku-progressive-images.cjs':
-    'sliced source references setLocalImageSource outside the slice',
-};
+const KNOWN_FAILURES = {};
 
 const files = fs
   .readdirSync(scriptsDir)
