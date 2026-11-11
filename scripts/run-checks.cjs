@@ -17,8 +17,6 @@ const scriptsDir = path.join(root, 'scripts');
 
 // Filename -> why it is allowed to fail today. Remove the entry when fixed.
 const KNOWN_FAILURES = {
-  'test-home-carousel.cjs':
-    'fake slide stub lacks querySelector used by current setupHomeCarousel',
   'test-sku-progressive-images.cjs':
     'sliced source references setLocalImageSource outside the slice',
 };
