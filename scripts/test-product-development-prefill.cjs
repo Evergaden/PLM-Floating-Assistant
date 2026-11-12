@@ -14,6 +14,7 @@ function extract(source, name) {
 const keys = ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume'];
 const definitions = keys.map((key, index) => ({ key, attrId: 133 + index }));
 const context = vm.createContext({
+  productDevelopmentRefreshDerivedDimensions() {},
   PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS: definitions,
   productDevelopmentReferenceLabel: () => '返工',
   productDevelopmentCleanText: (value, limit = 4000) => String(value ?? '').trim().slice(0, limit),

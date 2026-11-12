@@ -28,7 +28,10 @@
   }
 
   function productDevelopmentPrefillProductFieldValue(detail, definition) {
-    if (definition && ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume'].includes(definition.key)) productDevelopmentSyncReworkOuterDimensions(detail);
+    if (definition && ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume', 'standardPackingQuantity'].includes(definition.key)) {
+      productDevelopmentSyncReworkOuterDimensions(detail);
+      productDevelopmentRefreshDerivedDimensions(detail);
+    }
     const localValue = productDevelopmentPrefillLocalAttrValue(detail, definition);
     if (localValue !== undefined) return localValue;
     const fields = productDevelopmentProductFieldCollections(detail);
@@ -137,6 +140,7 @@
   function productDevelopmentApplyProductDetailLocalValues(detail) {
     if (!detail || typeof detail !== 'object') return detail;
     productDevelopmentSyncReworkOuterDimensions(detail);
+    productDevelopmentRefreshDerivedDimensions(detail);
     const localValues = detail.productDetailLocalValues && typeof detail.productDetailLocalValues === 'object'
       ? detail.productDetailLocalValues
       : {};
@@ -483,6 +487,7 @@
       const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
       if (!definition) return;
       const entry = detail.productDetailLocalValues && detail.productDetailLocalValues[definition.attrId + '@1'];
+      if (entry && (!entry.source || /manual|人工/.test(entry.source))) return;
       // Without a box, preserve manual outer dimensions; only undo our own override.
       if (!dimensions && (!entry || entry.source !== 'BOM 纸盒尺寸')) return;
       if (entry && entry.source === source && String(entry.value) === String(value)) return;
@@ -498,6 +503,36 @@
     });
     if (changed) productDevelopmentMarkProductDetailDirty(detail);
     return changed;
+  }
+
+  function productDevelopmentRefreshDerivedDimensions(detail, scope) {
+    if (!detail) return;
+    const fields = productDevelopmentProductFieldCollections(detail);
+    const dimensions = ['outerLength', 'outerWidth', 'outerHeight'].map((key) => {
+      const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
+      const local = productDevelopmentPrefillLocalAttrValue(detail, definition);
+      const field = fields.find((item) => item.key === key || definition && Number(item.attrId) === Number(definition.attrId));
+      return productDevelopmentReworkLookupNumber(local !== undefined ? local : field && (field.value === undefined ? field.displayValue : field.value));
+    });
+    const complete = dimensions.every((value) => value !== null && value > 0);
+    const recommendation = complete ? calculateLocalPackRecommendation(dimensions.join('x')) : null;
+    const values = {
+      outerVolume: complete ? Number((dimensions[0] * dimensions[1] * dimensions[2]).toFixed(2)) : '',
+      standardPackingQuantity: complete ? recommendation && recommendation.packCount || 0 : '',
+    };
+    Object.entries(values).forEach(([key, value]) => {
+      const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
+      if (!definition) return;
+      productDevelopmentRememberLocalProductField(detail, definition, value, String(value), '长宽高实时计算');
+      fields.filter((item) => Number(item.attrId) === Number(definition.attrId)).forEach((item) => {
+        item.value = value; item.displayValue = String(value); item.source = '长宽高实时计算';
+      });
+      if (scope && scope.querySelectorAll) scope.querySelectorAll('[data-form-group="prefill"][data-form-key="' + key + '"]').forEach((input) => {
+        input.value = String(value);
+        const label = input.closest('.pfh-product-development-form-field');
+        if (label) label.classList.toggle('is-missing', value === '');
+      });
+    });
   }
 
   function productDevelopmentReworkLookupUnitDimensions(detail, lookup) {

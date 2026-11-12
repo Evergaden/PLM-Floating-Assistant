@@ -1159,10 +1159,12 @@
     const missing = !inputValue;
     const isTextarea = field && field.type === 'textarea';
     const inputType = field && field.type === 'number' ? 'number' : 'text';
+    const derived = field && ['outerVolume', 'standardPackingQuantity'].includes(field.key);
     const inputAttributes = ' class="pfh-product-development-form-input" data-form-sku="' + escapeHtml(formSku || '') + '" data-form-group="' + escapeHtml(field && field.formGroup || 'prefill') + '" data-form-key="' + escapeHtml(field && field.key || '') + '" data-form-control="' + escapeHtml(field && field.control || '') + '"' + (inputType === 'number' ? ' inputmode="decimal" step="any"' : '') + ' placeholder="' + escapeHtml(field && field.placeholder || '') + '"';
+    const readonly = derived ? ' readonly aria-readonly="true" title="按当前长宽高自动计算"' : '';
     const control = isTextarea
       ? '<textarea' + inputAttributes + ' rows="4" style="width:100%;min-height:82px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--pfh-theme-border);border-radius:9px;outline:0;background:var(--pfh-theme-control-surface);color:var(--pfh-theme-text);font:inherit;font-size:11px;line-height:1.45;resize:vertical">' + escapeHtml(inputValue) + '</textarea>'
-      : '<input type="' + inputType + '"' + inputAttributes + ' value="' + escapeHtml(inputValue) + '">';
+      : '<input type="' + inputType + '"' + inputAttributes + readonly + ' value="' + escapeHtml(inputValue) + '">';
     return '<label class="pfh-product-development-form-field' + (missing ? ' is-missing' : '') + '"><span>' + escapeHtml(field && field.label || '建品字段') + '</span>' + control + '</label>';
   }
 

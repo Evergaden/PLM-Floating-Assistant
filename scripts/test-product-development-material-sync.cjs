@@ -10,6 +10,7 @@ const defaults = {
   instruction: { label: '说明书', materialType: 6 },
 };
 const context = vm.createContext({
+  productDevelopmentRefreshDerivedDimensions() {},
   PRODUCT_DEVELOPMENT_MATERIAL_DEFAULTS: defaults,
   PRODUCT_DEVELOPMENT_MATERIAL_DRAFT_VERSION: 2,
   PRODUCT_DEVELOPMENT_BOX_QUANTITY_OPTIONS: [{ value: 1, factor: 4.5, minPrice: 0.18 }],

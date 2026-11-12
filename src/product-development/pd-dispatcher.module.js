@@ -547,6 +547,8 @@
       return true;
     }
     if (target.classList.contains('pfh-product-development-form-input')) {
+      const label = target.closest && target.closest('.pfh-product-development-form-field');
+      if (label && label.classList) label.classList.toggle('is-missing', !String(target.value || '').trim());
       productDevelopmentHandleInput(event);
       const sku = String(target.getAttribute('data-form-sku') || '').trim().toUpperCase();
       const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
@@ -693,6 +695,8 @@
     }
     if (productDevelopmentHandleMaterialField(target)) return true;
     if (target.classList.contains('pfh-product-development-form-input')) {
+      const label = target.closest && target.closest('.pfh-product-development-form-field');
+      if (label && label.classList) label.classList.toggle('is-missing', !String(target.value || '').trim());
       const sku = String(target.getAttribute('data-form-sku') || '').trim().toUpperCase();
       const group = String(target.getAttribute('data-form-group') || 'required').trim();
       const key = String(target.getAttribute('data-form-key') || '').trim();
@@ -730,6 +734,11 @@
       if (detail && group === 'prefill') {
         const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
         if (definition) {
+          const scope = target.closest && target.closest('.pfh-detail');
+          if (['outerVolume', 'standardPackingQuantity'].includes(key)) {
+            productDevelopmentRefreshDerivedDimensions(detail, scope);
+            return true;
+          }
           const value = String(target.value || '').slice(0, definition.type === 'textarea' ? 12000 : 800);
           const displayValue = productDevelopmentPrefillText(value, 12000);
           productDevelopmentRememberLocalProductField(detail, { attrId: definition.attrId }, value, displayValue);
@@ -739,6 +748,7 @@
             item.status = displayValue ? '已填写（本地）' : '待补充';
             item.source = displayValue ? '本地人工填写（未写入）' : '待人工补充';
           });
+          if (['outerLength', 'outerWidth', 'outerHeight'].includes(key)) productDevelopmentRefreshDerivedDimensions(detail, scope);
           productDevelopmentMarkProductDetailDirty(detail);
           persistDetail();
         }

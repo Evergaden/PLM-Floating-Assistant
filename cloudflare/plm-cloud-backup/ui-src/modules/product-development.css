@@ -2891,7 +2891,7 @@
   border-style: dashed;
   background: #fffaf4;
   color: var(--pfh-theme-muted);
-  font-style: italic;
+  font-style: normal;
 }
 
 #plm-floating-helper .pfh-product-development-bom-table-wrap {

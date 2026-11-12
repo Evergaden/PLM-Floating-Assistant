@@ -306,7 +306,10 @@
     } else return true;
     productDevelopmentSyncMaterialDimensions(kind, draft, field, detail);
     productDevelopmentRecalculateMaterialDraft(kind, draft, detail, task);
-    if (kind === 'box') productDevelopmentSyncReworkOuterDimensions(detail);
+    if (kind === 'box') {
+      productDevelopmentSyncReworkOuterDimensions(detail);
+      productDevelopmentRefreshDerivedDimensions(detail, target.closest && target.closest('.pfh-detail'));
+    }
     detail.bomDraftDirty = true;
     detail.bomDraftSaveState = 'dirty';
     detail.bomPlmSaveState = '';
