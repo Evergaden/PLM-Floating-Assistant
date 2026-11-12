@@ -18,6 +18,9 @@
   display: block;
   min-width: 0;
   overflow-wrap: anywhere;
+  /* Fill the inter-row gap without moving the text or overlapping targets. */
+  padding: 4px 10px;
+  margin: -4px -10px;
   cursor: pointer;
   border-radius: 6px;
   transition: color .15s, background .15s;
