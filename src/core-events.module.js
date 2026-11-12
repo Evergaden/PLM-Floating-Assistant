@@ -329,12 +329,10 @@
       syncExcelInputs();
       state.exportMenuOpen = false;
       updateExportMenuVisibility();
-      return;
     }
     if (state.skuSortMenuOpen && !(event.target && event.target.closest && event.target.closest('.pfh-sku-sort-menu'))) {
       state.skuSortMenuOpen = false;
-      renderShell();
-      return;
+      updateSkuSortMenuVisibility(ensurePanel());
     }
     if (action === 'expand') {
       expandPanel();
@@ -537,13 +535,15 @@
     if (action === 'sku-sort-toggle') {
       state.skuSortMenuOpen = !state.skuSortMenuOpen;
       state.exportMenuOpen = false;
-      if (!renderProductDevelopmentTaskSidebarList(ensurePanel()) && !renderSkuListContent(ensurePanel())) renderShell();
+      updateSkuSortMenuVisibility(ensurePanel());
+      updateExportMenuVisibility();
       return;
     }
     if (action === 'sku-list-sort') {
       state.settings.skuListSort = actionTarget.getAttribute('data-sort') === 'acquired' ? 'acquired' : 'assigned';
       state.skuPage = 1;
       state.skuSortMenuOpen = false;
+      updateSkuSortMenuVisibility(ensurePanel());
       saveSettings(state.settings);
       if (!renderProductDevelopmentTaskSidebarList(ensurePanel()) && !renderSkuListContent(ensurePanel())) renderShell();
       return;

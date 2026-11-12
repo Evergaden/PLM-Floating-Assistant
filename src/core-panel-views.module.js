@@ -1717,7 +1717,7 @@
     }
     const focusedSearch = isWorkspaceSkuView() && panel.pfhWorkspaceSearch && panel.pfhWorkspaceSearch.contains(document.activeElement) ? document.activeElement : null;
     const selection = focusedSearch ? [focusedSearch.selectionStart, focusedSearch.selectionEnd] : null;
-    list.innerHTML = renderSkuListHtml();
+    updateSkuSidebarMarkup(list, renderSkuListHtml());
     list.pfhSkuRenderSignature = signature;
     setupSkuViewFusion(list);
     syncWorkspaceSkuSelection(panel);
@@ -1727,6 +1727,74 @@
       focusedSearch.focus({ preventScroll: true });
       if (selection[0] != null && focusedSearch.setSelectionRange) focusedSearch.setSelectionRange(...selection);
     }
+  }
+
+  function skuSidebarNodeKey(node) {
+    if (node.nodeType !== 1) return '';
+    if (node.hasAttribute('data-sku')) return node.tagName + ':' + node.getAttribute('data-action') + ':' + node.getAttribute('data-sku');
+    const structural = ['pfh-list-head', 'pfh-sku-list-toolbar', 'pfh-sku-filter-toolbar', 'pfh-sku-list-content', 'pfh-sku-scroll', 'pfh-sku-waterfall-grid', 'pfh-list-pager', 'pfh-search-result-toolbar', 'pfh-sku-view-switch', 'pfh-sku-sort-menu'];
+    return structural.find((name) => node.classList.contains(name)) || '';
+  }
+
+  function reconcileSkuSidebarNode(current, next) {
+    if (current.nodeType !== next.nodeType || current.nodeName !== next.nodeName) {
+      current.replaceWith(next);
+      return;
+    }
+    if (current.nodeType !== 1) {
+      if (current.nodeValue !== next.nodeValue) current.nodeValue = next.nodeValue;
+      return;
+    }
+    // Keep decoded pixels, pending loads, object URLs and reveal state together.
+    if (current.classList.contains('pfh-sku-waterfall-thumb') && next.classList.contains('pfh-sku-waterfall-thumb')) {
+      const source = (frame) => {
+        const image = frame.querySelector('img.pfh-sku-image-original');
+        return image && (image.getAttribute('data-sku-image') || image.getAttribute('data-local-image') || image.pfhLocalImageSource);
+      };
+      const url = source(next);
+      if (url && source(current) === url) return;
+      // A different source needs fresh handlers; never reuse a stale decode callback.
+      current.replaceWith(next);
+      return;
+    }
+    for (const attr of Array.from(current.attributes)) {
+      if (attr.name === 'style' && (current.pfhSkuViewPointerBound || current.classList.contains('pfh-sku-view-indicator'))) continue;
+      if (!next.hasAttribute(attr.name)) current.removeAttribute(attr.name);
+    }
+    for (const attr of Array.from(next.attributes)) {
+      if (current.getAttribute(attr.name) !== attr.value) current.setAttribute(attr.name, attr.value);
+    }
+    const previous = Array.from(current.childNodes);
+    const keyed = new Map(previous.map((node) => [skuSidebarNodeKey(node), node]).filter(([key]) => key));
+    const children = Array.from(next.childNodes);
+    children.forEach((child, index) => {
+      const key = skuSidebarNodeKey(child);
+      const candidate = key ? keyed.get(key) : previous[index];
+      const reusable = candidate && skuSidebarNodeKey(candidate) === key;
+      const node = reusable ? candidate : child;
+      if (current.childNodes[index] !== node) current.insertBefore(node, current.childNodes[index] || null);
+      if (reusable) reconcileSkuSidebarNode(node, child);
+    });
+    while (current.childNodes.length > children.length) current.lastChild.remove();
+  }
+
+  function updateSkuSidebarMarkup(list, html) {
+    if (!list.firstChild) { list.innerHTML = html; return; }
+    const scroll = list.querySelector('.pfh-sku-scroll');
+    const scrollContext = scroll && scroll.getAttribute('data-scroll-context');
+    const next = list.cloneNode(false);
+    next.innerHTML = html;
+    reconcileSkuSidebarNode(list, next);
+    const currentScroll = list.querySelector('.pfh-sku-scroll');
+    if (currentScroll && currentScroll.getAttribute('data-scroll-context') !== scrollContext) currentScroll.scrollTop = 0;
+  }
+
+  function updateSkuSortMenuVisibility(panel) {
+    (panel || ensurePanel()).querySelectorAll('.pfh-sku-sort-menu').forEach((menu) => {
+      menu.classList.toggle('is-open', state.skuSortMenuOpen);
+      const button = menu.querySelector('.pfh-export-menu-button');
+      if (button) button.setAttribute('aria-expanded', String(state.skuSortMenuOpen));
+    });
   }
 
   function isUploadSkuPickerMode(mode) {
@@ -2360,38 +2428,8 @@
   }
 
   function renderSkuListContent(panel) {
-    if (isWorkspaceSkuView()) {
-      renderSkuList(panel);
-      return true;
-    }
-    const list = panel && panel.querySelector('.pfh-list');
-    const currentSwitch = list && list.querySelector('.pfh-sku-view-switch');
-    const currentContent = list && list.querySelector('.pfh-sku-list-content');
-    if (!list || !currentSwitch || !currentContent) return false;
-    const template = document.createElement('template');
-    template.innerHTML = renderSkuListHtml();
-    const nextSwitch = template.content.querySelector('.pfh-sku-view-switch');
-    const nextContent = template.content.querySelector('.pfh-sku-list-content');
-    if (!nextSwitch || !nextContent) return false;
-    currentSwitch.setAttribute('data-active-mode', getSkuListMode());
-    currentSwitch.querySelectorAll('button[data-action="sku-list-mode"]').forEach((button) => {
-      const active = button.getAttribute('data-mode') === getSkuListMode();
-      button.classList.toggle('is-active', active);
-    });
-    const currentSortMenu = list.querySelector('.pfh-sku-sort-menu');
-    const nextSortMenu = template.content.querySelector('.pfh-sku-sort-menu');
-    if (currentSortMenu && nextSortMenu) {
-      currentSortMenu.className = nextSortMenu.className;
-      const currentSortButton = currentSortMenu.querySelector('.pfh-export-menu-button');
-      const nextSortButton = nextSortMenu.querySelector('.pfh-export-menu-button');
-      if (currentSortButton && nextSortButton) currentSortButton.setAttribute('aria-expanded', nextSortButton.getAttribute('aria-expanded') || 'false');
-      const currentSortLabel = currentSortMenu.querySelector('.pfh-export-menu-button span');
-      const nextSortLabel = nextSortMenu.querySelector('.pfh-export-menu-button span');
-      if (currentSortLabel && nextSortLabel) currentSortLabel.textContent = nextSortLabel.textContent;
-    }
-    currentContent.replaceWith(nextContent);
-    list.pfhSkuRenderSignature = renderSkuListHtml(true);
-    setupSkuViewFusion(list);
+    if (!panel || !panel.querySelector('.pfh-list')) return false;
+    renderSkuList(panel);
     return true;
   }
 
@@ -2409,6 +2447,8 @@
       indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
     };
     buttons.forEach((button) => {
+      if (button.pfhSkuViewPointerBound) return;
+      button.pfhSkuViewPointerBound = true;
       button.addEventListener('mousemove', (event) => {
         const rect = button.getBoundingClientRect();
         if (!rect.width || !rect.height) return;
@@ -2419,6 +2459,8 @@
     const activeButton = switcher.querySelector('button.is-active') || buttons[0];
     if (!activeButton) return;
     switcher.setAttribute('data-active-mode', activeButton.getAttribute('data-mode') || 'list');
+    if (switcher.pfhSkuActiveMode === activeButton.getAttribute('data-mode')) { moveIndicator(activeButton); return; }
+    switcher.pfhSkuActiveMode = activeButton.getAttribute('data-mode');
     indicator.style.setProperty('transition', 'none', 'important');
     moveIndicator(activeButton);
     window.requestAnimationFrame(() => {

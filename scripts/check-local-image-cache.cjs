@@ -17,6 +17,15 @@ function session() {
   const second = session();
   assert.equal((await second.getLocalImageBlob('https://test/a')).size, 5);
   assert.equal(downloads, 1, 'new session reads persisted bytes without downloading');
+  let sourceWrites = 0, imageSource = '';
+  const cachedImage = { isConnected: true, getAttribute: () => imageSource, addEventListener() {},
+    set src(value) { sourceWrites++; imageSource = value; } };
+  await second.setLocalImageSource(cachedImage, 'https://test/a');
+  const firstSource = imageSource;
+  await second.setLocalImageSource(cachedImage, 'https://test/a');
+  assert.equal(sourceWrites, 1, 'An already assigned image source is not replaced with another object URL');
+  assert.equal(imageSource, firstSource);
+  URL.revokeObjectURL(cachedImage.pfhLocalObjectUrl);
   await second.getLocalImageBlob('https://test/a?v=2');
   assert.equal(downloads, 2, 'changed URLs use a distinct cached file');
   await second.localImageTransaction('readwrite', store => store.put({ url: 'https://test/expired', blob: new Blob(['old']), size: 3, savedAt: 1 }));

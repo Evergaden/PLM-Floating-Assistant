@@ -72,8 +72,9 @@
   }
 
   async function setLocalImageSource(image, url) {
-    if (!/^https?:\/\//i.test(url)) { image.src = url; return; }
+    if (image.pfhLocalImageSource === url && image.getAttribute && image.getAttribute('src')) return;
     image.pfhLocalImageSource = url;
+    if (!/^https?:\/\//i.test(url)) { image.src = url; return; }
     try {
       const blob = await getLocalImageBlob(url);
       if (!image.isConnected || image.pfhLocalImageSource !== url) return;

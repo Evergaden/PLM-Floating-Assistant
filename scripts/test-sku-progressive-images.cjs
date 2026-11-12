@@ -86,6 +86,7 @@ function fixture(imageUrl) {
   sandbox.syncWorkspaceSkuSelection = () => {};
   sandbox.renderSkuFilterModal = () => {};
   sandbox.syncSkuImageColorControls = () => {};
+  sandbox.updateSkuSidebarMarkup = (list, html) => { list.innerHTML = html; };
   vm.runInContext(extract('  function renderSkuList(', '  function isUploadSkuPickerMode('), sandbox);
   const panel = { querySelector: () => list };
   sandbox.renderSkuList(panel);

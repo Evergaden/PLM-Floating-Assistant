@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.48
+// @version      2.10.49
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.48';
+  const SCRIPT_VERSION = '2.10.49';
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
@@ -115,8 +115,9 @@
   }
 
   async function setLocalImageSource(image, url) {
-    if (!/^https?:\/\//i.test(url)) { image.src = url; return; }
+    if (image.pfhLocalImageSource === url && image.getAttribute && image.getAttribute('src')) return;
     image.pfhLocalImageSource = url;
+    if (!/^https?:\/\//i.test(url)) { image.src = url; return; }
     try {
       const blob = await getLocalImageBlob(url);
       if (!image.isConnected || image.pfhLocalImageSource !== url) return;
@@ -8010,7 +8011,7 @@
     return task;
   }
 
-  function productDevelopmentTaskListHtml() {
+  function productDevelopmentTaskListHtml(imageSignature) {
     const query = state.searchQuery.trim();
     const searchTokens = parseSearchTokens(query);
     const filters = state.skuFilters;
@@ -8050,6 +8051,7 @@
       const data = productDevelopmentTaskSeedData(item);
       const image = item.productListImageUrl || item.benchmarkImageUrl || data.productListImageUrl || data.benchmarkImageUrl || '';
       return skuListCardHtml(item, listMode, state.productDevelopmentTaskSelectedSku, {
+        imageSignature,
         action: 'product-development-task-select',
         data,
         image,
@@ -8057,7 +8059,8 @@
       });
     }).join('');
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="product-development-task-page" data-page="prev"' + (page <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('product-development-task-page-goto', page, totalPages) + '<button type="button" data-action="product-development-task-page" data-page="next"' + (page >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
-    return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="product-development-tasks|' + listMode + '|' + page + '">' + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
+    const scrollContext = ['product-development-tasks', listMode, listSort, page, query, ...Object.values(filters)].join('|');
+    return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="' + escapeHtml(scrollContext) + '">' + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
   }
 
   function productDevelopmentReadonlyPayloadData(payload) {
@@ -11389,9 +11392,8 @@
     const list = panel && panel.querySelector('.pfh-list');
     const detail = panel && panel.querySelector('.pfh-detail');
     if (list) {
-      list.innerHTML = productDevelopmentTaskListHtml();
+      renderProductDevelopmentTaskSidebarList(panel);
       list.removeAttribute('aria-hidden');
-      setupSkuViewFusion(list);
     }
     if (!detail) return;
     let task = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || state.productDevelopmentSelectedTask;
@@ -11426,7 +11428,10 @@
     if (state.view !== 'productDevelopmentTasks') return false;
     const list = panel && panel.querySelector('.pfh-list');
     if (!list) return false;
-    list.innerHTML = productDevelopmentTaskListHtml();
+    const html = productDevelopmentTaskListHtml(true);
+    if (list.pfhSkuRenderSignature === html && list.querySelector('.pfh-sku-list-content')) return true;
+    updateSkuSidebarMarkup(list, productDevelopmentTaskListHtml());
+    list.pfhSkuRenderSignature = html;
     setupSkuViewFusion(list);
     return true;
   }
@@ -25189,7 +25194,7 @@
     }
     const focusedSearch = isWorkspaceSkuView() && panel.pfhWorkspaceSearch && panel.pfhWorkspaceSearch.contains(document.activeElement) ? document.activeElement : null;
     const selection = focusedSearch ? [focusedSearch.selectionStart, focusedSearch.selectionEnd] : null;
-    list.innerHTML = renderSkuListHtml();
+    updateSkuSidebarMarkup(list, renderSkuListHtml());
     list.pfhSkuRenderSignature = signature;
     setupSkuViewFusion(list);
     syncWorkspaceSkuSelection(panel);
@@ -25199,6 +25204,74 @@
       focusedSearch.focus({ preventScroll: true });
       if (selection[0] != null && focusedSearch.setSelectionRange) focusedSearch.setSelectionRange(...selection);
     }
+  }
+
+  function skuSidebarNodeKey(node) {
+    if (node.nodeType !== 1) return '';
+    if (node.hasAttribute('data-sku')) return node.tagName + ':' + node.getAttribute('data-action') + ':' + node.getAttribute('data-sku');
+    const structural = ['pfh-list-head', 'pfh-sku-list-toolbar', 'pfh-sku-filter-toolbar', 'pfh-sku-list-content', 'pfh-sku-scroll', 'pfh-sku-waterfall-grid', 'pfh-list-pager', 'pfh-search-result-toolbar', 'pfh-sku-view-switch', 'pfh-sku-sort-menu'];
+    return structural.find((name) => node.classList.contains(name)) || '';
+  }
+
+  function reconcileSkuSidebarNode(current, next) {
+    if (current.nodeType !== next.nodeType || current.nodeName !== next.nodeName) {
+      current.replaceWith(next);
+      return;
+    }
+    if (current.nodeType !== 1) {
+      if (current.nodeValue !== next.nodeValue) current.nodeValue = next.nodeValue;
+      return;
+    }
+    // Keep decoded pixels, pending loads, object URLs and reveal state together.
+    if (current.classList.contains('pfh-sku-waterfall-thumb') && next.classList.contains('pfh-sku-waterfall-thumb')) {
+      const source = (frame) => {
+        const image = frame.querySelector('img.pfh-sku-image-original');
+        return image && (image.getAttribute('data-sku-image') || image.getAttribute('data-local-image') || image.pfhLocalImageSource);
+      };
+      const url = source(next);
+      if (url && source(current) === url) return;
+      // A different source needs fresh handlers; never reuse a stale decode callback.
+      current.replaceWith(next);
+      return;
+    }
+    for (const attr of Array.from(current.attributes)) {
+      if (attr.name === 'style' && (current.pfhSkuViewPointerBound || current.classList.contains('pfh-sku-view-indicator'))) continue;
+      if (!next.hasAttribute(attr.name)) current.removeAttribute(attr.name);
+    }
+    for (const attr of Array.from(next.attributes)) {
+      if (current.getAttribute(attr.name) !== attr.value) current.setAttribute(attr.name, attr.value);
+    }
+    const previous = Array.from(current.childNodes);
+    const keyed = new Map(previous.map((node) => [skuSidebarNodeKey(node), node]).filter(([key]) => key));
+    const children = Array.from(next.childNodes);
+    children.forEach((child, index) => {
+      const key = skuSidebarNodeKey(child);
+      const candidate = key ? keyed.get(key) : previous[index];
+      const reusable = candidate && skuSidebarNodeKey(candidate) === key;
+      const node = reusable ? candidate : child;
+      if (current.childNodes[index] !== node) current.insertBefore(node, current.childNodes[index] || null);
+      if (reusable) reconcileSkuSidebarNode(node, child);
+    });
+    while (current.childNodes.length > children.length) current.lastChild.remove();
+  }
+
+  function updateSkuSidebarMarkup(list, html) {
+    if (!list.firstChild) { list.innerHTML = html; return; }
+    const scroll = list.querySelector('.pfh-sku-scroll');
+    const scrollContext = scroll && scroll.getAttribute('data-scroll-context');
+    const next = list.cloneNode(false);
+    next.innerHTML = html;
+    reconcileSkuSidebarNode(list, next);
+    const currentScroll = list.querySelector('.pfh-sku-scroll');
+    if (currentScroll && currentScroll.getAttribute('data-scroll-context') !== scrollContext) currentScroll.scrollTop = 0;
+  }
+
+  function updateSkuSortMenuVisibility(panel) {
+    (panel || ensurePanel()).querySelectorAll('.pfh-sku-sort-menu').forEach((menu) => {
+      menu.classList.toggle('is-open', state.skuSortMenuOpen);
+      const button = menu.querySelector('.pfh-export-menu-button');
+      if (button) button.setAttribute('aria-expanded', String(state.skuSortMenuOpen));
+    });
   }
 
   function isUploadSkuPickerMode(mode) {
@@ -25832,38 +25905,8 @@
   }
 
   function renderSkuListContent(panel) {
-    if (isWorkspaceSkuView()) {
-      renderSkuList(panel);
-      return true;
-    }
-    const list = panel && panel.querySelector('.pfh-list');
-    const currentSwitch = list && list.querySelector('.pfh-sku-view-switch');
-    const currentContent = list && list.querySelector('.pfh-sku-list-content');
-    if (!list || !currentSwitch || !currentContent) return false;
-    const template = document.createElement('template');
-    template.innerHTML = renderSkuListHtml();
-    const nextSwitch = template.content.querySelector('.pfh-sku-view-switch');
-    const nextContent = template.content.querySelector('.pfh-sku-list-content');
-    if (!nextSwitch || !nextContent) return false;
-    currentSwitch.setAttribute('data-active-mode', getSkuListMode());
-    currentSwitch.querySelectorAll('button[data-action="sku-list-mode"]').forEach((button) => {
-      const active = button.getAttribute('data-mode') === getSkuListMode();
-      button.classList.toggle('is-active', active);
-    });
-    const currentSortMenu = list.querySelector('.pfh-sku-sort-menu');
-    const nextSortMenu = template.content.querySelector('.pfh-sku-sort-menu');
-    if (currentSortMenu && nextSortMenu) {
-      currentSortMenu.className = nextSortMenu.className;
-      const currentSortButton = currentSortMenu.querySelector('.pfh-export-menu-button');
-      const nextSortButton = nextSortMenu.querySelector('.pfh-export-menu-button');
-      if (currentSortButton && nextSortButton) currentSortButton.setAttribute('aria-expanded', nextSortButton.getAttribute('aria-expanded') || 'false');
-      const currentSortLabel = currentSortMenu.querySelector('.pfh-export-menu-button span');
-      const nextSortLabel = nextSortMenu.querySelector('.pfh-export-menu-button span');
-      if (currentSortLabel && nextSortLabel) currentSortLabel.textContent = nextSortLabel.textContent;
-    }
-    currentContent.replaceWith(nextContent);
-    list.pfhSkuRenderSignature = renderSkuListHtml(true);
-    setupSkuViewFusion(list);
+    if (!panel || !panel.querySelector('.pfh-list')) return false;
+    renderSkuList(panel);
     return true;
   }
 
@@ -25881,6 +25924,8 @@
       indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
     };
     buttons.forEach((button) => {
+      if (button.pfhSkuViewPointerBound) return;
+      button.pfhSkuViewPointerBound = true;
       button.addEventListener('mousemove', (event) => {
         const rect = button.getBoundingClientRect();
         if (!rect.width || !rect.height) return;
@@ -25891,6 +25936,8 @@
     const activeButton = switcher.querySelector('button.is-active') || buttons[0];
     if (!activeButton) return;
     switcher.setAttribute('data-active-mode', activeButton.getAttribute('data-mode') || 'list');
+    if (switcher.pfhSkuActiveMode === activeButton.getAttribute('data-mode')) { moveIndicator(activeButton); return; }
+    switcher.pfhSkuActiveMode = activeButton.getAttribute('data-mode');
     indicator.style.setProperty('transition', 'none', 'important');
     moveIndicator(activeButton);
     window.requestAnimationFrame(() => {
@@ -38386,12 +38433,10 @@ self.onmessage = async function(event) {
       syncExcelInputs();
       state.exportMenuOpen = false;
       updateExportMenuVisibility();
-      return;
     }
     if (state.skuSortMenuOpen && !(event.target && event.target.closest && event.target.closest('.pfh-sku-sort-menu'))) {
       state.skuSortMenuOpen = false;
-      renderShell();
-      return;
+      updateSkuSortMenuVisibility(ensurePanel());
     }
     if (action === 'expand') {
       expandPanel();
@@ -38594,13 +38639,15 @@ self.onmessage = async function(event) {
     if (action === 'sku-sort-toggle') {
       state.skuSortMenuOpen = !state.skuSortMenuOpen;
       state.exportMenuOpen = false;
-      if (!renderProductDevelopmentTaskSidebarList(ensurePanel()) && !renderSkuListContent(ensurePanel())) renderShell();
+      updateSkuSortMenuVisibility(ensurePanel());
+      updateExportMenuVisibility();
       return;
     }
     if (action === 'sku-list-sort') {
       state.settings.skuListSort = actionTarget.getAttribute('data-sort') === 'acquired' ? 'acquired' : 'assigned';
       state.skuPage = 1;
       state.skuSortMenuOpen = false;
+      updateSkuSortMenuVisibility(ensurePanel());
       saveSettings(state.settings);
       if (!renderProductDevelopmentTaskSidebarList(ensurePanel()) && !renderSkuListContent(ensurePanel())) renderShell();
       return;

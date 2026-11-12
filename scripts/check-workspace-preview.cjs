@@ -70,6 +70,7 @@ catalog[0].name = 'A'.repeat(500);
 assert.ok(context.workspaceSkuRowHtml(catalog[0], 'SKU0').includes('A'.repeat(500)));
 
 // Selection changes must retain the list subtree, images and scroll container.
+vm.runInContext(functionText('updateSkuSidebarMarkup'), context);
 let writes = 0;
 const list = { querySelector: () => ({}) };
 Object.defineProperty(list, 'innerHTML', { set: () => { writes++; } });

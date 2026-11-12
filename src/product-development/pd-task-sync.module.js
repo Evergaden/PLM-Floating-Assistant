@@ -520,7 +520,7 @@
     return task;
   }
 
-  function productDevelopmentTaskListHtml() {
+  function productDevelopmentTaskListHtml(imageSignature) {
     const query = state.searchQuery.trim();
     const searchTokens = parseSearchTokens(query);
     const filters = state.skuFilters;
@@ -560,6 +560,7 @@
       const data = productDevelopmentTaskSeedData(item);
       const image = item.productListImageUrl || item.benchmarkImageUrl || data.productListImageUrl || data.benchmarkImageUrl || '';
       return skuListCardHtml(item, listMode, state.productDevelopmentTaskSelectedSku, {
+        imageSignature,
         action: 'product-development-task-select',
         data,
         image,
@@ -567,7 +568,8 @@
       });
     }).join('');
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="product-development-task-page" data-page="prev"' + (page <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('product-development-task-page-goto', page, totalPages) + '<button type="button" data-action="product-development-task-page" data-page="next"' + (page >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
-    return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="product-development-tasks|' + listMode + '|' + page + '">' + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
+    const scrollContext = ['product-development-tasks', listMode, listSort, page, query, ...Object.values(filters)].join('|');
+    return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="' + escapeHtml(scrollContext) + '">' + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
   }
 
   function productDevelopmentReadonlyPayloadData(payload) {

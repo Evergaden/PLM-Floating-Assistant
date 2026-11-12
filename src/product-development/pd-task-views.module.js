@@ -364,9 +364,8 @@
     const list = panel && panel.querySelector('.pfh-list');
     const detail = panel && panel.querySelector('.pfh-detail');
     if (list) {
-      list.innerHTML = productDevelopmentTaskListHtml();
+      renderProductDevelopmentTaskSidebarList(panel);
       list.removeAttribute('aria-hidden');
-      setupSkuViewFusion(list);
     }
     if (!detail) return;
     let task = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || state.productDevelopmentSelectedTask;
@@ -401,7 +400,10 @@
     if (state.view !== 'productDevelopmentTasks') return false;
     const list = panel && panel.querySelector('.pfh-list');
     if (!list) return false;
-    list.innerHTML = productDevelopmentTaskListHtml();
+    const html = productDevelopmentTaskListHtml(true);
+    if (list.pfhSkuRenderSignature === html && list.querySelector('.pfh-sku-list-content')) return true;
+    updateSkuSidebarMarkup(list, productDevelopmentTaskListHtml());
+    list.pfhSkuRenderSignature = html;
     setupSkuViewFusion(list);
     return true;
   }
