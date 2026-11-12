@@ -369,6 +369,8 @@
       showToast('请先确认成分表并生成文案');
       return;
     }
+    const handle = await chooseCopywritingSaveTarget(result.docxFileName || productDevelopmentCopywritingFileName(result.snapshot || result));
+    if (!handle) return;
     if (!result.docxBlob) {
       state.productDevelopmentOneShotBusy = true;
       state.productDevelopmentStatus = '正在恢复文案 DOCX…';
@@ -381,7 +383,8 @@
         renderShell();
       }
     }
-    downloadBlob(result.docxBlob, result.docxFileName);
+    await writeImageBlobToFileHandle(handle, await productDevelopmentTraceDocxBlob(result.docxBlob));
+    showToast('文案已保存');
   }
 
   function productDevelopmentOneShotConfirmedIngredientTable(result) {

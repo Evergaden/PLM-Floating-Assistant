@@ -259,9 +259,60 @@
     }
   }
 
+  async function productDevelopmentTraceDocxBlob(blob) {
+    await ensureCurrentTraceNameInitials();
+    const codec = productDevelopmentDocxCodec();
+    if (!codec) throw new Error('DOCX 水印组件未加载，请刷新页面后重试');
+    const entries = codec.unzipSync(new Uint8Array(await blob.arrayBuffer()));
+    if (!entries['word/document.xml'] || !entries['[Content_Types].xml']) throw new Error('文案文件不是完整的 DOCX，请重新生成');
+    const parse = (file, initial) => {
+      const doc = new DOMParser().parseFromString(entries[file] ? codec.strFromU8(entries[file]) : initial, 'application/xml');
+      if (doc.getElementsByTagName('parsererror').length) throw new Error('DOCX 文档属性格式异常：' + file);
+      return doc;
+    };
+    const store = (file, doc) => { entries[file] = codec.strToU8(new XMLSerializer().serializeToString(doc)); };
+    const relNs = 'http://schemas.openxmlformats.org/package/2006/relationships';
+    const coreType = 'http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties';
+    const rels = parse('_rels/.rels', '<Relationships xmlns="' + relNs + '"/>');
+    let relation = Array.from(rels.getElementsByTagNameNS(relNs, 'Relationship')).find((item) => item.getAttribute('Type') === coreType);
+    const coreFile = relation ? String(relation.getAttribute('Target') || '').replace(/^\//, '') : 'docProps/core.xml';
+    if (!coreFile || coreFile.includes('..') || relation && relation.getAttribute('TargetMode') === 'External') throw new Error('DOCX 文档属性路径异常');
+    if (!relation) {
+      relation = rels.createElementNS(relNs, 'Relationship');
+      const ids = new Set(Array.from(rels.getElementsByTagNameNS(relNs, 'Relationship')).map((item) => item.getAttribute('Id')));
+      let id = 'rIdPfhTrace';
+      while (ids.has(id)) id += '1';
+      relation.setAttribute('Id', id); relation.setAttribute('Type', coreType); relation.setAttribute('Target', coreFile);
+      rels.documentElement.appendChild(relation);
+    }
+    const cp = 'http://schemas.openxmlformats.org/package/2006/metadata/core-properties';
+    const dc = 'http://purl.org/dc/elements/1.1/';
+    const dt = 'http://purl.org/dc/terms/';
+    const core = parse(coreFile, '<cp:coreProperties xmlns:cp="' + cp + '" xmlns:dc="' + dc + '" xmlns:dcterms="' + dt + '" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>');
+    const date = new Date();
+    const trace = buildExcelTraceWatermark(date);
+    for (const [ns, name, value] of [[dc, 'dc:creator', trace], [cp, 'cp:lastModifiedBy', trace], [dc, 'dc:subject', trace], [dc, 'dc:description', trace], [cp, 'cp:keywords', trace], [dt, 'dcterms:created', date.toISOString()], [dt, 'dcterms:modified', date.toISOString()]]) {
+      const matches = Array.from(core.getElementsByTagNameNS(ns, name.split(':')[1]));
+      const node = matches.shift() || core.createElementNS(ns, name);
+      matches.forEach((duplicate) => duplicate.parentNode.removeChild(duplicate));
+      node.textContent = value;
+      if (ns === dt) node.setAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'xsi:type', 'dcterms:W3CDTF');
+      if (!node.parentNode) core.documentElement.appendChild(node);
+    }
+    const typesNs = 'http://schemas.openxmlformats.org/package/2006/content-types';
+    const types = parse('[Content_Types].xml', '<Types xmlns="' + typesNs + '"/>');
+    let override = Array.from(types.getElementsByTagNameNS(typesNs, 'Override')).find((item) => item.getAttribute('PartName') === '/' + coreFile);
+    if (!override) { override = types.createElementNS(typesNs, 'Override'); override.setAttribute('PartName', '/' + coreFile); types.documentElement.appendChild(override); }
+    override.setAttribute('ContentType', 'application/vnd.openxmlformats-package.core-properties+xml');
+    store(coreFile, core); store('_rels/.rels', rels); store('[Content_Types].xml', types);
+    return new Blob([codec.zipSync(entries, { level: 0 })], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  }
+
   async function downloadProductDevelopmentCopywritingResult() {
     let result = state.productDevelopmentCopywriting || restoreProductDevelopmentCopywritingCache(getProductDevelopmentCurrentSku());
     if (!result || !result.content) throw new Error('暂无可下载的 DOCX');
+    const handle = await chooseCopywritingSaveTarget(result.fileName || productDevelopmentCopywritingFileName(result.snapshot || result));
+    if (!handle) return;
     if (!result.blob) {
       state.productDevelopmentCopywritingBusy = true;
       state.productDevelopmentStatus = '正在从本地缓存恢复 DOCX…';
@@ -275,5 +326,6 @@
         renderShell();
       }
     }
-    downloadBlob(result.blob, result.fileName || productDevelopmentCopywritingFileName(result.snapshot || result));
+    await writeImageBlobToFileHandle(handle, await productDevelopmentTraceDocxBlob(result.blob));
+    showToast('文案已保存');
   }

@@ -90,6 +90,17 @@
     return null;
   }
 
+  async function chooseCopywritingSaveTarget(filename) {
+    const picker = getSaveFilePicker();
+    if (!picker) throw new Error('浏览器无法打开保存位置窗口，请使用支持文件保存窗口的 Chrome 或 Edge');
+    try {
+      return await picker({ suggestedName: sanitizeDownloadFileName(filename), types: [{ description: 'Word Document', accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] } }] });
+    } catch (error) {
+      if (error && error.name === 'AbortError') return null;
+      throw new Error('无法打开文案保存窗口：' + formatErrorMessage(error));
+    }
+  }
+
   function getDirectoryPicker() {
     if (typeof unsafeWindow !== 'undefined' && typeof unsafeWindow.showDirectoryPicker === 'function') {
       return (options) => unsafeWindow.showDirectoryPicker(options);
