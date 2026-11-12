@@ -319,6 +319,7 @@
       draft.specificationSource = 'manual';
     } else return true;
     productDevelopmentRecalculateMaterialDraft(kind, draft, detail, task);
+    if (kind === 'box') productDevelopmentSyncReworkOuterDimensions(detail);
     detail.bomDraftDirty = true;
     detail.bomDraftSaveState = 'dirty';
     detail.bomPlmSaveState = '';

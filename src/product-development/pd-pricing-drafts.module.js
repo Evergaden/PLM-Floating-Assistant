@@ -326,6 +326,7 @@
     const draft = detail.materialDrafts && detail.materialDrafts[kind];
     if (!draft) return false;
     draft.enabled = Boolean(enabled);
+    if (kind === 'box') productDevelopmentSyncReworkOuterDimensions(detail);
     detail.bomDraftDirty = true;
     detail.bomDraftSaveState = 'dirty';
     detail.bomPlmSaveState = '';

@@ -28,6 +28,7 @@
   }
 
   function productDevelopmentPrefillProductFieldValue(detail, definition) {
+    if (definition && ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume'].includes(definition.key)) productDevelopmentSyncReworkOuterDimensions(detail);
     const localValue = productDevelopmentPrefillLocalAttrValue(detail, definition);
     if (localValue !== undefined) return localValue;
     const fields = productDevelopmentProductFieldCollections(detail);
@@ -129,6 +130,7 @@
 
   function productDevelopmentApplyProductDetailLocalValues(detail) {
     if (!detail || typeof detail !== 'object') return detail;
+    productDevelopmentSyncReworkOuterDimensions(detail);
     const localValues = detail.productDetailLocalValues && typeof detail.productDetailLocalValues === 'object'
       ? detail.productDetailLocalValues
       : {};
@@ -235,6 +237,7 @@
     setField('outerWidth', enriched.outerWidth, enriched.outerWidth);
     setField('outerHeight', enriched.outerHeight, enriched.outerHeight);
     setField('outerVolume', enriched.outerVolume, enriched.outerVolume);
+    productDevelopmentSyncReworkOuterDimensions(detail, enriched);
     setField('productProductionLine', enriched.productLineValue, enriched.productLine);
     setField('minimumOrderQuantity', '100', '100');
     setField('procurementPrice', enriched.procurementPrice, enriched.procurementPrice);
@@ -414,7 +417,8 @@
       const direct = ['length', 'width', 'height'].map((key) => productDevelopmentReworkLookupNumber(value[key]));
       if (direct.every((item) => item !== null && item > 0)) return direct;
     }
-    return productDevelopmentReadonlyDimensionText(productDevelopmentPrefillText(value, 240));
+    const parsed = productDevelopmentReadonlyDimensionText(productDevelopmentPrefillText(value, 240));
+    return parsed && parsed.every((item) => Number.isFinite(item) && item > 0) ? parsed : null;
   }
 
   function productDevelopmentReworkLookupObjectDimensions(source, keyGroups) {
@@ -431,24 +435,57 @@
   }
 
   function productDevelopmentReworkLookupPaperBoxDimensions(detail) {
-    const rows = detail && Array.isArray(detail.bomRows) ? detail.bomRows : [];
-    const paperBox = rows.find((row) => /纸盒/.test(String(row && (row.name || '') + (row.category || '') + (row.specification || '')))
-      || productDevelopmentMaterialRowKind(row) === 'box');
-    const rowDimensions = productDevelopmentReworkLookupObjectDimensions(paperBox, [
-      ['length', 'material_length', 'materialLength'],
-      ['width', 'material_width', 'materialWidth'],
-      ['height', 'material_height', 'materialHeight'],
-    ]) || productDevelopmentReworkLookupDimensions(paperBox && paperBox.specification);
-    if (rowDimensions) return rowDimensions;
     const draft = detail && detail.materialDrafts && detail.materialDrafts.box;
     if (draft && draft.enabled !== false) {
-      return productDevelopmentReworkLookupObjectDimensions(draft, [
-        ['length'],
-        ['width'],
-        ['height'],
+      const dimensions = productDevelopmentReworkLookupObjectDimensions(draft, [
+        ['length'], ['width'], ['height'],
       ]) || productDevelopmentReworkLookupDimensions(draft.specification);
+      if (dimensions) return dimensions;
+    }
+    const rows = detail && Array.isArray(detail.bomRows) ? detail.bomRows : [];
+    for (const row of rows) {
+      if (!row || !(/纸盒/.test(String((row.name || '') + (row.category || '') + (row.specification || '')))
+        || productDevelopmentMaterialRowKind(row) === 'box')) continue;
+      const dimensions = productDevelopmentReworkLookupObjectDimensions(row, [
+        ['length', 'material_length', 'materialLength'],
+        ['width', 'material_width', 'materialWidth'],
+        ['height', 'material_height', 'materialHeight'],
+      ]) || productDevelopmentReworkLookupDimensions(row.specification);
+      if (dimensions) return dimensions;
     }
     return null;
+  }
+
+  function productDevelopmentSyncReworkOuterDimensions(detail, lookupOverride) {
+    if (!detail) return false;
+    const lookup = lookupOverride || productDevelopmentReworkLookupState(detail).data;
+    if (!lookup) return false;
+    const dimensions = productDevelopmentReworkLookupPaperBoxDimensions(detail);
+    const keys = ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume'];
+    const values = dimensions ? dimensions.concat(Number((dimensions[0] * dimensions[1] * dimensions[2]).toFixed(2))) : keys.map((key) => lookup[key]);
+    const source = dimensions ? 'BOM 纸盒尺寸' : '返工编码 API';
+    let changed = false;
+    keys.forEach((key, index) => {
+      const value = values[index];
+      if (!productDevelopmentReworkLookupValuePresent(value)) return;
+      const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
+      if (!definition) return;
+      const entry = detail.productDetailLocalValues && detail.productDetailLocalValues[definition.attrId + '@1'];
+      // Without a box, preserve manual outer dimensions; only undo our own override.
+      if (!dimensions && (!entry || entry.source !== 'BOM 纸盒尺寸')) return;
+      if (entry && entry.source === source && String(entry.value) === String(value)) return;
+      const text = productDevelopmentPrefillText(value, 800);
+      productDevelopmentRememberLocalProductField(detail, definition, value, text, source);
+      productDevelopmentProductFieldCollections(detail).filter((field) => Number(field && field.attrId) === Number(definition.attrId)).forEach((field) => {
+        field.value = productDevelopmentCloneValue(value);
+        field.displayValue = text;
+        field.status = dimensions ? '已预填（BOM 纸盒）' : '已预填（返工编码）';
+        field.source = source;
+      });
+      changed = true;
+    });
+    if (changed) productDevelopmentMarkProductDetailDirty(detail);
+    return changed;
   }
 
   function productDevelopmentReworkLookupUnitDimensions(detail, lookup) {

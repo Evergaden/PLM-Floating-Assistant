@@ -36,6 +36,36 @@
     return true;
   }
 
+  async function productDevelopmentDomCommitNumber(element, value) {
+    if (!element || element.disabled || element.readOnly) throw new Error('单价控件不可编辑');
+    const text = String(value === null || value === undefined ? '' : value).trim();
+    if (!text || !Number.isFinite(Number(text))) throw new Error('单价不是有效数字');
+    // InputNumber can show a DOM value while its form model is still empty.
+    // Commit an actual value transition, then let the focused control blur.
+    const id = element.id;
+    element.focus();
+    productDevelopmentDomNativeSetter(element, '', ['input', 'change']);
+    await productDevelopmentDomWait(30);
+    const input = id ? document.getElementById(id) : element;
+    if (!input || !input.isConnected) throw new Error('单价控件已刷新，请重新填写');
+    input.focus();
+    productDevelopmentDomNativeSetter(input, text, ['input', 'change']);
+    await productDevelopmentDomWait(30);
+    const commitInput = id ? document.getElementById(id) : input;
+    if (!commitInput || !commitInput.isConnected) throw new Error('单价控件已刷新，请重新填写');
+    if (commitInput !== input) commitInput.focus();
+    commitInput.blur();
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await productDevelopmentDomWait(80);
+      const current = id ? document.getElementById(id) : input;
+      const item = current && current.closest('.ant-form-item');
+      const error = item && item.querySelector('.ant-form-item-explain-error');
+      if (current && String(current.value).trim() && Number(current.value) === Number(text)
+        && current.getAttribute('aria-invalid') !== 'true' && !(error && productDevelopmentDomVisible(error))) return true;
+    }
+    throw new Error('单价尚未通过 PLM 表单校验，请检查该控件');
+  }
+
   function productDevelopmentDomSelectedText(input) {
     const container = input && input.closest('.ant-select, .ant-cascader-picker, .ant-cascader');
     if (!container) return productDevelopmentDomText(input && input.value);
@@ -658,6 +688,7 @@
           const value = productDevelopmentPrefillText(item.value, 800);
           try {
             if (definition.control) await productDevelopmentDomSelectOption(element, value, definition.control);
+            else if (definition.key === 'materialPrice') await productDevelopmentDomCommitNumber(element, value);
             else productDevelopmentDomNativeSetter(element, value);
           } catch (error) {
             warnings.push(definition.label + '：' + formatErrorMessage(error));

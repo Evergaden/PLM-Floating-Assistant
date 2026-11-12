@@ -672,6 +672,7 @@
         const rowKey = match && match[2];
         if (row && rowKey && Object.prototype.hasOwnProperty.call(row, rowKey)) {
           row[rowKey] = String(target.value || '').slice(0, 800);
+          productDevelopmentSyncReworkOuterDimensions(detail);
           persistDetail();
           return true;
         }

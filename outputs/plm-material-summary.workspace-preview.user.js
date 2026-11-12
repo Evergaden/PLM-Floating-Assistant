@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.41
+// @version      2.10.42
 // @description  [布局验证版] Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.41';
+  const SCRIPT_VERSION = '2.10.42';
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
@@ -8190,6 +8190,7 @@
   }
 
   function productDevelopmentPrefillProductFieldValue(detail, definition) {
+    if (definition && ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume'].includes(definition.key)) productDevelopmentSyncReworkOuterDimensions(detail);
     const localValue = productDevelopmentPrefillLocalAttrValue(detail, definition);
     if (localValue !== undefined) return localValue;
     const fields = productDevelopmentProductFieldCollections(detail);
@@ -8291,6 +8292,7 @@
 
   function productDevelopmentApplyProductDetailLocalValues(detail) {
     if (!detail || typeof detail !== 'object') return detail;
+    productDevelopmentSyncReworkOuterDimensions(detail);
     const localValues = detail.productDetailLocalValues && typeof detail.productDetailLocalValues === 'object'
       ? detail.productDetailLocalValues
       : {};
@@ -8397,6 +8399,7 @@
     setField('outerWidth', enriched.outerWidth, enriched.outerWidth);
     setField('outerHeight', enriched.outerHeight, enriched.outerHeight);
     setField('outerVolume', enriched.outerVolume, enriched.outerVolume);
+    productDevelopmentSyncReworkOuterDimensions(detail, enriched);
     setField('productProductionLine', enriched.productLineValue, enriched.productLine);
     setField('minimumOrderQuantity', '100', '100');
     setField('procurementPrice', enriched.procurementPrice, enriched.procurementPrice);
@@ -8576,7 +8579,8 @@
       const direct = ['length', 'width', 'height'].map((key) => productDevelopmentReworkLookupNumber(value[key]));
       if (direct.every((item) => item !== null && item > 0)) return direct;
     }
-    return productDevelopmentReadonlyDimensionText(productDevelopmentPrefillText(value, 240));
+    const parsed = productDevelopmentReadonlyDimensionText(productDevelopmentPrefillText(value, 240));
+    return parsed && parsed.every((item) => Number.isFinite(item) && item > 0) ? parsed : null;
   }
 
   function productDevelopmentReworkLookupObjectDimensions(source, keyGroups) {
@@ -8593,24 +8597,57 @@
   }
 
   function productDevelopmentReworkLookupPaperBoxDimensions(detail) {
-    const rows = detail && Array.isArray(detail.bomRows) ? detail.bomRows : [];
-    const paperBox = rows.find((row) => /纸盒/.test(String(row && (row.name || '') + (row.category || '') + (row.specification || '')))
-      || productDevelopmentMaterialRowKind(row) === 'box');
-    const rowDimensions = productDevelopmentReworkLookupObjectDimensions(paperBox, [
-      ['length', 'material_length', 'materialLength'],
-      ['width', 'material_width', 'materialWidth'],
-      ['height', 'material_height', 'materialHeight'],
-    ]) || productDevelopmentReworkLookupDimensions(paperBox && paperBox.specification);
-    if (rowDimensions) return rowDimensions;
     const draft = detail && detail.materialDrafts && detail.materialDrafts.box;
     if (draft && draft.enabled !== false) {
-      return productDevelopmentReworkLookupObjectDimensions(draft, [
-        ['length'],
-        ['width'],
-        ['height'],
+      const dimensions = productDevelopmentReworkLookupObjectDimensions(draft, [
+        ['length'], ['width'], ['height'],
       ]) || productDevelopmentReworkLookupDimensions(draft.specification);
+      if (dimensions) return dimensions;
+    }
+    const rows = detail && Array.isArray(detail.bomRows) ? detail.bomRows : [];
+    for (const row of rows) {
+      if (!row || !(/纸盒/.test(String((row.name || '') + (row.category || '') + (row.specification || '')))
+        || productDevelopmentMaterialRowKind(row) === 'box')) continue;
+      const dimensions = productDevelopmentReworkLookupObjectDimensions(row, [
+        ['length', 'material_length', 'materialLength'],
+        ['width', 'material_width', 'materialWidth'],
+        ['height', 'material_height', 'materialHeight'],
+      ]) || productDevelopmentReworkLookupDimensions(row.specification);
+      if (dimensions) return dimensions;
     }
     return null;
+  }
+
+  function productDevelopmentSyncReworkOuterDimensions(detail, lookupOverride) {
+    if (!detail) return false;
+    const lookup = lookupOverride || productDevelopmentReworkLookupState(detail).data;
+    if (!lookup) return false;
+    const dimensions = productDevelopmentReworkLookupPaperBoxDimensions(detail);
+    const keys = ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume'];
+    const values = dimensions ? dimensions.concat(Number((dimensions[0] * dimensions[1] * dimensions[2]).toFixed(2))) : keys.map((key) => lookup[key]);
+    const source = dimensions ? 'BOM 纸盒尺寸' : '返工编码 API';
+    let changed = false;
+    keys.forEach((key, index) => {
+      const value = values[index];
+      if (!productDevelopmentReworkLookupValuePresent(value)) return;
+      const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
+      if (!definition) return;
+      const entry = detail.productDetailLocalValues && detail.productDetailLocalValues[definition.attrId + '@1'];
+      // Without a box, preserve manual outer dimensions; only undo our own override.
+      if (!dimensions && (!entry || entry.source !== 'BOM 纸盒尺寸')) return;
+      if (entry && entry.source === source && String(entry.value) === String(value)) return;
+      const text = productDevelopmentPrefillText(value, 800);
+      productDevelopmentRememberLocalProductField(detail, definition, value, text, source);
+      productDevelopmentProductFieldCollections(detail).filter((field) => Number(field && field.attrId) === Number(definition.attrId)).forEach((field) => {
+        field.value = productDevelopmentCloneValue(value);
+        field.displayValue = text;
+        field.status = dimensions ? '已预填（BOM 纸盒）' : '已预填（返工编码）';
+        field.source = source;
+      });
+      changed = true;
+    });
+    if (changed) productDevelopmentMarkProductDetailDirty(detail);
+    return changed;
   }
 
   function productDevelopmentReworkLookupUnitDimensions(detail, lookup) {
@@ -9080,6 +9117,7 @@
     const draft = detail.materialDrafts && detail.materialDrafts[kind];
     if (!draft) return false;
     draft.enabled = Boolean(enabled);
+    if (kind === 'box') productDevelopmentSyncReworkOuterDimensions(detail);
     detail.bomDraftDirty = true;
     detail.bomDraftSaveState = 'dirty';
     detail.bomPlmSaveState = '';
@@ -9574,6 +9612,36 @@
       element.dispatchEvent(event);
     });
     return true;
+  }
+
+  async function productDevelopmentDomCommitNumber(element, value) {
+    if (!element || element.disabled || element.readOnly) throw new Error('单价控件不可编辑');
+    const text = String(value === null || value === undefined ? '' : value).trim();
+    if (!text || !Number.isFinite(Number(text))) throw new Error('单价不是有效数字');
+    // InputNumber can show a DOM value while its form model is still empty.
+    // Commit an actual value transition, then let the focused control blur.
+    const id = element.id;
+    element.focus();
+    productDevelopmentDomNativeSetter(element, '', ['input', 'change']);
+    await productDevelopmentDomWait(30);
+    const input = id ? document.getElementById(id) : element;
+    if (!input || !input.isConnected) throw new Error('单价控件已刷新，请重新填写');
+    input.focus();
+    productDevelopmentDomNativeSetter(input, text, ['input', 'change']);
+    await productDevelopmentDomWait(30);
+    const commitInput = id ? document.getElementById(id) : input;
+    if (!commitInput || !commitInput.isConnected) throw new Error('单价控件已刷新，请重新填写');
+    if (commitInput !== input) commitInput.focus();
+    commitInput.blur();
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await productDevelopmentDomWait(80);
+      const current = id ? document.getElementById(id) : input;
+      const item = current && current.closest('.ant-form-item');
+      const error = item && item.querySelector('.ant-form-item-explain-error');
+      if (current && String(current.value).trim() && Number(current.value) === Number(text)
+        && current.getAttribute('aria-invalid') !== 'true' && !(error && productDevelopmentDomVisible(error))) return true;
+    }
+    throw new Error('单价尚未通过 PLM 表单校验，请检查该控件');
   }
 
   function productDevelopmentDomSelectedText(input) {
@@ -10198,6 +10266,7 @@
           const value = productDevelopmentPrefillText(item.value, 800);
           try {
             if (definition.control) await productDevelopmentDomSelectOption(element, value, definition.control);
+            else if (definition.key === 'materialPrice') await productDevelopmentDomCommitNumber(element, value);
             else productDevelopmentDomNativeSetter(element, value);
           } catch (error) {
             warnings.push(definition.label + '：' + formatErrorMessage(error));
@@ -11132,6 +11201,7 @@
       draft.specificationSource = 'manual';
     } else return true;
     productDevelopmentRecalculateMaterialDraft(kind, draft, detail, task);
+    if (kind === 'box') productDevelopmentSyncReworkOuterDimensions(detail);
     detail.bomDraftDirty = true;
     detail.bomDraftSaveState = 'dirty';
     detail.bomPlmSaveState = '';
@@ -17796,6 +17866,7 @@
         const rowKey = match && match[2];
         if (row && rowKey && Object.prototype.hasOwnProperty.call(row, rowKey)) {
           row[rowKey] = String(target.value || '').slice(0, 800);
+          productDevelopmentSyncReworkOuterDimensions(detail);
           persistDetail();
           return true;
         }
