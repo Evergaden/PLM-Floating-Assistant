@@ -390,12 +390,42 @@
     return result;
   }
 
-  function productDevelopmentOneShotLoadDraft() {
-    return productDevelopmentOneShotInputValue(readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_ONE_SHOT_DRAFT_KEY, {}));
+  function productDevelopmentOneShotSkuDraftKey(sku) {
+    const normalized = String(sku || '').trim().toUpperCase();
+    return normalized ? PRODUCT_DEVELOPMENT_ONE_SHOT_DRAFT_KEY + ':sku:' + encodeURIComponent(normalized) : '';
+  }
+
+  function productDevelopmentOneShotLoadDraft(sku) {
+    const current = String(sku || '').trim().toUpperCase();
+    const legacy = productDevelopmentOneShotInputValue(readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_ONE_SHOT_DRAFT_KEY, {}));
+    if (!current) return legacy;
+    const key = productDevelopmentOneShotSkuDraftKey(current);
+    const stored = readProductDevelopmentStorage(key, null);
+    if (stored && typeof stored === 'object' && String(stored.sku || '').trim().toUpperCase() === current) return productDevelopmentOneShotInputValue(stored);
+    if (String(legacy.sku || '').trim().toUpperCase() === current) {
+      legacy.sku = current;
+      writeProductDevelopmentStorage(key, legacy);
+      return legacy;
+    }
+    // Retain shared settings, but never borrow another SKU's ingredients.
+    return productDevelopmentOneShotInputValue({
+      ...legacy,
+      sku: current,
+      regularIngredientsEn: '',
+      regularIngredientsInactiveEn: '',
+      regularIngredientsCn: '',
+      regularIngredientsInactiveCn: '',
+      otherIngredientsEn: '',
+      otherIngredientsCn: '',
+    });
   }
 
   function saveProductDevelopmentOneShotDraft(value) {
     const draft = productDevelopmentOneShotInputValue(value);
+    draft.sku = String(draft.sku || '').trim().toUpperCase();
+    const key = productDevelopmentOneShotSkuDraftKey(draft.sku);
+    if (key) writeProductDevelopmentStorage(key, draft);
+    // Keep the original last-used draft key compatible with older clients.
     writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_ONE_SHOT_DRAFT_KEY, draft);
     return draft;
   }

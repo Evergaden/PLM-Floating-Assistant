@@ -1296,13 +1296,9 @@
       ? state.productDevelopmentOneShotInput
       : productDevelopmentOneShotLoadDraft();
     const draftSku = String(draft.sku || '').trim().toUpperCase();
-    if (draftSku === current) return draft;
-    // 成分是产品级内容：切换 SKU 时清空，避免预填上一个产品的成分。
-    ['regularIngredientsEn', 'regularIngredientsInactiveEn', 'regularIngredientsCn', 'regularIngredientsInactiveCn', 'otherIngredientsEn', 'otherIngredientsCn'].forEach((key) => {
-      draft[key] = '';
-    });
-    draft.sku = current;
-    state.productDevelopmentOneShotInput = saveProductDevelopmentOneShotDraft(draft);
+    if (!current || draftSku === current) return draft;
+    if (draftSku) saveProductDevelopmentOneShotDraft(draft);
+    state.productDevelopmentOneShotInput = saveProductDevelopmentOneShotDraft(productDevelopmentOneShotLoadDraft(current));
     return state.productDevelopmentOneShotInput;
   }
 
