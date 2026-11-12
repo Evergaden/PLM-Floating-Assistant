@@ -126,6 +126,10 @@
       "mode": "module"
     },
     {
+      "path": "modules/bom-material-form.css",
+      "mode": "module"
+    },
+    {
       "path": "modules/magic-upload-layout.css",
       "mode": "module"
     },

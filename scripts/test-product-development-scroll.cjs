@@ -86,3 +86,15 @@ assert.equal(ingredients.value, 'Typing current ingredients');
 assert.equal(ingredients.selectionStart, 6);
 assert.equal(detail.querySelector('.pfh-cw-workspace p').textContent, 'Updated progress');
 console.log('Development form: async status/data refresh retains nested scroll, active input and caret; SKU switches reset context');
+const domSource = read('src/product-development/pd-dom.module.js');
+vm.runInContext(extract(domSource, '  function productDevelopmentMaterialRadioHtml(', '  function productDevelopmentFinishedProductBindingHtml('), context);
+const options = document.createElement('div');
+options.innerHTML = context.productDevelopmentMaterialRadioHtml('SKU2', 'box', 'multiPage', '是否多页', false);
+for (const value of [true, false, true]) {
+  const next = document.createElement('div');
+  next.innerHTML = context.productDevelopmentMaterialRadioHtml('SKU2', 'box', 'multiPage', '是否多页', value);
+  context.reconcileAssistantPanelNode(options, next);
+  assert.deepEqual(Array.from(options.querySelectorAll('label'), (node) => node.textContent), ['是', '否'], 'Radio options keep distinct reconciliation keys');
+  assert.equal(options.querySelectorAll('input').length, 2);
+  assert.equal(options.querySelector('input[checked]').getAttribute('value'), String(value));
+}

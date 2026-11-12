@@ -1749,7 +1749,7 @@
     const control = node.matches('input,textarea,select') ? node : node.tagName === 'LABEL' ? node.querySelector('input,textarea,select') : null;
     if (control) {
       for (const attrs of [['data-form-sku', 'data-form-group', 'data-form-key'], ['data-material-sku', 'data-material-kind', 'data-material-field'], ['data-meta-sku', 'data-meta-field']]) {
-        if (control.hasAttribute(attrs[0])) return node.tagName + ':' + attrs.map((attr) => control.getAttribute(attr) || '').join(':');
+        if (control.hasAttribute(attrs[0])) return node.tagName + ':' + attrs.map((attr) => control.getAttribute(attr) || '').join(':') + (control.getAttribute('type') === 'radio' ? ':' + control.getAttribute('value') : '');
       }
     }
     const structural = ['pfh-list-head', 'pfh-sku-list-toolbar', 'pfh-sku-filter-toolbar', 'pfh-sku-list-content', 'pfh-sku-scroll', 'pfh-sku-waterfall-grid', 'pfh-list-pager', 'pfh-search-result-toolbar', 'pfh-sku-view-switch', 'pfh-sku-sort-menu', 'pfh-detail-scroll'];

@@ -1221,7 +1221,7 @@
     const specification = productDevelopmentCleanText(row && row.specification || productDevelopmentMaterialPackSpec(detail), 160);
     const status = row && row.joinId ? '已绑定' : (productMainId ? '待保存' : '待绑定');
     const statusClass = status === '已绑定' ? ' is-ready' : (status === '待绑定' ? ' is-missing' : '');
-    return '<article class="pfh-product-development-product-binding"><header><div><strong>成品绑定</strong><span>保存 BOM 时自动绑定当前产品</span></div><em class="' + statusClass + '">' + escapeHtml(status) + '</em></header><div class="pfh-product-development-binding-grid"><div><small>产品编码</small><b>' + escapeHtml(code || '待补充') + '</b></div><div><small>产品名称</small><b>' + escapeHtml(name || '待补充') + '</b></div><div><small>规格型号</small><b>' + escapeHtml(specification || '按 PLM 成品记录') + '</b></div></div></article>';
+    return '<article class="pfh-product-development-product-binding"><header><strong>成品信息</strong><em class="' + statusClass + '">' + escapeHtml(status) + '</em></header><div class="pfh-product-development-binding-grid"><div><small>产品编码</small><b>' + escapeHtml(code || '待补充') + '</b></div><div><small>产品名称</small><b>' + escapeHtml(name || '待补充') + '</b></div><div><small>规格型号</small><b>' + escapeHtml(specification || '未填写') + '</b></div></div></article>';
   }
 
   function productDevelopmentMaterialCardHtml(kind, draft, sku, baseName) {
@@ -1230,7 +1230,7 @@
     const isInstruction = kind === 'instruction';
     const title = isBox ? '纸盒' : isLabel ? '标签' : '说明书';
     if (!draft || draft.enabled === false) {
-      return '<article class="pfh-product-development-material-card is-disabled"><header><div class="pfh-product-development-material-card-title"><strong>' + escapeHtml(title) + '（本地不需要）</strong><span>已从本地物料填写中移除</span></div><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="true">恢复' + escapeHtml(title) + '</button></header><p>已有 PLM 绑定不会自动删除。</p></article>';
+      return '<article class="pfh-product-development-material-card is-disabled"><header><strong>' + escapeHtml(title) + '<small>未启用</small></strong><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="true" title="仅恢复本地填写；已有 PLM 绑定保持不变">恢复</button></header></article>';
     }
     const priceText = draft.price || (isInstruction ? '' : '按尺寸自动计算');
     const dimensionFields = isInstruction
@@ -1246,25 +1246,22 @@
         productDevelopmentMaterialInputHtml(sku, kind, 'width', '宽（cm）', draft.width, { type: 'number', required: true }),
       ].join('');
     const calculatorOptions = isBox
-      ? '<div class="pfh-product-development-material-options"><strong>纸盒计算器选项</strong><div class="pfh-product-development-material-option-grid">' +
+      ? '<div class="pfh-product-development-material-options"><strong>纸盒选项</strong><div class="pfh-product-development-material-option-grid">' +
         productDevelopmentMaterialSelectHtml(sku, kind, 'quantity', '采购数量', draft.quantity, PRODUCT_DEVELOPMENT_BOX_QUANTITY_OPTIONS) +
         productDevelopmentMaterialRadioHtml(sku, kind, 'multiPage', '是否多页', draft.multiPage) +
         productDevelopmentMaterialRadioHtml(sku, kind, 'insertCard', '是否需内卡', draft.insertCard) +
         productDevelopmentMaterialRadioHtml(sku, kind, 'thicken', '是否需加厚', draft.thicken) +
         '</div></div>'
-      : isLabel
-        ? '<div class="pfh-product-development-material-defaults"><strong>' + (draft.isSupplement === false ? '标签物料备注' : '标签默认规则') + '</strong><span>' + escapeHtml(draft.isSupplement === false ? [draft.referenceRemark || '按对标物料，无额外备注', '用量 ' + (draft.usage || '1')].join(' · ') : '圆弧 · 玻璃加粘 · 食品两年 · 用量 1') + '</span></div>'
-        : '<div class="pfh-product-development-material-defaults"><strong>说明书默认规则</strong><span>半成品 · 配件类 · 用量 1 · 不使用纸盒/标签尺寸计算</span></div>';
+      : '';
     const priceInput = isInstruction
       ? productDevelopmentMaterialInputHtml(sku, kind, 'price', '采购价（手动）', draft.price, { required: true })
       : productDevelopmentMaterialInputHtml(sku, kind, 'price', '采购价（自动）', priceText, { readonly: true });
     const cardClass = 'pfh-product-development-material-card' + (isInstruction ? ' is-instruction' : '');
-    const cardSubtitle = productDevelopmentCleanText(draft.materialName || baseName || sku, 180);
-    return '<article class="' + cardClass + '" data-material-card="' + escapeHtml(kind) + '"><header><div class="pfh-product-development-material-card-title"><strong>' + escapeHtml(title) + '</strong><span>' + escapeHtml(cardSubtitle) + '</span></div><div class="pfh-product-development-material-card-actions"><em data-material-price-label="' + escapeHtml(kind) + '">采购价：' + escapeHtml(priceText) + (draft.price ? ' 元' : '') + '</em><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="false">移除</button></div></header><div class="pfh-product-development-material-grid">' +
+    return '<article class="' + cardClass + '" data-material-card="' + escapeHtml(kind) + '"><header><strong>' + escapeHtml(title) + '</strong><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="false" title="仅从本地填写中移除，不删除 PLM 已有绑定">移除</button></header><div class="pfh-product-development-material-grid">' +
       productDevelopmentMaterialInputHtml(sku, kind, 'materialName', '物料名称', draft.materialName, { wide: true, required: true }) +
-      productDevelopmentMaterialInputHtml(sku, kind, 'categoryPath', '物料分类（默认）', draft.categoryPath, { readonly: true }) +
-      productDevelopmentMaterialInputHtml(sku, kind, 'specification', '规格型号', draft.specification, { wide: isInstruction, required: true }) +
-      dimensionFields +
+      productDevelopmentMaterialInputHtml(sku, kind, 'categoryPath', '物料分类', draft.categoryPath, { readonly: true, wide: true }) +
+      productDevelopmentMaterialInputHtml(sku, kind, 'specification', '规格型号', draft.specification, { wide: true, required: true }) +
+      (dimensionFields ? '<div class="pfh-bom-dimensions' + (isBox ? ' is-box' : '') + '">' + dimensionFields + '</div>' : '') +
       productDevelopmentMaterialInputHtml(sku, kind, 'supplier', '默认供应商', draft.supplier, { readonly: true }) +
       priceInput +
       '</div>' + calculatorOptions + '</article>';
@@ -1288,5 +1285,5 @@
     const anyBomBusy = plmBusy || bomDomFillBusy;
     const plmStatus = detail.bomPlmSaveMessage ? '<p class="pfh-product-development-material-plm-status' + (detail.bomPlmSaveState === 'error' ? ' is-error' : ' is-saved') + '">' + escapeHtml(detail.bomPlmSaveMessage) + '</p>' : '';
     const existingBom = '<section class="pfh-product-development-form-section pfh-product-development-bom-existing"><h4>PLM 当前绑定 BOM（' + escapeHtml(String((detail.bomRows || []).length)) + ' 项）</h4>' + productDevelopmentReadonlyBomHtml(detail.bomRows || [], formSku) + '</section>';
-    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM 绑定</small><h3>填写 BOM 物料</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-bom-fill-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + ' title="只填写 BOM 表单，不会选择成品搜索结果或点击“批量保存”">' + (bomDomFillBusy ? '正在填入…' : '一键填入 PLM BOM') + '</button><button type="button" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : 'API 直接保存') + '</button></div></header><p class="pfh-product-development-material-note">说明书从“印刷”入口填写；' + escapeHtml(productDevelopmentReferenceLabel(detail, task)) + '产品编码有值时会从“成品”入口执行搜索。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div>' + existingBom + '</section>';
+    return '<section class="pfh-product-development-material-planner pfh-bom-form"><header><h3>BOM 物料</h3><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span></header><div class="pfh-product-development-material-header-actions"><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-bom-fill-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + ' title="填写 PLM BOM 表单，需在 PLM 中确认保存">' + (bomDomFillBusy ? '正在填入…' : '填入 PLM 表单') + '</button><button type="button" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + ' title="直接保存到 PLM">' + (plmBusy ? '正在保存…' : '保存到 PLM') + '</button></div>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div>' + existingBom + '</section>';
   }
