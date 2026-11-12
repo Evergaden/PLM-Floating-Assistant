@@ -90,6 +90,10 @@
       "mode": "module"
     },
     {
+      "path": "modules/parameter-focus.css",
+      "mode": "module"
+    },
+    {
       "path": "modules/size-image-custom.css",
       "mode": "module"
     },

@@ -8361,6 +8361,24 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
   padding: 0 4px 0 0;
 }
 
+/* source: modules/parameter-focus.css (module) */
+/* Keep product context in the selected SKU card while the editor owns the detail pane. */
+#plm-floating-helper[data-view="parameterImage"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active) {
+  position: relative;
+}
+#plm-floating-helper[data-view="parameterImage"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--pfh-theme-page, #f8f9ff) 58%, transparent);
+  pointer-events: none;
+}
+#plm-floating-helper[data-view="parameterImage"] .pfh-list :is(.pfh-list-head, .pfh-sku-list-toolbar, .pfh-sku-filter-toolbar, .pfh-list-pager, .pfh-search-result-toolbar, .pfh-workspace-search-host) {
+  opacity: .5;
+}
+
 /* source: modules/size-image-custom.css (module) */
 /* Custom size-image editor: a contained modal with a responsive form grid. */
 #plm-floating-helper[data-view="sizeImage"] .pfh-size-image-custom-layer {

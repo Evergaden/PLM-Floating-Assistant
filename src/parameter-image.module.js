@@ -1194,10 +1194,7 @@
       const topologyHint = session.topologyMessage ? ' · ' + session.topologyMessage + (session.topologyRuleVersion ? '（' + session.topologyRuleVersion + '）' : '') : '';
       const status = session.error ? '<div class="pfh-parameter-status is-error">' + context.escapeHtml(session.error) + '</div>' : (session.productResult ? '<div class="pfh-parameter-status">已生成产品尺寸图和英文参数图' + context.escapeHtml(topologyHint) + '。</div>' : '');
       const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入透明 PNG 后显示预览</span>') + '</div>';
-      const heroImage = preferredImageUrl(data);
-      const heroThumb = heroImage ? '<span class="pfh-parameter-hero-thumb"><img src="' + context.escapeHtml(heroImage) + '" alt=""></span>' : '<span class="pfh-parameter-hero-thumb is-empty">' + context.escapeHtml(data.sku) + '</span>';
       const html = '<div class="pfh-detail-view-frame">' + context.detailViewTabs('parameterImage') + '<div class="pfh-parameter-scroll"><section class="pfh-parameter-page">' +
-        '<header class="pfh-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
           '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '>' + (session.busy ? '<i class="pfh-loading-scan" aria-hidden="true"></i>' : '') + '<strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>仅支持透明 PNG（JPG / WebP 请先导出为透明 PNG）</span><span>一张图可同时包含纸盒与产品</span></button>' +
           (session.fileName ? '<small>已读取：' + context.escapeHtml(session.fileName) + '</small>' : '') +
