@@ -221,7 +221,7 @@
     processType: '直采',
     processFee: '0',
     taxRate: '0.00%',
-    quantity: '100',
+    quantity: '1000',
   });
   const PRODUCT_DEVELOPMENT_PRICING_DRAFT_KEY = 'plm-floating-helper:product-development-pricing:v1';
 
@@ -750,6 +750,31 @@
     return text;
   }
 
+  function productDevelopmentIsSupplement(detail, task) {
+    const source = detail && typeof detail === 'object' ? detail : {};
+    const taskSource = task && typeof task === 'object' ? task : {};
+    const info = source.productInfo && typeof source.productInfo === 'object' ? source.productInfo : {};
+    const local = source.productDetailLocalPage1 && typeof source.productDetailLocalPage1 === 'object' ? source.productDetailLocalPage1 : {};
+    const categories = [local.categoryPath, source.categoryName, source.plmCategory, source.category, info.category_name, taskSource.plmCategory, taskSource.categoryName]
+      .map((value) => String(value || '').trim()).filter(Boolean);
+    for (const category of categories) {
+      if (/健康保健|滋补保健|保健食品|膳食|营养补充|dietary\s+supplement|health\s+supplement/i.test(category)) return true;
+      if (/美妆|美容|个护|护肤|身体护理|日化|化妆|家居|玩具|文具|宠物|cosmetic|beauty|skin\s*care|personal\s*care/i.test(category)) return false;
+      if (/零食|糖果|饼干|巧克力|饮料|咖啡|茶饮|谷物|食用油|调味|(?:食品酒水|食物酒水)\s*(?:\/|>|→)\s*[^\s/>]+/i.test(category)) return false;
+      // A generic parent category does not override another source's concrete leaf.
+    }
+    if (source.humanSupplement === true || taskSource.humanSupplement === true) return true;
+    if (source.humanSupplement === false || taskSource.humanSupplement === false) return false;
+    const names = [source.name, source.productNameCn, source.productNameEn, local.productNameCn, local.productNameEn, taskSource.name, taskSource.productNameCn, taskSource.productNameEn].filter(Boolean).join(' ');
+    if (typeof productDevelopmentGuessProductLine === 'function' && productDevelopmentGuessProductLine(names) === 'regular') return false;
+    // Unclassified legacy tasks used the supplement workflow; preserve that default.
+    return true;
+  }
+
+  function productDevelopmentReferenceLabel(detail, task) {
+    return productDevelopmentIsSupplement(detail, task) ? '返工' : '对标';
+  }
+
   function normalizeProductDevelopmentTaskMeta(value) {
     const source = value && typeof value === 'object' ? value : {};
     return {
@@ -847,10 +872,11 @@
       delete productDevelopmentReworkLookupTimers[normalizedSku];
     }
     const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
+    const referenceLabel = productDevelopmentReferenceLabel(detail, task);
     const meta = getProductDevelopmentTaskMeta(task, detail);
     const normalizedCode = productDevelopmentNormalizeReworkProductCode(codeOverride !== undefined ? codeOverride : meta.reworkProductCode);
     if (!normalizedCode) {
-      if (!opts.silent) showToast('请先填写返工产品编码');
+      if (!opts.silent) showToast('请先填写' + referenceLabel + '产品编码');
       return Promise.resolve(null);
     }
     if (productDevelopmentNormalizeReworkProductCode(meta.reworkProductCode) !== normalizedCode) return Promise.resolve(null);
@@ -859,17 +885,17 @@
     detail.productDevelopmentReworkLookup = {
       status: 'loading',
       code: normalizedCode,
-      message: '正在读取返工产品资料…',
+      message: '正在读取' + referenceLabel + '产品资料…',
       updatedAt: Date.now(),
       data: null,
     };
-    state.productDevelopmentStatus = '正在读取返工编码 ' + normalizedCode + '…';
+    state.productDevelopmentStatus = '正在读取' + referenceLabel + '编码 ' + normalizedCode + '…';
     state.productDevelopmentError = '';
     renderShell();
-    return productDevelopmentFetchReworkProductData(normalizedCode).then((lookup) => {
+    return productDevelopmentFetchReworkProductData(normalizedCode, detail, task).then((lookup) => {
       if (productDevelopmentReworkLookupRequestTokens[normalizedSku] !== requestToken) return null;
       const enriched = productDevelopmentApplyReworkProductLookup(detail, lookup);
-      const message = '返工编码 ' + normalizedCode + ' 已自动回填采购价、产线、价格和默认采购明细';
+      const message = referenceLabel + '编码 ' + normalizedCode + ' 已自动回填采购价、产线、价格和默认采购明细';
       detail.productDevelopmentReworkLookup = {
         status: 'ready',
         code: normalizedCode,
@@ -886,7 +912,7 @@
       return enriched;
     }).catch((error) => {
       if (productDevelopmentReworkLookupRequestTokens[normalizedSku] !== requestToken) return null;
-      const message = '返工资料查询失败：' + formatErrorMessage(error);
+      const message = referenceLabel + '资料查询失败：' + formatErrorMessage(error);
       detail.productDevelopmentReworkLookup = {
         status: 'error',
         code: normalizedCode,

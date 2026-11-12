@@ -2604,12 +2604,27 @@
 }
 
 #plm-floating-helper .pfh-product-development-product-naming > header,
-#plm-floating-helper .pfh-product-development-detail-form > header,
 #plm-floating-helper .pfh-product-development-plain-copy > header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
+}
+
+#plm-floating-helper .pfh-product-development-detail-form > header {
+  display: grid;
+  min-width: 0;
+  gap: var(--pfh-space-field);
+  --pfh-product-development-actions-justify: flex-start;
+  --pfh-product-development-heading-margin: 0;
+}
+
+#plm-floating-helper .pfh-product-development-detail-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--pfh-space-field);
 }
 
 #plm-floating-helper .pfh-product-development-product-naming > header small,
@@ -2623,7 +2638,7 @@
 #plm-floating-helper .pfh-product-development-product-naming > header h3,
 #plm-floating-helper .pfh-product-development-detail-form > header h3,
 #plm-floating-helper .pfh-product-development-plain-copy > header h3 {
-  margin: 4px 0 0;
+  margin: var(--pfh-product-development-heading-margin, 4px 0 0);
   color: var(--pfh-theme-text);
   font-size: 15px;
 }
@@ -2650,6 +2665,30 @@
   gap: var(--pfh-space-label);
   color: var(--pfh-theme-muted);
   font-size: 10px;
+}
+
+#plm-floating-helper .pfh-product-development-bom-readonly {
+  margin: 0;
+}
+
+#plm-floating-helper .pfh-product-development-bom-readonly-field {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: var(--pfh-space-label);
+}
+
+#plm-floating-helper .pfh-product-development-bom-readonly-field dt {
+  color: var(--pfh-theme-muted);
+  font-size: 10px;
+}
+
+#plm-floating-helper .pfh-product-development-bom-readonly-field dd {
+  margin: 0;
+  color: var(--pfh-theme-text);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 #plm-floating-helper .pfh-product-development-product-naming-grid input,
@@ -3278,7 +3317,7 @@
 #plm-floating-helper .pfh-product-development-material-header-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: var(--pfh-product-development-actions-justify, flex-end);
   gap: 6px;
   flex-wrap: wrap;
 }
@@ -3292,6 +3331,7 @@
   color: var(--pfh-theme-primary);
   font: inherit;
   font-size: 10px;
+  white-space: nowrap;
   cursor: pointer;
 }
 

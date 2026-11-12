@@ -158,16 +158,6 @@
       if (!task) showToast('开发任务不存在或已刷新');
       return true;
     }
-    if (action === 'product-development-task-meta-save') {
-      const sku = getProductDevelopmentCurrentSku();
-      const meta = getProductDevelopmentTaskMeta(state.productDevelopmentSelectedTask, state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku]);
-      saveProductDevelopmentTaskMeta(sku, meta);
-      if (!state.productDevelopmentTaskMeta || typeof state.productDevelopmentTaskMeta !== 'object') state.productDevelopmentTaskMeta = Object.create(null);
-      state.productDevelopmentTaskMeta[sku] = meta;
-      state.productDevelopmentStatus = '产品品牌、名称和返工编码已保存到本地';
-      renderShell();
-      return true;
-    }
     if (action === 'product-development-task-meta-translate') {
       const sku = String(actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku()).trim().toUpperCase();
       const panel = ensurePanel();
@@ -199,21 +189,12 @@
       });
       return true;
     }
-    if (action === 'product-development-rework-lookup') {
-      const sku = String(actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku()).trim().toUpperCase();
-      productDevelopmentRunReworkProductLookup(sku, undefined, { silent: false });
-      return true;
-    }
     if (action === 'product-development-product-fill-page1') {
       productDevelopmentRunPlmDomFill('page1', actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku());
       return true;
     }
     if (action === 'product-development-product-fill-page2') {
       productDevelopmentRunPlmDomFill('page2', actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku());
-      return true;
-    }
-    if (action === 'product-development-product-save-local') {
-      productDevelopmentSaveProductDetailLocally(actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku());
       return true;
     }
     if (action === 'product-development-product-save-plm') {
@@ -550,6 +531,28 @@
       }, 0);
       return true;
     }
+    if (target.classList.contains('pfh-product-development-form-input')) {
+      productDevelopmentHandleInput(event);
+      const sku = String(target.getAttribute('data-form-sku') || '').trim().toUpperCase();
+      const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+      if (detail && detail.productDetailDraftDirty) {
+        detail.productDetailDraftDirty = false;
+        detail.productDetailSavedAt = new Date().toLocaleString();
+        detail.productDetailSaveState = 'saved';
+        detail.productDetailSaveMessage = '建品资料已自动保存到本地';
+        detail.cacheSource = 'local-cache';
+        clearProductDevelopmentReadonlyDetailCacheWriteTimer(sku);
+        saveProductDevelopmentReadonlyDetailCache(sku, detail);
+        const form = target.closest && target.closest('.pfh-product-development-detail-form');
+        const status = form && form.querySelector('.pfh-product-development-material-save-status');
+        if (status) {
+          status.textContent = detail.productDetailSaveMessage;
+          status.classList.remove('is-dirty', 'is-error');
+          status.classList.add('is-saved');
+        }
+      }
+      return true;
+    }
     const files = Array.from(target.files || []);
     if (target.classList.contains('pfh-product-development-copywriting-template-input')) {
       try {
@@ -666,31 +669,7 @@
         scheduleProductDevelopmentReadonlyDetailCache(sku, detail);
       };
       let field = null;
-      if (detail && group === 'bom') {
-        const match = key.match(/^(\d+)\.(.+)$/);
-        const row = match && Array.isArray(detail.bomRows) ? detail.bomRows[Number(match[1])] : null;
-        const rowKey = match && match[2];
-        if (row && rowKey && Object.prototype.hasOwnProperty.call(row, rowKey)) {
-          row[rowKey] = String(target.value || '').slice(0, 800);
-          productDevelopmentSyncReworkOuterDimensions(detail);
-          persistDetail();
-          return true;
-        }
-      }
-      if (detail && group === 'attachments') {
-        const match = key.match(/^(\d+)\.displayValue$/);
-        const item = match && Array.isArray(detail.attachments) ? detail.attachments[Number(match[1])] : null;
-        if (item) {
-          const value = String(target.value || '').slice(0, 800);
-          item.value = Array.isArray(item.value) ? (value ? [value] : []) : value;
-          item.displayValue = value;
-          item.status = item.displayValue.trim() ? '已填写（本地）' : '未读取';
-          productDevelopmentRememberLocalProductField(detail, item, item.value, item.displayValue);
-          productDevelopmentMarkProductDetailDirty(detail);
-          persistDetail();
-          return true;
-        }
-      }
+      if (group === 'bom' || group === 'attachments') return true;
       if (detail && group === 'page1') {
         const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS.find((item) => item.key === key);
         if (definition) {
@@ -737,6 +716,7 @@
           const value = String(target.value || '').slice(0, 800);
           if (!detail.productDetailLocalProcurement || typeof detail.productDetailLocalProcurement !== 'object') detail.productDetailLocalProcurement = Object.create(null);
           detail.productDetailLocalProcurement[key] = value;
+          if (key === 'quantity') detail.productDetailProcurementQuantitySource = 'manual';
           productDevelopmentMarkProductDetailDirty(detail);
           persistDetail();
         }

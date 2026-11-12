@@ -114,7 +114,13 @@
     const local = detail && detail.productDetailLocalProcurement && typeof detail.productDetailLocalProcurement === 'object'
       ? detail.productDetailLocalProcurement
       : {};
-    if (productDevelopmentPrefillHasValue(local, key)) return local[key];
+    if (productDevelopmentPrefillHasValue(local, key)) {
+      const legacyDefault = key === 'quantity' && String(local[key]) === '100'
+        && detail.productDetailProcurementQuantitySource !== 'manual'
+        && (detail.productDetailProcurementQuantitySource === 'default' || detail.productDevelopmentReworkLookup);
+      return legacyDefault ? PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT.quantity : local[key];
+    }
+    if (key === 'quantity') return PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT.quantity;
     const row = productDevelopmentProcurementRow(detail);
     const candidates = {
       supplier: ['company_supplier_name', 'companySupplierName', 'supplier_name', 'supplierName', 'supplier', 'company_supplier_id'],
@@ -184,15 +190,16 @@
 
   function productDevelopmentReworkLookupStatusText(detail) {
     const lookup = productDevelopmentReworkLookupState(detail);
-    if (lookup.status === 'loading') return '正在读取返工产品资料…';
-    if (lookup.status === 'error') return lookup.message || '返工产品资料查询失败';
+    const referenceLabel = productDevelopmentReferenceLabel(detail);
+    if (lookup.status === 'loading') return '正在读取' + referenceLabel + '产品资料…';
+    if (lookup.status === 'error') return lookup.message || referenceLabel + '产品资料查询失败';
     if (lookup.status === 'ready') {
       const data = lookup.data || {};
       const price = productDevelopmentPrefillText(data.procurementPrice);
       const packing = productDevelopmentPrefillText(data.standardPackingQuantity);
-      return '已按 ' + (lookup.code || data.code || '返工编码') + ' 回填' + (price ? '采购价 ' + price : '') + (packing ? ' · 标准装箱数 ' + packing : '');
+      return '已按 ' + (lookup.code || data.code || referenceLabel + '编码') + ' 回填' + (price ? '采购价 ' + price : '') + (packing ? ' · 标准装箱数 ' + packing : '');
     }
-    return '填写返工编码后自动查询采购价、产线和价格档位；采购明细默认 JSJ / 直采 / 100 件';
+    return '填写' + referenceLabel + '编码后自动查询采购价、产线和价格档位；采购明细默认 JSJ / 直采 / 1000 件';
   }
 
   function productDevelopmentClearReworkLocalProductFields(detail) {
@@ -202,12 +209,13 @@
     Array.from(new Set(attrIds)).forEach((attrId) => {
       const key = attrId + '@1';
       const entry = detail.productDetailLocalValues[key];
-      if (entry && entry.source === '返工编码 API') delete detail.productDetailLocalValues[key];
+      if (entry && ['返工编码 API', '对标编码 API'].includes(entry.source)) delete detail.productDetailLocalValues[key];
     });
   }
 
   function productDevelopmentApplyReworkProductLookup(detail, lookup) {
     if (!detail || !lookup || typeof lookup !== 'object') return null;
+    const referenceLabel = productDevelopmentReferenceLabel(detail);
     const packing = productDevelopmentReworkLookupPacking(detail, lookup);
     const enriched = {
       ...productDevelopmentCloneValue(lookup),
@@ -222,12 +230,12 @@
       if (!definition) return false;
       const rawValue = productDevelopmentReworkLookupValuePresent(value) ? value : displayValue;
       const textValue = productDevelopmentPrefillText(productDevelopmentReworkLookupValuePresent(displayValue) ? displayValue : rawValue, 800);
-      productDevelopmentRememberLocalProductField(detail, definition, rawValue, textValue, '返工编码 API');
+      productDevelopmentRememberLocalProductField(detail, definition, rawValue, textValue, referenceLabel + '编码 API');
       productDevelopmentProductFieldCollections(detail).filter((field) => Number(field && field.attrId) === Number(definition.attrId)).forEach((field) => {
         field.value = productDevelopmentCloneValue(rawValue);
         field.displayValue = textValue;
-        field.status = '已预填（返工编码）';
-        field.source = '返工编码 API';
+        field.status = '已预填（' + referenceLabel + '编码）';
+        field.source = referenceLabel + '编码 API';
       });
       return true;
     };
@@ -247,10 +255,13 @@
     setField('thirdPrice', enriched.thirdPrice, enriched.thirdPrice);
     setField('standardPackingQuantity', enriched.standardPackingQuantity, enriched.standardPackingQuantity);
     if (!detail.productDetailLocalProcurement || typeof detail.productDetailLocalProcurement !== 'object') detail.productDetailLocalProcurement = Object.create(null);
+    const quantity = productDevelopmentProcurementFieldValue(detail, 'quantity');
     Object.assign(detail.productDetailLocalProcurement, {
       ...PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT,
+      quantity,
       materialPrice: enriched.procurementPrice,
     });
+    if (detail.productDetailProcurementQuantitySource !== 'manual') detail.productDetailProcurementQuantitySource = 'default';
     detail.reworkProductCode = enriched.code;
     productDevelopmentMarkProductDetailDirty(detail);
     return enriched;
@@ -463,7 +474,8 @@
     const dimensions = productDevelopmentReworkLookupPaperBoxDimensions(detail);
     const keys = ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume'];
     const values = dimensions ? dimensions.concat(Number((dimensions[0] * dimensions[1] * dimensions[2]).toFixed(2))) : keys.map((key) => lookup[key]);
-    const source = dimensions ? 'BOM 纸盒尺寸' : '返工编码 API';
+    const referenceLabel = productDevelopmentReferenceLabel(detail);
+    const source = dimensions ? 'BOM 纸盒尺寸' : referenceLabel + '编码 API';
     let changed = false;
     keys.forEach((key, index) => {
       const value = values[index];
@@ -479,7 +491,7 @@
       productDevelopmentProductFieldCollections(detail).filter((field) => Number(field && field.attrId) === Number(definition.attrId)).forEach((field) => {
         field.value = productDevelopmentCloneValue(value);
         field.displayValue = text;
-        field.status = dimensions ? '已预填（BOM 纸盒）' : '已预填（返工编码）';
+        field.status = dimensions ? '已预填（BOM 纸盒）' : '已预填（' + referenceLabel + '编码）';
         field.source = source;
       });
       changed = true;
@@ -495,7 +507,7 @@
     }
     return {
       dimensions: lookup && Array.isArray(lookup.outerDimensions) ? lookup.outerDimensions.slice() : null,
-      source: '返工产品外长宽高',
+      source: productDevelopmentReferenceLabel(detail) + '产品外长宽高',
     };
   }
 
@@ -522,7 +534,7 @@
     const fallback = productDevelopmentReworkLookupNumber(lookup && lookup.sourceStandardPackingQuantity);
     return {
       quantity: fallback && fallback > 0 ? fallback : '',
-      source: fallback && fallback > 0 ? '返工产品原标准装箱数（未取得可计算尺寸）' : '待补充箱规或尺寸',
+      source: fallback && fallback > 0 ? productDevelopmentReferenceLabel(detail) + '产品原标准装箱数（未取得可计算尺寸）' : '待补充箱规或尺寸',
       unitDimensions: unit.dimensions,
     };
   }
@@ -537,12 +549,13 @@
     return payload;
   }
 
-  async function productDevelopmentFetchReworkProductData(code) {
+  async function productDevelopmentFetchReworkProductData(code, detail, task) {
     const normalizedCode = productDevelopmentNormalizeReworkProductCode(code);
-    if (!normalizedCode) throw new Error('请先填写返工产品编码');
+    const referenceLabel = productDevelopmentReferenceLabel(detail, task);
+    if (!normalizedCode) throw new Error('请先填写' + referenceLabel + '产品编码');
     const listPayload = productDevelopmentReworkLookupCheckPayload(
       await fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(normalizedCode)),
-      '返工产品查询',
+      referenceLabel + '产品查询',
     );
     const list = productDevelopmentReadonlyList(listPayload);
     const exactProduct = (Array.isArray(list) ? list : []).find((item) => [
@@ -552,28 +565,28 @@
       item && item.jst_old_code,
     ].some((value) => productDevelopmentNormalizeReworkProductCode(value) === normalizedCode));
     const product = exactProduct || (Array.isArray(list) && list.length === 1 ? list[0] : null);
-    if (!product) throw new Error('PLM 中没有找到返工产品编码“' + normalizedCode + '”');
+    if (!product) throw new Error('PLM 中没有找到' + referenceLabel + '产品编码“' + normalizedCode + '”');
     const productId = String(productDevelopmentReworkLookupValue(product, ['product_id', 'productId', 'product_main_id', 'productMainId']) || '').trim();
     const productVersionId = String(productDevelopmentReworkLookupValue(product, ['product_version_id', 'productVersionId', 'version_id', 'versionId']) || '').trim();
     const categoryId = String(productDevelopmentReworkLookupValue(product, ['category_id', 'categoryId']) || '').trim();
     if (!/^\d+$/.test(productId) || !/^\d+$/.test(productVersionId) || !/^\d+$/.test(categoryId)) {
-      throw new Error('返工产品“' + normalizedCode + '”缺少产品版本或类目 ID');
+      throw new Error(referenceLabel + '产品“' + normalizedCode + '”缺少产品版本或类目 ID');
     }
     const [pricePayload, contentPayload] = await Promise.all([
       fetchPlmJson('/api/Product/GetProductPriceInfo?type=1&product_version_id=' + encodeURIComponent(productVersionId))
-        .then((payload) => productDevelopmentReworkLookupCheckPayload(payload, '返工采购价查询')),
+        .then((payload) => productDevelopmentReworkLookupCheckPayload(payload, referenceLabel + '采购价查询')),
       fetchPlmJson('/api/Product/GetDetailContent?is_edit=true&product_id=' + encodeURIComponent(productId) + '&category_id=' + encodeURIComponent(categoryId) + '&product_version_id=' + encodeURIComponent(productVersionId))
-        .then((payload) => productDevelopmentReworkLookupCheckPayload(payload, '返工产品详情查询')),
+        .then((payload) => productDevelopmentReworkLookupCheckPayload(payload, referenceLabel + '产品详情查询')),
     ]);
     const attrs = productDevelopmentReadonlyAttrs(contentPayload);
-    if (!attrs.length) throw new Error('返工产品“' + normalizedCode + '”没有读取到建品详情字段');
+    if (!attrs.length) throw new Error(referenceLabel + '产品“' + normalizedCode + '”没有读取到建品详情字段');
     const priceData = productDevelopmentReadonlyPayloadData(pricePayload) || {};
     const priceFromApi = productDevelopmentReworkLookupValue(priceData, ['procurement_price', 'procurementPrice', 'purchase_price', 'purchasePrice']);
     const priceFromProduct = productDevelopmentReworkLookupValue(product, ['procurement_price', 'procurementPrice', 'purchase_price', 'purchasePrice']);
     const procurementPrice = productDevelopmentReworkLookupNumber(priceFromApi) !== null
       ? productDevelopmentReworkLookupNumber(priceFromApi)
       : productDevelopmentReworkLookupNumber(priceFromProduct);
-    if (procurementPrice === null) throw new Error('返工产品“' + normalizedCode + '”没有可用采购价');
+    if (procurementPrice === null) throw new Error(referenceLabel + '产品“' + normalizedCode + '”没有可用采购价');
     const specification = productDevelopmentReworkLookupField(attrs, product, 119, 'specification', ['spec_model', 'specification']);
     const roughWeight = productDevelopmentReworkLookupField(attrs, product, 122, 'rough_weight', ['rough_weight', 'roughWeight']);
     const outerLength = productDevelopmentReworkLookupField(attrs, product, 133, 'long_outer_packaging', ['long_outer_packaging', 'outer_length', 'outerLength']);
@@ -599,11 +612,26 @@
     ];
     const cartonDimensions = cartonCandidates.map(productDevelopmentReworkLookupDimensions).find(Boolean) || null;
     const resolvedSpecification = specification.displayValue || productDevelopmentPrefillText(specification.value, 800);
+    const referenceProjectId = String(productDevelopmentReworkLookupValue(product, ['project_id', 'projectId']) || '').trim();
+    let bomRows = [];
+    let bomLookupStatus = 'unavailable';
+    if (!productDevelopmentIsSupplement(detail, task) && /^\d+$/.test(referenceProjectId)) {
+      try {
+        bomRows = await productDevelopmentReadBomRows(referenceProjectId);
+        bomLookupStatus = 'ready';
+      } catch (_) {
+        // Price/field prefilling remains useful if the optional reference BOM is unavailable.
+        bomLookupStatus = 'error';
+      }
+    }
     return {
       code: normalizedCode,
       productCode: productDevelopmentReworkLookupValue(product, ['code', 'style_code', 'product_code']) || normalizedCode,
       productId,
       productVersionId,
+      referenceProjectId,
+      bomRows,
+      bomLookupStatus,
       categoryId,
       productNameCn: productDevelopmentPrefillText(productDevelopmentReworkLookupValue(product, ['cn_name', 'product_name', 'productName']), 180),
       specification: resolvedSpecification,

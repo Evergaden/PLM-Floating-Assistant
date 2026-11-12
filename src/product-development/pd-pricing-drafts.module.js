@@ -108,13 +108,41 @@
 
   function productDevelopmentMaterialDimensions(value) {
     const text = productDevelopmentCleanText(value, 240);
-    const match = text.match(/(\d+(?:\.\d+)?)\s*(?:x|×|\*)\s*(\d+(?:\.\d+)?)(?:\s*(?:x|×|\*)\s*(\d+(?:\.\d+)?))?/i);
+    const match = productDevelopmentMaterialDimensionMatch(text);
     if (!match) return { length: '', width: '', height: '' };
+    const sharedUnit = match[6] || match[4] || match[2] || 'cm';
+    const dimension = (number, unit) => number ? productDevelopmentMaterialNumberText(Number(number) / (/^(?:mm|毫米)$/i.test(unit || sharedUnit) ? 10 : 1), 6) : '';
     return {
-      length: match[1] || '',
-      width: match[2] || '',
-      height: match[3] || '',
+      length: dimension(match[1], match[2]),
+      width: dimension(match[3], match[4]),
+      height: dimension(match[5], match[6]),
     };
+  }
+
+  function productDevelopmentMaterialDimensionMatch(value) {
+    return String(value || '').match(/(\d+(?:\.\d+)?|\.\d+)\s*(mm|cm|毫米|厘米)?\s*[x×*]\s*(\d+(?:\.\d+)?|\.\d+)\s*(mm|cm|毫米|厘米)?(?:\s*[x×*]\s*(\d+(?:\.\d+)?|\.\d+)\s*(mm|cm|毫米|厘米)?)?/i);
+  }
+
+  function productDevelopmentSyncMaterialDimensions(kind, draft, changedKey, detail) {
+    if (!draft || !['box', 'label'].includes(kind)) return;
+    const keys = kind === 'box' ? ['length', 'width', 'height'] : ['length', 'width'];
+    const specification = String(draft.specification || '');
+    if (changedKey === 'specification') {
+      const dimensions = productDevelopmentMaterialDimensions(specification);
+      const complete = keys.every((key) => dimensions[key]);
+      keys.forEach((key) => { draft[key] = complete ? dimensions[key] : ''; });
+      return;
+    }
+    if (!keys.includes(changedKey)) return;
+    draft[changedKey] = productDevelopmentMaterialNumberText(draft[changedKey], 6);
+    const values = keys.map((key) => productDevelopmentMaterialNumberText(draft[key], 6));
+    const dimensionText = values.every(Boolean) ? values.join('x') + 'cm' : '';
+    const match = productDevelopmentMaterialDimensionMatch(specification);
+    if (match) {
+      draft.specification = specification.slice(0, match.index) + dimensionText + specification.slice(match.index + match[0].length);
+    } else if (dimensionText) {
+      draft.specification = [specification, dimensionText].filter(Boolean).join('，');
+    }
   }
 
   function productDevelopmentMaterialRowText(row) {
@@ -137,6 +165,20 @@
   function productDevelopmentMaterialExistingRow(detail, kind) {
     const rows = detail && Array.isArray(detail.bomRows) ? detail.bomRows : [];
     return rows.find((row) => productDevelopmentMaterialRowKind(row) === kind) || null;
+  }
+
+  function productDevelopmentMaterialReferenceRow(detail, kind) {
+    const reference = detail && detail.productDevelopmentReworkLookup && detail.productDevelopmentReworkLookup.data;
+    const referenceRows = reference && Array.isArray(reference.bomRows) ? reference.bomRows : [];
+    return referenceRows.find((row) => productDevelopmentMaterialRowKind(row) === kind)
+      || productDevelopmentMaterialExistingRow(detail, kind);
+  }
+
+  function productDevelopmentMaterialReferenceRemark(row) {
+    const explicit = productDevelopmentCleanText(row && (row.remark || row.remarks || row.note), 180);
+    if (explicit) return explicit;
+    const match = String(row && row.name || '').match(/[（(]([^（）()]*)[）)]\s*$/);
+    return productDevelopmentCleanText(match && match[1], 180);
   }
 
   function productDevelopmentMaterialBaseName(task, detail) {
@@ -163,8 +205,12 @@
 
   function productDevelopmentMaterialDefaultName(kind, baseName, draft) {
     const base = productDevelopmentCleanText(baseName, 180);
-    const shelfLife = productDevelopmentCleanText(draft.shelfLife || '食品两年', 40);
+    const shelfLife = productDevelopmentCleanText(draft.shelfLife || (draft.isSupplement !== false ? '食品两年' : ''), 40);
     if (kind === 'instruction') return productDevelopmentCleanText(draft.defaultName || PRODUCT_DEVELOPMENT_MATERIAL_DEFAULTS.instruction.defaultName, 240);
+    if (draft.isSupplement === false) {
+      const remark = productDevelopmentCleanText(draft.referenceRemark || shelfLife, 180);
+      return base + (kind === 'label' ? '标签' : '纸盒') + (remark ? '（' + remark + '）' : '');
+    }
     if (kind === 'label') {
       const shape = productDevelopmentCleanText(draft.labelShape || '圆弧', 40);
       return [base, '标签（' + shape + ' ' + shelfLife + '）'].filter(Boolean).join('');
@@ -176,12 +222,13 @@
   function productDevelopmentMaterialDefaultSpecification(kind, draft) {
     const packSpec = productDevelopmentCleanText(draft.packSpec, 160);
     if (kind === 'instruction') return packSpec || PRODUCT_DEVELOPMENT_MATERIAL_DEFAULTS.instruction.defaultSpecification;
-    const length = productDevelopmentMaterialNumberText(draft.length, 2);
-    const width = productDevelopmentMaterialNumberText(draft.width, 2);
-    const height = productDevelopmentMaterialNumberText(draft.height, 2);
+    const length = productDevelopmentMaterialNumberText(draft.length, 6);
+    const width = productDevelopmentMaterialNumberText(draft.width, 6);
+    const height = productDevelopmentMaterialNumberText(draft.height, 6);
+    const adhesive = productDevelopmentCleanText(draft.adhesive || (draft.isSupplement !== false ? '玻璃加粘' : ''), 60);
     const dimensionText = kind === 'box'
       ? (length && width && height ? length + 'x' + width + 'x' + height + 'cm' : '')
-      : (length && width ? length + 'x' + width + 'cm（' + productDevelopmentCleanText(draft.adhesive || '玻璃加粘', 60) + '）' : '');
+      : (length && width ? length + 'x' + width + 'cm' + (adhesive ? '（' + adhesive + '）' : '') : '');
     return [packSpec, dimensionText].filter(Boolean).join('，');
   }
 
@@ -220,6 +267,8 @@
     const defaults = PRODUCT_DEVELOPMENT_MATERIAL_DEFAULTS[kind];
     const source = rawValue && typeof rawValue === 'object' ? rawValue : {};
     const existing = productDevelopmentMaterialExistingRow(detail, kind);
+    const isSupplement = productDevelopmentIsSupplement(detail, task);
+    const referenceRemark = productDevelopmentMaterialReferenceRemark(productDevelopmentMaterialReferenceRow(detail, kind));
     const existingMaterialId = String(existing && existing.materialId || '').trim();
     const existingJoinId = String(existing && existing.joinId || '').trim();
     const sourceMaterialId = String(source.materialId || '').trim();
@@ -242,7 +291,7 @@
     const specificationSource = String(raw.specificationSource || (hasSpecification ? 'manual' : 'generated'));
     const hasExplicitEnabled = Object.prototype.hasOwnProperty.call(raw, 'enabled') || Object.prototype.hasOwnProperty.call(raw, 'removed');
     const dimensionValue = (rawKey, existingValue, parsedValue) => {
-      if (raw[rawKey] !== undefined && raw[rawKey] !== null && String(raw[rawKey]).trim() !== '') return raw[rawKey];
+      if (Object.prototype.hasOwnProperty.call(raw, rawKey)) return raw[rawKey];
       if (existingValue !== undefined && existingValue !== null && String(existingValue).trim() !== '') return existingValue;
       return parsedValue;
     };
@@ -268,14 +317,16 @@
       joinId: productDevelopmentCleanText(raw.joinId || existing && existing.joinId, 100),
       pics: Array.isArray(raw.pics) ? raw.pics.slice(0, 3) : (Array.isArray(existing && existing.pics) ? existing.pics.slice(0, 3) : []),
       packSpec,
-      shelfLife: productDevelopmentCleanText(raw.shelfLife || defaults.shelfLife, 40),
-      labelShape: productDevelopmentCleanText(raw.labelShape || defaults.labelShape, 40),
-      adhesive: productDevelopmentCleanText(raw.adhesive || defaults.adhesive, 60),
+      isSupplement,
+      referenceRemark: productDevelopmentCleanText(referenceRemark || raw.referenceRemark, 180),
+      shelfLife: productDevelopmentCleanText(isSupplement ? raw.shelfLife || defaults.shelfLife : (raw.shelfLife && raw.shelfLife !== '食品两年' ? raw.shelfLife : ''), 40),
+      labelShape: productDevelopmentCleanText(isSupplement ? raw.labelShape || defaults.labelShape : (/圆弧/.test(referenceRemark) ? '圆弧' : raw.labelShape && raw.labelShape !== defaults.labelShape ? raw.labelShape : ''), 40),
+      adhesive: productDevelopmentCleanText(isSupplement ? raw.adhesive || defaults.adhesive : (/玻璃加粘/.test(referenceRemark) ? '玻璃加粘' : raw.adhesive && raw.adhesive !== defaults.adhesive ? raw.adhesive : ''), 60),
       defaultName: productDevelopmentCleanText(defaults.defaultName, 240),
-      length: kind === 'instruction' ? '' : productDevelopmentMaterialNumberText(dimensionValue('length', existing && existing.length, dimensions.length), 2),
-      width: kind === 'instruction' ? '' : productDevelopmentMaterialNumberText(dimensionValue('width', existing && existing.width, dimensions.width), 2),
+      length: kind === 'instruction' ? '' : productDevelopmentMaterialNumberText(dimensionValue('length', existing && existing.length, dimensions.length), 6),
+      width: kind === 'instruction' ? '' : productDevelopmentMaterialNumberText(dimensionValue('width', existing && existing.width, dimensions.width), 6),
       height: kind === 'box'
-        ? productDevelopmentMaterialNumberText(dimensionValue('height', existing && existing.height, dimensions.height), 2)
+        ? productDevelopmentMaterialNumberText(dimensionValue('height', existing && existing.height, dimensions.height), 6)
         : '',
       quantity: kind === 'box' ? Math.max(1, Math.min(7, Number(raw.quantity || 1) || 1)) : '',
       multiPage: kind === 'box' ? Boolean(raw.multiPage) : false,
@@ -293,6 +344,12 @@
     };
     if (!draft.materialName && draft.nameSource !== 'manual') draft.materialName = productDevelopmentMaterialDefaultName(kind, baseName, draft);
     if (!draft.specification && draft.specificationSource !== 'manual') draft.specification = productDevelopmentMaterialDefaultSpecification(kind, draft);
+    if (kind !== 'instruction') {
+      const specificationDimensions = productDevelopmentMaterialDimensions(draft.specification);
+      const dimensionKeys = kind === 'box' ? ['length', 'width', 'height'] : ['length', 'width'];
+      if (draft.specificationSource !== 'manual') productDevelopmentSyncMaterialDimensions(kind, draft, 'length', detail);
+      else if (dimensionKeys.every((key) => specificationDimensions[key])) productDevelopmentSyncMaterialDimensions(kind, draft, 'specification', detail);
+    }
     const calculatedPrice = productDevelopmentCalculateMaterialPrice(kind, draft);
     if (calculatedPrice !== '') draft.price = calculatedPrice;
     return draft;
@@ -346,7 +403,10 @@
     const calculatedPrice = productDevelopmentCalculateMaterialPrice(kind, draft);
     draft.price = calculatedPrice;
     if (draft.nameSource !== 'manual') draft.materialName = productDevelopmentMaterialDefaultName(kind, baseName, draft);
-    if (draft.specificationSource !== 'manual') draft.specification = productDevelopmentMaterialDefaultSpecification(kind, draft);
+    if (draft.specificationSource !== 'manual') {
+      if (kind !== 'instruction' && draft.specification) productDevelopmentSyncMaterialDimensions(kind, draft, 'length', detail);
+      else draft.specification = productDevelopmentMaterialDefaultSpecification(kind, draft);
+    }
   }
 
   function productDevelopmentApiNumber(value, fallback) {
@@ -572,28 +632,6 @@
     saveProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
     state.productDevelopmentStatus = 'BOM 已保存到本地';
     showToast('BOM 已保存到本地');
-    renderShell();
-    return true;
-  }
-
-  function productDevelopmentSaveProductDetailLocally(sku) {
-    const normalizedSku = String(sku || '').trim().toUpperCase();
-    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
-    if (!detail) {
-      showToast('当前 SKU 详情还未读取完成');
-      return false;
-    }
-    productDevelopmentApplyProductDetailLocalValues(detail);
-    detail.productDetailDraftDirty = false;
-    detail.productDetailSavedAt = new Date().toLocaleString();
-    detail.productDetailSaveState = 'saved';
-    detail.productDetailSaveMessage = '建品资料已保存到本地';
-    detail.productDetailPlmSaveState = '';
-    detail.productDetailPlmSaveMessage = '';
-    detail.cacheSource = 'local-cache';
-    saveProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
-    state.productDevelopmentStatus = '建品资料已保存到本地';
-    showToast('建品资料已保存到本地');
     renderShell();
     return true;
   }

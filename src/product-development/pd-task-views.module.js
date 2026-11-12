@@ -23,19 +23,14 @@
     const page2Fields = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.map((definition) => ({ ...definition, formGroup: 'prefill' }));
     const procurementFields = PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS.map((definition) => ({ ...definition, formGroup: 'procurement' }));
     const renderFields = (fields, valueReader) => fields.map((field) => productDevelopmentPrefillFieldHtml(field, formSku, valueReader(field))).join('');
-    const attachments = (detail.attachments || []).filter((item) => item && ['产品正面图', '产品文案 DOCX'].includes(String(item.label || '')));
-    const attachmentSummary = attachments.length
-      ? attachments.map((item) => '<span>' + escapeHtml(item.label) + '：' + escapeHtml(item.displayValue || item.status || '待手动上传') + '</span>').join('')
-      : '<span>产品正面图、产品文案 DOCX：请在 PLM 页面 2 手动上传</span>';
-    return '<section class="pfh-product-development-detail-form"><header><div><h3>填写建品信息</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + productSaveStatusClass + '">' + escapeHtml(domFillBusy ? '正在填写 PLM…' : productSaveStatus) + '</span><button type="button" class="is-primary" data-action="product-development-product-fill-page1" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">一键填写页面1</button><button type="button" class="is-primary" data-action="product-development-product-fill-page2" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">一键填写页面2</button><button type="button" data-action="product-development-product-save-local" data-product-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" data-action="product-development-product-save-plm" data-product-sku="' + escapeHtml(formSku) + '"' + (productPlmBusy ? ' disabled' : '') + '>' + (productPlmBusy ? '正在保存…' : '保存建品到 PLM') + '</button></div></header>' +
+    return '<section class="pfh-product-development-detail-form"><header class="pfh-product-development-product-form-header"><div class="pfh-product-development-detail-heading"><h3>填写建品信息</h3><span class="pfh-product-development-material-save-status' + productSaveStatusClass + '">' + escapeHtml(domFillBusy ? '正在填写 PLM…' : productSaveStatus) + '</span></div><div class="pfh-product-development-material-header-actions"><button type="button" class="is-primary" data-action="product-development-product-fill-page1" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">填写页面 1</button><button type="button" class="is-primary" data-action="product-development-product-fill-page2" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">填写页面 2</button><button type="button" data-action="product-development-product-save-plm" data-product-sku="' + escapeHtml(formSku) + '"' + (productPlmBusy ? ' disabled' : '') + '>' + (productPlmBusy ? '正在保存…' : '保存到 PLM') + '</button></div></header>' +
       (detail.error
         ? '<p class="pfh-product-development-material-plm-status is-error">' + escapeHtml(detail.error) + '</p>'
         : '<div class="pfh-product-development-detail-meta"><span>' + escapeHtml(sourceHint) + '</span></div>') +
       productPlmStatus +
       '<section class="pfh-product-development-form-section"><h4>页面 1 · 建品基础信息（' + page1Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page1Fields, (field) => productDevelopmentPage1FieldValue(detail, field.key)) + '</div></section>' +
       '<section class="pfh-product-development-form-section"><h4>页面 2 · 产品详情（' + page2Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page2Fields, (field) => productDevelopmentPrefillProductFieldValue(detail, field)) + '</div></section>' +
-      '<section class="pfh-product-development-form-section"><h4>页面 2 · 采购明细（' + procurementFields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(procurementFields, (field) => productDevelopmentProcurementFieldValue(detail, field.key)) + '</div></section>' +
-      '<section class="pfh-product-development-form-section"><h4>页面 2 · 文件上传</h4><div class="pfh-product-development-detail-meta">' + attachmentSummary + '</div></section></section>';
+      '<section class="pfh-product-development-form-section"><h4>页面 2 · 采购明细（' + procurementFields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(procurementFields, (field) => productDevelopmentProcurementFieldValue(detail, field.key)) + '</div></section></section>';
   }
 
   function productDevelopmentGoogleTranslate(text, sourceLang, targetLang) {
@@ -242,17 +237,14 @@
     const source = task || {};
     const meta = getProductDevelopmentTaskMeta(source, detail);
     const sku = String(source.sku || detail && detail.sku || '').trim().toUpperCase();
-    const lookup = productDevelopmentReworkLookupState(detail);
-    const lookupDisabled = !meta.reworkProductCode || lookup.status === 'loading' ? ' disabled' : '';
-    const lookupLabel = lookup.status === 'loading' ? '正在查询…' : '查询返工资料';
     const input = (field, label, value, placeholder) => '<label>' + escapeHtml(label) + '<input type="text" class="pfh-product-development-task-meta-input" data-meta-sku="' + escapeHtml(sku) + '" data-meta-field="' + escapeHtml(field) + '" value="' + escapeHtml(value || '') + '" placeholder="' + escapeHtml(placeholder || '') + '"></label>';
     return '<section class="pfh-product-development-product-naming pfh-product-development-task-local-meta"><header><div><h3>产品本地填写</h3></div></header>' +
       '<div class="pfh-product-development-product-naming-grid">' +
       input('brand', '产品品牌', productDevelopmentNormalizeBrandValue(meta.brand), '') +
       input('productNameCn', '产品中文名', meta.productNameCn, '') +
       input('productNameEn', '产品英文名', meta.productNameEn, '') +
-      input('reworkProductCode', '返工产品编码', meta.reworkProductCode, '没有则留空') +
-      '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-task-meta-translate" data-product-sku="' + escapeHtml(sku) + '">中文名翻英文名</button><button type="button" data-action="product-development-rework-lookup" data-product-sku="' + escapeHtml(sku) + '"' + lookupDisabled + '>' + lookupLabel + '</button><button type="button" data-action="product-development-task-meta-save">保存本地</button></div></section>';
+      input('reworkProductCode', productDevelopmentReferenceLabel(detail, source) + '产品编码', meta.reworkProductCode, '没有则留空') +
+      '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-task-meta-translate" data-product-sku="' + escapeHtml(sku) + '">中文名翻英文名</button></div></section>';
   }
 
   function productDevelopmentTaskActionsHtml(task) {
@@ -271,14 +263,15 @@
     ));
   }
 
-  function productDevelopmentSyncMaterialDraftDom(sku, kind, draft) {
+  function productDevelopmentSyncMaterialDraftDom(sku, kind, draft, activeInput) {
     const elements = productDevelopmentMaterialInputElements(sku, kind);
     const setValue = (field, value) => {
       const element = elements.find((item) => item.getAttribute('data-material-field') === field);
-      if (element && element.value !== String(value === null || value === undefined ? '' : value)) element.value = String(value === null || value === undefined ? '' : value);
+      if (element && element !== activeInput && element.value !== String(value === null || value === undefined ? '' : value)) element.value = String(value === null || value === undefined ? '' : value);
     };
     if (draft.nameSource !== 'manual') setValue('materialName', draft.materialName);
-    if (draft.specificationSource !== 'manual') setValue('specification', draft.specification);
+    setValue('specification', draft.specification);
+    ['length', 'width', 'height'].forEach((field) => setValue(field, draft[field]));
     const pricePlaceholder = kind === 'instruction' ? '' : '按尺寸自动计算';
     setValue('price', draft.price || pricePlaceholder);
     const card = elements[0] && elements[0].closest('[data-material-card]');
@@ -303,7 +296,7 @@
       draft.price = productDevelopmentMaterialNumberText(target.value, 6);
     } else if (['multiPage', 'insertCard', 'thicken'].includes(field)) draft[field] = target.value === 'true';
     else if (field === 'quantity') draft.quantity = Math.max(1, Math.min(7, Number(target.value) || 1));
-    else if (['length', 'width', 'height'].includes(field)) draft[field] = productDevelopmentMaterialNumberText(target.value, 2);
+    else if (['length', 'width', 'height'].includes(field)) draft[field] = productDevelopmentMaterialNumberText(target.value, 6);
     else if (field === 'materialName') {
       draft.materialName = productDevelopmentCleanText(target.value, 240);
       draft.nameSource = 'manual';
@@ -311,6 +304,7 @@
       draft.specification = productDevelopmentCleanText(target.value, 240);
       draft.specificationSource = 'manual';
     } else return true;
+    productDevelopmentSyncMaterialDimensions(kind, draft, field, detail);
     productDevelopmentRecalculateMaterialDraft(kind, draft, detail, task);
     if (kind === 'box') productDevelopmentSyncReworkOuterDimensions(detail);
     detail.bomDraftDirty = true;
@@ -319,7 +313,7 @@
     detail.bomPlmSaveMessage = '';
     detail.cacheSource = 'local-cache';
     scheduleProductDevelopmentReadonlyDetailCache(sku, detail);
-    productDevelopmentSyncMaterialDraftDom(sku, kind, draft);
+    productDevelopmentSyncMaterialDraftDom(sku, kind, draft, target);
     return true;
   }
 
