@@ -3,11 +3,11 @@
     try {
       if (typeof GM_getValue === 'function') {
         const value = GM_getValue(STORAGE_INDEX_KEY, []);
-        return Array.isArray(value) ? value : [];
+        return normalizeSkuIndexAcquisition(value);
       }
       const raw = localStorage.getItem(STORAGE_INDEX_KEY);
       const value = raw ? JSON.parse(raw) : [];
-      return Array.isArray(value) ? value : [];
+      return normalizeSkuIndexAcquisition(value);
     } catch (error) {
       return [];
     }
@@ -691,26 +691,68 @@
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  function getSkuAcquiredTime(record) {
+    const source = record || {};
+    return [source.acquiredAtMs, source.acquiredAt].map(parseSkuListTime).find((value) => value > 0) || 0;
+  }
+
+  function preserveSkuAcquiredTime(data, previous, fallbackMs) {
+    if (!data || typeof data !== 'object') return data;
+    const old = previous || {};
+    const legacyTime = (record) => [record.firstSeenAtMs, record.firstSeenAt, record.manualSkuAddedAtMs, record.manualSkuAddedAt,
+      record.listPrefetchedAtMs, record.listPrefetchedAt, record.fetchedAtMs, record.fetchedAt, record.createdAt, record.updatedAtMs, record.updatedAt]
+      .map(parseSkuListTime).find((value) => value > 0) || 0;
+    const acquired = getSkuAcquiredTime(old) || getSkuAcquiredTime(data) || legacyTime(old) || fallbackMs || legacyTime(data) || Date.now();
+    data.acquiredAtMs = acquired;
+    data.acquiredAt = old.acquiredAt || data.acquiredAt || new Date(acquired).toLocaleString();
+    return data;
+  }
+
+  function normalizeSkuIndexAcquisition(value) {
+    if (!Array.isArray(value)) return [];
+    const fallbackMs = Date.now();
+    let changed = false;
+    const items = value.map((item, index) => {
+      if (!item || !item.sku) return item;
+      const next = preserveSkuAcquiredTime({ ...item }, item, fallbackMs - index);
+      if (next.acquiredAtMs !== item.acquiredAtMs || next.acquiredAt !== item.acquiredAt) changed = true;
+      return next;
+    });
+    if (changed) {
+      try {
+        if (typeof GM_setValue === 'function') GM_setValue(STORAGE_INDEX_KEY, items);
+        else localStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify(items));
+      } catch (error) {
+        console.warn('PLM acquisition-time migration save failed:', error);
+      }
+    }
+    return items;
+  }
+
   function sortSkuListItems(items) {
     const sort = getSkuListSort();
     // The index is deliberately a lightweight projection of each cached SKU and
     // already contains every field needed for list sorting. Reading every full
     // record here makes a single render perform hundreds of synchronous
     // GM_getValue/localStorage calls and blocks the first visual response.
-    const records = (items || []).map((item, index) => ({ item, index, record: item || {} }));
-    const time = (record) => {
+    const catalog = new Map((state.index || []).filter(Boolean).map((item, index) => [item.sku, { item, index }]));
+    const records = (items || []).map((item, index) => ({ item, index, record: item || {}, cached: catalog.get(item && item.sku) }));
+    const time = (record, cached) => {
       const assigned = parseSkuListTime(record.designAssignedAt);
-      const acquired = [record.acquiredAtMs, record.fetchedAtMs, record.listPrefetchedAtMs, record.updatedAtMs, record.firstSeenAtMs, record.listPrefetchedAt, record.updatedAt, record.createdAt].map(parseSkuListTime).find((value) => value > 0) || 0;
+      const acquired = getSkuAcquiredTime(cached && cached.item) || getSkuAcquiredTime(record);
       // Manually added SKUs do not have a design-assignment timestamp, so
       // fall back to their local acquisition time in the assignment view.
       return sort === 'acquired' ? acquired : (assigned || acquired);
     };
-    return records.map((entry) => ({ ...entry, time: time(entry.record) })).sort((a, b) => {
+    return records.map((entry) => ({ ...entry, time: time(entry.record, entry.cached) })).sort((a, b) => {
       if (a.item.pinned && b.item.pinned) return (a.item.pinOrder || 0) - (b.item.pinOrder || 0);
       if (a.item.pinned) return -1;
       if (b.item.pinned) return 1;
       if (a.time !== b.time) return b.time - a.time;
-      return a.index - b.index;
+      if (a.cached && b.cached) return a.cached.index - b.cached.index;
+      if (a.cached) return -1;
+      if (b.cached) return 1;
+      return String(a.item.sku || '').localeCompare(String(b.item.sku || '')) || a.index - b.index;
     }).map((entry) => entry.item);
   }
 
@@ -741,6 +783,9 @@
 
   function upsertIndex(data) {
     if (!data || !data.sku) return;
+    const oldIndex = state.index.findIndex((entry) => entry.sku === data.sku);
+    const old = oldIndex >= 0 ? state.index[oldIndex] : null;
+    preserveSkuAcquiredTime(data, old, Date.now());
     const item = {
       sku: data.sku,
       brand: cleanName(data.brand || ''),
@@ -767,13 +812,12 @@
       updatedAt: data.updatedAt || new Date().toLocaleString(),
       updatedAtMs: data.updatedAtMs || Date.now(),
     };
-    const old = state.index.find((entry) => entry.sku === data.sku);
     if (old && old.pinned) {
       item.pinned = true;
       item.pinOrder = old.pinOrder || Date.now();
     }
-    state.index = state.index.filter((entry) => entry.sku !== data.sku);
-    state.index.unshift(item);
+    if (oldIndex >= 0) state.index[oldIndex] = item;
+    else state.index.unshift(item);
     skuSearchFacetCache.set(item.sku, { developer: item.developerName, brand: item.brand, status: item.projectStatus, designType: item.designType });
     saveIndex();
     if (!old || getSkuListImageUrl(old) !== getSkuListImageUrl(item)) scheduleSkuImageColorIndex();

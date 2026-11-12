@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.44
+// @version      2.10.45
 // @description  [布局验证版] Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.44';
+  const SCRIPT_VERSION = '2.10.45';
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
@@ -53120,11 +53120,11 @@ self.onmessage = async function(event) {
     try {
       if (typeof GM_getValue === 'function') {
         const value = GM_getValue(STORAGE_INDEX_KEY, []);
-        return Array.isArray(value) ? value : [];
+        return normalizeSkuIndexAcquisition(value);
       }
       const raw = localStorage.getItem(STORAGE_INDEX_KEY);
       const value = raw ? JSON.parse(raw) : [];
-      return Array.isArray(value) ? value : [];
+      return normalizeSkuIndexAcquisition(value);
     } catch (error) {
       return [];
     }
@@ -53808,26 +53808,68 @@ self.onmessage = async function(event) {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  function getSkuAcquiredTime(record) {
+    const source = record || {};
+    return [source.acquiredAtMs, source.acquiredAt].map(parseSkuListTime).find((value) => value > 0) || 0;
+  }
+
+  function preserveSkuAcquiredTime(data, previous, fallbackMs) {
+    if (!data || typeof data !== 'object') return data;
+    const old = previous || {};
+    const legacyTime = (record) => [record.firstSeenAtMs, record.firstSeenAt, record.manualSkuAddedAtMs, record.manualSkuAddedAt,
+      record.listPrefetchedAtMs, record.listPrefetchedAt, record.fetchedAtMs, record.fetchedAt, record.createdAt, record.updatedAtMs, record.updatedAt]
+      .map(parseSkuListTime).find((value) => value > 0) || 0;
+    const acquired = getSkuAcquiredTime(old) || getSkuAcquiredTime(data) || legacyTime(old) || fallbackMs || legacyTime(data) || Date.now();
+    data.acquiredAtMs = acquired;
+    data.acquiredAt = old.acquiredAt || data.acquiredAt || new Date(acquired).toLocaleString();
+    return data;
+  }
+
+  function normalizeSkuIndexAcquisition(value) {
+    if (!Array.isArray(value)) return [];
+    const fallbackMs = Date.now();
+    let changed = false;
+    const items = value.map((item, index) => {
+      if (!item || !item.sku) return item;
+      const next = preserveSkuAcquiredTime({ ...item }, item, fallbackMs - index);
+      if (next.acquiredAtMs !== item.acquiredAtMs || next.acquiredAt !== item.acquiredAt) changed = true;
+      return next;
+    });
+    if (changed) {
+      try {
+        if (typeof GM_setValue === 'function') GM_setValue(STORAGE_INDEX_KEY, items);
+        else localStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify(items));
+      } catch (error) {
+        console.warn('PLM acquisition-time migration save failed:', error);
+      }
+    }
+    return items;
+  }
+
   function sortSkuListItems(items) {
     const sort = getSkuListSort();
     // The index is deliberately a lightweight projection of each cached SKU and
     // already contains every field needed for list sorting. Reading every full
     // record here makes a single render perform hundreds of synchronous
     // GM_getValue/localStorage calls and blocks the first visual response.
-    const records = (items || []).map((item, index) => ({ item, index, record: item || {} }));
-    const time = (record) => {
+    const catalog = new Map((state.index || []).filter(Boolean).map((item, index) => [item.sku, { item, index }]));
+    const records = (items || []).map((item, index) => ({ item, index, record: item || {}, cached: catalog.get(item && item.sku) }));
+    const time = (record, cached) => {
       const assigned = parseSkuListTime(record.designAssignedAt);
-      const acquired = [record.acquiredAtMs, record.fetchedAtMs, record.listPrefetchedAtMs, record.updatedAtMs, record.firstSeenAtMs, record.listPrefetchedAt, record.updatedAt, record.createdAt].map(parseSkuListTime).find((value) => value > 0) || 0;
+      const acquired = getSkuAcquiredTime(cached && cached.item) || getSkuAcquiredTime(record);
       // Manually added SKUs do not have a design-assignment timestamp, so
       // fall back to their local acquisition time in the assignment view.
       return sort === 'acquired' ? acquired : (assigned || acquired);
     };
-    return records.map((entry) => ({ ...entry, time: time(entry.record) })).sort((a, b) => {
+    return records.map((entry) => ({ ...entry, time: time(entry.record, entry.cached) })).sort((a, b) => {
       if (a.item.pinned && b.item.pinned) return (a.item.pinOrder || 0) - (b.item.pinOrder || 0);
       if (a.item.pinned) return -1;
       if (b.item.pinned) return 1;
       if (a.time !== b.time) return b.time - a.time;
-      return a.index - b.index;
+      if (a.cached && b.cached) return a.cached.index - b.cached.index;
+      if (a.cached) return -1;
+      if (b.cached) return 1;
+      return String(a.item.sku || '').localeCompare(String(b.item.sku || '')) || a.index - b.index;
     }).map((entry) => entry.item);
   }
 
@@ -53858,6 +53900,9 @@ self.onmessage = async function(event) {
 
   function upsertIndex(data) {
     if (!data || !data.sku) return;
+    const oldIndex = state.index.findIndex((entry) => entry.sku === data.sku);
+    const old = oldIndex >= 0 ? state.index[oldIndex] : null;
+    preserveSkuAcquiredTime(data, old, Date.now());
     const item = {
       sku: data.sku,
       brand: cleanName(data.brand || ''),
@@ -53884,13 +53929,12 @@ self.onmessage = async function(event) {
       updatedAt: data.updatedAt || new Date().toLocaleString(),
       updatedAtMs: data.updatedAtMs || Date.now(),
     };
-    const old = state.index.find((entry) => entry.sku === data.sku);
     if (old && old.pinned) {
       item.pinned = true;
       item.pinOrder = old.pinOrder || Date.now();
     }
-    state.index = state.index.filter((entry) => entry.sku !== data.sku);
-    state.index.unshift(item);
+    if (oldIndex >= 0) state.index[oldIndex] = item;
+    else state.index.unshift(item);
     skuSearchFacetCache.set(item.sku, { developer: item.developerName, brand: item.brand, status: item.projectStatus, designType: item.designType });
     saveIndex();
     if (!old || getSkuListImageUrl(old) !== getSkuListImageUrl(item)) scheduleSkuImageColorIndex();
@@ -54051,6 +54095,8 @@ self.onmessage = async function(event) {
   }
 
   function saveDataDirect(sku, data) {
+    const indexed = state.index.find((item) => item && item.sku === sku);
+    preserveSkuAcquiredTime(data, indexed || loadData(sku), Date.now());
     if (typeof GM_setValue === 'function') GM_setValue(STORAGE_PREFIX + sku, data);
     else localStorage.setItem(STORAGE_PREFIX + sku, JSON.stringify(data));
   }

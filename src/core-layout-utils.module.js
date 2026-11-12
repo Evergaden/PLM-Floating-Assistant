@@ -106,6 +106,8 @@
   }
 
   function saveDataDirect(sku, data) {
+    const indexed = state.index.find((item) => item && item.sku === sku);
+    preserveSkuAcquiredTime(data, indexed || loadData(sku), Date.now());
     if (typeof GM_setValue === 'function') GM_setValue(STORAGE_PREFIX + sku, data);
     else localStorage.setItem(STORAGE_PREFIX + sku, JSON.stringify(data));
   }
