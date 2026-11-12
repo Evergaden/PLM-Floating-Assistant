@@ -721,6 +721,19 @@
     renderShell();
   }
 
+  function productDevelopmentCopywritingReferenceUrl(...sources) {
+    for (const source of sources) {
+      const values = typeof source === 'string' ? [source] : source && typeof source === 'object'
+        ? [source.referenceUrl, source.benchmarkLink, source.main_url, source.reference_url, source.benchmark_url, source.benchmark_link]
+        : [];
+      for (const value of values) {
+        const match = String(value || '').match(/https?:\/\/[^\s<>"']+/i);
+        if (match) return match[0].replace(/&amp;/g, '&').replace(/[。，；）]+$/, '');
+      }
+    }
+    return '';
+  }
+
   async function loadProductDevelopmentSnapshot(sku, force, options) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     const opts = options || {};
@@ -869,7 +882,7 @@
       productType: productDevelopmentCleanText(snapshot && snapshot.productType || data.productType || data.manualCategory, 180),
       productTypeCn: productDevelopmentCleanText(snapshot && snapshot.productTypeCn || data.productTypeCn, 180),
       netContent: productDevelopmentCleanText(snapshot && snapshot.netContent || data.netContent, 120).toUpperCase(),
-      referenceUrl: productDevelopmentCleanText(snapshot && snapshot.referenceUrl || data.referenceUrl || data.benchmarkLink, 1000),
+      referenceUrl: productDevelopmentCopywritingReferenceUrl(snapshot, data, seed, getProductDevelopmentTaskBySku(normalizedSku)),
       outerDimensions: productDevelopmentSnapshotOuterDimensions(contentPayload),
       packagingKind: '',
       ingredients: resolvedIngredients,

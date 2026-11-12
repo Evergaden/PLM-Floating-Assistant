@@ -3190,7 +3190,11 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
   const productNameTranslations = Array.isArray(source.productNameTranslations)
     ? source.productNameTranslations.map((item) => cleanText(item, 300)).slice(0, 24)
     : [];
-  return { efficacy, advantages, sellingPoints, ingredientFunctions, productNameTranslations };
+  const directions = list(['directions']).map((item) => ({
+    en: cleanText(item && item.en, 600),
+    cn: cleanText(item && item.cn, 600),
+  })).filter((item) => item.en && item.cn).slice(0, 6);
+  return { efficacy, advantages, sellingPoints, ingredientFunctions, productNameTranslations, directions };
 }
 
 function productDevelopmentOneShotNumber(value) {
@@ -3939,6 +3943,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
     name,
     englishName,
     productType: cleanText(body.productType, 180),
+    referenceUrl: cleanText(body.referenceUrl, 1200),
     netContent: cleanText(body.netContent, 120),
     brand,
     ingredients,
@@ -3955,6 +3960,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   };
   const commonSystem = [
     '你是美国电商宠物/营养产品的双语包装文案草稿助手。',
+    '当模板 id 为 regular-ndc 或 regular-non-ndc 时，sections 还须包含 directions 数组，每项为 {"en":"","cn":""}，按步骤逐条对应中英文。只根据 sourceCopywriting.usage 或 sourcePlainTextCopy 中明确提供的使用方法整理和翻译，不得从功效推断步骤、用量、频次或适用部位；没有用法依据时返回空数组。用法独立于 A-D，不套用 A-D 的禁用用法词规则。referenceUrl 仅为原样导出线索，不抓取、不虚构或声称已验证链接内容。',
     '本任务只使用提交的产品资料、成分、sourcePlainTextCopy 和已有卖点，不读取、不分析也不要求产品效果图。',
     '如果存在 sourcePlainTextCopy，它是侵权图修改后的纯文字文案版本；先用它理解产品名称、定位、用途和卖点，再把这些事实改写成 A-D。没有它时才使用其他已提交资料。',
     '必须使用符合跨境电商平台合规宣传的客观、克制、可验证表达：可以说明成分、配方特点、产品属性、使用场景和日常营养支持，但不能承诺结果或暗示预防、治疗、诊断、替代药物。',
@@ -3994,6 +4000,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
       '当前选择的文案模板：' + (templateLabel || '未指定') + '（' + (templateId || '未指定') + '，版本 ' + (templateVersion || '未指定') + '）',
       '当前确认的成分表模板：' + (ingredientTemplateLabel || '未指定') + '（' + (ingredientTemplateId || '未指定') + (ingredientTemplateSheetName ? '，工作表 ' + ingredientTemplateSheetName : '') + '）',
       'confirmedIngredientTable=' + (confirmedIngredientTable ? 'true' : 'false'),
+      '常规模板在下列 sections 中另加 directions 字段，例如 [{"en":"原始用法的英文步骤","cn":"对应中文步骤"}]；没有用法依据时为 []。',
       '严格返回完整 JSON，不要 Markdown、代码围栏或解释：',
       '{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}],"productNameTranslations":["","","","","","","","","","","","","","","","","","","","","","",""]}}',
       '再次检查：A=4、B=4、C=15、D=输入成分总数、productNameTranslations 恰好 24 项；C 的前 4 条有双语标题，后 11 条标题字段为空；每一项 en 和 cn 都必须是非空字符串；不要输出星号、品牌词、禁词或空行。',

@@ -375,7 +375,7 @@
         '产品资料读取',
       );
       state.productDevelopmentSnapshot = snapshot;
-      const referenceUrl = /^https?:\/\//i.test(String(snapshot.referenceUrl || '')) ? String(snapshot.referenceUrl) : '';
+      const referenceUrl = productDevelopmentCopywritingReferenceUrl(input, snapshot);
       const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
       stage = '加载 DOCX 模板';
       state.productDevelopmentStatus = copywritingTemplate.local
@@ -396,6 +396,10 @@
         referenceUrl,
         ingredients: heroPairs,
         copywritingCategory: 'regular',
+        labeling: {
+          directionsEn: snapshot.sourceCopywriting && snapshot.sourceCopywriting.usage && snapshot.sourceCopywriting.usage.en || '',
+          directionsCn: snapshot.sourceCopywriting && snapshot.sourceCopywriting.usage && snapshot.sourceCopywriting.usage.cn || '',
+        },
       };
       const response = await withCopywritingTimeout(cloudRequest('/ai-image/product-development-copywriting', {
         method: 'POST',
@@ -404,6 +408,7 @@
           sku: snapshot.sku,
           name: snapshot.name,
           englishName: regularSnapshot.englishName || snapshot.englishName || '',
+          referenceUrl,
           productType: regularSnapshot.productType,
           brand: snapshot.brand,
           ingredients: heroPairs,

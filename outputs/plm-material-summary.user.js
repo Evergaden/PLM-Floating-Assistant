@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.40
+// @version      2.10.41
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.40';
+  const SCRIPT_VERSION = '2.10.41';
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
@@ -11534,6 +11534,19 @@
     renderShell();
   }
 
+  function productDevelopmentCopywritingReferenceUrl(...sources) {
+    for (const source of sources) {
+      const values = typeof source === 'string' ? [source] : source && typeof source === 'object'
+        ? [source.referenceUrl, source.benchmarkLink, source.main_url, source.reference_url, source.benchmark_url, source.benchmark_link]
+        : [];
+      for (const value of values) {
+        const match = String(value || '').match(/https?:\/\/[^\s<>"']+/i);
+        if (match) return match[0].replace(/&amp;/g, '&').replace(/[。，；）]+$/, '');
+      }
+    }
+    return '';
+  }
+
   async function loadProductDevelopmentSnapshot(sku, force, options) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     const opts = options || {};
@@ -11682,7 +11695,7 @@
       productType: productDevelopmentCleanText(snapshot && snapshot.productType || data.productType || data.manualCategory, 180),
       productTypeCn: productDevelopmentCleanText(snapshot && snapshot.productTypeCn || data.productTypeCn, 180),
       netContent: productDevelopmentCleanText(snapshot && snapshot.netContent || data.netContent, 120).toUpperCase(),
-      referenceUrl: productDevelopmentCleanText(snapshot && snapshot.referenceUrl || data.referenceUrl || data.benchmarkLink, 1000),
+      referenceUrl: productDevelopmentCopywritingReferenceUrl(snapshot, data, seed, getProductDevelopmentTaskBySku(normalizedSku)),
       outerDimensions: productDevelopmentSnapshotOuterDimensions(contentPayload),
       packagingKind: '',
       ingredients: resolvedIngredients,
@@ -13545,14 +13558,14 @@
     const directionsCn = productDevelopmentDocxTextLines(labeling && labeling.directionsCn);
     const isMergedLanguageCell = productDevelopmentCellGridSpan(cells[1]) > 1 || cells.length < 4;
     if (isMergedLanguageCell) {
-      productDevelopmentSetCellHeadingAndLines(cells[1], 'DIRECTIONS:', directionsEn.concat(directionsCn), doc);
+      productDevelopmentSetCellHeadingAndLines(cells[1], productDevelopmentCellHeadingPrefix(cells[1], /DIRECTIONS?/i) || 'DIRECTIONS:', directionsEn.concat(directionsCn), doc);
       // In the three-cell templates this is the auxiliary sample/rules cell,
       // not a second language column. Clear it after moving both languages
       // into the merged content cell so the sample text is not exported.
       if (cells[2]) productDevelopmentSetCellLines(cells[2], [], doc);
       return;
     }
-    productDevelopmentSetCellHeadingAndLines(cells[1], 'DIRECTIONS:', directionsEn, doc);
+    productDevelopmentSetCellHeadingAndLines(cells[1], productDevelopmentCellHeadingPrefix(cells[1], /DIRECTIONS?/i) || 'DIRECTIONS:', directionsEn, doc);
     if (cells[2]) productDevelopmentSetCellLines(cells[2], directionsCn, doc);
   }
 
@@ -13663,6 +13676,7 @@
       .map((item) => productDevelopmentCleanText(item, 300))
       .slice(0, 24);
     return {
+      directions: list('directions').map((item) => productDevelopmentCopywritingPairValues(item)).filter((item) => item.en && item.cn),
       productNameTranslations: translations,
       efficacy: list('efficacy').map((item) => productDevelopmentCopywritingPairValues(typeof item === 'object' ? item : { cn: item })).filter((item) => item.cn || item.en),
       advantages: list('advantages').map((item) => productDevelopmentCopywritingPairValues(typeof item === 'object' ? item : { cn: item })).filter((item) => item.cn || item.en),
@@ -13931,7 +13945,7 @@
       productType: productDevelopmentFindRow(rows, [/产品类型/i, /PRODUCT\s*TYPE/i]),
       netContent: productDevelopmentFindRow(rows, [/净含量/i, /NET\s*(?:CONTENT|WT|WEIGHT)/i]),
       otherIngredients: productDevelopmentFindRow(rows, [/补充品标示及营养成分含量/i, /OTHER\s+INGREDIENTS?/i]),
-      directions: productDevelopmentFindRow(rows, [/食用方法/i, /DIRECTIONS?/i]),
+      directions: productDevelopmentFindRow(rows, [/食用方法/i, /建议使用方法/i, /DIRECTIONS?/i]),
       warnings: productDevelopmentFindRow(rows, [/警告语/i, /WARNINGS?/i]),
       efficacy: productDevelopmentFindRow(rows, [/^A[.．、)]?产品功效/i, /产品功效/i]),
       advantages: productDevelopmentFindRow(rows, [/^B[.．、)]?产品优势/i, /产品优势/i]),
@@ -13962,19 +13976,27 @@
       const chineseName = productDevelopmentCopywritingNameWithBrand(snapshot.brand, snapshot.name);
       if (cells[1] && englishName) {
         const productNamePrefix = productDevelopmentCellHeadingPrefix(cells[1], /PRODUCT\s*NAME/i) || 'PRODUCT NAME:';
-        productDevelopmentSetCellPrefixedLines(cells[1], productNamePrefix, [englishName], doc);
+        productDevelopmentSetCellHeadingAndLines(cells[1], productNamePrefix, [englishName], doc);
       }
       if (cells[2] && chineseName) productDevelopmentSetCellLines(cells[2], [chineseName], doc);
     }
-    if (targets.referenceUrl && snapshot && snapshot.referenceUrl) {
+    const referenceUrl = productDevelopmentCopywritingReferenceUrl(snapshot);
+    if (targets.referenceUrl && referenceUrl) {
       const cells = productDevelopmentXmlElements(targets.referenceUrl, 'tc');
-      if (cells[1]) productDevelopmentSetCellLines(cells[1], [snapshot.referenceUrl], doc);
+      if (cells[1]) productDevelopmentSetCellLines(cells[1], [referenceUrl], doc);
     }
-    const labeling = snapshot && snapshot.labeling && typeof snapshot.labeling === 'object' ? snapshot.labeling : null;
+    const labeling = snapshot && snapshot.labeling && typeof snapshot.labeling === 'object' ? { ...snapshot.labeling } : {};
+    const directions = Array.isArray(content.directions) ? content.directions : [];
+    const usage = snapshot.sourceCopywriting && snapshot.sourceCopywriting.usage || {};
+    labeling.directionsEn = labeling.directionsEn || usage.en || productDevelopmentSectionLines(directions, (item, index) => index + '. ' + item.en).join('\n');
+    labeling.directionsCn = labeling.directionsCn || usage.cn || productDevelopmentSectionLines(directions, (item, index) => index + '、' + item.cn).join('\n');
     const ingredientTable = snapshot && snapshot.ingredientTable && typeof snapshot.ingredientTable === 'object' ? snapshot.ingredientTable : null;
-    const hasLabeling = Boolean(labeling && Object.values(labeling).some((value) => String(value || '').trim()));
+    const hasLabeling = Boolean(snapshot.labeling && Object.values(snapshot.labeling).some((value) => String(value || '').trim()));
     const hasIngredientTable = Boolean(ingredientTable && Object.values(ingredientTable).some((value) => String(value || '').trim()));
-    if (snapshot && (hasLabeling || hasIngredientTable)) {
+    if (targets.directions && (labeling.directionsEn || labeling.directionsCn)) {
+      productDevelopmentSetDirectionsCells(productDevelopmentXmlElements(targets.directions, 'tc'), labeling, doc);
+    }
+    if (snapshot.copywritingCategory !== 'regular' && (hasLabeling || hasIngredientTable)) {
       if (targets.productType) {
         const cells = productDevelopmentXmlElements(targets.productType, 'tc');
         const productTypeEn = productDevelopmentCleanText(snapshot.productType || 'Human dietary supplement / liquid drops', 180);
@@ -13997,10 +14019,6 @@
         if (cells[1]) productDevelopmentSetCellLines(cells[1], ['Other Ingredients: ' + String(ingredientTable.otherIngredientsEn || '')], doc);
         if (cells[2]) productDevelopmentSetCellLines(cells[2], [String(ingredientTable.otherIngredientsCn || '')], doc);
       }
-      if (targets.directions && hasLabeling) {
-        const cells = productDevelopmentXmlElements(targets.directions, 'tc');
-        productDevelopmentSetDirectionsCells(cells, labeling, doc);
-      }
       if (disclaimer && hasLabeling) {
         const cells = productDevelopmentXmlElements(disclaimer, 'tc');
         if (cells[1]) productDevelopmentSetCellLines(cells[1], [String(labeling.disclaimerEn || '')], doc);
@@ -14017,7 +14035,7 @@
     const efficacyChinese = productDevelopmentSectionLines(content.efficacy, (item, index) => index + '、' + item.cn);
     const efficacyPrefix = productDevelopmentCellHeadingPrefix(efficacyCells[1], /\b(?:FUNCTIONS?|USES?)\b/i);
     if (efficacyPrefix) {
-      productDevelopmentSetCellPrefixedLines(efficacyCells[1], efficacyPrefix, efficacyEnglish, doc);
+      productDevelopmentSetCellHeadingAndLines(efficacyCells[1], efficacyPrefix, efficacyEnglish, doc);
       productDevelopmentSetCellLines(efficacyCells[2], efficacyChinese, doc);
     } else fill(targets.efficacy, efficacyEnglish, efficacyChinese);
     fill(targets.advantages,
@@ -14041,7 +14059,7 @@
             : [];
           const cells24 = productDevelopmentXmlElements(efficacyContentRow, 'tc');
           if (cells24[1] && translations.length) {
-            productDevelopmentSetCellLines(cells24[1], [translations.join('; ')], doc);
+            productDevelopmentSetCellLines(cells24[1], [translations.join(';')], doc);
           }
         } catch (regularEfficacyError) {
           productDevelopmentLog('warn', '常规产品24国语言行写入失败', formatErrorMessage(regularEfficacyError));
@@ -14081,7 +14099,7 @@
             if (cnGroups.length) productDevelopmentSetCellIngredientGroups(ingredientCells[2], cnGroups, doc);
           } else {
             const allEn = activeEn.concat(inactiveEn);
-            if (allEn.length) productDevelopmentSetCellPrefixedLines(ingredientCells[1], productDevelopmentCellHeadingPrefix(ingredientCells[1], /\bINGREDIENTS?\b/i) || 'INGREDIENTS:', [allEn.join('、')], doc);
+            if (allEn.length) productDevelopmentSetCellHeadingAndLines(ingredientCells[1], productDevelopmentIngredientHeading(productDevelopmentCellHeadingPrefix(ingredientCells[1], /\bINGREDIENTS?\b/i) || 'INGREDIENTS:', allEn.length), [allEn.join('、')], doc);
             const regularCnText = String(regularIngredients.cn || activeCn.concat(inactiveCn).join('、')).trim();
             if (regularCnText) productDevelopmentSetCellLines(ingredientCells[2], [regularCnText], doc);
           }
@@ -16542,7 +16560,7 @@
         '产品资料读取',
       );
       state.productDevelopmentSnapshot = snapshot;
-      const referenceUrl = /^https?:\/\//i.test(String(snapshot.referenceUrl || '')) ? String(snapshot.referenceUrl) : '';
+      const referenceUrl = productDevelopmentCopywritingReferenceUrl(input, snapshot);
       const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
       stage = '加载 DOCX 模板';
       state.productDevelopmentStatus = copywritingTemplate.local
@@ -16563,6 +16581,10 @@
         referenceUrl,
         ingredients: heroPairs,
         copywritingCategory: 'regular',
+        labeling: {
+          directionsEn: snapshot.sourceCopywriting && snapshot.sourceCopywriting.usage && snapshot.sourceCopywriting.usage.en || '',
+          directionsCn: snapshot.sourceCopywriting && snapshot.sourceCopywriting.usage && snapshot.sourceCopywriting.usage.cn || '',
+        },
       };
       const response = await withCopywritingTimeout(cloudRequest('/ai-image/product-development-copywriting', {
         method: 'POST',
@@ -16571,6 +16593,7 @@
           sku: snapshot.sku,
           name: snapshot.name,
           englishName: regularSnapshot.englishName || snapshot.englishName || '',
+          referenceUrl,
           productType: regularSnapshot.productType,
           brand: snapshot.brand,
           ingredients: heroPairs,

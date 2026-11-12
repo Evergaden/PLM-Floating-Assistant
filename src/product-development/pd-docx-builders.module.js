@@ -58,7 +58,7 @@
       productType: productDevelopmentFindRow(rows, [/产品类型/i, /PRODUCT\s*TYPE/i]),
       netContent: productDevelopmentFindRow(rows, [/净含量/i, /NET\s*(?:CONTENT|WT|WEIGHT)/i]),
       otherIngredients: productDevelopmentFindRow(rows, [/补充品标示及营养成分含量/i, /OTHER\s+INGREDIENTS?/i]),
-      directions: productDevelopmentFindRow(rows, [/食用方法/i, /DIRECTIONS?/i]),
+      directions: productDevelopmentFindRow(rows, [/食用方法/i, /建议使用方法/i, /DIRECTIONS?/i]),
       warnings: productDevelopmentFindRow(rows, [/警告语/i, /WARNINGS?/i]),
       efficacy: productDevelopmentFindRow(rows, [/^A[.．、)]?产品功效/i, /产品功效/i]),
       advantages: productDevelopmentFindRow(rows, [/^B[.．、)]?产品优势/i, /产品优势/i]),
@@ -89,19 +89,27 @@
       const chineseName = productDevelopmentCopywritingNameWithBrand(snapshot.brand, snapshot.name);
       if (cells[1] && englishName) {
         const productNamePrefix = productDevelopmentCellHeadingPrefix(cells[1], /PRODUCT\s*NAME/i) || 'PRODUCT NAME:';
-        productDevelopmentSetCellPrefixedLines(cells[1], productNamePrefix, [englishName], doc);
+        productDevelopmentSetCellHeadingAndLines(cells[1], productNamePrefix, [englishName], doc);
       }
       if (cells[2] && chineseName) productDevelopmentSetCellLines(cells[2], [chineseName], doc);
     }
-    if (targets.referenceUrl && snapshot && snapshot.referenceUrl) {
+    const referenceUrl = productDevelopmentCopywritingReferenceUrl(snapshot);
+    if (targets.referenceUrl && referenceUrl) {
       const cells = productDevelopmentXmlElements(targets.referenceUrl, 'tc');
-      if (cells[1]) productDevelopmentSetCellLines(cells[1], [snapshot.referenceUrl], doc);
+      if (cells[1]) productDevelopmentSetCellLines(cells[1], [referenceUrl], doc);
     }
-    const labeling = snapshot && snapshot.labeling && typeof snapshot.labeling === 'object' ? snapshot.labeling : null;
+    const labeling = snapshot && snapshot.labeling && typeof snapshot.labeling === 'object' ? { ...snapshot.labeling } : {};
+    const directions = Array.isArray(content.directions) ? content.directions : [];
+    const usage = snapshot.sourceCopywriting && snapshot.sourceCopywriting.usage || {};
+    labeling.directionsEn = labeling.directionsEn || usage.en || productDevelopmentSectionLines(directions, (item, index) => index + '. ' + item.en).join('\n');
+    labeling.directionsCn = labeling.directionsCn || usage.cn || productDevelopmentSectionLines(directions, (item, index) => index + '、' + item.cn).join('\n');
     const ingredientTable = snapshot && snapshot.ingredientTable && typeof snapshot.ingredientTable === 'object' ? snapshot.ingredientTable : null;
-    const hasLabeling = Boolean(labeling && Object.values(labeling).some((value) => String(value || '').trim()));
+    const hasLabeling = Boolean(snapshot.labeling && Object.values(snapshot.labeling).some((value) => String(value || '').trim()));
     const hasIngredientTable = Boolean(ingredientTable && Object.values(ingredientTable).some((value) => String(value || '').trim()));
-    if (snapshot && (hasLabeling || hasIngredientTable)) {
+    if (targets.directions && (labeling.directionsEn || labeling.directionsCn)) {
+      productDevelopmentSetDirectionsCells(productDevelopmentXmlElements(targets.directions, 'tc'), labeling, doc);
+    }
+    if (snapshot.copywritingCategory !== 'regular' && (hasLabeling || hasIngredientTable)) {
       if (targets.productType) {
         const cells = productDevelopmentXmlElements(targets.productType, 'tc');
         const productTypeEn = productDevelopmentCleanText(snapshot.productType || 'Human dietary supplement / liquid drops', 180);
@@ -124,10 +132,6 @@
         if (cells[1]) productDevelopmentSetCellLines(cells[1], ['Other Ingredients: ' + String(ingredientTable.otherIngredientsEn || '')], doc);
         if (cells[2]) productDevelopmentSetCellLines(cells[2], [String(ingredientTable.otherIngredientsCn || '')], doc);
       }
-      if (targets.directions && hasLabeling) {
-        const cells = productDevelopmentXmlElements(targets.directions, 'tc');
-        productDevelopmentSetDirectionsCells(cells, labeling, doc);
-      }
       if (disclaimer && hasLabeling) {
         const cells = productDevelopmentXmlElements(disclaimer, 'tc');
         if (cells[1]) productDevelopmentSetCellLines(cells[1], [String(labeling.disclaimerEn || '')], doc);
@@ -144,7 +148,7 @@
     const efficacyChinese = productDevelopmentSectionLines(content.efficacy, (item, index) => index + '、' + item.cn);
     const efficacyPrefix = productDevelopmentCellHeadingPrefix(efficacyCells[1], /\b(?:FUNCTIONS?|USES?)\b/i);
     if (efficacyPrefix) {
-      productDevelopmentSetCellPrefixedLines(efficacyCells[1], efficacyPrefix, efficacyEnglish, doc);
+      productDevelopmentSetCellHeadingAndLines(efficacyCells[1], efficacyPrefix, efficacyEnglish, doc);
       productDevelopmentSetCellLines(efficacyCells[2], efficacyChinese, doc);
     } else fill(targets.efficacy, efficacyEnglish, efficacyChinese);
     fill(targets.advantages,
@@ -168,7 +172,7 @@
             : [];
           const cells24 = productDevelopmentXmlElements(efficacyContentRow, 'tc');
           if (cells24[1] && translations.length) {
-            productDevelopmentSetCellLines(cells24[1], [translations.join('; ')], doc);
+            productDevelopmentSetCellLines(cells24[1], [translations.join(';')], doc);
           }
         } catch (regularEfficacyError) {
           productDevelopmentLog('warn', '常规产品24国语言行写入失败', formatErrorMessage(regularEfficacyError));
@@ -208,7 +212,7 @@
             if (cnGroups.length) productDevelopmentSetCellIngredientGroups(ingredientCells[2], cnGroups, doc);
           } else {
             const allEn = activeEn.concat(inactiveEn);
-            if (allEn.length) productDevelopmentSetCellPrefixedLines(ingredientCells[1], productDevelopmentCellHeadingPrefix(ingredientCells[1], /\bINGREDIENTS?\b/i) || 'INGREDIENTS:', [allEn.join('、')], doc);
+            if (allEn.length) productDevelopmentSetCellHeadingAndLines(ingredientCells[1], productDevelopmentIngredientHeading(productDevelopmentCellHeadingPrefix(ingredientCells[1], /\bINGREDIENTS?\b/i) || 'INGREDIENTS:', allEn.length), [allEn.join('、')], doc);
             const regularCnText = String(regularIngredients.cn || activeCn.concat(inactiveCn).join('、')).trim();
             if (regularCnText) productDevelopmentSetCellLines(ingredientCells[2], [regularCnText], doc);
           }

@@ -1128,14 +1128,14 @@
     const directionsCn = productDevelopmentDocxTextLines(labeling && labeling.directionsCn);
     const isMergedLanguageCell = productDevelopmentCellGridSpan(cells[1]) > 1 || cells.length < 4;
     if (isMergedLanguageCell) {
-      productDevelopmentSetCellHeadingAndLines(cells[1], 'DIRECTIONS:', directionsEn.concat(directionsCn), doc);
+      productDevelopmentSetCellHeadingAndLines(cells[1], productDevelopmentCellHeadingPrefix(cells[1], /DIRECTIONS?/i) || 'DIRECTIONS:', directionsEn.concat(directionsCn), doc);
       // In the three-cell templates this is the auxiliary sample/rules cell,
       // not a second language column. Clear it after moving both languages
       // into the merged content cell so the sample text is not exported.
       if (cells[2]) productDevelopmentSetCellLines(cells[2], [], doc);
       return;
     }
-    productDevelopmentSetCellHeadingAndLines(cells[1], 'DIRECTIONS:', directionsEn, doc);
+    productDevelopmentSetCellHeadingAndLines(cells[1], productDevelopmentCellHeadingPrefix(cells[1], /DIRECTIONS?/i) || 'DIRECTIONS:', directionsEn, doc);
     if (cells[2]) productDevelopmentSetCellLines(cells[2], directionsCn, doc);
   }
 
@@ -1246,6 +1246,7 @@
       .map((item) => productDevelopmentCleanText(item, 300))
       .slice(0, 24);
     return {
+      directions: list('directions').map((item) => productDevelopmentCopywritingPairValues(item)).filter((item) => item.en && item.cn),
       productNameTranslations: translations,
       efficacy: list('efficacy').map((item) => productDevelopmentCopywritingPairValues(typeof item === 'object' ? item : { cn: item })).filter((item) => item.cn || item.en),
       advantages: list('advantages').map((item) => productDevelopmentCopywritingPairValues(typeof item === 'object' ? item : { cn: item })).filter((item) => item.cn || item.en),
