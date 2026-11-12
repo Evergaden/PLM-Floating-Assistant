@@ -937,6 +937,7 @@
     return selectors.reduce((snapshot, selector) => {
       const node = panel && panel.querySelector(selector);
       if (node) snapshot[selector] = {
+        node,
         top: node.scrollTop,
         left: node.scrollLeft,
         context: node.getAttribute('data-scroll-context') || '',
@@ -974,6 +975,7 @@
         if (!node || !pos) return;
         const context = node.getAttribute('data-scroll-context') || '';
         const sameContext = !pos.context || !context || pos.context === context;
+        if (selector === '.pfh-detail-scroll' && node === pos.node && sameContext) return;
         node.scrollTop = sameContext ? (pos.top || 0) : 0;
         node.scrollLeft = pos.left || 0;
         if (!sameContext || !pos.anchor || !pos.anchor.sku) return;
@@ -1732,11 +1734,17 @@
   function skuSidebarNodeKey(node) {
     if (node.nodeType !== 1) return '';
     if (node.hasAttribute('data-sku')) return node.tagName + ':' + node.getAttribute('data-action') + ':' + node.getAttribute('data-sku');
-    const structural = ['pfh-list-head', 'pfh-sku-list-toolbar', 'pfh-sku-filter-toolbar', 'pfh-sku-list-content', 'pfh-sku-scroll', 'pfh-sku-waterfall-grid', 'pfh-list-pager', 'pfh-search-result-toolbar', 'pfh-sku-view-switch', 'pfh-sku-sort-menu'];
+    const control = node.matches('input,textarea,select') ? node : node.tagName === 'LABEL' ? node.querySelector('input,textarea,select') : null;
+    if (control) {
+      for (const attrs of [['data-form-sku', 'data-form-group', 'data-form-key'], ['data-material-sku', 'data-material-kind', 'data-material-field'], ['data-meta-sku', 'data-meta-field']]) {
+        if (control.hasAttribute(attrs[0])) return node.tagName + ':' + attrs.map((attr) => control.getAttribute(attr) || '').join(':');
+      }
+    }
+    const structural = ['pfh-list-head', 'pfh-sku-list-toolbar', 'pfh-sku-filter-toolbar', 'pfh-sku-list-content', 'pfh-sku-scroll', 'pfh-sku-waterfall-grid', 'pfh-list-pager', 'pfh-search-result-toolbar', 'pfh-sku-view-switch', 'pfh-sku-sort-menu', 'pfh-detail-scroll'];
     return structural.find((name) => node.classList.contains(name)) || '';
   }
 
-  function reconcileSkuSidebarNode(current, next) {
+  function reconcileAssistantPanelNode(current, next) {
     if (current.nodeType !== next.nodeType || current.nodeName !== next.nodeName) {
       current.replaceWith(next);
       return;
@@ -1758,11 +1766,18 @@
       return;
     }
     for (const attr of Array.from(current.attributes)) {
+      if (current === document.activeElement && attr.name === 'value') continue;
       if (attr.name === 'style' && (current.pfhSkuViewPointerBound || current.classList.contains('pfh-sku-view-indicator'))) continue;
       if (!next.hasAttribute(attr.name)) current.removeAttribute(attr.name);
     }
     for (const attr of Array.from(next.attributes)) {
+      if (current === document.activeElement && attr.name === 'value') continue;
       if (current.getAttribute(attr.name) !== attr.value) current.setAttribute(attr.name, attr.value);
+    }
+    if (current.matches('input,textarea,select')) {
+      if (current !== document.activeElement && current.value !== next.value) current.value = next.value;
+      // Textarea child text represents its default value; keep the active draft intact.
+      if (current.tagName === 'TEXTAREA') return;
     }
     const previous = Array.from(current.childNodes);
     const keyed = new Map(previous.map((node) => [skuSidebarNodeKey(node), node]).filter(([key]) => key));
@@ -1773,7 +1788,7 @@
       const reusable = candidate && skuSidebarNodeKey(candidate) === key;
       const node = reusable ? candidate : child;
       if (current.childNodes[index] !== node) current.insertBefore(node, current.childNodes[index] || null);
-      if (reusable) reconcileSkuSidebarNode(node, child);
+      if (reusable) reconcileAssistantPanelNode(node, child);
     });
     while (current.childNodes.length > children.length) current.lastChild.remove();
   }
@@ -1784,7 +1799,7 @@
     const scrollContext = scroll && scroll.getAttribute('data-scroll-context');
     const next = list.cloneNode(false);
     next.innerHTML = html;
-    reconcileSkuSidebarNode(list, next);
+    reconcileAssistantPanelNode(list, next);
     const currentScroll = list.querySelector('.pfh-sku-scroll');
     if (currentScroll && currentScroll.getAttribute('data-scroll-context') !== scrollContext) currentScroll.scrollTop = 0;
   }

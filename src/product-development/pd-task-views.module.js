@@ -349,13 +349,21 @@
     if (view === 'detail') {
       state.copywritingMode = false;
       detail.classList.remove('is-loading');
-      detail.innerHTML = renderStatusHtml(statusText) + '<div class="pfh-detail-scroll pfh-product-development-task-detail-scroll">' + productDevelopmentTaskTabsHtml(view) + productDevelopmentTaskHeroHtml(task) + productDevelopmentTaskActionsHtml(task) + '</div>';
+      const context = String(task && task.sku || '') + '|' + view;
+      const html = renderStatusHtml(statusText) + '<div class="pfh-detail-scroll pfh-product-development-task-detail-scroll" data-scroll-context="' + escapeHtml(context) + '">' + productDevelopmentTaskTabsHtml(view) + productDevelopmentTaskHeroHtml(task) + productDevelopmentTaskActionsHtml(task) + '</div>';
+      if (detail.pfhProductDevelopmentContext === context && detail.firstChild) {
+        const next = detail.cloneNode(false);
+        next.innerHTML = html;
+        reconcileAssistantPanelNode(detail, next);
+      } else detail.innerHTML = html;
+      detail.pfhProductDevelopmentContext = context;
       return;
     }
     const embedded = view === 'placeholder'
       ? '<section class="pfh-section pfh-product-development-task-placeholder"><div class="pfh-section-title"><h3>功能占位</h3><span>后续开发</span></div><div class="pfh-empty">该功能暂未开放，后续会在这里接入。</div></section>'
       : productDevelopmentTaskEmbeddedViewHtml(view, statusText);
     detail.classList.remove('is-loading');
+    detail.pfhProductDevelopmentContext = '';
     detail.innerHTML = '<div class="pfh-detail-scroll pfh-product-development-task-scroll">' + productDevelopmentTaskTabsHtml(view) + embedded + '</div>';
     productDevelopmentMountReviewEditorOverlay(panel);
   }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.49
+// @version      2.10.50
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.49';
+  const SCRIPT_VERSION = '2.10.50';
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
@@ -11377,13 +11377,21 @@
     if (view === 'detail') {
       state.copywritingMode = false;
       detail.classList.remove('is-loading');
-      detail.innerHTML = renderStatusHtml(statusText) + '<div class="pfh-detail-scroll pfh-product-development-task-detail-scroll">' + productDevelopmentTaskTabsHtml(view) + productDevelopmentTaskHeroHtml(task) + productDevelopmentTaskActionsHtml(task) + '</div>';
+      const context = String(task && task.sku || '') + '|' + view;
+      const html = renderStatusHtml(statusText) + '<div class="pfh-detail-scroll pfh-product-development-task-detail-scroll" data-scroll-context="' + escapeHtml(context) + '">' + productDevelopmentTaskTabsHtml(view) + productDevelopmentTaskHeroHtml(task) + productDevelopmentTaskActionsHtml(task) + '</div>';
+      if (detail.pfhProductDevelopmentContext === context && detail.firstChild) {
+        const next = detail.cloneNode(false);
+        next.innerHTML = html;
+        reconcileAssistantPanelNode(detail, next);
+      } else detail.innerHTML = html;
+      detail.pfhProductDevelopmentContext = context;
       return;
     }
     const embedded = view === 'placeholder'
       ? '<section class="pfh-section pfh-product-development-task-placeholder"><div class="pfh-section-title"><h3>功能占位</h3><span>后续开发</span></div><div class="pfh-empty">该功能暂未开放，后续会在这里接入。</div></section>'
       : productDevelopmentTaskEmbeddedViewHtml(view, statusText);
     detail.classList.remove('is-loading');
+    detail.pfhProductDevelopmentContext = '';
     detail.innerHTML = '<div class="pfh-detail-scroll pfh-product-development-task-scroll">' + productDevelopmentTaskTabsHtml(view) + embedded + '</div>';
     productDevelopmentMountReviewEditorOverlay(panel);
   }
@@ -24414,6 +24422,7 @@
     return selectors.reduce((snapshot, selector) => {
       const node = panel && panel.querySelector(selector);
       if (node) snapshot[selector] = {
+        node,
         top: node.scrollTop,
         left: node.scrollLeft,
         context: node.getAttribute('data-scroll-context') || '',
@@ -24451,6 +24460,7 @@
         if (!node || !pos) return;
         const context = node.getAttribute('data-scroll-context') || '';
         const sameContext = !pos.context || !context || pos.context === context;
+        if (selector === '.pfh-detail-scroll' && node === pos.node && sameContext) return;
         node.scrollTop = sameContext ? (pos.top || 0) : 0;
         node.scrollLeft = pos.left || 0;
         if (!sameContext || !pos.anchor || !pos.anchor.sku) return;
@@ -25209,11 +25219,17 @@
   function skuSidebarNodeKey(node) {
     if (node.nodeType !== 1) return '';
     if (node.hasAttribute('data-sku')) return node.tagName + ':' + node.getAttribute('data-action') + ':' + node.getAttribute('data-sku');
-    const structural = ['pfh-list-head', 'pfh-sku-list-toolbar', 'pfh-sku-filter-toolbar', 'pfh-sku-list-content', 'pfh-sku-scroll', 'pfh-sku-waterfall-grid', 'pfh-list-pager', 'pfh-search-result-toolbar', 'pfh-sku-view-switch', 'pfh-sku-sort-menu'];
+    const control = node.matches('input,textarea,select') ? node : node.tagName === 'LABEL' ? node.querySelector('input,textarea,select') : null;
+    if (control) {
+      for (const attrs of [['data-form-sku', 'data-form-group', 'data-form-key'], ['data-material-sku', 'data-material-kind', 'data-material-field'], ['data-meta-sku', 'data-meta-field']]) {
+        if (control.hasAttribute(attrs[0])) return node.tagName + ':' + attrs.map((attr) => control.getAttribute(attr) || '').join(':');
+      }
+    }
+    const structural = ['pfh-list-head', 'pfh-sku-list-toolbar', 'pfh-sku-filter-toolbar', 'pfh-sku-list-content', 'pfh-sku-scroll', 'pfh-sku-waterfall-grid', 'pfh-list-pager', 'pfh-search-result-toolbar', 'pfh-sku-view-switch', 'pfh-sku-sort-menu', 'pfh-detail-scroll'];
     return structural.find((name) => node.classList.contains(name)) || '';
   }
 
-  function reconcileSkuSidebarNode(current, next) {
+  function reconcileAssistantPanelNode(current, next) {
     if (current.nodeType !== next.nodeType || current.nodeName !== next.nodeName) {
       current.replaceWith(next);
       return;
@@ -25235,11 +25251,18 @@
       return;
     }
     for (const attr of Array.from(current.attributes)) {
+      if (current === document.activeElement && attr.name === 'value') continue;
       if (attr.name === 'style' && (current.pfhSkuViewPointerBound || current.classList.contains('pfh-sku-view-indicator'))) continue;
       if (!next.hasAttribute(attr.name)) current.removeAttribute(attr.name);
     }
     for (const attr of Array.from(next.attributes)) {
+      if (current === document.activeElement && attr.name === 'value') continue;
       if (current.getAttribute(attr.name) !== attr.value) current.setAttribute(attr.name, attr.value);
+    }
+    if (current.matches('input,textarea,select')) {
+      if (current !== document.activeElement && current.value !== next.value) current.value = next.value;
+      // Textarea child text represents its default value; keep the active draft intact.
+      if (current.tagName === 'TEXTAREA') return;
     }
     const previous = Array.from(current.childNodes);
     const keyed = new Map(previous.map((node) => [skuSidebarNodeKey(node), node]).filter(([key]) => key));
@@ -25250,7 +25273,7 @@
       const reusable = candidate && skuSidebarNodeKey(candidate) === key;
       const node = reusable ? candidate : child;
       if (current.childNodes[index] !== node) current.insertBefore(node, current.childNodes[index] || null);
-      if (reusable) reconcileSkuSidebarNode(node, child);
+      if (reusable) reconcileAssistantPanelNode(node, child);
     });
     while (current.childNodes.length > children.length) current.lastChild.remove();
   }
@@ -25261,7 +25284,7 @@
     const scrollContext = scroll && scroll.getAttribute('data-scroll-context');
     const next = list.cloneNode(false);
     next.innerHTML = html;
-    reconcileSkuSidebarNode(list, next);
+    reconcileAssistantPanelNode(list, next);
     const currentScroll = list.querySelector('.pfh-sku-scroll');
     if (currentScroll && currentScroll.getAttribute('data-scroll-context') !== scrollContext) currentScroll.scrollTop = 0;
   }
