@@ -1,0 +1,27 @@
+/* Keep SKU identity above the independently scrolling detail content. */
+#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 12px 14px 0;
+  overflow: hidden;
+}
+
+#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {
+  flex: 0 0 auto;
+}
+
+#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 4px 0 0;
+}

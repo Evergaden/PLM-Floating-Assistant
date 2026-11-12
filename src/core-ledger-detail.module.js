@@ -316,10 +316,11 @@
     }
     detail.innerHTML = [
       renderStatusHtml(statusText),
-      '<div class="pfh-detail-scroll">',
+      '<div class="pfh-detail-view-frame pfh-sku-detail-frame">',
       detailViewTabsHtml('detail'),
-      materialDimensionUnitAlertHtml(state.data),
       productHeroSectionHtml(state.data, false),
+      '<div class="pfh-detail-scroll pfh-sku-detail-content">',
+      materialDimensionUnitAlertHtml(state.data),
       skuDataChangeAlertHtml(state.data),
       '<section class="pfh-section pfh-sku-info-section">',
       '<div class="pfh-info-grid">',
@@ -340,7 +341,7 @@
       rowHtml('grossWeight', L.grossWeight, state.data.grossWeight || L.unknown),
       '</div></section>',
       infringementSectionHtml(state.data),
-      '</div>',
+      '</div></div>',
       '<div class="pfh-note"><span class="pfh-note-source">' + escapeHtml(state.data.updatedAt ? (L.updatedAt + ': ' + state.data.updatedAt) : '') + '</span>' + apiReadStatusHtml() + '<span class="pfh-note-toast" aria-live="polite"></span>' + skuDataLogTriggerHtml(state.data) + '<button type="button" data-action="refresh" title="' + escapeHtml(TOOLTIP.refresh) + '">' + iconHtml('refresh') + '</button></div>',
     ].join('');
   }

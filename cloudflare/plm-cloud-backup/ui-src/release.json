@@ -86,6 +86,10 @@
       "mode": "module"
     },
     {
+      "path": "modules/sku-detail-layout.css",
+      "mode": "module"
+    },
+    {
       "path": "modules/size-image-custom.css",
       "mode": "module"
     },

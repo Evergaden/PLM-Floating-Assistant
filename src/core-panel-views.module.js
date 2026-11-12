@@ -188,6 +188,12 @@
       document.documentElement.appendChild(style);
     }
     ensureLucianPreviewStyles();
+    if (!document.getElementById(PANEL_ID + '-sku-detail-layout-style')) {
+      const style = document.createElement('style');
+      style.id = PANEL_ID + '-sku-detail-layout-style';
+      style.textContent = SKU_DETAIL_LAYOUT_CSS;
+      document.documentElement.appendChild(style);
+    }
     ensureWorkflowPatchStyles();
     let panel = document.getElementById(PANEL_ID);
     if (panel) {
