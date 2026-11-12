@@ -1309,7 +1309,7 @@
     });
     const errors = [];
     const copywritingRestrictionError = (label, item) => {
-      const rule = productDevelopmentFindCopywritingRestriction([item && item.en, item && item.cn, item && item.titleEn, item && item.titleCn].filter(Boolean).join(' '));
+      const rule = productDevelopmentFindCopywritingRestriction([item && item.en, item && item.cn, item && item.titleEn, item && item.titleCn].filter(Boolean).join(' '), snapshot);
       return rule ? label + '含' + rule.label : '';
     };
     const preRewriteRestricted = [
@@ -1382,7 +1382,7 @@
       if (productDevelopmentChineseCount(item.cn) > 30 || productDevelopmentEnglishWordCount(item.en) > 30) errors.push('D 第 ' + (index + 1) + ' 条超出长度');
     });
     const invalid = complianceTexts.map((entry) => {
-      const rule = productDevelopmentFindCopywritingRestriction(entry.value);
+      const rule = productDevelopmentFindCopywritingRestriction(entry.value, snapshot);
       if (rule) return entry.label + '含' + rule.label;
       const term = productDevelopmentFindBannedTerm(entry.value, brand);
       if (term) return entry.label + '含限制词“' + term + '”';
@@ -1407,7 +1407,10 @@
       return '文案生成未完成：D 成分功能文案过长，请再次生成。';
     }
     if (/dosage|frequency|serving or supply|dietary-attribute|manufacturing.*quality|quality-process|服用|用量|频次|供应周期|素食|非转基因|无麸质|质量控制|产品一致性/i.test(message)) {
-      return '文案生成未完成：文案不得写服用频次或用量、未经输入支持的饮食属性、生产质量背书，请再次生成。';
+      const position = message.match(/\b([ABCD])\s+item\s+(\d+)/i) || message.match(/([ABCD])\s*第\s*(\d+)/);
+      const label = position ? position[1].toUpperCase() + ' 第 ' + position[2] + ' 条' : '生成内容';
+      const reason = /dietary-attribute|素食|非转基因|无麸质/i.test(message) ? '含无依据的饮食属性' : /manufacturing|quality-process|quality|质量控制|产品一致性/i.test(message) ? '含无依据的生产或质量背书' : '含用量或频次描述';
+      return '文案生成未完成：' + label + reason + '，自动修复仍未通过，请再次生成。';
     }
     if (/restricted term|含限制词|asterisk|blank line|星号|空行/i.test(message)) {
       const termMatch = message.match(/restricted term\s+["“]([^"”]+)["”]/i) || message.match(/含限制词[“"]([^”"]+)[”"]/i);

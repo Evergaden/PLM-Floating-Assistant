@@ -1515,8 +1515,9 @@
     return terms.map((term) => String(term || '').trim()).filter(Boolean).find((term) => productDevelopmentBannedTermMatches(value, term, normalized)) || '';
   }
 
-  function productDevelopmentFindCopywritingRestriction(value) {
-    const text = String(value || '').replace(/\s+/g, ' ').trim();
+  function productDevelopmentFindCopywritingRestriction(value, options) {
+    let text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (options && options.copywritingCategory === 'regular') text = text.replace(/\b(?:daily|extended|long[- ]term)\s+(?:use|usage|needs?)\b/gi, '');
     if (!text) return null;
     return PRODUCT_DEVELOPMENT_COPYWRITING_RESTRICTION_RULES.find((rule) => rule.patterns.some((pattern) => pattern.test(text))) || null;
   }

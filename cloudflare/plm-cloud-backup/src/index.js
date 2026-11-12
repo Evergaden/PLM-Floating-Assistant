@@ -2191,8 +2191,9 @@ function productDevelopmentFindBannedTerm(value, brand) {
   return terms.map((term) => String(term || '').trim()).filter(Boolean).find((term) => productDevelopmentBannedTermMatches(value, term, normalized)) || '';
 }
 
-function productDevelopmentFindCopywritingRestriction(value) {
-  const text = String(value || '').replace(/\s+/g, ' ').trim();
+function productDevelopmentFindCopywritingRestriction(value, options) {
+  let text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (options && options.copywritingCategory === 'regular') text = text.replace(/\b(?:daily|extended|long[- ]term)\s+(?:use|usage|needs?)\b/gi, '');
   if (!text) return null;
   return PRODUCT_DEVELOPMENT_COPYWRITING_RESTRICTION_RULES.find((rule) => rule.patterns.some((pattern) => pattern.test(text))) || null;
 }
@@ -2234,7 +2235,8 @@ function productDevelopmentCopywritingRestrictionCode(message) {
   return '';
 }
 
-function productDevelopmentSafeCopywritingPair(ruleCode, section) {
+function productDevelopmentSafeCopywritingPair(ruleCode, section, options) {
+  if (options && options.copywritingCategory === 'regular') return { en: 'Designed for simple everyday product routines.', cn: '便于融入日常使用场景。' };
   if (ruleCode === 'usage' && section === 'B') {
     return { en: 'A practical formula for everyday routines.', cn: '适合融入日常营养安排。' };
   }
@@ -2247,7 +2249,7 @@ function productDevelopmentSafeCopywritingPair(ruleCode, section) {
   return { en: 'Designed for routine support.', cn: '适合日常营养支持。' };
 }
 
-function productDevelopmentLocalComplianceFallback(rawText, expectedIngredients, brand) {
+function productDevelopmentLocalComplianceFallback(rawText, expectedIngredients, brand, options) {
   let candidate;
   try {
     candidate = parseProductDevelopmentJson(rawText);
@@ -2262,7 +2264,7 @@ function productDevelopmentLocalComplianceFallback(rawText, expectedIngredients,
   };
   for (let attempt = 0; attempt < 8; attempt += 1) {
     try {
-      return normalizeProductDevelopmentCopywritingCandidate(candidate, expectedIngredients, brand);
+      return normalizeProductDevelopmentCopywritingCandidate(candidate, expectedIngredients, brand, options);
     } catch (error) {
       const message = String(error && error.message || '');
       const target = message.match(/\b([ABCD])\s+item\s+(\d+)\b/i);
@@ -2276,7 +2278,7 @@ function productDevelopmentLocalComplianceFallback(rawText, expectedIngredients,
       const row = original && typeof original === 'object' && !Array.isArray(original)
         ? original
         : { value: original };
-      const pair = productDevelopmentSafeCopywritingPair(ruleCode, section);
+      const pair = productDevelopmentSafeCopywritingPair(ruleCode, section, options);
       row.en = pair.en;
       row.cn = pair.cn;
       if (section === 'C') {
@@ -3081,7 +3083,7 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
     cn: productDevelopmentRewriteGeneratedCopyText(item && item.cn, brand),
   });
   const rejectCopywritingRestriction = (item, label) => {
-    const rule = productDevelopmentFindCopywritingRestriction([item && item.en, item && item.cn, item && item.titleEn, item && item.titleCn].filter(Boolean).join(' '));
+    const rule = productDevelopmentFindCopywritingRestriction([item && item.en, item && item.cn, item && item.titleEn, item && item.titleCn].filter(Boolean).join(' '), options);
     if (rule) throw new Error('copywriting ' + label + ' contains ' + rule.label);
     return item;
   };
@@ -3178,7 +3180,7 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
     addComplianceText('D item ' + (index + 1) + ' Chinese', item.cn);
   });
   const restricted = complianceTexts.map((entry) => {
-    const rule = productDevelopmentFindCopywritingRestriction(entry.value);
+    const rule = productDevelopmentFindCopywritingRestriction(entry.value, options);
     if (rule) return entry.label + ' contains ' + rule.label;
     const term = productDevelopmentFindBannedTerm(entry.value, brand);
     if (term) return entry.label + ' contains restricted term "' + term + '"';
@@ -3929,6 +3931,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   const confirmedIngredientTable = Boolean(body.confirmedIngredientTable && rawIngredientTable);
   const templateVersion = cleanText(body.templateVersion, 80);
   const templateId = cleanText(body.templateId, 80);
+  const copywritingOptions = { copywritingCategory: body.copywritingCategory === 'regular' || /^regular(?:-|$)/.test(templateId) ? 'regular' : 'food' };
   const templateLabel = cleanText(body.templateLabel, 120);
   const ingredientTemplateId = cleanText(body.ingredientTemplateId, 80);
   const ingredientTemplateLabel = cleanText(body.ingredientTemplateLabel, 120);
@@ -3943,6 +3946,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
     sku,
     name,
     englishName,
+    copywritingCategory: copywritingOptions.copywritingCategory,
     productType: cleanText(body.productType, 180),
     referenceUrl: cleanText(body.referenceUrl, 1200),
     netContent: cleanText(body.netContent, 120),
@@ -3977,8 +3981,12 @@ async function handleProductDevelopmentCopywriting(request, env) {
     '默认不写未经当前输入明确支持的素食、非转基因、无麸质、无糖、无乳制品、无过敏原等饮食属性，也不写严格质量控制、生产标准、质量保证、产品一致性等无法由输入证明的生产或质量背书。',
     PRODUCT_DEVELOPMENT_CORPUS_LANGUAGE_GUIDE.join(' '),
   ].join(' ');
+  const categorySystem = copywritingOptions.copywritingCategory === 'regular'
+    ? '当前为常规非食品产品，必须按输入的真实产品类型写作；含镁等成分也不能据此推断为营养补充剂。不要使用服用、食用、膳食、营养补充、内服补镁等定位，不要沿用食品示例。daily use / 日常使用属于一般场景描述，可使用；但次数、数量、具体用量只放在有输入依据的独立 directions 字段。不得虚构饮食属性、生产质量背书或认证。'
+    : '当前为食品或营养补充产品，继续严格遵守食品文案与标签用法分离规则。';
   const system = [
     commonSystem,
+    categorySystem,
     '一次性完整生成 A-D 四个部分，不要拆分、不要省略、不要用占位符。',
     'productNameTranslations 必须是恰好 24 个字符串的数组，按以下语言顺序翻译输入的英文产品名（englishName，缺失时按 name 意译为英文产品名再翻）：英语、德语、法语、西班牙语、意大利语、丹麦语、捷克语、瑞典语、希腊语、芬兰语、葡萄牙语、荷兰语、保加利亚语、克罗地亚语、爱沙尼亚语、匈牙利语、爱尔兰语、拉脱维亚语、立陶宛语、马耳他语、波兰语、罗马尼亚语、斯洛伐克语、斯洛文尼亚语。翻译示例（Scalp Soothe Cream）：Scalp Soothe Cream; Kopfhaut Beruhigende Creme; Crème Apaisante Pour Le Cuir Chevelu; Crema Calmante Para El Cuero Cabelludo; Crema Lenitiva Per Il Cuoio Capelluto; Hovedbund Beroligende Creme; Uklidňující Krém Na Pokožku Hlavy; Hudlugnande Kräm För Hårbotten; Κρέμα Καταπράυνσης Τριχωτού Κεφαλιού; Päänahkaa Rentouttava Voide; Creme Calmante Para O Couro Cabeludo; Kalmerende Crème Voor De Hoofdhuid; Крем За Успокояване На Скалпа; Krema Za Umirenje Tjemena; Peanahka Rahustav Kreem; Fejbőr Nyugtató Krém; Uachtar Maolaitheach Do Scalp; Galvas Ādu Nomierinošs Krēms; Galvos Odą Raminantis Kremas; Krema Kalmanti Għall-Qorriegħa; Krem Łagodzący Dla Skóry Głowy; Cremă Calmantă Pentru Scalp; Upokojujúci Krém Na Pokožku Hlavy; Krema Za Pomiritev Lasnega Kože。每个翻译的单词首字母大写，数组中只放翻译文本本身，不要语言名称、编号或引号。',
     'A 产品功效必须正好 4 条；B 产品优势必须正好 4 条；C 产品卖点必须正好 15 条；D 成分功能必须覆盖输入 ingredients 的全部成分，并保持输入顺序。',
@@ -4010,7 +4018,8 @@ async function handleProductDevelopmentCopywriting(request, env) {
   const validateCopywritingCandidate = (candidate) => normalizeProductDevelopmentCopywritingCandidate(
     parseProductDevelopmentJson(candidate.text),
     ingredients,
-    brand
+    brand,
+    copywritingOptions
   );
   const copywritingSuccess = (preferred, warnings, source) => json({
     ok: true,
@@ -4039,6 +4048,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
           primaryTimeoutMs: 300000,
           system: [
             commonSystem,
+            categorySystem,
             '上一轮响应无法解析为 JSON。请重新完整生成，不要输出思考过程、Markdown、代码围栏、注释、前后说明或截断内容。',
             '即使文案较多，也必须一次性返回完整 JSON；先在内部检查 A=4、B=4、C=15、D=全部成分，再只输出 JSON 对象。',
           ].join(' '),
@@ -4071,6 +4081,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
           fallbackTimeoutMs: 90000,
           system: [
             commonSystem,
+            categorySystem,
             '你是文案合规修复助手。下面给出一份已经生成但未通过校验的完整 JSON。保留 A-D 的条数、顺序、成分名称、产品事实和中英文对应关系，只改写命中限制词或格式问题的生成句子。',
             '禁止删除条目，禁止把内容改成空字符串，禁止新增成分、功效、认证、疾病、治疗或数字。',
             '如果校验失败信息指出 D 成分与输入不匹配（D ingredient … does not match PLM input），必须把对应位置条目的 ingredientEn 和 ingredientCn 修正为输入 ingredients 中同一位置的成分英文名和中文名（可参考输入的 en/cn 翻译补齐），功效句子随之对准该成分，不要改动其他条目。',
@@ -4095,6 +4106,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
           repairCandidate && repairCandidate.text,
           ingredients,
           brand,
+          copywritingOptions,
         );
         if (locallyRepaired && repairCandidate) {
           return copywritingSuccess(
