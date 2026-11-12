@@ -1,5 +1,11 @@
 # Canonical UI modules
 
+Home and product-development spacing uses the shared 4px scale defined in
+the panel root in `typography.css`: `--pfh-space-label` (4px), `--pfh-space-inline` (8px),
+`--pfh-space-field` (12px), `--pfh-space-section` (16px), and
+`--pfh-space-page` (24px). Section gaps belong to their parent layout; the
+home analytics reserves a separate navigation row below the carousel.
+
 New UI rules belong here, grouped by page or component. A canonical module:
 
 - must not use `!important`;

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.43
+// @version      2.10.44
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.43';
+  const SCRIPT_VERSION = '2.10.44';
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
@@ -480,7 +480,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.317';
+  const UI_ASSET_VERSION = '2.5.318';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -10926,12 +10926,6 @@
     const productPlmStatus = detail.productDetailPlmSaveMessage
       ? '<p class="pfh-product-development-material-plm-status' + (detail.productDetailPlmSaveState === 'error' ? ' is-error' : ' is-saved') + '">' + escapeHtml(detail.productDetailPlmSaveMessage) + '</p>'
       : '';
-    const localNaming = state.productDevelopmentReview && state.productDevelopmentReview.sku === formSku
-      ? productDevelopmentNormalizeProductNaming(state.productDevelopmentReview.productNaming)
-      : null;
-    const localNamingMeta = localNaming && (localNaming.chineseProductName || localNaming.englishProductName)
-      ? '<span>本地建议中文名：<b>' + escapeHtml(localNaming.chineseProductName || '待补充') + '</b></span><span>本地建议英文名：<b>' + escapeHtml(localNaming.englishProductName || '待补充') + '</b></span>'
-      : '';
     const sourceHint = detail.cacheSource === 'local-cache'
       ? '本地缓存' + (detail.loadedAt ? ' · 更新时间 ' + String(detail.loadedAt) : '')
       : '已读取 PLM · 更新时间 ' + String(detail.loadedAt || '');
@@ -10945,12 +10939,11 @@
     const attachmentSummary = attachments.length
       ? attachments.map((item) => '<span>' + escapeHtml(item.label) + '：' + escapeHtml(item.displayValue || item.status || '待手动上传') + '</span>').join('')
       : '<span>产品正面图、产品文案 DOCX：请在 PLM 页面 2 手动上传</span>';
-    return '<section class="pfh-product-development-detail-form"><header><div><small>建品资料</small><h3>填写建品信息</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + productSaveStatusClass + '">' + escapeHtml(domFillBusy ? '正在填写 PLM…' : productSaveStatus) + '</span><button type="button" class="is-primary" data-action="product-development-product-fill-page1" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">一键填写页面1</button><button type="button" class="is-primary" data-action="product-development-product-fill-page2" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">一键填写页面2</button><button type="button" data-action="product-development-product-save-local" data-product-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" data-action="product-development-product-save-plm" data-product-sku="' + escapeHtml(formSku) + '"' + (productPlmBusy ? ' disabled' : '') + '>' + (productPlmBusy ? '正在保存…' : '保存建品到 PLM') + '</button></div></header>' +
+    return '<section class="pfh-product-development-detail-form"><header><div><h3>填写建品信息</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + productSaveStatusClass + '">' + escapeHtml(domFillBusy ? '正在填写 PLM…' : productSaveStatus) + '</span><button type="button" class="is-primary" data-action="product-development-product-fill-page1" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">一键填写页面1</button><button type="button" class="is-primary" data-action="product-development-product-fill-page2" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">一键填写页面2</button><button type="button" data-action="product-development-product-save-local" data-product-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" data-action="product-development-product-save-plm" data-product-sku="' + escapeHtml(formSku) + '"' + (productPlmBusy ? ' disabled' : '') + '>' + (productPlmBusy ? '正在保存…' : '保存建品到 PLM') + '</button></div></header>' +
       (detail.error
         ? '<p class="pfh-product-development-material-plm-status is-error">' + escapeHtml(detail.error) + '</p>'
         : '<div class="pfh-product-development-detail-meta"><span>' + escapeHtml(sourceHint) + '</span></div>') +
       productPlmStatus +
-      (localNamingMeta ? '<div class="pfh-product-development-detail-meta">' + localNamingMeta + '</div>' : '') +
       '<section class="pfh-product-development-form-section"><h4>页面 1 · 建品基础信息（' + page1Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page1Fields, (field) => productDevelopmentPage1FieldValue(detail, field.key)) + '</div></section>' +
       '<section class="pfh-product-development-form-section"><h4>页面 2 · 产品详情（' + page2Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page2Fields, (field) => productDevelopmentPrefillProductFieldValue(detail, field)) + '</div></section>' +
       '<section class="pfh-product-development-form-section"><h4>页面 2 · 采购明细（' + procurementFields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(procurementFields, (field) => productDevelopmentProcurementFieldValue(detail, field.key)) + '</div></section>' +
@@ -11165,13 +11158,13 @@
     const lookupDisabled = !meta.reworkProductCode || lookup.status === 'loading' ? ' disabled' : '';
     const lookupLabel = lookup.status === 'loading' ? '正在查询…' : '查询返工资料';
     const input = (field, label, value, placeholder) => '<label>' + escapeHtml(label) + '<input type="text" class="pfh-product-development-task-meta-input" data-meta-sku="' + escapeHtml(sku) + '" data-meta-field="' + escapeHtml(field) + '" value="' + escapeHtml(value || '') + '" placeholder="' + escapeHtml(placeholder || '') + '"></label>';
-    return '<section class="pfh-product-development-product-naming pfh-product-development-task-local-meta"><header><div><small>LOCAL PRODUCT DATA</small><h3>产品本地填写</h3></div><span>仅本地记录 · 不写入 PLM</span></header>' +
+    return '<section class="pfh-product-development-product-naming pfh-product-development-task-local-meta"><header><div><h3>产品本地填写</h3></div></header>' +
       '<div class="pfh-product-development-product-naming-grid">' +
       input('brand', '产品品牌', productDevelopmentNormalizeBrandValue(meta.brand), '') +
       input('productNameCn', '产品中文名', meta.productNameCn, '') +
       input('productNameEn', '产品英文名', meta.productNameEn, '') +
       input('reworkProductCode', '返工产品编码', meta.reworkProductCode, '没有则留空') +
-      '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-task-meta-translate" data-product-sku="' + escapeHtml(sku) + '">中文名翻英文名</button><button type="button" data-action="product-development-rework-lookup" data-product-sku="' + escapeHtml(sku) + '"' + lookupDisabled + '>' + lookupLabel + '</button><button type="button" data-action="product-development-task-meta-save">保存本地</button><small>' + escapeHtml(productDevelopmentReworkLookupStatusText(detail)) + '</small></div></section>';
+      '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-task-meta-translate" data-product-sku="' + escapeHtml(sku) + '">中文名翻英文名</button><button type="button" data-action="product-development-rework-lookup" data-product-sku="' + escapeHtml(sku) + '"' + lookupDisabled + '>' + lookupLabel + '</button><button type="button" data-action="product-development-task-meta-save">保存本地</button></div></section>';
   }
 
   function productDevelopmentTaskActionsHtml(task) {

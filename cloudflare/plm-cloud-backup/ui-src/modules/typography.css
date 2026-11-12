@@ -1,5 +1,10 @@
 /* Semantic typography foundation. Component modules may override these tokens. */
 #plm-floating-helper {
+  --pfh-space-label: 4px;
+  --pfh-space-inline: 8px;
+  --pfh-space-field: 12px;
+  --pfh-space-section: 16px;
+  --pfh-space-page: 24px;
   --pfh-font-weight-regular: 400;
   --pfh-font-weight-support: 400;
   --pfh-font-weight-control: 400;

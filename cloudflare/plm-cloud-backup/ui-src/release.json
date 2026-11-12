@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.317",
+  "version": "2.5.318",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 267215,
+      "maxBytes": 266544,
       "maxImportant": 1814,
       "forbidSelectorFragments": [
         ".pfh-toast",
@@ -199,7 +199,7 @@
   "budgets": {
     "important": 1814,
     "supersededImportantDeclarations": 0,
-    "duplicateSelectors": 459,
-    "conflictingSelectors": 426
+    "duplicateSelectors": 458,
+    "conflictingSelectors": 425
   }
 }
