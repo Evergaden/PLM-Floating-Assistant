@@ -63,6 +63,7 @@
     referenceUrl: '',
     productLine: '',
     regularNdcKind: '',
+    packagingKind: '',
     regularIngredientsEn: '',
     regularIngredientsInactiveEn: '',
     regularIngredientsCn: '',

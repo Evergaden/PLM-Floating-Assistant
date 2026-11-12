@@ -74,6 +74,8 @@
   border: 0;
 }
 #plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }
+#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }
+#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }
 #plm-floating-helper .pfh-cw-product {
   display: flex;
   align-items: baseline;
@@ -187,6 +189,8 @@
 #plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }
 #plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }
 #plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }
+#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }
+#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }
 #plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }
 #plm-floating-helper .pfh-cw-progress {
   display: grid;

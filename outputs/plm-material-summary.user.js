@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.53
+// @version      2.10.54
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,8 +38,8 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.53';
-  const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n";
+  const SCRIPT_VERSION = '2.10.54';
+  const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }\n#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n";
   const SKU_DETAIL_LAYOUT_CSS = "/* Keep SKU identity above the independently scrolling detail content. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  height: auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  padding: 12px 14px 0;\n  overflow: hidden;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {\n  flex: 0 0 auto;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 0 0;\n}\n";
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
@@ -6323,6 +6323,7 @@
     referenceUrl: '',
     productLine: '',
     regularNdcKind: '',
+    packagingKind: '',
     regularIngredientsEn: '',
     regularIngredientsInactiveEn: '',
     regularIngredientsCn: '',
@@ -8139,43 +8140,16 @@
     return values.every((value) => value !== null) ? values : null;
   }
 
-  function productDevelopmentPackagingDialog(sku) {
-    return new Promise((resolve) => {
-      const overlay = document.createElement('div');
-      overlay.setAttribute('data-packaging-dialog', '1');
-      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:rgba(30,23,61,.32);backdrop-filter:blur(4px);';
-      const close = (kind) => {
-        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        document.removeEventListener('keydown', onKey, true);
-        resolve(kind);
-      };
-      const onKey = (event) => {
-        if (event.key === 'Escape') close('bagged');
-      };
-      document.addEventListener('keydown', onKey, true);
-      const buttonStyle = 'min-height:36px;padding:0 14px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:10px;background:var(--pfh-theme-surface-alt,#fbfaff);color:var(--pfh-theme-text,#253047);font-size:12px;cursor:pointer;text-align:left;';
-      overlay.innerHTML = '<section role="dialog" aria-modal="true" aria-label="选择包装形式" style="width:360px;max-width:calc(100vw - 40px);border-radius:18px;background:var(--pfh-theme-surface,#fff);color:var(--pfh-theme-text,#253047);box-shadow:0 24px 80px rgba(30,23,61,.25);padding:20px 22px;font-size:13px;display:grid;gap:14px;">'
-        + '<div style="display:grid;gap:5px;"><strong style="font-size:15px;">PLM 未填写外包装长宽高</strong><span style="color:var(--pfh-theme-muted,#7a82a0);font-size:11px;">SKU ' + productDevelopmentXmlSafeText(String(sku || '')) + '：无法自动判断袋装/盒装，请选择包装形式</span></div>'
-        + '<div style="display:grid;gap:8px;">'
-        + '<button type="button" data-kind="boxed" style="' + buttonStyle + '">盒装 · 删除袋装窒息标识行</button>'
-        + '<button type="button" data-kind="bagged" style="' + buttonStyle + '">袋装 · 保留窒息标识行</button>'
-        + '</div></section>';
-      overlay.addEventListener('click', (event) => {
-        const button = event.target && typeof event.target.closest === 'function' ? event.target.closest('button[data-kind]') : null;
-        if (button) close(button.getAttribute('data-kind') === 'boxed' ? 'boxed' : 'bagged');
-      });
-      document.body.appendChild(overlay);
-    });
-  }
-
   function productDevelopmentResolvePackagingKind(snapshot) {
     const source = snapshot && typeof snapshot === 'object' ? snapshot : null;
+    const draft = state.productDevelopmentOneShotInput || {};
+    const sku = String(source && source.sku || '').trim().toUpperCase();
+    if (sku && String(draft.sku || '').trim().toUpperCase() === sku && ['boxed', 'bagged'].includes(draft.packagingKind)) return Promise.resolve(draft.packagingKind);
     if (source && (source.packagingKind === 'boxed' || source.packagingKind === 'bagged')) return Promise.resolve(source.packagingKind);
     const dims = source && Array.isArray(source.outerDimensions) && source.outerDimensions.length === 3
       && source.outerDimensions.every((value) => Number(value) > 0);
     if (dims) return Promise.resolve('boxed');
     // 外包装长宽高缺失时，回退用已缓存的纸盒三维尺寸判断：有纸盒尺寸 → 盒装。
-    const sku = String(source && source.sku || '').trim().toUpperCase();
     const detail = (state.productDevelopmentTaskDetailData && state.productDevelopmentTaskDetailData[sku])
       || (state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku])
       || null;
@@ -8184,7 +8158,7 @@
       productDevelopmentLog('info', 'PLM 外包装长宽高缺失，按纸盒三维尺寸判定为盒装', sku);
       return Promise.resolve('boxed');
     }
-    return productDevelopmentPackagingDialog(String(source && source.sku || ''));
+    return Promise.reject(new Error('无法自动判断包装形式，请在生成设置中选择盒装或袋装'));
   }
 
   function productDevelopmentCloneValue(value) {
@@ -14115,10 +14089,8 @@
 
   async function buildProductDevelopmentDocx(content, templateSource, snapshot) {
     snapshot = snapshot && typeof snapshot === 'object' ? snapshot : {};
-    // 盒装（外包装长宽高齐全）→ 删除袋装窒息标识行；尺寸缺失 → 弹窗让用户选择。
-    if (snapshot.packagingKind !== 'boxed' && snapshot.packagingKind !== 'bagged') {
-      snapshot.packagingKind = await productDevelopmentResolvePackagingKind(snapshot).catch(() => 'bagged');
-    }
+    // The inline packaging setting overrides detection; missing dimensions need an explicit selection.
+    snapshot.packagingKind = await productDevelopmentResolvePackagingKind(snapshot);
     let zip = null;
     let zipEntries = null;
     let codec = null;
@@ -14423,6 +14395,7 @@
         180000,
         'PLM 成分表读取',
       );
+      snapshot.packagingKind = await productDevelopmentResolvePackagingKind(snapshot);
       const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
       productDevelopmentLog('success', '产品资料与成分读取完成', sku + ' | 成分=' + snapshot.ingredients.length + ' 项 | 用时=' + (Date.now() - startedAt) + 'ms');
       stage = '加载 DOCX 模板';
@@ -15202,7 +15175,9 @@
       : '<div class="pfh-product-development-one-shot-settings-product">' + productDevelopmentOneShotFieldHtml(input, 'productType', '产品类型', 'text') + '</div>';
     const ingredientTemplateHtml = isRegularLine ? '' : '<label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-one-shot-ingredient-template-input" aria-label="选择成分表模板">' + templateOptions + '</select></label>';
     const sheetSelectHtml = isRegularLine ? '' : '<label class="pfh-product-development-material-field"><span>参考工作表（可选）</span><select class="pfh-product-development-one-shot-ingredient-sheet-input" aria-label="选择参考工作表"' + (ingredientTemplate ? '' : ' disabled') + '>' + sheetOptions + '</select></label>';
-    return '<div class="pfh-cw-source"><div class="pfh-cw-product"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(sku || '未选择 SKU') + '</span></div><h3>生成设置</h3><div class="pfh-cw-settings">' + lineSelectHtml + ndcSelectHtml + productTypeHtml + ingredientTemplateHtml + sheetSelectHtml + '</div>' + productDevelopmentCopywritingToolbarHtml() + '</div>';
+    const packagingKind = ['boxed', 'bagged'].includes(input.packagingKind) ? input.packagingKind : '';
+    const packagingHtml = '<label class="pfh-product-development-material-field"><span>包装形式</span><select data-product-development-one-shot-field="packagingKind" aria-label="选择包装形式"><option value=""' + (!packagingKind ? ' selected' : '') + '>自动识别（按 PLM 尺寸）</option><option value="boxed"' + (packagingKind === 'boxed' ? ' selected' : '') + '>盒装 · 删除袋装窒息标识行</option><option value="bagged"' + (packagingKind === 'bagged' ? ' selected' : '') + '>袋装 · 保留窒息标识行</option></select><small>尺寸不完整时，请手动选择盒装或袋装。</small></label>';
+    return '<div class="pfh-cw-source"><div class="pfh-cw-product"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(sku || '未选择 SKU') + '</span></div><h3>生成设置</h3><div class="pfh-cw-settings">' + lineSelectHtml + ndcSelectHtml + packagingHtml + productTypeHtml + ingredientTemplateHtml + sheetSelectHtml + '</div>' + productDevelopmentCopywritingToolbarHtml() + '</div>';
   }
 
   function productDevelopmentOneShotEditorFieldHtml(value, key, label, type, multiline, wide) {
@@ -15360,7 +15335,7 @@
       : '<div class="pfh-product-development-one-shot-validation is-invalid"><strong>成分表仍需修正，暂不能导出</strong><span>' + validation.errors.map((item) => escapeHtml(item)).join('；') + '</span></div>';
     const footerChecked = !isPet && table.showFooter !== false;
     const copywritingAction = result.content
-      ? '<button type="button" class="pfh-product-development-one-shot-action-primary" data-action="product-development-one-shot-download-copywriting">下载文案 DOCX</button>'
+      ? ''
       : '<button type="button" class="pfh-product-development-one-shot-action-primary" data-action="product-development-copywriting-ingredient-confirm"' + (validation.valid && !state.productDevelopmentOneShotBusy ? '' : ' disabled') + '>' + (state.productDevelopmentOneShotBusy ? '正在生成文案…' : '确认成分表并生成文案') + '</button>';
     return '<section class="pfh-product-development-detail-form pfh-product-development-one-shot-editor"><header><div><small>' + (isPet ? 'PRODUCT FACTS PDF' : 'SUPPLEMENT FACTS PDF') + '</small><h3>编辑成分表草稿</h3></div><span>' + escapeHtml(String(result.snapshot && result.snapshot.englishName || (isPet ? 'Pet Nutrition Support' : 'Daily Wellness Support Drops'))) + '</span></header><div class="pfh-product-development-form-grid">' +
       productDevelopmentOneShotEditorFieldHtml(table, 'title', '标题', 'text', false, true) +
@@ -15545,7 +15520,7 @@
         productDevelopmentCopywritingIngredientPairHtml(input, 'regularIngredientsEn', 'regularIngredientsCn', isNdc ? '活性成分' : '') +
         (isNdc ? productDevelopmentCopywritingIngredientPairHtml(input, 'regularIngredientsInactiveEn', 'regularIngredientsInactiveCn', '非活性成分') : '') + '</section>';
       const actionLabel = state.productDevelopmentCopywritingBusy ? '正在生成文案…' : copywritingState && copywritingState.sku === sku && copywritingState.content ? '重新生成文案' : '生成文案';
-      return '<section class="pfh-cw-form"><fieldset class="pfh-cw-fields"' + (busy ? ' disabled' : '') + '>' + productDevelopmentOneShotSelectedSourceHtml(sku) + configHtml + '<div class="pfh-cw-actions"><button type="button" data-action="product-development-copywriting-regular-run"' + (busy || !sku ? ' disabled' : '') + '>' + actionLabel + '</button></div></fieldset></section>';
+      return '<section class="pfh-cw-form"><fieldset class="pfh-cw-fields"' + (busy ? ' disabled' : '') + '>' + productDevelopmentOneShotSelectedSourceHtml(sku) + '<div class="pfh-cw-compose">' + configHtml + '<div class="pfh-cw-actions"><button type="button" data-action="product-development-copywriting-regular-run"' + (busy || !sku ? ' disabled' : '') + '>' + actionLabel + '</button>' + productDevelopmentCopywritingDownloadButtonHtml(sku) + '</div></div></fieldset></section>';
     }
     const configHtml = result ? '' : '<div class="pfh-product-development-one-shot-inputs">' +
       productDevelopmentOneShotFieldHtml(input, 'netContent', '净含量', 'text') +
@@ -15555,7 +15530,7 @@
       (isPet ? '' : productDevelopmentOneShotFieldHtml(input, 'targetActivePercent', '标准化活性目标（可选，%）', 'number')) +
       '<div class="pfh-cw-pair-wrap">' + productDevelopmentCopywritingIngredientPairHtml(input, 'otherIngredientsEn', 'otherIngredientsCn', isPet ? '非活性成分（可选）' : '其他成分（可选）') + '</div>' +
       '</div>';
-    return '<section class="pfh-cw-form"><fieldset class="pfh-cw-fields"' + (busy ? ' disabled' : '') + '>' + productDevelopmentOneShotSelectedSourceHtml(sku) + '<section class="pfh-cw-ingredients"><header><h3>成分与用量</h3><span>生成后确认成分表，或直接读取 PLM</span></header>' + configHtml + '</section><div class="pfh-cw-actions"><button type="button" data-action="product-development-copywriting-ingredient-run"' + (busy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentOneShotBusy ? '正在处理…' : result ? '重新生成成分表' : '生成成分表') + '</button><button type="button" class="is-secondary" data-action="product-development-copywriting-run"' + (busy || !sku ? ' disabled' : '') + '>读取 PLM 成分表生成文案</button></div></fieldset></section>' + productDevelopmentOneShotResultHtml(result);
+    return '<section class="pfh-cw-form"><fieldset class="pfh-cw-fields"' + (busy ? ' disabled' : '') + '>' + productDevelopmentOneShotSelectedSourceHtml(sku) + '<div class="pfh-cw-compose"><section class="pfh-cw-ingredients"><header><h3>成分与用量</h3><span>生成后确认成分表，或直接读取 PLM</span></header>' + configHtml + '</section><div class="pfh-cw-actions"><button type="button" data-action="product-development-copywriting-ingredient-run"' + (busy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentOneShotBusy ? '正在处理…' : result ? '重新生成成分表' : '生成成分表') + '</button><button type="button" class="is-secondary" data-action="product-development-copywriting-run"' + (busy || !sku ? ' disabled' : '') + '>读取 PLM 成分表生成文案</button>' + productDevelopmentCopywritingDownloadButtonHtml(sku) + '</div></div></fieldset></section>' + productDevelopmentOneShotResultHtml(result);
   }
 
   function productDevelopmentOneShotUpdateInlineValidation() {
@@ -15693,9 +15668,9 @@
       .filter((item) => regular ? item.id === productDevelopmentRegularCopywritingTemplateIdForKind(productDevelopmentEffectiveRegularNdcKind()) : !productDevelopmentIsRegularCopywritingTemplateId(item.id))
       .map((item) => '<option value="' + escapeHtml(item.id) + '"' + (item.id === template.id ? ' selected' : '') + '>' + escapeHtml(item.label + '文案模板') + '</option>')
       .concat(state.productDevelopmentTemplateBase64 ? ['<option value="local"' + (template.local ? ' selected' : '') + '>本地自定义模板</option>'] : []).join('');
-    const moreItems = '<button type="button" role="menuitem" data-action="product-development-template-import">' + iconHtml('upload') + '<span>导入 DOCX 模板</span></button>' +
-      '<button type="button" role="menuitem" data-action="product-development-template-reset"' + (state.productDevelopmentTemplateBase64 ? '' : ' disabled') + '>' + iconHtml('refresh') + '<span>恢复内置模板</span></button>';
-    return '<div class="pfh-cw-template-row"><label class="pfh-product-development-material-field"><span>文案模板</span><select class="pfh-product-development-copywriting-template-input" aria-label="选择文案模板">' + templateOptions + '</select></label><div class="pfh-cw-tools"><button type="button" class="pfh-cw-tools-toggle" data-action="product-development-copywriting-more" aria-expanded="false" aria-controls="pfh-cw-template-menu" aria-haspopup="menu">模板工具' + iconHtml('chevronDown') + '</button><div class="pfh-cw-tools-menu" id="pfh-cw-template-menu" role="menu" aria-label="模板工具">' + moreItems + '</div></div><input hidden type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"><p>来源：' + (template.local ? '本地自定义模板' : '内置模板 · 根据产品线' + (regular ? '和 NDC 类型' : '及所选剂型') + '匹配') + '</p></div>';
+    const moreItems = '<button type="button" role="menuitem" data-action="product-development-template-import">导入 DOCX 模板</button>' +
+      '<button type="button" role="menuitem" data-action="product-development-template-reset"' + (state.productDevelopmentTemplateBase64 ? '' : ' disabled') + '>恢复内置模板</button>';
+    return '<div class="pfh-cw-template-row"><label class="pfh-product-development-material-field"><span>文案模板</span><select class="pfh-product-development-copywriting-template-input" aria-label="选择文案模板">' + templateOptions + '</select></label><div class="pfh-cw-tools"><button type="button" class="pfh-cw-tools-toggle" data-action="product-development-copywriting-more" aria-expanded="false" aria-controls="pfh-cw-template-menu" aria-haspopup="menu">模板工具</button><div class="pfh-cw-tools-menu" id="pfh-cw-template-menu" role="menu" aria-label="模板工具">' + moreItems + '</div></div><input hidden type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"><p>来源：' + (template.local ? '本地自定义模板' : '内置模板 · 根据产品线' + (regular ? '和 NDC 类型' : '及所选剂型') + '匹配') + '</p></div>';
   }
 
   let productDevelopmentCopywritingProgressTimer = 0;
@@ -15774,7 +15749,7 @@
     const label = progress.status === 'complete' ? '已完成' : progress.status === 'error' ? '失败：' + progress.stages[progress.index] : progress.stages[progress.index];
     return '<header><h3>生成进度</h3><span data-cw-elapsed>已用时 ' + elapsed + '</span></header><ol>' + progress.stages.map((item, index) => {
       const status = progress.status === 'complete' || index < progress.index ? 'complete' : index === progress.index ? progress.status : 'pending';
-      return '<li class="is-' + status + '"' + (index === progress.index && progress.status === 'running' ? ' aria-current="step"' : '') + '><span class="pfh-cw-step-icon">' + (status === 'complete' ? iconHtml('check') : status === 'error' ? iconHtml('warning') : '<i></i>') + '</span>' + escapeHtml(item) + '</li>';
+      return '<li class="is-' + status + '"' + (index === progress.index && progress.status === 'running' ? ' aria-current="step"' : '') + '><span class="pfh-cw-step-icon" aria-hidden="true"><i></i></span>' + escapeHtml(item) + '</li>';
     }).join('') + '</ol><p role="status">' + escapeHtml(label) + (progress.status === 'running' ? '…' : '') + '</p>' + (progress.error ? '<p class="pfh-cw-progress-error">' + escapeHtml(progress.error) + '。输入与已有结果已保留，可重新生成。</p>' : '');
   }
 
@@ -15799,8 +15774,13 @@
 
   function productDevelopmentCopywritingResultHeaderHtml(result, content) {
     if (!content) return '';
-    const busy = state.productDevelopmentOneShotBusy || state.productDevelopmentCopywritingBusy;
-    return '<header class="pfh-cw-result-head"><div><h3>文案结果</h3><p data-cw-result-status>' + escapeHtml(state.productDevelopmentCopywritingDirtySku === getProductDevelopmentCurrentSku() ? '输入已修改，当前为上次生成结果；请重新生成' : result && result.templateLabel || '当前模板') + '</p></div><div><button type="button" data-action="product-development-copywriting-copy">' + iconHtml('copy') + '复制全文</button><button type="button" data-action="product-development-copywriting-download"' + (busy ? ' disabled' : '') + '>下载 DOCX</button></div></header>';
+    return '<header class="pfh-cw-result-head"><div><h3>文案结果</h3><p data-cw-result-status>' + escapeHtml(state.productDevelopmentCopywritingDirtySku === getProductDevelopmentCurrentSku() ? '输入已修改，当前为上次生成结果；请重新生成' : result && result.templateLabel || '当前模板') + '</p></div><div><button type="button" data-action="product-development-copywriting-copy">复制全文</button></div></header>';
+  }
+
+  function productDevelopmentCopywritingDownloadButtonHtml(sku) {
+    const result = state.productDevelopmentCopywriting;
+    const ready = Boolean(result && result.content && (result.sku === sku || result.fromHistory) && !state.productDevelopmentOneShotBusy && !state.productDevelopmentCopywritingBusy);
+    return '<button type="button" class="pfh-cw-download' + (ready ? ' is-ready' : '') + '" data-action="product-development-copywriting-download"' + (ready ? '' : ' disabled') + '>下载文档</button>';
   }
 
   function productDevelopmentCopywritingHtml() {
@@ -16785,6 +16765,7 @@
     let stage = '准备文案生成';
     const startedAt = Date.now();
     try {
+      copySnapshot.packagingKind = await productDevelopmentResolvePackagingKind(copySnapshot);
       stage = '生成 文案';
       const response = await withCopywritingTimeout(cloudRequest('/ai-image/product-development-copywriting', {
         method: 'POST',
@@ -16926,6 +16907,7 @@
         180000,
         '产品资料读取',
       );
+      snapshot.packagingKind = await productDevelopmentResolvePackagingKind(snapshot);
       state.productDevelopmentSnapshot = snapshot;
       const referenceUrl = productDevelopmentCopywritingReferenceUrl(input, snapshot);
       const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
@@ -18130,6 +18112,22 @@
         state.productDevelopmentOneShotInput[oneShotField + 'Explicit'] = nextValue.trim() ? 'true' : 'false';
       }
       saveProductDevelopmentOneShotDraft(state.productDevelopmentOneShotInput);
+      if (oneShotField === 'packagingKind') {
+        const snapshot = state.productDevelopmentSnapshot;
+        if (snapshot && snapshot.sku === getProductDevelopmentCurrentSku()) snapshot.packagingKind = ['boxed', 'bagged'].includes(nextValue) ? nextValue : '';
+        const result = state.productDevelopmentCopywriting;
+        if (result && result.sku === getProductDevelopmentCurrentSku() && result.content) {
+          result.snapshot = { ...result.snapshot, packagingKind: ['boxed', 'bagged'].includes(nextValue) ? nextValue : '' };
+          result.blob = null;
+          saveProductDevelopmentCopywritingCache(result);
+        }
+        const oneShot = state.productDevelopmentOneShotResult;
+        if (oneShot && oneShot.sku === getProductDevelopmentCurrentSku()) {
+          oneShot.snapshot = { ...oneShot.snapshot, packagingKind: ['boxed', 'bagged'].includes(nextValue) ? nextValue : '' };
+          oneShot.docxBlob = null;
+        }
+        return true;
+      }
       productDevelopmentCopywritingMarkDirty();
       productDevelopmentCopywritingUpdateIngredientCounts();
       return true;

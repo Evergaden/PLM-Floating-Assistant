@@ -636,6 +636,22 @@
         state.productDevelopmentOneShotInput[oneShotField + 'Explicit'] = nextValue.trim() ? 'true' : 'false';
       }
       saveProductDevelopmentOneShotDraft(state.productDevelopmentOneShotInput);
+      if (oneShotField === 'packagingKind') {
+        const snapshot = state.productDevelopmentSnapshot;
+        if (snapshot && snapshot.sku === getProductDevelopmentCurrentSku()) snapshot.packagingKind = ['boxed', 'bagged'].includes(nextValue) ? nextValue : '';
+        const result = state.productDevelopmentCopywriting;
+        if (result && result.sku === getProductDevelopmentCurrentSku() && result.content) {
+          result.snapshot = { ...result.snapshot, packagingKind: ['boxed', 'bagged'].includes(nextValue) ? nextValue : '' };
+          result.blob = null;
+          saveProductDevelopmentCopywritingCache(result);
+        }
+        const oneShot = state.productDevelopmentOneShotResult;
+        if (oneShot && oneShot.sku === getProductDevelopmentCurrentSku()) {
+          oneShot.snapshot = { ...oneShot.snapshot, packagingKind: ['boxed', 'bagged'].includes(nextValue) ? nextValue : '' };
+          oneShot.docxBlob = null;
+        }
+        return true;
+      }
       productDevelopmentCopywritingMarkDirty();
       productDevelopmentCopywritingUpdateIngredientCounts();
       return true;

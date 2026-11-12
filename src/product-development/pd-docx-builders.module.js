@@ -1,10 +1,8 @@
 
   async function buildProductDevelopmentDocx(content, templateSource, snapshot) {
     snapshot = snapshot && typeof snapshot === 'object' ? snapshot : {};
-    // 盒装（外包装长宽高齐全）→ 删除袋装窒息标识行；尺寸缺失 → 弹窗让用户选择。
-    if (snapshot.packagingKind !== 'boxed' && snapshot.packagingKind !== 'bagged') {
-      snapshot.packagingKind = await productDevelopmentResolvePackagingKind(snapshot).catch(() => 'bagged');
-    }
+    // The inline packaging setting overrides detection; missing dimensions need an explicit selection.
+    snapshot.packagingKind = await productDevelopmentResolvePackagingKind(snapshot);
     let zip = null;
     let zipEntries = null;
     let codec = null;

@@ -241,6 +241,7 @@
     let stage = '准备文案生成';
     const startedAt = Date.now();
     try {
+      copySnapshot.packagingKind = await productDevelopmentResolvePackagingKind(copySnapshot);
       stage = '生成 文案';
       const response = await withCopywritingTimeout(cloudRequest('/ai-image/product-development-copywriting', {
         method: 'POST',
@@ -382,6 +383,7 @@
         180000,
         '产品资料读取',
       );
+      snapshot.packagingKind = await productDevelopmentResolvePackagingKind(snapshot);
       state.productDevelopmentSnapshot = snapshot;
       const referenceUrl = productDevelopmentCopywritingReferenceUrl(input, snapshot);
       const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();

@@ -28,6 +28,7 @@
         180000,
         'PLM 成分表读取',
       );
+      snapshot.packagingKind = await productDevelopmentResolvePackagingKind(snapshot);
       const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
       productDevelopmentLog('success', '产品资料与成分读取完成', sku + ' | 成分=' + snapshot.ingredients.length + ' 项 | 用时=' + (Date.now() - startedAt) + 'ms');
       stage = '加载 DOCX 模板';
@@ -807,7 +808,9 @@
       : '<div class="pfh-product-development-one-shot-settings-product">' + productDevelopmentOneShotFieldHtml(input, 'productType', '产品类型', 'text') + '</div>';
     const ingredientTemplateHtml = isRegularLine ? '' : '<label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-one-shot-ingredient-template-input" aria-label="选择成分表模板">' + templateOptions + '</select></label>';
     const sheetSelectHtml = isRegularLine ? '' : '<label class="pfh-product-development-material-field"><span>参考工作表（可选）</span><select class="pfh-product-development-one-shot-ingredient-sheet-input" aria-label="选择参考工作表"' + (ingredientTemplate ? '' : ' disabled') + '>' + sheetOptions + '</select></label>';
-    return '<div class="pfh-cw-source"><div class="pfh-cw-product"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(sku || '未选择 SKU') + '</span></div><h3>生成设置</h3><div class="pfh-cw-settings">' + lineSelectHtml + ndcSelectHtml + productTypeHtml + ingredientTemplateHtml + sheetSelectHtml + '</div>' + productDevelopmentCopywritingToolbarHtml() + '</div>';
+    const packagingKind = ['boxed', 'bagged'].includes(input.packagingKind) ? input.packagingKind : '';
+    const packagingHtml = '<label class="pfh-product-development-material-field"><span>包装形式</span><select data-product-development-one-shot-field="packagingKind" aria-label="选择包装形式"><option value=""' + (!packagingKind ? ' selected' : '') + '>自动识别（按 PLM 尺寸）</option><option value="boxed"' + (packagingKind === 'boxed' ? ' selected' : '') + '>盒装 · 删除袋装窒息标识行</option><option value="bagged"' + (packagingKind === 'bagged' ? ' selected' : '') + '>袋装 · 保留窒息标识行</option></select><small>尺寸不完整时，请手动选择盒装或袋装。</small></label>';
+    return '<div class="pfh-cw-source"><div class="pfh-cw-product"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(sku || '未选择 SKU') + '</span></div><h3>生成设置</h3><div class="pfh-cw-settings">' + lineSelectHtml + ndcSelectHtml + packagingHtml + productTypeHtml + ingredientTemplateHtml + sheetSelectHtml + '</div>' + productDevelopmentCopywritingToolbarHtml() + '</div>';
   }
 
   function productDevelopmentOneShotEditorFieldHtml(value, key, label, type, multiline, wide) {
@@ -965,7 +968,7 @@
       : '<div class="pfh-product-development-one-shot-validation is-invalid"><strong>成分表仍需修正，暂不能导出</strong><span>' + validation.errors.map((item) => escapeHtml(item)).join('；') + '</span></div>';
     const footerChecked = !isPet && table.showFooter !== false;
     const copywritingAction = result.content
-      ? '<button type="button" class="pfh-product-development-one-shot-action-primary" data-action="product-development-one-shot-download-copywriting">下载文案 DOCX</button>'
+      ? ''
       : '<button type="button" class="pfh-product-development-one-shot-action-primary" data-action="product-development-copywriting-ingredient-confirm"' + (validation.valid && !state.productDevelopmentOneShotBusy ? '' : ' disabled') + '>' + (state.productDevelopmentOneShotBusy ? '正在生成文案…' : '确认成分表并生成文案') + '</button>';
     return '<section class="pfh-product-development-detail-form pfh-product-development-one-shot-editor"><header><div><small>' + (isPet ? 'PRODUCT FACTS PDF' : 'SUPPLEMENT FACTS PDF') + '</small><h3>编辑成分表草稿</h3></div><span>' + escapeHtml(String(result.snapshot && result.snapshot.englishName || (isPet ? 'Pet Nutrition Support' : 'Daily Wellness Support Drops'))) + '</span></header><div class="pfh-product-development-form-grid">' +
       productDevelopmentOneShotEditorFieldHtml(table, 'title', '标题', 'text', false, true) +
@@ -1150,7 +1153,7 @@
         productDevelopmentCopywritingIngredientPairHtml(input, 'regularIngredientsEn', 'regularIngredientsCn', isNdc ? '活性成分' : '') +
         (isNdc ? productDevelopmentCopywritingIngredientPairHtml(input, 'regularIngredientsInactiveEn', 'regularIngredientsInactiveCn', '非活性成分') : '') + '</section>';
       const actionLabel = state.productDevelopmentCopywritingBusy ? '正在生成文案…' : copywritingState && copywritingState.sku === sku && copywritingState.content ? '重新生成文案' : '生成文案';
-      return '<section class="pfh-cw-form"><fieldset class="pfh-cw-fields"' + (busy ? ' disabled' : '') + '>' + productDevelopmentOneShotSelectedSourceHtml(sku) + configHtml + '<div class="pfh-cw-actions"><button type="button" data-action="product-development-copywriting-regular-run"' + (busy || !sku ? ' disabled' : '') + '>' + actionLabel + '</button></div></fieldset></section>';
+      return '<section class="pfh-cw-form"><fieldset class="pfh-cw-fields"' + (busy ? ' disabled' : '') + '>' + productDevelopmentOneShotSelectedSourceHtml(sku) + '<div class="pfh-cw-compose">' + configHtml + '<div class="pfh-cw-actions"><button type="button" data-action="product-development-copywriting-regular-run"' + (busy || !sku ? ' disabled' : '') + '>' + actionLabel + '</button>' + productDevelopmentCopywritingDownloadButtonHtml(sku) + '</div></div></fieldset></section>';
     }
     const configHtml = result ? '' : '<div class="pfh-product-development-one-shot-inputs">' +
       productDevelopmentOneShotFieldHtml(input, 'netContent', '净含量', 'text') +
@@ -1160,7 +1163,7 @@
       (isPet ? '' : productDevelopmentOneShotFieldHtml(input, 'targetActivePercent', '标准化活性目标（可选，%）', 'number')) +
       '<div class="pfh-cw-pair-wrap">' + productDevelopmentCopywritingIngredientPairHtml(input, 'otherIngredientsEn', 'otherIngredientsCn', isPet ? '非活性成分（可选）' : '其他成分（可选）') + '</div>' +
       '</div>';
-    return '<section class="pfh-cw-form"><fieldset class="pfh-cw-fields"' + (busy ? ' disabled' : '') + '>' + productDevelopmentOneShotSelectedSourceHtml(sku) + '<section class="pfh-cw-ingredients"><header><h3>成分与用量</h3><span>生成后确认成分表，或直接读取 PLM</span></header>' + configHtml + '</section><div class="pfh-cw-actions"><button type="button" data-action="product-development-copywriting-ingredient-run"' + (busy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentOneShotBusy ? '正在处理…' : result ? '重新生成成分表' : '生成成分表') + '</button><button type="button" class="is-secondary" data-action="product-development-copywriting-run"' + (busy || !sku ? ' disabled' : '') + '>读取 PLM 成分表生成文案</button></div></fieldset></section>' + productDevelopmentOneShotResultHtml(result);
+    return '<section class="pfh-cw-form"><fieldset class="pfh-cw-fields"' + (busy ? ' disabled' : '') + '>' + productDevelopmentOneShotSelectedSourceHtml(sku) + '<div class="pfh-cw-compose"><section class="pfh-cw-ingredients"><header><h3>成分与用量</h3><span>生成后确认成分表，或直接读取 PLM</span></header>' + configHtml + '</section><div class="pfh-cw-actions"><button type="button" data-action="product-development-copywriting-ingredient-run"' + (busy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentOneShotBusy ? '正在处理…' : result ? '重新生成成分表' : '生成成分表') + '</button><button type="button" class="is-secondary" data-action="product-development-copywriting-run"' + (busy || !sku ? ' disabled' : '') + '>读取 PLM 成分表生成文案</button>' + productDevelopmentCopywritingDownloadButtonHtml(sku) + '</div></div></fieldset></section>' + productDevelopmentOneShotResultHtml(result);
   }
 
   function productDevelopmentOneShotUpdateInlineValidation() {
@@ -1298,9 +1301,9 @@
       .filter((item) => regular ? item.id === productDevelopmentRegularCopywritingTemplateIdForKind(productDevelopmentEffectiveRegularNdcKind()) : !productDevelopmentIsRegularCopywritingTemplateId(item.id))
       .map((item) => '<option value="' + escapeHtml(item.id) + '"' + (item.id === template.id ? ' selected' : '') + '>' + escapeHtml(item.label + '文案模板') + '</option>')
       .concat(state.productDevelopmentTemplateBase64 ? ['<option value="local"' + (template.local ? ' selected' : '') + '>本地自定义模板</option>'] : []).join('');
-    const moreItems = '<button type="button" role="menuitem" data-action="product-development-template-import">' + iconHtml('upload') + '<span>导入 DOCX 模板</span></button>' +
-      '<button type="button" role="menuitem" data-action="product-development-template-reset"' + (state.productDevelopmentTemplateBase64 ? '' : ' disabled') + '>' + iconHtml('refresh') + '<span>恢复内置模板</span></button>';
-    return '<div class="pfh-cw-template-row"><label class="pfh-product-development-material-field"><span>文案模板</span><select class="pfh-product-development-copywriting-template-input" aria-label="选择文案模板">' + templateOptions + '</select></label><div class="pfh-cw-tools"><button type="button" class="pfh-cw-tools-toggle" data-action="product-development-copywriting-more" aria-expanded="false" aria-controls="pfh-cw-template-menu" aria-haspopup="menu">模板工具' + iconHtml('chevronDown') + '</button><div class="pfh-cw-tools-menu" id="pfh-cw-template-menu" role="menu" aria-label="模板工具">' + moreItems + '</div></div><input hidden type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"><p>来源：' + (template.local ? '本地自定义模板' : '内置模板 · 根据产品线' + (regular ? '和 NDC 类型' : '及所选剂型') + '匹配') + '</p></div>';
+    const moreItems = '<button type="button" role="menuitem" data-action="product-development-template-import">导入 DOCX 模板</button>' +
+      '<button type="button" role="menuitem" data-action="product-development-template-reset"' + (state.productDevelopmentTemplateBase64 ? '' : ' disabled') + '>恢复内置模板</button>';
+    return '<div class="pfh-cw-template-row"><label class="pfh-product-development-material-field"><span>文案模板</span><select class="pfh-product-development-copywriting-template-input" aria-label="选择文案模板">' + templateOptions + '</select></label><div class="pfh-cw-tools"><button type="button" class="pfh-cw-tools-toggle" data-action="product-development-copywriting-more" aria-expanded="false" aria-controls="pfh-cw-template-menu" aria-haspopup="menu">模板工具</button><div class="pfh-cw-tools-menu" id="pfh-cw-template-menu" role="menu" aria-label="模板工具">' + moreItems + '</div></div><input hidden type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"><p>来源：' + (template.local ? '本地自定义模板' : '内置模板 · 根据产品线' + (regular ? '和 NDC 类型' : '及所选剂型') + '匹配') + '</p></div>';
   }
 
   let productDevelopmentCopywritingProgressTimer = 0;
@@ -1379,7 +1382,7 @@
     const label = progress.status === 'complete' ? '已完成' : progress.status === 'error' ? '失败：' + progress.stages[progress.index] : progress.stages[progress.index];
     return '<header><h3>生成进度</h3><span data-cw-elapsed>已用时 ' + elapsed + '</span></header><ol>' + progress.stages.map((item, index) => {
       const status = progress.status === 'complete' || index < progress.index ? 'complete' : index === progress.index ? progress.status : 'pending';
-      return '<li class="is-' + status + '"' + (index === progress.index && progress.status === 'running' ? ' aria-current="step"' : '') + '><span class="pfh-cw-step-icon">' + (status === 'complete' ? iconHtml('check') : status === 'error' ? iconHtml('warning') : '<i></i>') + '</span>' + escapeHtml(item) + '</li>';
+      return '<li class="is-' + status + '"' + (index === progress.index && progress.status === 'running' ? ' aria-current="step"' : '') + '><span class="pfh-cw-step-icon" aria-hidden="true"><i></i></span>' + escapeHtml(item) + '</li>';
     }).join('') + '</ol><p role="status">' + escapeHtml(label) + (progress.status === 'running' ? '…' : '') + '</p>' + (progress.error ? '<p class="pfh-cw-progress-error">' + escapeHtml(progress.error) + '。输入与已有结果已保留，可重新生成。</p>' : '');
   }
 
@@ -1404,8 +1407,13 @@
 
   function productDevelopmentCopywritingResultHeaderHtml(result, content) {
     if (!content) return '';
-    const busy = state.productDevelopmentOneShotBusy || state.productDevelopmentCopywritingBusy;
-    return '<header class="pfh-cw-result-head"><div><h3>文案结果</h3><p data-cw-result-status>' + escapeHtml(state.productDevelopmentCopywritingDirtySku === getProductDevelopmentCurrentSku() ? '输入已修改，当前为上次生成结果；请重新生成' : result && result.templateLabel || '当前模板') + '</p></div><div><button type="button" data-action="product-development-copywriting-copy">' + iconHtml('copy') + '复制全文</button><button type="button" data-action="product-development-copywriting-download"' + (busy ? ' disabled' : '') + '>下载 DOCX</button></div></header>';
+    return '<header class="pfh-cw-result-head"><div><h3>文案结果</h3><p data-cw-result-status>' + escapeHtml(state.productDevelopmentCopywritingDirtySku === getProductDevelopmentCurrentSku() ? '输入已修改，当前为上次生成结果；请重新生成' : result && result.templateLabel || '当前模板') + '</p></div><div><button type="button" data-action="product-development-copywriting-copy">复制全文</button></div></header>';
+  }
+
+  function productDevelopmentCopywritingDownloadButtonHtml(sku) {
+    const result = state.productDevelopmentCopywriting;
+    const ready = Boolean(result && result.content && (result.sku === sku || result.fromHistory) && !state.productDevelopmentOneShotBusy && !state.productDevelopmentCopywritingBusy);
+    return '<button type="button" class="pfh-cw-download' + (ready ? ' is-ready' : '') + '" data-action="product-development-copywriting-download"' + (ready ? '' : ' disabled') + '>下载文档</button>';
   }
 
   function productDevelopmentCopywritingHtml() {

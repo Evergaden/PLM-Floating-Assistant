@@ -45,6 +45,9 @@ const context = vm.createContext({
 });
 vm.runInContext(read('src/product-development/pd-copywriting-run.module.js'), context);
 vm.runInContext(read('src/product-development/pd-batch-runners.module.js'), context);
+const syncSource = read('src/product-development/pd-task-sync.module.js');
+const packagingStart = syncSource.indexOf('  function productDevelopmentResolvePackagingKind(');
+vm.runInContext(syncSource.slice(packagingStart, syncSource.indexOf('\n  }', packagingStart) + 4), context);
 // Fixtures replace unrelated template-library and draft-persistence integrations.
 context.productDevelopmentOneShotInputForRender = () => state.productDevelopmentOneShotInput;
 context.productDevelopmentOneShotIngredientTemplate = () => null;
@@ -58,6 +61,9 @@ assert.equal(panel.querySelectorAll('.pfh-cw-template-row').length, 1, 'One temp
 assert.equal(panel.querySelector('.pfh-product-development-copywriting-template-input').value, 'regular-non-ndc');
 assert.equal(panel.querySelectorAll('.pfh-product-development-copywriting-template-input option').length, 1, 'Food templates cannot conflict with regular product classification');
 assert.equal(panel.querySelectorAll('.pfh-cw-pair textarea').length, 2);
+assert.equal(panel.querySelectorAll('[data-product-development-one-shot-field="packagingKind"] option').length, 3, 'Packaging choices live in the form');
+assert.equal(panel.querySelectorAll('.pfh-cw-tools svg').length, 0, 'Template tools are text-only');
+assert.equal(panel.querySelector('.pfh-cw-actions [data-action="product-development-copywriting-download"]').disabled, true);
 assert.match(panel.querySelector('[data-cw-ingredient-count]').textContent, /英文已识别 2 项 · 中文已识别 2 项/);
 const english = panel.querySelector('textarea');
 english.scrollTop = 55;
@@ -98,6 +104,11 @@ context.productDevelopmentCopywritingDismissTools({ target: panel });
 assert.equal(toggle.getAttribute('aria-expanded'), 'false', 'Outside clicks close the menu');
 
 async function run() {
+  assert.equal(await context.productDevelopmentResolvePackagingKind({ sku: 'SKU1', outerDimensions: [1, 2, 3] }), 'boxed');
+  await assert.rejects(context.productDevelopmentResolvePackagingKind({ sku: 'SKU1' }), /生成设置/);
+  state.productDevelopmentOneShotInput.packagingKind = 'bagged';
+  assert.equal(await context.productDevelopmentResolvePackagingKind({ sku: 'SKU1', packagingKind: 'boxed', outerDimensions: [1, 2, 3] }), 'bagged', 'Inline selection overrides detected and cached packaging');
+  state.productDevelopmentOneShotInput.packagingKind = 'boxed';
   state.productDevelopmentCopywritingTemplateId = 'regular-ndc';
   state.productDevelopmentOneShotInput.regularNdcKind = 'ndc';
   panel.innerHTML = '<textarea id="draft">Keep this input</textarea><section data-cw-progress></section>';
@@ -118,6 +129,11 @@ async function run() {
   assert.equal(state.productDevelopmentCopywriting.blob.size, 42);
   assert.equal(timers.size, 0, 'Timer stops after completion');
   assert.equal(renders, 2);
+  const buttonHost = document.createElement('div');
+  buttonHost.innerHTML = context.productDevelopmentCopywritingDownloadButtonHtml('SKU1');
+  assert.equal(buttonHost.firstElementChild.textContent, '下载文档');
+  assert.equal(buttonHost.firstElementChild.classList.contains('is-ready'), true, 'Available document downloads are highlighted');
+  assert.equal(buttonHost.firstElementChild.disabled, false);
   const previousResult = state.productDevelopmentCopywriting;
   context.cloudRequest = async () => { throw new Error('AI unavailable'); };
   await context.runProductDevelopmentRegularCopywriting();
@@ -126,6 +142,13 @@ async function run() {
   assert.equal(state.productDevelopmentCopywriting, previousResult, 'Failed regeneration retains the previous result');
   assert.equal(state.productDevelopmentOneShotInput.regularIngredientsEn.includes('1,2-HEXANEDIOL'), true);
   assert.equal(timers.size, 0, 'Timer also stops after failure');
+  state.productDevelopmentOneShotInput.packagingKind = '';
+  let requests = 0;
+  context.cloudRequest = async () => { requests++; };
+  await context.runProductDevelopmentRegularCopywriting();
+  assert.equal(requests, 0, 'Unknown packaging is rejected before spending an AI request');
+  assert.match(state.productDevelopmentError, /生成设置/);
+  assert.equal(document.querySelector('[data-packaging-dialog]'), null, 'No packaging modal is mounted');
   console.log('Copywriting workspace: classification/template consistency, bilingual grouping/counts, accessible tools, real async stages and failure preservation passed');
 }
 run().catch((error) => { console.error(error); process.exitCode = 1; });

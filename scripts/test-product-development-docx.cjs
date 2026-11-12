@@ -47,6 +47,7 @@ let currentDoc;
 let outputDoc;
 const context = vm.createContext({
   Blob,
+  state: {},
   PRODUCT_DEVELOPMENT_W_NS: 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
   DOMParser: class { parseFromString() { return currentDoc.cloneNode(true); } },
   XMLSerializer: class { serializeToString(doc) { outputDoc = doc; return 'validated by DOM assertions'; } },
@@ -65,6 +66,7 @@ vm.runInContext(extract(views, 'productDevelopmentCopywritingReferenceUrl'), con
 vm.runInContext(extract(review, 'productDevelopmentNormalizeCopywritingTitle'), context);
 vm.runInContext(extract(review, 'productDevelopmentNormalizeCopywriting'), context);
 vm.runInContext(read('pd-docx-builders'), context);
+vm.runInContext(extract(read('pd-task-sync'), 'productDevelopmentResolvePackagingKind'), context);
 const elements = (node, name) => Array.from(context.productDevelopmentXmlElements(node, name));
 const rows = () => elements(outputDoc, 'tr');
 const findCell = (label, index = 1) => elements(rows().find((node) => context.productDevelopmentCellText(elements(node, 'tc')[0]) === label), 'tc')[index];

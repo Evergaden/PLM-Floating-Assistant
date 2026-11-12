@@ -646,43 +646,16 @@
     return values.every((value) => value !== null) ? values : null;
   }
 
-  function productDevelopmentPackagingDialog(sku) {
-    return new Promise((resolve) => {
-      const overlay = document.createElement('div');
-      overlay.setAttribute('data-packaging-dialog', '1');
-      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:rgba(30,23,61,.32);backdrop-filter:blur(4px);';
-      const close = (kind) => {
-        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        document.removeEventListener('keydown', onKey, true);
-        resolve(kind);
-      };
-      const onKey = (event) => {
-        if (event.key === 'Escape') close('bagged');
-      };
-      document.addEventListener('keydown', onKey, true);
-      const buttonStyle = 'min-height:36px;padding:0 14px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:10px;background:var(--pfh-theme-surface-alt,#fbfaff);color:var(--pfh-theme-text,#253047);font-size:12px;cursor:pointer;text-align:left;';
-      overlay.innerHTML = '<section role="dialog" aria-modal="true" aria-label="选择包装形式" style="width:360px;max-width:calc(100vw - 40px);border-radius:18px;background:var(--pfh-theme-surface,#fff);color:var(--pfh-theme-text,#253047);box-shadow:0 24px 80px rgba(30,23,61,.25);padding:20px 22px;font-size:13px;display:grid;gap:14px;">'
-        + '<div style="display:grid;gap:5px;"><strong style="font-size:15px;">PLM 未填写外包装长宽高</strong><span style="color:var(--pfh-theme-muted,#7a82a0);font-size:11px;">SKU ' + productDevelopmentXmlSafeText(String(sku || '')) + '：无法自动判断袋装/盒装，请选择包装形式</span></div>'
-        + '<div style="display:grid;gap:8px;">'
-        + '<button type="button" data-kind="boxed" style="' + buttonStyle + '">盒装 · 删除袋装窒息标识行</button>'
-        + '<button type="button" data-kind="bagged" style="' + buttonStyle + '">袋装 · 保留窒息标识行</button>'
-        + '</div></section>';
-      overlay.addEventListener('click', (event) => {
-        const button = event.target && typeof event.target.closest === 'function' ? event.target.closest('button[data-kind]') : null;
-        if (button) close(button.getAttribute('data-kind') === 'boxed' ? 'boxed' : 'bagged');
-      });
-      document.body.appendChild(overlay);
-    });
-  }
-
   function productDevelopmentResolvePackagingKind(snapshot) {
     const source = snapshot && typeof snapshot === 'object' ? snapshot : null;
+    const draft = state.productDevelopmentOneShotInput || {};
+    const sku = String(source && source.sku || '').trim().toUpperCase();
+    if (sku && String(draft.sku || '').trim().toUpperCase() === sku && ['boxed', 'bagged'].includes(draft.packagingKind)) return Promise.resolve(draft.packagingKind);
     if (source && (source.packagingKind === 'boxed' || source.packagingKind === 'bagged')) return Promise.resolve(source.packagingKind);
     const dims = source && Array.isArray(source.outerDimensions) && source.outerDimensions.length === 3
       && source.outerDimensions.every((value) => Number(value) > 0);
     if (dims) return Promise.resolve('boxed');
     // 外包装长宽高缺失时，回退用已缓存的纸盒三维尺寸判断：有纸盒尺寸 → 盒装。
-    const sku = String(source && source.sku || '').trim().toUpperCase();
     const detail = (state.productDevelopmentTaskDetailData && state.productDevelopmentTaskDetailData[sku])
       || (state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku])
       || null;
@@ -691,7 +664,7 @@
       productDevelopmentLog('info', 'PLM 外包装长宽高缺失，按纸盒三维尺寸判定为盒装', sku);
       return Promise.resolve('boxed');
     }
-    return productDevelopmentPackagingDialog(String(source && source.sku || ''));
+    return Promise.reject(new Error('无法自动判断包装形式，请在生成设置中选择盒装或袋装'));
   }
 
   function productDevelopmentCloneValue(value) {
