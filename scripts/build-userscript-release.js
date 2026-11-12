@@ -82,6 +82,14 @@ if (metadataEnd < 0) throw new Error('userscript metadata marker is missing');
 
 const metadata = source.slice(0, metadataEnd + metadataEndMarker.length).trimEnd();
 const licenses = (source.match(/\/\* @license[\s\S]*?\*\//g) || []).join('\n\n');
+// These modules serialize functions into Worker source strings. Their names
+// and references must survive mangling; ordinary application functions need not.
+const workerFunctionNames = new Set(['clamp', 'trimNumber', 'formatSizeImageNumber', 'drawImageTraceWatermark', 'number']);
+for (const file of ['parameter-image.module.js', 'core-tools-size-image.module.js']) {
+  const workerModule = fs.readFileSync(path.join(root, 'src', file), 'utf8');
+  for (const match of workerModule.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g)) workerFunctionNames.add(match[1]);
+}
+const keepWorkerFunctionNames = '/^(?:' + Array.from(workerFunctionNames).map((name) => name.replace(/\$/g, '\\$')).join('|') + ')$/';
 const npxCli = path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js');
 const npx = process.platform === 'win32' && fs.existsSync(npxCli) ? process.execPath : 'npx';
 const npxArgs = [
@@ -89,10 +97,9 @@ const npxArgs = [
   'terser@5.44.0',
   workspacePreview ? fullOutputPath : sourcePath,
   '--compress',
+  'keep_fnames=true',
   '--mangle',
-  // Worker source serializes functions and calls them by name inside strings.
-  // Preserve those names and their references in compressed installable builds.
-  '--keep-fnames',
+  'keep_fnames=' + keepWorkerFunctionNames,
   '--comments',
   'false',
   ...(preview ? ['--format', 'beautify=true,semicolons=false,max_line_len=2000'] : []),
@@ -113,5 +120,10 @@ const minified = String(result.stdout || '')
   .join('\n');
 if (!minified) throw new Error('Terser returned an empty output');
 
-fs.writeFileSync(outputPath, `${metadata}\n\n${licenses ? `${licenses}\n\n` : ''}${minified}\n`, 'utf8');
-console.log(`Wrote ${path.relative(root, outputPath)}`);
+const installableSource = `${metadata}\n\n${licenses ? `${licenses}\n\n` : ''}${minified}\n`;
+const maxInstallableCharacters = 2097152;
+if (!preview && installableSource.length > maxInstallableCharacters) {
+  throw new Error(`Installable userscript exceeds ${maxInstallableCharacters} characters: ${installableSource.length}`);
+}
+fs.writeFileSync(outputPath, installableSource, 'utf8');
+console.log(`Wrote ${path.relative(root, outputPath)} (${installableSource.length} characters)`);
