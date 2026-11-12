@@ -110,6 +110,7 @@
     preserveSkuAcquiredTime(data, indexed || loadData(sku), Date.now());
     if (typeof GM_setValue === 'function') GM_setValue(STORAGE_PREFIX + sku, data);
     else localStorage.setItem(STORAGE_PREFIX + sku, JSON.stringify(data));
+    if (typeof invalidatePackagingNamingHistoryCache === 'function') invalidatePackagingNamingHistoryCache();
   }
 
   function loadPosition() {

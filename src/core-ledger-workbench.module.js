@@ -1533,15 +1533,46 @@
     return { max: Math.max(...distances), total: distances.reduce((sum, value) => sum + value, 0) };
   }
 
-  function historicalNamingRecommendations(data, key, entries) {
+  let packagingNamingHistoryCache = new WeakMap();
+
+  function invalidatePackagingNamingHistoryCache() {
+    packagingNamingHistoryCache = new WeakMap();
+  }
+
+  function packagingNamingHistorySummary(item, key) {
+    let cached = packagingNamingHistoryCache.get(item);
+    if (!cached || !cached[key]) {
+      const history = normalizeData(loadData(item.sku) || item);
+      cached = cached || {};
+      cached[key] = {
+        entries: packagingNamingEntries(history, key),
+        brandName: namingProductText(history),
+        logo: namingLogoKey(history),
+        updatedAtMs: Number(history.updatedAtMs || item.updatedAtMs || 0),
+      };
+      packagingNamingHistoryCache.set(item, cached);
+    }
+    return cached[key];
+  }
+
+  async function historicalNamingRecommendations(data, key, entries, isCurrent) {
     const currentSku = String((data && data.sku) || '');
     const currentLogo = namingLogoKey(data);
     const currentCodes = new Set(entries.map((entry) => entry.code).filter(Boolean));
     const recommendations = [];
-    (state.index || []).forEach((item) => {
-      if (!item || !item.sku || item.sku === currentSku) return;
-      const history = normalizeData(loadData(item.sku) || item);
-      packagingNamingEntries(history, key).forEach((candidate) => {
+    const index = (state.index || []).slice();
+    let sliceStarted = performance.now();
+    for (let indexPosition = 0; indexPosition < index.length; indexPosition++) {
+      if (isCurrent && !isCurrent()) return [];
+      if (indexPosition && (indexPosition % 8 === 0 || performance.now() - sliceStarted >= 4)) {
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        if (isCurrent && !isCurrent()) return [];
+        sliceStarted = performance.now();
+      }
+      const item = index[indexPosition];
+      if (!item || !item.sku || item.sku === currentSku) continue;
+      const history = packagingNamingHistorySummary(item, key);
+      history.entries.forEach((candidate) => {
         if (!candidate.code || currentCodes.has(candidate.code)) return;
         let best = null;
         entries.forEach((entry) => {
@@ -1553,15 +1584,15 @@
           code: candidate.code,
           size: candidate.size,
           label: candidate.label,
-          brandName: namingProductText(history),
-          sameLogo: Boolean(currentLogo && namingLogoKey(history) === currentLogo),
+          brandName: history.brandName,
+          sameLogo: Boolean(currentLogo && history.logo === currentLogo),
           exact: best.max < 0.01,
           max: best.max,
           total: best.total,
           updatedAtMs: Number(history.updatedAtMs || item.updatedAtMs || 0),
         });
       });
-    });
+    }
     const deduped = new Map();
     recommendations.forEach((item) => {
       const old = deduped.get(item.code);
@@ -1577,6 +1608,13 @@
     if (card) card.remove();
   }
 
+  function positionPackagingNamingCard(panel, card, clientX, clientY) {
+    const panelRect = panel.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    card.style.left = Math.max(8, Math.min(clientX - panelRect.left, panelRect.width - cardRect.width - 8)) + 'px';
+    card.style.top = Math.max(8, Math.min(clientY - panelRect.top, panelRect.height - cardRect.height - 8)) + 'px';
+  }
+
   function showPackagingNamingCard(row, key, event) {
     const panel = row && row.closest('#' + PANEL_ID);
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
@@ -1587,12 +1625,11 @@
       return;
     }
     closePackagingNamingCard(panel);
-    const recommendations = historicalNamingRecommendations(data, key, entries);
     const entryHtml = entries.map((entry) => {
       const line = namingLine(entry, data);
       return '<button type="button" class="pfh-packaging-naming-current" data-naming-copy="' + escapeHtml(line) + '"><span>' + escapeHtml(line) + '</span></button>';
     }).join('');
-    const recommendationHtml = recommendations.length ? recommendations.map((item) =>
+    const renderRecommendations = (recommendations) => recommendations.length ? recommendations.map((item) =>
       '<button type="button" class="pfh-packaging-naming-history" data-naming-copy="' + escapeHtml(item.code) + '">' +
         '<span><b>' + escapeHtml(item.code) + '</b><i>' + escapeHtml(item.exact ? '同尺寸' : '相近') + '</i>' + (item.sameLogo ? '<i class="is-logo">同 Logo</i>' : '') + '</span>' +
         '<small>' + escapeHtml(item.label + (/[）)]$/.test(item.label) ? ' ' : '') + '（' + item.size + '）' + (item.brandName ? ' ' + item.brandName : '')) + '</small>' +
@@ -1606,12 +1643,27 @@
     card.innerHTML = '<header><div><b>' + namingTitle + '</b><span>点击内容即可复制</span></div><button type="button" data-naming-close aria-label="关闭">×</button></header>' +
       '<div class="pfh-packaging-naming-current-list">' + entryHtml + '</div>' +
       '<div class="pfh-packaging-naming-subtitle"><b>历史相近文件编码</b><span>同 Logo 优先 · 偏差 ≤ 0.5cm</span></div>' +
-      '<div class="pfh-packaging-naming-history-list">' + recommendationHtml + '</div>';
+      '<div class="pfh-packaging-naming-history-list" aria-busy="true"><p class="pfh-packaging-naming-empty" role="status">正在查找历史相近文件编码…</p></div>';
     panel.appendChild(card);
-    const panelRect = panel.getBoundingClientRect();
-    const cardRect = card.getBoundingClientRect();
-    card.style.left = Math.max(8, Math.min(event.clientX - panelRect.left, panelRect.width - cardRect.width - 8)) + 'px';
-    card.style.top = Math.max(8, Math.min(event.clientY - panelRect.top, panelRect.height - cardRect.height - 8)) + 'px';
+    const clientX = event.clientX;
+    const clientY = event.clientY;
+    positionPackagingNamingCard(panel, card, clientX, clientY);
+    // Give the current naming/copy controls a paint before reading any history.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(async () => {
+      if (!card.isConnected) return;
+      const list = card.querySelector('.pfh-packaging-naming-history-list');
+      try {
+        const recommendations = await historicalNamingRecommendations(data, key, entries, () => card.isConnected);
+        if (!card.isConnected) return;
+        list.innerHTML = renderRecommendations(recommendations);
+      } catch (error) {
+        if (!card.isConnected) return;
+        list.innerHTML = '<p class="pfh-packaging-naming-empty">历史编码读取失败，请重新右键重试</p>';
+        reportDiagnostic(error, { feature: 'packaging-naming', action: 'history-recommendations' });
+      }
+      list.setAttribute('aria-busy', 'false');
+      if (card.isConnected) positionPackagingNamingCard(panel, card, clientX, clientY);
+    }));
   }
 
   function handlePanelContextMenu(event) {
