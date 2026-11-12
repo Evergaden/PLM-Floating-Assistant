@@ -1,6 +1,14 @@
 # 当前状态
 
-最后整理：2026-07-11。最近可确认的业务代码提交：`6cbc373`（脚本内部版本 `2.4.69`）。
+最后核对：2026-11-12。代码基准：`bd772d2`，分支 `codex/codebase-slimming`；最近业务变更为 `7bec79e`。功能状态依据本地源码和提交记录，不代表已完成浏览器或生产环境验收。
+
+## 版本与源码
+
+- 正式主产物的 `@version` 与 `SCRIPT_VERSION` 均为 `2.10.40`；正式 min、工作台预览源码与工作台预览 min 的元数据版本也为 `2.10.40`。
+- `outputs/plm-material-summary.min.preview.user.js` 仍为 `2.10.36`，未与上述产物同步。本次仅更新文档，没有重建安装变体。
+- 用户脚本逻辑以 `src/` 为准；构建器按顺序向主产物注入 18 个模块区域，核心域及产品开发域使用多文件拼接。产品开发已拆为 `src/product-development/pd-*.module.js` 下的 12 个领域文件。
+- 主产物保留元数据、面板常量、发布同步 CSS 等骨架内容，模块区域不得直接修改。
+- 托管 UI 的唯一可编辑样式源为 `cloudflare/plm-cloud-backup/ui-src/`，当前 UI 版本为 `2.5.317`。版本化 CSS 为构建产物，复杂度预算不得提高。
 
 ## 已完成
 
@@ -9,25 +17,42 @@
 - 今日工作台：出图/定稿视图、文件状态标记、月度登记复制/导出、云备份载荷兼容。
 - 本地与云端：SKU 数据、本地设置、每日工作台、云备份恢复；Cloudflare Worker + D1 提供备份、装箱建议和洞察接口。
 - 体验改进：固定搜索结果与批量置顶、首次安装引导、响应式首次窗口布局、隐藏开发者布局复制工具。
+- 批量 Excel：SKU 队列、顺序补全缓存、暂停/继续和批量下载流程，已不再是禁用的占位入口。
+- 产品开发：任务同步、详情预填、建品表单、定价草稿、审核编辑器、成分表、完整文案生成、DOCX/PDF 导出与批量流程；文案模板包含常规 NDC / 非 NDC 类型。
+- 全量商品采集：按节奏分页请求，支持暂停/继续，进度位于主页现有轮播中；缩略图接入本地图片缓存。
+- 配套工具：独立标签工作室、Python / Tauri 桌面资产工作台、手机远程工作台、Photoshop UXP 文案助手及本地成分表 PDF 工具；本次未运行这些客户端的交互验收。
 
-## 正在进行 / 待处理
+## 近期更新（2026-11-10 至 2026-11-12）
 
-- 主页“批量生成 Excel”卡片目前明确禁用，等待实现真正的批量流程。
-- Worker 的实际部署版本、D1 迁移状态和生产密钥配置：待确认。
-- AI 分类/洞察服务的生产可用性与限流表现：待确认。
+- `f9c296e`：完善审核编辑器、建品表单与 NDC 文案；`7bec79e`：精简产品开发说明文案，版本更新至 `2.10.40`。
+- `586f3a8`、`ba89fb4`、`963167f`、`fa77812`、`d9352a8`：建立统一检查与构建同步守卫，核心逻辑迁回源码并按领域拆分，模板检查对齐新路径。
+- `2e3b76b`、`958b308`：删除旧 Google Translate 页面机制及已确认的重复/遮蔽函数，保留现役应用内翻译与存储兼容。
+- `6911510`：云备份增加稳定内容哈希，内容不变时跳过上传；Worker 限制每用户保留的快照，减少重复写入。
+- `8e50756`、`56ba9b8`：图片下载增加网络异常重试，GM 通道耗尽后回退页面上下文 fetch；图包下载保留已成功取得的图片。
+- 工作台预览、轮播和渐进图片测试恢复通过，相关 KNOWN-FAIL 登记均已清理。
 
-## 已知问题
+## 本次实际验证（2026-11-12）
 
-- 用户脚本头部 `@version` 仍为 `2.4.57`，而运行时 `SCRIPT_VERSION` 已为 `2.4.69`；下次脚本发布应同步元数据版本。
-- 仓库没有统一的自动化测试、构建或类型检查脚本；当前主要依赖 `node --check`、`git diff --check` 和浏览器手工验证。
-- Worker README 已移除 Feishu 集成说明，当前保留 AI 与反馈相关配置。
+| 检查 | 结果 | 范围与限制 |
+|---|---|---|
+| 根目录 `npm.cmd run check` | 通过 | 29 个脚本：27 PASS、0 FAIL、0 KNOWN-FAIL、2 SKIP；构建同步、主产物语法与 `git diff --check` 均通过 |
+| `check-build-sync.cjs` | 通过 | 主产物的 18 个模块区域与 `src/` 字节一致，不代表全部安装变体已同步 |
+| Worker 目录 `npm.cmd run ui:check` | 通过 | 核对 `ui-2.5.317.css`、远程工作台 CSS、标签工作室原始渲染引擎与独立资源 |
+| Worker 目录 `node --check src/index.js` | 通过 | 仅语法验证，未调用线上接口 |
 
-## 最近验证
+两个 SKIP 为 `check-minified-size-worker.cjs` 与 `check-size-image-barcode.cjs`，原因是缺少可选依赖 `@napi-rs/canvas`；可通过 `PLM_CANVAS_MODULE` 指向已安装模块后补跑。当前 `scripts/run-checks.cjs` 的 `KNOWN_FAILURES` 为空。
 
-- 最近脚本提交 `6cbc373`：`node --check outputs/plm-material-summary.user.js` 与 `git diff --check` 已通过；软管宽高顺序与分段精度的定向检查已通过。
-- Worker 的 `package.json` 提供 `dev`、`deploy`、本地/远程 D1 迁移命令，但本次未运行 Worker 开发、部署或远程健康检查。
+UI 指标：`important=1814`、`supersededImportantDeclarations=0`、`duplicateSelectors=459`、`conflictingSelectors=426`、`uniqueSelectors=3582`。通过表示产物符合当前预算契约，存量级联债务仍在。
+
+## 待处理与验证边界
+
+- 后续发布需明确是否继续维护并重建仍为 `2.10.36` 的 `min.preview` 变体。
+- 补齐 canvas 依赖后运行两个跳过的检查。
+- 用户手动更新已安装脚本后，验证详情、上传、今日工作台、产品开发、图片下载及云备份等受影响交互；本次未运行浏览器验证。
+- Worker 的实际部署版本、D1 迁移、生产密钥配置、`/health` 与受认证接口，以及 AI 服务可用性和限流表现均未在本次核验。本次没有部署或修改远程数据。
+- fetch 封装合并、存储助手统一、事件 action 分派拆分等仍是后续专项，见 [重构日志](refactor-log.md)。
 
 ## 信息来源
 
-- 当前目录、`.gitignore`、`outputs/plm-material-summary.user.js`、Worker 的 `package.json`/`wrangler.toml`/`README.md`。
-- 最近 Git 提交记录（截至 `6cbc373`）。
+- 本地 Git 记录（截至 `bd772d2`）、`AGENTS.md`、根及 Worker `package.json`、构建与检查脚本。
+- 当前 `src/`、`outputs/`、Worker 源码、UI `release.json` 及各配套工具 README；上述命令在本次核对中实际执行的输出。
