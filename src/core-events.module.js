@@ -1583,6 +1583,7 @@
   }
 
   function handlePanelKeydown(event) {
+    if (productDevelopmentCopywritingHandleToolsKeydown(event)) return;
     if (state.skuFilterOpen && (event.key === 'Escape' || event.key === 'Tab')) {
       const panel = ensurePanel();
       if (event.key === 'Escape') {

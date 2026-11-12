@@ -122,6 +122,10 @@
       "mode": "module"
     },
     {
+      "path": "modules/product-development-copywriting.css",
+      "mode": "module"
+    },
+    {
       "path": "modules/magic-upload-layout.css",
       "mode": "module"
     },

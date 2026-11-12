@@ -57,6 +57,9 @@ const ledgerCss = fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backu
 if (!/^  const LEDGER_WORKSPACE_CSS = .*;$/m.test(syncedSource)) throw new Error('Ledger CSS build marker is missing');
 syncedSource = syncedSource.replace(/^  const LEDGER_WORKSPACE_CSS = .*;$/m, () => '  const LEDGER_WORKSPACE_CSS = ' + JSON.stringify(ledgerCss) + ';');
 const historyCss = fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'data-log-trigger.css'), 'utf8');
+const copywritingCss = fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'product-development-copywriting.css'), 'utf8');
+if (!/^  const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = .*;$/m.test(syncedSource)) throw new Error('Copywriting CSS build marker is missing');
+syncedSource = syncedSource.replace(/^  const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = .*;$/m, () => '  const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = ' + JSON.stringify(copywritingCss) + ';');
 const detailLayoutCss = fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'sku-detail-layout.css'), 'utf8');
 if (!/^  const SKU_DETAIL_LAYOUT_CSS = .*;$/m.test(syncedSource)) throw new Error('SKU detail layout CSS build marker is missing');
 syncedSource = syncedSource.replace(/^  const SKU_DETAIL_LAYOUT_CSS = .*;$/m, () => '  const SKU_DETAIL_LAYOUT_CSS = ' + JSON.stringify(detailLayoutCss) + ';');

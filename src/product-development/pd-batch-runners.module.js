@@ -14,15 +14,15 @@
     state.productDevelopmentError = '';
     state.productDevelopmentOneShotIngredientConfirmed = false;
     state.productDevelopmentStatus = '正在读取当前 SKU 的产品类型、对标图和模板…';
+    productDevelopmentCopywritingProgressStart(currentSku, ['加载成分表模板', '读取产品资料', '生成成分表', '校验成分表']);
     renderShell();
     let stage = '读取当前 SKU 资料';
     try {
       stage = '加载云端成分表模板';
       state.productDevelopmentStatus = '正在加载云端成分表模板…';
-      renderShell();
       await ensureProductDevelopmentIngredientTemplatesLoaded();
+      productDevelopmentCopywritingProgressStage(1);
       state.productDevelopmentStatus = '正在读取当前 SKU 的产品类型、对标图和模板…';
-      renderShell();
       restoreProductDevelopmentReviewDraft(currentSku);
       const existingPlainTextCopy = productDevelopmentOneShotPlainTextCopy(currentSku, null);
       const snapshot = await withCopywritingTimeout(
@@ -69,7 +69,7 @@
       if (!snapshot.imageUrl && !sourcePlainTextCopy && !input.referenceUrl) throw new Error('当前 SKU 没有对标图片或纯文字文案版本');
       const ingredientSelectionLabel = ingredientTemplateLabel + (ingredientTemplateSheetName ? ' / ' + ingredientTemplateSheetName : '');
       state.productDevelopmentStatus = '正在按“' + ingredientSelectionLabel + '”和' + (sourcePlainTextCopy ? '侵权图纯文字文案' : '当前产品资料') + '生成成分表，最长等待约 10 分钟…';
-      renderShell();
+      productDevelopmentCopywritingProgressStage(2);
       stage = '读取当前 SKU 对标图';
       let image = '';
       if (!sourcePlainTextCopy && snapshot.imageUrl) {
@@ -122,7 +122,7 @@
         },
       }), 620000, '成分表生成');
       state.productDevelopmentStatus = '正在校验成分表目标和模板字段…';
-      renderShell();
+      productDevelopmentCopywritingProgressStage(3);
       const result = productDevelopmentOneShotNormalizeResponse(response, input, {
         requireCopywriting: false,
         ingredientKind,
@@ -167,7 +167,9 @@
         ? '成分表草稿已生成，请编辑并确认；确认后才会生成文案'
         : '成分表草稿已生成，但仍需修正后才能确认和导出 PDF';
       showToast('成分表草稿已生成，请编辑并确认');
+      productDevelopmentCopywritingProgressEnd();
     } catch (error) {
+      productDevelopmentCopywritingProgressEnd(error);
       productDevelopmentLog('error', '成分表生成失败', 'SKU=' + currentSku + ' | 阶段=' + stage + ' | ' + formatErrorMessage(error));
       state.productDevelopmentError = formatErrorMessage(error);
       state.productDevelopmentStatus = '';
@@ -234,6 +236,7 @@
     result.ingredientConfirmedAt = Date.now();
     state.productDevelopmentError = '';
     state.productDevelopmentStatus = '成分表已确认，正在按“' + copywritingTemplate.label + '”模板生成文案…';
+    productDevelopmentCopywritingProgressStart(currentSku, ['生成文案', '校验中英文', '加载文案模板', '生成 DOCX']);
     renderShell();
     let stage = '准备文案生成';
     const startedAt = Date.now();
@@ -266,6 +269,7 @@
         },
       }), 620000, 'AI 文案生成');
       stage = '校验 文案';
+      productDevelopmentCopywritingProgressStage(1);
       const content = productDevelopmentValidateCopywriting(response, copySnapshot);
       const id = result.id + '-copy';
       const fileName = productDevelopmentCopywritingFileName(copySnapshot);
@@ -306,16 +310,19 @@
       result.docxBlob = null;
       state.productDevelopmentOneShotResult = result;
       state.productDevelopmentStatus = '文案已生成，正在按所选模板生成 DOCX…';
-      renderShell();
+      productDevelopmentCopywritingProgressStage(2);
       stage = '生成 DOCX';
       const templateSource = await withCopywritingTimeout(loadProductDevelopmentCopywritingTemplateSource(copywritingTemplate), 60000, 'DOCX 模板下载');
+      productDevelopmentCopywritingProgressStage(3);
       const blob = await withCopywritingTimeout(buildProductDevelopmentDocx(content, templateSource, copySnapshot), 180000, 'DOCX 生成');
       result.docxBlob = blob;
       copyResult.blob = blob;
       state.productDevelopmentStatus = '成分表已确认，文案 DOCX 已按“' + copywritingTemplate.label + '”模板生成';
       productDevelopmentLog('success', '确认成分表后文案生成完成', currentSku + ' | 模板=' + copywritingTemplate.id + ' | 用时=' + (Date.now() - startedAt) + 'ms');
       showToast('成分表已确认，文案 DOCX 已生成');
+      productDevelopmentCopywritingProgressEnd();
     } catch (error) {
+      productDevelopmentCopywritingProgressEnd(error);
       productDevelopmentLog('error', '确认成分表后文案生成失败', 'SKU=' + currentSku + ' | 阶段=' + stage + ' | ' + formatErrorMessage(error));
       state.productDevelopmentError = productDevelopmentFriendlyCopywritingError(error);
       state.productDevelopmentStatus = '';
@@ -365,6 +372,7 @@
     const startedAt = Date.now();
     let stage = '准备';
     state.productDevelopmentStatus = '正在读取当前 SKU 产品资料…';
+    productDevelopmentCopywritingProgressStart(sku, ['读取产品资料', '加载文案模板', '生成文案', '校验中英文', '生成 DOCX']);
     productDevelopmentLog('info', '开始常规产品文案生成', sku + ' | NDC=' + (isNdc ? '涉NDC' : '非NDC') + ' | 成分=' + activePairs.length + ' 项 | D 卖点成分=' + heroPairs.map((pair) => pair.en || pair.cn).join(' / '));
     renderShell();
     try {
@@ -378,17 +386,17 @@
       const referenceUrl = productDevelopmentCopywritingReferenceUrl(input, snapshot);
       const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
       stage = '加载 DOCX 模板';
+      productDevelopmentCopywritingProgressStage(1);
       state.productDevelopmentStatus = copywritingTemplate.local
         ? '正在读取本地 DOCX 模板…'
         : '正在从云端加载“' + copywritingTemplate.label + '”文案模板…';
-      renderShell();
       const templateSource = await withCopywritingTimeout(
         loadProductDevelopmentCopywritingTemplateSource(copywritingTemplate),
         60000,
         'DOCX 模板下载',
       );
       state.productDevelopmentStatus = '正在生成常规产品 文案（D 成分功能取 3-4 条卖点成分，每条 10-15 词），最长等待约 10 分钟…';
-      renderShell();
+      productDevelopmentCopywritingProgressStage(2);
       stage = 'AI 生成完整文案';
       const regularSnapshot = {
         ...snapshot,
@@ -439,6 +447,7 @@
       }), 620000, 'AI 文案生成');
       productDevelopmentLog('success', '常规产品 AI 文案返回', sku + ' | provider=' + productDevelopmentCleanText(response && response.provider, 80) + ' | model=' + productDevelopmentCleanText(response && response.model, 120) + ' | 用时=' + (Date.now() - startedAt) + 'ms');
       stage = '校验中英文条目';
+      productDevelopmentCopywritingProgressStage(3);
       const content = productDevelopmentValidateCopywriting(response, regularSnapshot);
       productDevelopmentLog('success', '常规产品文案校验通过', sku + ' | A=' + content.efficacy.length + ' | B=' + content.advantages.length + ' | C=' + content.sellingPoints.length + ' | D=' + content.ingredientFunctions.length);
       const id = 'pd-regular-' + Date.now().toString(36);
@@ -489,7 +498,7 @@
         state.productDevelopmentOneShotIngredientConfirmed = false;
       }
       state.productDevelopmentStatus = '正在按“' + copywritingTemplate.label + '”模板生成 DOCX…';
-      renderShell();
+      productDevelopmentCopywritingProgressStage(4);
       stage = '生成 DOCX';
       const blob = await withCopywritingTimeout(
         buildProductDevelopmentDocx(content, templateSource, resultSnapshot),
@@ -500,7 +509,9 @@
       state.productDevelopmentStatus = '常规产品文案 DOCX 已按“' + copywritingTemplate.label + '”模板生成';
       productDevelopmentLog('success', '常规产品文案生成完成', sku + ' | 模板=' + copywritingTemplate.id + ' | 用时=' + (Date.now() - startedAt) + 'ms');
       showToast('常规产品文案 DOCX 已生成');
+      productDevelopmentCopywritingProgressEnd();
     } catch (error) {
+      productDevelopmentCopywritingProgressEnd(error);
       productDevelopmentLog('error', '常规产品文案生成失败', 'SKU=' + sku + ' | 阶段=' + stage + ' | ' + formatErrorMessage(error));
       state.productDevelopmentError = productDevelopmentFriendlyCopywritingError(error);
       state.productDevelopmentStatus = '';

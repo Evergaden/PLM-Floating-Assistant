@@ -195,6 +195,12 @@
       document.documentElement.appendChild(style);
     }
     ensureWorkflowPatchStyles();
+    if (!document.getElementById(PANEL_ID + '-copywriting-layout-style')) {
+      const style = document.createElement('style');
+      style.id = PANEL_ID + '-copywriting-layout-style';
+      style.textContent = PRODUCT_DEVELOPMENT_COPYWRITING_CSS;
+      document.documentElement.appendChild(style);
+    }
     let panel = document.getElementById(PANEL_ID);
     if (panel) {
       if (panel.dataset.version !== SCRIPT_VERSION) {

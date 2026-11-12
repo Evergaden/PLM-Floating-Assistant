@@ -1,0 +1,131 @@
+// DOM/async contract checks only; the installed userscript still needs manual QA.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const { parseHTML } = require(process.env.PLM_DOM_MODULE || '../tmp/sku-render-check/node_modules/linkedom');
+const root = path.resolve(__dirname, '..');
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const { document } = parseHTML('<html><body><div id="panel"></div></body></html>');
+let active = null;
+Object.defineProperty(document, 'activeElement', { get: () => active });
+const panel = document.getElementById('panel');
+const timers = new Map();
+let nextTimer = 0;
+let renders = 0;
+const state = { productDevelopmentOneShotInput: { sku: 'SKU1', productLine: 'regular', regularNdcKind: 'non-ndc', productType: 'Lotion', regularIngredientsEn: 'AQUA 84.77\n1,2-HEXANEDIOL 0.5', regularIngredientsCn: '水\n1,2-己二醇' }, productDevelopmentSelectedTask: { name: 'Lotion' }, productDevelopmentCopywritingTemplateId: 'capsule' };
+const templates = ['capsule', 'gummy', 'regular-non-ndc', 'regular-ndc'].map((id) => ({ id, label: id }));
+const context = vm.createContext({
+  document, state, PANEL_ID: 'panel',
+  PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID: 'capsule',
+  PRODUCT_DEVELOPMENT_REGULAR_HERO_HINTS: [], PRODUCT_DEVELOPMENT_REGULAR_BASE_INGREDIENT_PATTERN: /^(AQUA)$/,
+  PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT: {},
+  getProductDevelopmentCurrentSku: () => 'SKU1',
+  productDevelopmentCleanText: (value) => String(value || '').trim(),
+  productDevelopmentNormalizedClaimText: (value) => String(value || '').toLowerCase(),
+  escapeHtml: (value) => String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'),
+  iconHtml: (name) => '<svg data-icon="' + name + '"></svg>',
+  formatErrorMessage: (error) => error.message || String(error),
+  productDevelopmentCopywritingBuiltinTemplates: () => templates,
+  resolveProductDevelopmentCopywritingTemplate: () => ({ ...templates.find((item) => item.id === state.productDevelopmentCopywritingTemplateId), local: state.productDevelopmentCopywritingTemplateId === 'local' }),
+  saveProductDevelopmentCopywritingTemplateId: (id) => { state.productDevelopmentCopywritingTemplateId = id; },
+  setTimeout: (callback) => { timers.set(++nextTimer, callback); return nextTimer; },
+  clearTimeout: (id) => timers.delete(id),
+  renderShell: () => renders++, showToast: () => {}, productDevelopmentLog: () => {},
+  withCopywritingTimeout: (promise) => promise,
+  loadProductDevelopmentSnapshot: async () => ({ sku: 'SKU1', name: 'Lotion' }),
+  loadProductDevelopmentCopywritingTemplateSource: async () => 'template',
+  productDevelopmentCopywritingReferenceUrl: () => '',
+  productDevelopmentCopywritingFileName: () => 'copy.docx',
+  productDevelopmentCopywritingSnapshotValue: (snapshot) => ({ ...snapshot }),
+  productDevelopmentValidateCopywriting: () => ({ efficacy: [], advantages: [], sellingPoints: [], ingredientFunctions: [] }),
+  productDevelopmentFriendlyCopywritingError: (error) => error.message,
+  saveProductDevelopmentCopywritingCache: () => {}, saveProductDevelopmentHistory: () => {},
+  buildProductDevelopmentDocx: async () => ({ size: 42 }),
+});
+vm.runInContext(read('src/product-development/pd-copywriting-run.module.js'), context);
+vm.runInContext(read('src/product-development/pd-batch-runners.module.js'), context);
+// Fixtures replace unrelated template-library and draft-persistence integrations.
+context.productDevelopmentOneShotInputForRender = () => state.productDevelopmentOneShotInput;
+context.productDevelopmentOneShotIngredientTemplate = () => null;
+context.productDevelopmentOneShotIngredientTemplateOptions = () => '';
+context.productDevelopmentOneShotIngredientSheetOptions = () => '';
+context.productDevelopmentOneShotResultHtml = () => '';
+context.productDevelopmentOneShotPlainTextCopy = () => '';
+
+panel.innerHTML = context.productDevelopmentOneShotEmbeddedHtml('SKU1');
+assert.equal(panel.querySelectorAll('.pfh-cw-template-row').length, 1, 'One template entry inside generation settings');
+assert.equal(panel.querySelector('.pfh-product-development-copywriting-template-input').value, 'regular-non-ndc');
+assert.equal(panel.querySelectorAll('.pfh-product-development-copywriting-template-input option').length, 1, 'Food templates cannot conflict with regular product classification');
+assert.equal(panel.querySelectorAll('.pfh-cw-pair textarea').length, 2);
+assert.match(panel.querySelector('[data-cw-ingredient-count]').textContent, /英文已识别 2 项 · 中文已识别 2 项/);
+const english = panel.querySelector('textarea');
+english.scrollTop = 55;
+state.productDevelopmentOneShotInput.regularIngredientsCn = '水';
+context.productDevelopmentCopywritingUpdateIngredientCounts(panel);
+assert.match(panel.querySelector('[data-cw-ingredient-count]').textContent, /数量不一致/);
+assert.equal(panel.querySelector('textarea'), english, 'Live counts retain input and scroll');
+assert.equal(english.scrollTop, 55);
+
+state.productDevelopmentOneShotInput.regularNdcKind = 'ndc';
+panel.innerHTML = context.productDevelopmentOneShotEmbeddedHtml('SKU1');
+assert.equal(state.productDevelopmentCopywritingTemplateId, 'regular-ndc');
+assert.equal(panel.querySelectorAll('.pfh-cw-pair').length, 2, 'NDC active and inactive groups each pair English with Chinese');
+state.productDevelopmentOneShotInput.productLine = 'food';
+panel.innerHTML = context.productDevelopmentOneShotEmbeddedHtml('SKU1');
+assert.equal(state.productDevelopmentCopywritingTemplateId, 'capsule');
+assert.equal(panel.querySelectorAll('.pfh-product-development-copywriting-template-input option').length, 2);
+state.productDevelopmentTemplateBase64 = 'custom';
+state.productDevelopmentCopywritingTemplateId = 'local';
+state.productDevelopmentOneShotInput.productLine = 'regular';
+panel.innerHTML = context.productDevelopmentOneShotEmbeddedHtml('SKU1');
+assert.equal(state.productDevelopmentCopywritingTemplateId, 'local', 'Classification changes preserve an explicit custom template');
+
+const tools = panel.querySelector('.pfh-cw-tools');
+const toggle = tools.querySelector('button');
+toggle.focus = () => { active = toggle; };
+for (const item of tools.querySelectorAll('[role="menuitem"]')) item.focus = () => { active = item; };
+context.productDevelopmentCopywritingHandleToolsKeydown({ target: toggle, key: 'ArrowDown', preventDefault() {} });
+assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+assert.equal(active.getAttribute('role'), 'menuitem');
+context.productDevelopmentCopywritingHandleToolsKeydown({ target: active, key: 'Escape', preventDefault() {}, stopPropagation() {} });
+assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+assert.equal(active, toggle, 'Escape returns focus to the tools trigger');
+context.productDevelopmentCopywritingHandleToolsKeydown({ target: toggle, key: 'ArrowUp', preventDefault() {} });
+assert.equal(active, tools.querySelectorAll('[role="menuitem"]')[1], 'ArrowUp opens on the last enabled menu action');
+context.productDevelopmentCopywritingSetToolsOpen(tools, true);
+context.productDevelopmentCopywritingDismissTools({ target: panel });
+assert.equal(toggle.getAttribute('aria-expanded'), 'false', 'Outside clicks close the menu');
+
+async function run() {
+  state.productDevelopmentCopywritingTemplateId = 'regular-ndc';
+  state.productDevelopmentOneShotInput.regularNdcKind = 'ndc';
+  panel.innerHTML = '<textarea id="draft">Keep this input</textarea><section data-cw-progress></section>';
+  const inputNode = panel.querySelector('textarea');
+  let resolveAI;
+  context.cloudRequest = () => new Promise((resolve) => { resolveAI = resolve; });
+  const pending = context.runProductDevelopmentRegularCopywriting();
+  for (let i = 0; i < 10 && !resolveAI; i++) await Promise.resolve();
+  assert.equal(state.productDevelopmentCopywritingProgress.index, 2, 'AI stage follows actual awaited data/template work');
+  assert.equal(state.productDevelopmentCopywritingProgress.status, 'running', state.productDevelopmentError);
+  assert.equal(renders, 1, 'Intermediate stages update the progress area, without rebuilding the form');
+  assert.equal(panel.querySelector('textarea'), inputNode);
+  assert.equal(panel.querySelector('[aria-current="step"]').textContent, '生成文案');
+  assert.equal(timers.size, 1, 'Exactly one elapsed-time timer runs');
+  resolveAI({ provider: 'test', model: 'test' });
+  await pending;
+  assert.equal(state.productDevelopmentCopywritingProgress.status, 'complete');
+  assert.equal(state.productDevelopmentCopywriting.blob.size, 42);
+  assert.equal(timers.size, 0, 'Timer stops after completion');
+  assert.equal(renders, 2);
+  const previousResult = state.productDevelopmentCopywriting;
+  context.cloudRequest = async () => { throw new Error('AI unavailable'); };
+  await context.runProductDevelopmentRegularCopywriting();
+  assert.equal(state.productDevelopmentCopywritingProgress.status, 'error');
+  assert.equal(state.productDevelopmentCopywritingProgress.index, 2);
+  assert.equal(state.productDevelopmentCopywriting, previousResult, 'Failed regeneration retains the previous result');
+  assert.equal(state.productDevelopmentOneShotInput.regularIngredientsEn.includes('1,2-HEXANEDIOL'), true);
+  assert.equal(timers.size, 0, 'Timer also stops after failure');
+  console.log('Copywriting workspace: classification/template consistency, bilingual grouping/counts, accessible tools, real async stages and failure preservation passed');
+}
+run().catch((error) => { console.error(error); process.exitCode = 1; });

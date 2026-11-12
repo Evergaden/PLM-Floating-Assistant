@@ -27,6 +27,7 @@ const context = vm.createContext({
   },
 });
 vm.runInContext('const SKU_IMAGE_COLORS = Object.freeze(' + source.match(/const SKU_IMAGE_COLORS = Object.freeze\((\[[\s\S]*?\])\);/)[1] + ');globalThis.colorIds = ["", ...SKU_IMAGE_COLORS.map(([id]) => id)];', context);
+context.productDevelopmentCopywritingHandleToolsKeydown = () => false;
 ['escapeHtml', 'skuFilterOptionsHtml', 'skuImageColorFilterHtml', 'renderSkuFilterPanel', 'renderSkuFilterModal', 'closeSkuFilterModal', 'handlePanelKeydown'].forEach((name) => vm.runInContext(extract(name), context));
 function makeLayer() {
   const selects = ['developer','brand','status','designType'].map((field) => ({ dataset: { skuFilter: field }, value: '' }));

@@ -62,4 +62,27 @@ assert.equal(scroll.scrollTop, 680, 'Deferred restoration cannot undo scrolling 
 context.renderProductDevelopmentTaskDetail(panel, '', { sku: 'SKU2' });
 assert.notEqual(detail.querySelector('.pfh-detail-scroll'), scroll, 'Switching SKU intentionally creates a fresh form');
 assert.equal(detail.querySelector('[data-form-key="costPrice"]').getAttribute('data-form-sku'), 'SKU2');
+context.state.productDevelopmentTaskView = 'copywriting';
+let copyStatus = 'Ready';
+context.productDevelopmentTaskEmbeddedViewHtml = () => '<section class="pfh-cw-workspace"><textarea data-product-development-one-shot-field="regularIngredientsEn">Saved ingredients</textarea><p>' + copyStatus + '</p></section>';
+context.productDevelopmentMountReviewEditorOverlay = () => {};
+context.renderProductDevelopmentTaskDetail(panel, '', { sku: 'SKU2' });
+const copyScroll = detail.querySelector('.pfh-detail-scroll');
+const ingredients = detail.querySelector('textarea');
+assert.equal(detail.querySelector('.pfh-detail-view-tabs'), null); // Fixture uses a plain nav.
+assert.equal(detail.querySelector('.pfh-cw-task-frame > nav').textContent, 'Tabs');
+assert.equal(copyScroll.querySelector('nav'), null, 'Copywriting tabs remain outside the scrolling form');
+active = ingredients;
+ingredients.value = 'Typing current ingredients';
+ingredients.selectionStart = 6;
+ingredients.selectionEnd = 6;
+copyScroll.scrollTop = 380;
+copyStatus = 'Updated progress';
+context.renderProductDevelopmentTaskDetail(panel, '', { sku: 'SKU2' });
+assert.equal(detail.querySelector('.pfh-detail-scroll'), copyScroll);
+assert.equal(copyScroll.scrollTop, 380);
+assert.equal(detail.querySelector('textarea'), ingredients);
+assert.equal(ingredients.value, 'Typing current ingredients');
+assert.equal(ingredients.selectionStart, 6);
+assert.equal(detail.querySelector('.pfh-cw-workspace p').textContent, 'Updated progress');
 console.log('Development form: async status/data refresh retains nested scroll, active input and caret; SKU switches reset context');

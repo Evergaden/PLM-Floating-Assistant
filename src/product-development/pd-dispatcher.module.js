@@ -11,11 +11,24 @@
   }
 
   function productDevelopmentHandleAction(action, actionTarget) {
-    const openCopywritingMore = document.querySelector('.pfh-product-development-copywriting-more.is-open');
-    if (openCopywritingMore && !(actionTarget && actionTarget.closest('.pfh-product-development-copywriting-more'))) openCopywritingMore.classList.remove('is-open');
     if (action === 'product-development-copywriting-more') {
-      const moreWrapper = actionTarget && actionTarget.closest('.pfh-product-development-copywriting-more');
-      if (moreWrapper) moreWrapper.classList.toggle('is-open');
+      const moreWrapper = actionTarget && actionTarget.closest('.pfh-cw-tools');
+      if (moreWrapper) productDevelopmentCopywritingSetToolsOpen(moreWrapper, !moreWrapper.classList.contains('is-open'));
+      return true;
+    }
+    if (action === 'product-development-template-import') {
+      const tools = actionTarget.closest('.pfh-cw-tools');
+      const input = tools.parentElement.querySelector('.pfh-product-development-template-input');
+      productDevelopmentCopywritingSetToolsOpen(tools, false);
+      if (input) input.click();
+      return true;
+    }
+    if (action === 'product-development-copywriting-copy') {
+      const result = state.productDevelopmentCopywriting;
+      if (result && result.content && (result.sku === getProductDevelopmentCurrentSku() || result.fromHistory)) {
+        copyText([['产品功效', 'efficacy'], ['产品优势', 'advantages'], ['产品卖点', 'sellingPoints'], ['成分功能', 'ingredientFunctions']].map(([label, key]) => label + '\n' + (result.content[key] || []).map((item) => [item.titleEn, item.en || item.ingredientEn, item.titleCn, item.cn || item.ingredientCn].filter(Boolean).join('\n')).join('\n\n')).join('\n\n'));
+        showToast('文案已复制');
+      }
       return true;
     }
     if (action === 'work-mode') {
@@ -516,6 +529,8 @@
       return true;
     }
     if (action === 'product-development-template-reset') {
+      const tools = actionTarget && actionTarget.closest('.pfh-cw-tools');
+      if (tools) productDevelopmentCopywritingSetToolsOpen(tools, false);
       resetProductDevelopmentTemplate();
       return true;
     }
@@ -621,6 +636,8 @@
         state.productDevelopmentOneShotInput[oneShotField + 'Explicit'] = nextValue.trim() ? 'true' : 'false';
       }
       saveProductDevelopmentOneShotDraft(state.productDevelopmentOneShotInput);
+      productDevelopmentCopywritingMarkDirty();
+      productDevelopmentCopywritingUpdateIngredientCounts();
       return true;
     }
     if (target.classList.contains('pfh-product-development-one-shot-product-line-input') || target.classList.contains('pfh-product-development-one-shot-ndc-input')) {
@@ -639,6 +656,7 @@
         state.productDevelopmentOneShotInput.productType = PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT.productType;
       }
       saveProductDevelopmentOneShotDraft(state.productDevelopmentOneShotInput);
+      productDevelopmentCopywritingMarkDirty();
       productDevelopmentSyncRegularCopywritingTemplate();
       if (previousLine !== currentLine && state.productDevelopmentOneShotResult && state.productDevelopmentOneShotResult.sku === getProductDevelopmentCurrentSku()) {
         state.productDevelopmentOneShotResult = null;
