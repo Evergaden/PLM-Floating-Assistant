@@ -1,6 +1,7 @@
 import { PARAMETER_LOGO_ASSETS } from './parameter-logo-assets.js';
 import { STATIC_ASSET_MANIFEST } from './generated-asset-manifest.js';
 import { BRAND_COMPLIANCE_SEED } from './brand-compliance-seed.js';
+import { nameInitials } from './trace-name-initials.js';
 
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
@@ -7810,6 +7811,12 @@ async function handleRequest(request, env) {
     await prepareRequestAuth(request, env);
     const url = new URL(request.url);
     if (url.pathname === '/health') return json({ ok: true });
+    if (url.pathname === '/users/name-initials' && request.method === 'POST') {
+      if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+      const body = await parseJson(request);
+      const result = nameInitials(body && body.name);
+      return result ? json({ ok: true, ...result }) : json({ error: 'name must contain letters or Chinese characters and be at most 80 characters' }, 400);
+    }
     if (url.pathname === '/diagnostics/report' && request.method === 'POST') return handleDiagnosticReport(request, env);
     if (url.pathname === '/auth/exchange' && request.method === 'POST') return handleAuthExchange(request, env);
     if (url.pathname === '/remote-api/login' && request.method === 'POST') return handleRemoteLogin(request, env);

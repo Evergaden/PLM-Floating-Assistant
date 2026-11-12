@@ -2131,6 +2131,7 @@
       const url = URL.createObjectURL(session.file);
       try {
         const image = await loadImage(url);
+        if (context.prepareTraceName) await context.prepareTraceName();
         if (hasManualPath) editorLog(session, '生成阶段底图解码成功', { width: image.naturalWidth, height: image.naturalHeight });
         const [rule, logo] = await Promise.all([loadTopologyRule(), loadBrandLogo(data.brand)]);
         try {

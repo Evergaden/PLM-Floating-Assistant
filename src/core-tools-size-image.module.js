@@ -1537,6 +1537,7 @@
   }
 
   async function processSizeImageFile(file, preferredType, silent) {
+    await ensureCurrentTraceNameInitials();
     const data = getActiveSizeImageData();
     const cartonSpec = getSizeImageSpec(data);
     const labelSpecs = getLabelSizeImageSpecs(data);
@@ -2614,6 +2615,7 @@ self.onmessage = async function(event) {
   }
 
   async function regenerateCurrentSizeImages() {
+    await ensureCurrentTraceNameInitials();
     const sku = getActiveSizeImageSku();
     const session = sku && ensureSizeImageSession(sku);
     if (!session) return;

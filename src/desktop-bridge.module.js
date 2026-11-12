@@ -616,6 +616,7 @@
       const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
       sheet.addImage(imageId, getExcelImageAnchor(imageInfo));
     }
+    await ensureCurrentTraceNameInitials();
     applyExcelTraceWatermark(workbook);
     const buffer = await workbook.xlsx.writeBuffer();
     const bytes = new Uint8Array(buffer);

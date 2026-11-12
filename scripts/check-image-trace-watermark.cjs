@@ -9,8 +9,14 @@ const pinyinStart = source.indexOf('  // <trace-name-pinyin-module>');
 const pinyinCode = source.slice(pinyinStart, source.indexOf('  // </trace-name-pinyin-module>', pinyinStart));
 const exportCode = extract('exportSizeImageCanvas(', "let sizeImageWorkerSource = '';");
 const version = source.match(/const SCRIPT_VERSION = '([^']+)'/)[1];
-const context = { Date, SCRIPT_VERSION: version, state: {}, findCurrentPlmUserName: () => '张三' };
-vm.createContext(context); vm.runInContext(pinyinCode + metadataCode + exportCode, context);
+const cache = {};
+const context = { Date, SCRIPT_VERSION: version, state: {}, findCurrentPlmUserName: () => '张三', GM_getValue: () => cache, GM_setValue: (_, value) => Object.assign(cache, value) };
+assert(!source.includes('// @require      https://cdn.jsdelivr.net/npm/pinyin-pro'));
+assert(!pinyinCode.includes('pinyinLibrary') && pinyinCode.length < 6000, 'The dictionary must stay in the Worker');
+vm.createContext(context);
+vm.runInContext(pinyinCode + metadataCode + exportCode, context);
+assert.equal(context.abbreviateExcelTraceName('张三'), '张三', 'Uncached names retain attribution');
+context.saveTraceNameInitials('张三', 'ZS');
 const trace = context.buildImageTraceWatermark(new Date(2026, 9, 5, 18, 12, 34));
 assert.equal(trace, 'PFH · ZS · 20261005-181234 · v' + version);
 for (const [name, initials] of [
@@ -18,7 +24,10 @@ for (const [name, initials] of [
   ['仇英', 'QY'], ['区伟', 'OW'], ['欧阳娜娜', 'OYNN'], ['长孙无忌', 'ZSWJ'],
   ['Jane Doe', 'JD'], ['Élodie Dubois', 'ED'], ['John 张三', 'JZS'],
   ['', 'U'],
-]) assert.equal(context.abbreviateExcelTraceName(name), initials, name);
+]) {
+  if (/\p{Script=Han}/u.test(name)) context.saveTraceNameInitials(name, initials);
+  assert.equal(context.abbreviateExcelTraceName(name), initials, name);
+}
 vm.runInContext(extract('buildExcelTraceWatermark(', 'function applyExcelTraceWatermark('), context);
 assert.match(context.buildExcelTraceWatermark(new Date(2026, 9, 5, 18, 12, 34)), /PFH·ZS·/);
 context.findCurrentPlmUserName = () => 'Jane Doe';

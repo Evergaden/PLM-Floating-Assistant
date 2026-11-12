@@ -473,13 +473,13 @@
   }
 
   function abbreviateExcelTraceName(value) {
-    const name = String(value || '').trim().replace(/\s+/g, ' ');
+    const name = normalizeTraceName(value);
     if (!name) return 'U';
+    const cached = getTraceNameInitials(name);
+    if (cached) return cached;
+    if (/\p{Script=Han}/u.test(name)) return name;
     const parts = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/[\p{Script=Han}]+|[A-Za-z]+/gu) || [];
     const initials = parts.map((part) => {
-      if (/\p{Script=Han}/u.test(part)) {
-        return traceNamePinyin(part, { pattern: 'first', toneType: 'none', type: 'array', surname: 'head', nonZh: 'removed' }).join('');
-      }
       return part[0];
     }).join('').toUpperCase().replace(/[^A-Z]/g, '');
     return initials || 'U';
@@ -489,7 +489,7 @@
     const date = generatedAt instanceof Date && !Number.isNaN(generatedAt.getTime()) ? generatedAt : new Date();
     const pad = (value) => String(value).padStart(2, '0');
     const timestamp = String(date.getFullYear()) + pad(date.getMonth() + 1) + pad(date.getDate()) + '-' + pad(date.getHours()) + pad(date.getMinutes()) + pad(date.getSeconds());
-    const actor = abbreviateExcelTraceName(findCurrentPlmUserName() || state.sizeImageAccessName || state.parameterImageAccessName || '');
+    const actor = abbreviateExcelTraceName(currentTraceName());
     return 'PFH · ' + actor + ' · ' + timestamp + ' · v' + SCRIPT_VERSION;
   }
 
@@ -516,7 +516,7 @@
     const date = exportedAt instanceof Date && !Number.isNaN(exportedAt.getTime()) ? exportedAt : new Date();
     const pad = (value) => String(value).padStart(2, '0');
     const timestamp = pad(date.getFullYear() % 100) + pad(date.getMonth() + 1) + pad(date.getDate()) + '-' + pad(date.getHours()) + pad(date.getMinutes());
-    const actor = abbreviateExcelTraceName(findCurrentPlmUserName() || state.sizeImageAccessName || (state.settings && state.settings.cloudBackupOwnerName));
+    const actor = abbreviateExcelTraceName(currentTraceName());
     return 'PFH\u00b7' + actor + '\u00b7' + timestamp + '\u00b7V' + String(SCRIPT_VERSION || '').replace(/\D/g, '');
   }
 
@@ -646,6 +646,7 @@
       const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
       sheet.addImage(imageId, getExcelImageAnchor(imageInfo));
     }
+    await ensureCurrentTraceNameInitials();
     applyExcelTraceWatermark(workbook);
     return workbook.xlsx.writeBuffer();
   }
@@ -669,6 +670,7 @@
       }
     }
     applyExcelBatchMergedColumnLayout(sheet, items);
+    await ensureCurrentTraceNameInitials();
     applyExcelTraceWatermark(workbook);
     return workbook.xlsx.writeBuffer();
   }
@@ -1052,6 +1054,7 @@
         const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
         sheet.addImage(imageId, getExcelImageAnchor(imageInfo));
       }
+      await ensureCurrentTraceNameInitials();
       applyExcelTraceWatermark(workbook);
       const buffer = await workbook.xlsx.writeBuffer();
       state.excelStatus = L.excelDownloading + ' ' + fileName;

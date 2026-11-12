@@ -589,6 +589,7 @@
     getSaveFilePicker,
     saveImageFiles,
     applyTraceWatermark: (canvas) => drawImageTraceWatermark(canvas.getContext('2d'), canvas.width, canvas.height, buildImageTraceWatermark()),
+    prepareTraceName: ensureCurrentTraceNameInitials,
     showToast,
     applyTheme: applyThemeToView,
     render: () => { if (state.view === 'parameterImage') renderShell(); },
@@ -639,6 +640,7 @@
   scheduleLegacyManualSkuLedgerMigration(1800);
   scheduleMissingManualSkuImageRefresh(2600);
   window.setTimeout(() => startManualSkuAddQueue(), 700);
+  window.setTimeout(() => ensureCurrentTraceNameInitials(true), 1200);
   // Defer until all modules initialize; indexing is independent of filtering.
   window.setTimeout(() => scheduleSkuImageColorIndex(0), 15000);
   if (shouldStartUploadWorkerOnLoad()) {

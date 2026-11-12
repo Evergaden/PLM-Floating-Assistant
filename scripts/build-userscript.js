@@ -7,12 +7,7 @@ const modules = [
   { name: 'network-diagnostics', file: path.join(root, 'src', 'network-diagnostics.module.js') },
   {
     name: 'trace-name-pinyin',
-    file: path.join(root, 'src', 'vendor', 'pinyin-pro-3.29.4.js'),
-    wrapSource: (source) => {
-      const license = fs.readFileSync(path.join(root, 'src', 'vendor', 'pinyin-pro-LICENSE.txt'), 'utf8').trimEnd();
-      return '  /* @license pinyin-pro 3.29.4\n' + license.split(/\r?\n/).map((line) => '   *' + (line ? ' ' + line : '')).join('\n') +
-        '\n   */\n  const traceNamePinyin = (() => {\n    const module = { exports: {} };\n    const exports = module.exports;\n' + source + '\n    return module.exports.pinyin;\n  })();';
-    },
+    file: path.join(root, 'src', 'trace-name-pinyin.module.js'),
   },
   {
     name: 'core-lazy-externals',

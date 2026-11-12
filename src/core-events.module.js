@@ -1487,6 +1487,23 @@
       renderShell();
       return;
     }
+    if (event.target && event.target.name === 'pfh-trace-name-initials') {
+      const name = event.target.getAttribute('data-trace-name');
+      if (!name || name !== currentTraceName()) { renderShell(); return; }
+      const initials = String(event.target.value || '').trim().toUpperCase();
+      if (initials && !/^[A-Z]{1,20}$/.test(initials)) {
+        showToast('缩写请输入 1–20 个英文字母');
+        event.target.value = getTraceNameInitials(currentTraceName());
+        return;
+      }
+      saveTraceNameInitials(name, initials);
+      event.target.value = initials;
+      if (!initials) {
+        traceNameInitialsRetryAt.delete(currentTraceName());
+        ensureCurrentTraceNameInitials().then(() => renderShell());
+      }
+      return;
+    }
     if (event.target && event.target.name === 'pfh-ai-model') {
       state.settings.insightAiModel = event.target.value === MODELSCOPE_INSIGHT_MODEL ? MODELSCOPE_INSIGHT_MODEL : 'glm-4.7-flash';
       saveSettings(state.settings);
