@@ -492,6 +492,55 @@
     return true;
   }
 
+  function productDevelopmentBomDomMaterialSearch(drawer) {
+    const input = drawer && Array.from(drawer.querySelectorAll('input[placeholder="搜索物料编码"]')).find(productDevelopmentDomVisible);
+    return input ? { input, scope: input.closest('.cardBox, .materialEditList, .card') || input.parentElement || drawer } : null;
+  }
+
+  function productDevelopmentBomDomPackagingCard(drawer, code) {
+    const escaped = String(code || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const matchesCode = new RegExp('(^|[^A-Za-z0-9_-])' + escaped + '(?![A-Za-z0-9_-])', 'i');
+    return Array.from(drawer.querySelectorAll('.cardBox, .ant-table-row'))
+      .filter(productDevelopmentDomVisible)
+      .filter((card) => !card.querySelector('input[placeholder="搜索物料编码"]') && (
+        Array.from(card.querySelectorAll('span,td,b,a,div')).some((item) => productDevelopmentDomText(item.textContent).toUpperCase() === String(code).toUpperCase())
+        || matchesCode.test(productDevelopmentDomText(card.textContent))
+      ))
+      .sort((a, b) => a.textContent.length - b.textContent.length)[0] || null;
+  }
+
+  async function productDevelopmentBomDomAddReferencePackaging(drawer, row) {
+    const code = String(row && row.code || '').trim();
+    if (!code) throw new Error('对标包材缺少物料编码');
+    let card = productDevelopmentBomDomPackagingCard(drawer, code);
+    if (!card) {
+      if (productDevelopmentBomDomActiveEditor(drawer) || productDevelopmentBomDomProductSearch(drawer) || productDevelopmentBomDomMaterialSearch(drawer)) throw new Error('PLM 还有未确认的搜索行，请先确认或取消');
+      const add = productDevelopmentBomDomButton(drawer, '添加物料');
+      if (!add) throw new Error('未找到“添加物料”按钮');
+      add.click();
+      const other = await waitFor(() => productDevelopmentBomDomMenuItem('其他物料'), 5000, 100);
+      if (!other) throw new Error('添加物料菜单未找到“其他物料”');
+      other.click();
+      const search = await waitFor(() => productDevelopmentBomDomMaterialSearch(drawer), 8000, 120);
+      if (!search) throw new Error('未打开“搜索物料编码”输入框');
+      productDevelopmentDomNativeSetter(search.input, code);
+      await productDevelopmentDomWait(80);
+      const button = productDevelopmentBomDomButton(search.scope, '搜索') || productDevelopmentBomDomButton(drawer, '搜索');
+      if (!button) throw new Error('未找到包材“搜索”按钮');
+      button.click();
+      card = await waitFor(() => productDevelopmentBomDomPackagingCard(drawer, code), 12000, 120);
+      if (!card) throw new Error('未找到对标包材“' + code + '”，请核对搜索结果');
+    }
+    const typeInput = card.querySelector('.ant-select:not(.ant-select-disabled) input[role="combobox"], .ant-select:not(.ant-select-disabled) input');
+    if (!typeInput) {
+      if (Array.from(card.querySelectorAll('.ant-select-selection-item')).some((item) => productDevelopmentDomText(item.textContent) === '包材')) return false;
+      throw new Error('对标包材“' + code + '”未找到可选择的类型控件');
+    }
+    if (productDevelopmentDomSelectionMatches(typeInput, '包材')) return false;
+    await productDevelopmentDomSelectOption(typeInput, '包材', 'select');
+    return true;
+  }
+
   function productDevelopmentBomDomCardMatches(drawer, kind, draft) {
     if (!drawer || !draft) return false;
     const materialName = productDevelopmentDomText(draft.materialName);
@@ -568,6 +617,9 @@
     const taskMeta = getProductDevelopmentTaskMeta(task, detail);
     const reworkProductCode = productDevelopmentNormalizeReworkProductCode(taskMeta.reworkProductCode);
     const referenceLabel = productDevelopmentReferenceLabel(detail, task);
+    const isSupplement = productDevelopmentIsSupplement(detail, task);
+    const packagingRows = productDevelopmentReferencePackagingRows(detail, task);
+    if (!isSupplement && reworkProductCode && !packagingRows.length) throw new Error('尚未读取到对标包材，请先查询对标产品 BOM；不会从“成品”入口添加对标产品');
     productDevelopmentEnsureMaterialDrafts(detail, task);
     const drafts = [
       ['box', detail.materialDrafts.box],
@@ -599,7 +651,7 @@
       added.push(title);
     }
     let searchedReworkProduct = '';
-    if (reworkProductCode) {
+    if (reworkProductCode && isSupplement) {
       if (productDevelopmentBomDomHasProductCode(drawer, reworkProductCode)) {
         skipped.push(referenceLabel + '成品 ' + reworkProductCode);
       } else {
@@ -608,7 +660,11 @@
         searchedReworkProduct = reworkProductCode;
       }
     }
-    if (!added.length && !searchedReworkProduct) throw new Error(skipped.length ? 'BOM 物料或' + referenceLabel + '成品已存在，未重复添加' : '没有启用的 BOM 物料可填写');
+    for (const row of packagingRows) {
+      const changed = await productDevelopmentBomDomAddReferencePackaging(drawer, row);
+      (changed ? added : skipped).push('对标包材 ' + row.code);
+    }
+    if (!added.length && !searchedReworkProduct && !skipped.length) throw new Error('没有启用的 BOM 物料可填写');
     const filledMessage = added.length ? '已填入 PLM 待保存行：' + added.join('、') : '';
     const reworkMessage = searchedReworkProduct ? '已搜索' + referenceLabel + '成品：' + searchedReworkProduct + '，请检查搜索结果' : '';
     const message = [filledMessage, reworkMessage, skipped.length ? '已跳过：' + skipped.join('、') : ''].filter(Boolean).join('；') + '。请核对后点击“批量保存”';
@@ -737,7 +793,8 @@
     const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
     const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
     const referenceLabel = productDevelopmentReferenceLabel(detail, task);
-    if (typeof window.confirm === 'function' && !window.confirm('确认把当前启用的纸盒、标签和说明书逐条填入 PLM“绑定 BOM”界面？如已填写' + referenceLabel + '产品编码，还会打开“成品”并执行搜索；脚本不会选择搜索结果或点击“批量保存”，请最后人工核对。')) return;
+    const referenceAction = productDevelopmentIsSupplement(detail, task) ? '如已填写返工编码，还会打开“成品”并搜索；' : '对标包材将从“其他物料”搜索并选择“包材”类型，不添加对标成品；';
+    if (typeof window.confirm === 'function' && !window.confirm('确认把启用的物料填入 PLM“绑定 BOM”界面？' + referenceAction + '请最后人工核对并点击“批量保存”。')) return;
     state.productDevelopmentBomDomFillSku = normalizedSku;
     state.productDevelopmentStatus = '正在打开并填写 PLM BOM…';
     state.productDevelopmentError = '';

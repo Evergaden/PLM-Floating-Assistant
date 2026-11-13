@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.61
+// @version      2.10.62
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.61';
+  const SCRIPT_VERSION = '2.10.62';
   const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }\n#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n\n/* Text-only BOM controls, full-width material groups and aligned fields. */\n#plm-floating-helper .pfh-product-development-material-planner.pfh-bom-form {\n  display: grid;\n  gap: 16px;\n  min-width: 0;\n  padding: 16px;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-bom-form > header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-bom-form > header > .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; }\n#plm-floating-helper .pfh-product-development-detail-form > .pfh-product-development-product-form-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-detail-heading { display: contents; }\n#plm-floating-helper .pfh-product-development-product-form-header .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-bom-form > header h3 { font-size: 16px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form button[data-action] {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-bom-form button.is-primary { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-bom-form button:hover:not(:disabled) { border-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form button:disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-list { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card { align-content: start; gap: 12px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header { flex-direction: row; align-items: center; min-height: 36px; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header strong { font-size: 20px; font-weight: 700; line-height: 1.4; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled { padding-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled small { margin-left: 12px; color: var(--pfh-theme-muted); font-size: 11px; font-weight: 400; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-grid,\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-grid { grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); align-items: start; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field { gap: 8px; color: var(--pfh-theme-text); font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field > span { overflow: visible; white-space: normal; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field :is(input, select) { min-height: 36px; padding: 8px 12px; font: inherit; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form :is(button, input, select):focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 2px; }\n#plm-floating-helper .pfh-bom-dimensions { display: grid; grid-column: 1 / -1; grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-bom-dimensions.is-box { grid-template-columns: var(--pfh-bom-field-columns, repeat(3, minmax(0, 1fr))); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-options { gap: 12px; padding-top: 12px; border-top-style: solid; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group { gap: 8px; font-size: 11px; color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group > div { display: flex; min-height: 36px; box-sizing: border-box; align-items: center; gap: 16px; padding: 8px 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group input { accent-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-product-binding { padding: 12px; border-radius: 8px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid { gap: 12px; margin-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid small { font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-bom-form { --pfh-bom-field-columns: minmax(0, 1fr); }\n}\n";
   const SKU_DETAIL_LAYOUT_CSS = "/* Keep SKU identity above the independently scrolling detail content. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  height: auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  padding: 12px 14px 0;\n  overflow: hidden;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {\n  flex: 0 0 auto;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 0 0;\n}\n\n#plm-floating-helper .pfh-material-card {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 16px 18px;\r\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\r\n  border-radius: 16px;\r\n  background: var(--pfh-theme-card, #fff);\r\n}\r\n#plm-floating-helper .pfh-material-card small {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key] {\r\n  display: block;\r\n  min-width: 0;\r\n  overflow-wrap: anywhere;\r\n  /* Fill the inter-row gap without moving the text or overlapping targets. */\r\n  padding: 4px 10px;\r\n  margin: -4px -10px;\r\n  cursor: pointer;\r\n  border-radius: 6px;\r\n  transition: color .15s, background .15s;\r\n}\r\n#plm-floating-helper .pfh-material-size {\r\n  color: var(--pfh-theme-text, #17213a);\r\n  font-size: 15px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-code {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:hover,\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:focus-visible,\r\n#plm-floating-helper .pfh-material-card .is-copied {\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-soft, #f4efff);\r\n  outline: none;\r\n}\r\n\n/* Keep product context in the selected SKU card while the editor owns the detail pane. */\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active) {\n  position: relative;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active)::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  z-index: 10;\n  border-radius: inherit;\n  background: color-mix(in srgb, var(--pfh-theme-page, #f8f9ff) 58%, transparent);\n  pointer-events: none;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-list-head, .pfh-sku-list-toolbar, .pfh-sku-filter-toolbar, .pfh-list-pager, .pfh-search-result-toolbar, .pfh-workspace-search-host) {\n  opacity: .5;\n}\n";
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
@@ -9415,17 +9415,18 @@
   }
 
   async function productDevelopmentResolveProductMainId(task, detail, rows) {
-    const existing = (Array.isArray(rows) ? rows : []).find((row) => row && (Number(row.typeValue) === 1 || row.type === '成品') && row.productMainId);
+    const sku = String(detail && detail.sku || task && task.sku || '').trim().toUpperCase();
+    const existing = (Array.isArray(rows) ? rows : []).find((row) => row && (Number(row.typeValue) === 1 || row.type === '成品') && String(row.code || '').trim().toUpperCase() === sku && row.productMainId);
     if (existing && existing.productMainId) return String(existing.productMainId);
     const direct = detail && (detail.productMainId || detail.product_main_id)
       || task && (task.productMainId || task.product_main_id)
       || state.data && (state.data.productMainId || state.data.product_main_id);
-    if (direct) return String(direct);
-    const sku = String(detail && detail.sku || task && task.sku || '').trim().toUpperCase();
+    const foreignProduct = (Array.isArray(rows) ? rows : []).some((row) => row && (Number(row.typeValue) === 1 || row.type === '成品') && String(row.code || '').trim().toUpperCase() !== sku);
+    if (direct && !foreignProduct && productDevelopmentIsSupplement(detail, task)) return String(direct);
     if (!sku) return '';
     const payload = await fetchPlmJson('/api/ProjectFormData/GetProductList?type=1&codes_precise=' + encodeURIComponent(sku));
     const list = productDevelopmentApiList(payload);
-    const product = list.find((item) => String(item && (item.code || item.product_code || '')).trim().toUpperCase() === sku) || list[0];
+    const product = list.find((item) => String(item && (item.code || item.product_code || '')).trim().toUpperCase() === sku);
     return String(product && (product.id || product.product_main_id || product.productMainId) || '').trim();
   }
 
@@ -9452,6 +9453,20 @@
     return rows;
   }
 
+  function productDevelopmentReferencePackagingRows(detail, task) {
+    if (productDevelopmentIsSupplement(detail, task)) return [];
+    const reference = productDevelopmentReworkLookupState(detail).data;
+    const rows = reference && Array.isArray(reference.bomRows) ? reference.bomRows : [];
+    const seen = new Set();
+    return rows.filter((row) => {
+      if (!row || Number(row.typeValue) === 1 || row.type === '成品' || productDevelopmentMaterialRowKind(row)) return false;
+      const code = String(row.code || '').trim();
+      if (!code || seen.has(code.toUpperCase()) || !/^2-/i.test(code) && !/包材|瓶|罐|盖|软管|包装容器/.test([row.category, row.name].join(' '))) return false;
+      seen.add(code.toUpperCase());
+      return true;
+    });
+  }
+
   async function productDevelopmentSaveBomToPlm(sku) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
@@ -9468,12 +9483,16 @@
     ].filter(([, draft]) => draft && draft.enabled !== false);
     const missing = drafts.flatMap(([kind, draft]) => productDevelopmentMaterialDraftMissingFields(kind, draft));
     if (missing.length) throw new Error('请先补充 BOM：' + missing.join('、'));
+    const referenceCode = getProductDevelopmentTaskMeta(task, detail).reworkProductCode;
+    const packagingRows = productDevelopmentReferencePackagingRows(detail, task);
+    if (!productDevelopmentIsSupplement(detail, task) && referenceCode && !packagingRows.length) throw new Error('尚未读取到对标包材，请先查询对标产品的 BOM；不会把对标产品作为成品添加');
+    if (packagingRows.some((row) => !/^\d+$/.test(String(row.materialId || '')) || row.materialType === '' || row.materialType === null || row.materialType === undefined)) throw new Error('对标包材缺少物料 ID 或包材类型，请使用“一键填入 PLM BOM”按名称选择包材');
     let rows = Array.isArray(detail.bomRows) ? detail.bomRows.slice() : [];
     const productMainId = await productDevelopmentResolveProductMainId(task, detail, rows);
-    if (!productMainId && !rows.some((row) => Number(row && row.typeValue) === 1 || row && row.type === '成品')) {
+    if (!productMainId) {
       throw new Error('未找到当前 SKU 的已建品主产品，无法绑定 BOM');
     }
-    const hasProduct = rows.some((row) => Number(row && row.typeValue) === 1 || row && row.type === '成品');
+    const hasProduct = rows.some((row) => (Number(row && row.typeValue) === 1 || row && row.type === '成品') && String(row.code || '').toUpperCase() === normalizedSku);
     if (!hasProduct && productMainId) {
       await fetchPlmApiJson('/api/ChemicalNewBom/AddBatchProjectPMJoin', {
         project_id: productDevelopmentApiNumber(projectId, projectId),
@@ -9489,8 +9508,8 @@
       if (data.code) draft.code = productDevelopmentCleanText(data.code, 100);
     }
     rows = await productDevelopmentReadBomRows(projectId);
-    const missingMaterialIds = drafts
-      .map(([, draft]) => String(draft.materialId || '').trim())
+    const missingMaterialIds = Array.from(new Set(drafts
+      .map(([, draft]) => String(draft.materialId || '').trim()).concat(packagingRows.map((row) => String(row.materialId || '').trim()))))
       .filter((materialId) => materialId && !rows.some((row) => String(row.materialId || '').trim() === materialId));
     if (missingMaterialIds.length) {
       await fetchPlmApiJson('/api/ChemicalNewBom/AddBatchProjectPMJoin', {
@@ -9507,10 +9526,14 @@
       draft.code = row.code || draft.code;
       draft.materialId = row.materialId || draft.materialId;
     });
-    const batchMaterials = rows.map(productDevelopmentMaterialBatchPayload).filter(Boolean);
+    const batchMaterials = rows.map((row) => {
+      const packaging = packagingRows.find((item) => String(item.materialId) === String(row.materialId));
+      return productDevelopmentMaterialBatchPayload(packaging ? { ...row, typeValue: 2, type: '物料', materialType: packaging.materialType } : row);
+    }).filter(Boolean);
     const savedDraftJoinIds = drafts.map(([, draft]) => String(draft.joinId || '').trim()).filter(Boolean);
-    const productBinding = batchMaterials.find((item) => Number(item.type) === 1);
+    const productBinding = batchMaterials.find((item) => Number(item.type) === 1 && String(item.code).toUpperCase() === normalizedSku);
     if (!productBinding) throw new Error('未读取到成品绑定行，物料未提交，请刷新 BOM 后重试');
+    if (packagingRows.some((row) => !batchMaterials.some((item) => Number(item.type) === 2 && String(item.material_id) === String(row.materialId)))) throw new Error('对标包材未出现在当前 BOM 中，请刷新后重试');
     if (savedDraftJoinIds.some((joinId) => !batchMaterials.some((item) => String(item.id) === joinId))) throw new Error('PLM 已保存物料，但未读取到对应 BOM 绑定行，请刷新后重试');
     const syncPayload = await fetchPlmApiJson('/api/ChemicalNewBom/MaterialBatchSaveAndSyncToProduct', {
       project_id: productDevelopmentApiNumber(projectId, projectId),
@@ -10236,6 +10259,55 @@
     return true;
   }
 
+  function productDevelopmentBomDomMaterialSearch(drawer) {
+    const input = drawer && Array.from(drawer.querySelectorAll('input[placeholder="搜索物料编码"]')).find(productDevelopmentDomVisible);
+    return input ? { input, scope: input.closest('.cardBox, .materialEditList, .card') || input.parentElement || drawer } : null;
+  }
+
+  function productDevelopmentBomDomPackagingCard(drawer, code) {
+    const escaped = String(code || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const matchesCode = new RegExp('(^|[^A-Za-z0-9_-])' + escaped + '(?![A-Za-z0-9_-])', 'i');
+    return Array.from(drawer.querySelectorAll('.cardBox, .ant-table-row'))
+      .filter(productDevelopmentDomVisible)
+      .filter((card) => !card.querySelector('input[placeholder="搜索物料编码"]') && (
+        Array.from(card.querySelectorAll('span,td,b,a,div')).some((item) => productDevelopmentDomText(item.textContent).toUpperCase() === String(code).toUpperCase())
+        || matchesCode.test(productDevelopmentDomText(card.textContent))
+      ))
+      .sort((a, b) => a.textContent.length - b.textContent.length)[0] || null;
+  }
+
+  async function productDevelopmentBomDomAddReferencePackaging(drawer, row) {
+    const code = String(row && row.code || '').trim();
+    if (!code) throw new Error('对标包材缺少物料编码');
+    let card = productDevelopmentBomDomPackagingCard(drawer, code);
+    if (!card) {
+      if (productDevelopmentBomDomActiveEditor(drawer) || productDevelopmentBomDomProductSearch(drawer) || productDevelopmentBomDomMaterialSearch(drawer)) throw new Error('PLM 还有未确认的搜索行，请先确认或取消');
+      const add = productDevelopmentBomDomButton(drawer, '添加物料');
+      if (!add) throw new Error('未找到“添加物料”按钮');
+      add.click();
+      const other = await waitFor(() => productDevelopmentBomDomMenuItem('其他物料'), 5000, 100);
+      if (!other) throw new Error('添加物料菜单未找到“其他物料”');
+      other.click();
+      const search = await waitFor(() => productDevelopmentBomDomMaterialSearch(drawer), 8000, 120);
+      if (!search) throw new Error('未打开“搜索物料编码”输入框');
+      productDevelopmentDomNativeSetter(search.input, code);
+      await productDevelopmentDomWait(80);
+      const button = productDevelopmentBomDomButton(search.scope, '搜索') || productDevelopmentBomDomButton(drawer, '搜索');
+      if (!button) throw new Error('未找到包材“搜索”按钮');
+      button.click();
+      card = await waitFor(() => productDevelopmentBomDomPackagingCard(drawer, code), 12000, 120);
+      if (!card) throw new Error('未找到对标包材“' + code + '”，请核对搜索结果');
+    }
+    const typeInput = card.querySelector('.ant-select:not(.ant-select-disabled) input[role="combobox"], .ant-select:not(.ant-select-disabled) input');
+    if (!typeInput) {
+      if (Array.from(card.querySelectorAll('.ant-select-selection-item')).some((item) => productDevelopmentDomText(item.textContent) === '包材')) return false;
+      throw new Error('对标包材“' + code + '”未找到可选择的类型控件');
+    }
+    if (productDevelopmentDomSelectionMatches(typeInput, '包材')) return false;
+    await productDevelopmentDomSelectOption(typeInput, '包材', 'select');
+    return true;
+  }
+
   function productDevelopmentBomDomCardMatches(drawer, kind, draft) {
     if (!drawer || !draft) return false;
     const materialName = productDevelopmentDomText(draft.materialName);
@@ -10312,6 +10384,9 @@
     const taskMeta = getProductDevelopmentTaskMeta(task, detail);
     const reworkProductCode = productDevelopmentNormalizeReworkProductCode(taskMeta.reworkProductCode);
     const referenceLabel = productDevelopmentReferenceLabel(detail, task);
+    const isSupplement = productDevelopmentIsSupplement(detail, task);
+    const packagingRows = productDevelopmentReferencePackagingRows(detail, task);
+    if (!isSupplement && reworkProductCode && !packagingRows.length) throw new Error('尚未读取到对标包材，请先查询对标产品 BOM；不会从“成品”入口添加对标产品');
     productDevelopmentEnsureMaterialDrafts(detail, task);
     const drafts = [
       ['box', detail.materialDrafts.box],
@@ -10343,7 +10418,7 @@
       added.push(title);
     }
     let searchedReworkProduct = '';
-    if (reworkProductCode) {
+    if (reworkProductCode && isSupplement) {
       if (productDevelopmentBomDomHasProductCode(drawer, reworkProductCode)) {
         skipped.push(referenceLabel + '成品 ' + reworkProductCode);
       } else {
@@ -10352,7 +10427,11 @@
         searchedReworkProduct = reworkProductCode;
       }
     }
-    if (!added.length && !searchedReworkProduct) throw new Error(skipped.length ? 'BOM 物料或' + referenceLabel + '成品已存在，未重复添加' : '没有启用的 BOM 物料可填写');
+    for (const row of packagingRows) {
+      const changed = await productDevelopmentBomDomAddReferencePackaging(drawer, row);
+      (changed ? added : skipped).push('对标包材 ' + row.code);
+    }
+    if (!added.length && !searchedReworkProduct && !skipped.length) throw new Error('没有启用的 BOM 物料可填写');
     const filledMessage = added.length ? '已填入 PLM 待保存行：' + added.join('、') : '';
     const reworkMessage = searchedReworkProduct ? '已搜索' + referenceLabel + '成品：' + searchedReworkProduct + '，请检查搜索结果' : '';
     const message = [filledMessage, reworkMessage, skipped.length ? '已跳过：' + skipped.join('、') : ''].filter(Boolean).join('；') + '。请核对后点击“批量保存”';
@@ -10481,7 +10560,8 @@
     const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
     const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
     const referenceLabel = productDevelopmentReferenceLabel(detail, task);
-    if (typeof window.confirm === 'function' && !window.confirm('确认把当前启用的纸盒、标签和说明书逐条填入 PLM“绑定 BOM”界面？如已填写' + referenceLabel + '产品编码，还会打开“成品”并执行搜索；脚本不会选择搜索结果或点击“批量保存”，请最后人工核对。')) return;
+    const referenceAction = productDevelopmentIsSupplement(detail, task) ? '如已填写返工编码，还会打开“成品”并搜索；' : '对标包材将从“其他物料”搜索并选择“包材”类型，不添加对标成品；';
+    if (typeof window.confirm === 'function' && !window.confirm('确认把启用的物料填入 PLM“绑定 BOM”界面？' + referenceAction + '请最后人工核对并点击“批量保存”。')) return;
     state.productDevelopmentBomDomFillSku = normalizedSku;
     state.productDevelopmentStatus = '正在打开并填写 PLM BOM…';
     state.productDevelopmentError = '';

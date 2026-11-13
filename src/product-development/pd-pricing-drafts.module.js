@@ -496,17 +496,18 @@
   }
 
   async function productDevelopmentResolveProductMainId(task, detail, rows) {
-    const existing = (Array.isArray(rows) ? rows : []).find((row) => row && (Number(row.typeValue) === 1 || row.type === '成品') && row.productMainId);
+    const sku = String(detail && detail.sku || task && task.sku || '').trim().toUpperCase();
+    const existing = (Array.isArray(rows) ? rows : []).find((row) => row && (Number(row.typeValue) === 1 || row.type === '成品') && String(row.code || '').trim().toUpperCase() === sku && row.productMainId);
     if (existing && existing.productMainId) return String(existing.productMainId);
     const direct = detail && (detail.productMainId || detail.product_main_id)
       || task && (task.productMainId || task.product_main_id)
       || state.data && (state.data.productMainId || state.data.product_main_id);
-    if (direct) return String(direct);
-    const sku = String(detail && detail.sku || task && task.sku || '').trim().toUpperCase();
+    const foreignProduct = (Array.isArray(rows) ? rows : []).some((row) => row && (Number(row.typeValue) === 1 || row.type === '成品') && String(row.code || '').trim().toUpperCase() !== sku);
+    if (direct && !foreignProduct && productDevelopmentIsSupplement(detail, task)) return String(direct);
     if (!sku) return '';
     const payload = await fetchPlmJson('/api/ProjectFormData/GetProductList?type=1&codes_precise=' + encodeURIComponent(sku));
     const list = productDevelopmentApiList(payload);
-    const product = list.find((item) => String(item && (item.code || item.product_code || '')).trim().toUpperCase() === sku) || list[0];
+    const product = list.find((item) => String(item && (item.code || item.product_code || '')).trim().toUpperCase() === sku);
     return String(product && (product.id || product.product_main_id || product.productMainId) || '').trim();
   }
 
@@ -533,6 +534,20 @@
     return rows;
   }
 
+  function productDevelopmentReferencePackagingRows(detail, task) {
+    if (productDevelopmentIsSupplement(detail, task)) return [];
+    const reference = productDevelopmentReworkLookupState(detail).data;
+    const rows = reference && Array.isArray(reference.bomRows) ? reference.bomRows : [];
+    const seen = new Set();
+    return rows.filter((row) => {
+      if (!row || Number(row.typeValue) === 1 || row.type === '成品' || productDevelopmentMaterialRowKind(row)) return false;
+      const code = String(row.code || '').trim();
+      if (!code || seen.has(code.toUpperCase()) || !/^2-/i.test(code) && !/包材|瓶|罐|盖|软管|包装容器/.test([row.category, row.name].join(' '))) return false;
+      seen.add(code.toUpperCase());
+      return true;
+    });
+  }
+
   async function productDevelopmentSaveBomToPlm(sku) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
@@ -549,12 +564,16 @@
     ].filter(([, draft]) => draft && draft.enabled !== false);
     const missing = drafts.flatMap(([kind, draft]) => productDevelopmentMaterialDraftMissingFields(kind, draft));
     if (missing.length) throw new Error('请先补充 BOM：' + missing.join('、'));
+    const referenceCode = getProductDevelopmentTaskMeta(task, detail).reworkProductCode;
+    const packagingRows = productDevelopmentReferencePackagingRows(detail, task);
+    if (!productDevelopmentIsSupplement(detail, task) && referenceCode && !packagingRows.length) throw new Error('尚未读取到对标包材，请先查询对标产品的 BOM；不会把对标产品作为成品添加');
+    if (packagingRows.some((row) => !/^\d+$/.test(String(row.materialId || '')) || row.materialType === '' || row.materialType === null || row.materialType === undefined)) throw new Error('对标包材缺少物料 ID 或包材类型，请使用“一键填入 PLM BOM”按名称选择包材');
     let rows = Array.isArray(detail.bomRows) ? detail.bomRows.slice() : [];
     const productMainId = await productDevelopmentResolveProductMainId(task, detail, rows);
-    if (!productMainId && !rows.some((row) => Number(row && row.typeValue) === 1 || row && row.type === '成品')) {
+    if (!productMainId) {
       throw new Error('未找到当前 SKU 的已建品主产品，无法绑定 BOM');
     }
-    const hasProduct = rows.some((row) => Number(row && row.typeValue) === 1 || row && row.type === '成品');
+    const hasProduct = rows.some((row) => (Number(row && row.typeValue) === 1 || row && row.type === '成品') && String(row.code || '').toUpperCase() === normalizedSku);
     if (!hasProduct && productMainId) {
       await fetchPlmApiJson('/api/ChemicalNewBom/AddBatchProjectPMJoin', {
         project_id: productDevelopmentApiNumber(projectId, projectId),
@@ -570,8 +589,8 @@
       if (data.code) draft.code = productDevelopmentCleanText(data.code, 100);
     }
     rows = await productDevelopmentReadBomRows(projectId);
-    const missingMaterialIds = drafts
-      .map(([, draft]) => String(draft.materialId || '').trim())
+    const missingMaterialIds = Array.from(new Set(drafts
+      .map(([, draft]) => String(draft.materialId || '').trim()).concat(packagingRows.map((row) => String(row.materialId || '').trim()))))
       .filter((materialId) => materialId && !rows.some((row) => String(row.materialId || '').trim() === materialId));
     if (missingMaterialIds.length) {
       await fetchPlmApiJson('/api/ChemicalNewBom/AddBatchProjectPMJoin', {
@@ -588,10 +607,14 @@
       draft.code = row.code || draft.code;
       draft.materialId = row.materialId || draft.materialId;
     });
-    const batchMaterials = rows.map(productDevelopmentMaterialBatchPayload).filter(Boolean);
+    const batchMaterials = rows.map((row) => {
+      const packaging = packagingRows.find((item) => String(item.materialId) === String(row.materialId));
+      return productDevelopmentMaterialBatchPayload(packaging ? { ...row, typeValue: 2, type: '物料', materialType: packaging.materialType } : row);
+    }).filter(Boolean);
     const savedDraftJoinIds = drafts.map(([, draft]) => String(draft.joinId || '').trim()).filter(Boolean);
-    const productBinding = batchMaterials.find((item) => Number(item.type) === 1);
+    const productBinding = batchMaterials.find((item) => Number(item.type) === 1 && String(item.code).toUpperCase() === normalizedSku);
     if (!productBinding) throw new Error('未读取到成品绑定行，物料未提交，请刷新 BOM 后重试');
+    if (packagingRows.some((row) => !batchMaterials.some((item) => Number(item.type) === 2 && String(item.material_id) === String(row.materialId)))) throw new Error('对标包材未出现在当前 BOM 中，请刷新后重试');
     if (savedDraftJoinIds.some((joinId) => !batchMaterials.some((item) => String(item.id) === joinId))) throw new Error('PLM 已保存物料，但未读取到对应 BOM 绑定行，请刷新后重试');
     const syncPayload = await fetchPlmApiJson('/api/ChemicalNewBom/MaterialBatchSaveAndSyncToProduct', {
       project_id: productDevelopmentApiNumber(projectId, projectId),
