@@ -652,7 +652,7 @@
     return { warning: syncMessage, rows, skipped };
   }
 
-  function productDevelopmentSaveBomLocally(sku) {
+  function productDevelopmentSaveBomLocally(sku, scope) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
     if (!detail) {
@@ -663,13 +663,13 @@
     detail.bomDraftDirty = false;
     detail.bomDraftSavedAt = new Date().toLocaleString();
     detail.bomDraftSaveState = 'saved';
-    detail.bomDraftSaveMessage = 'BOM 已保存到本地';
+    detail.bomDraftSaveMessage = 'BOM 已自动保存到本地';
     detail.bomPlmSaveState = '';
     detail.cacheSource = 'local-cache';
+    clearProductDevelopmentReadonlyDetailCacheWriteTimer(normalizedSku);
     saveProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
-    state.productDevelopmentStatus = 'BOM 已保存到本地';
-    showToast('BOM 已保存到本地');
-    renderShell();
+    const status = scope && scope.querySelector('.pfh-product-development-material-save-status');
+    if (status) { status.textContent = detail.bomDraftSaveMessage; status.classList.remove('is-dirty', 'is-error'); status.classList.add('is-saved'); }
     return true;
   }
 

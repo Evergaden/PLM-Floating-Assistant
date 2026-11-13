@@ -45,6 +45,28 @@ assert.equal(persisted.productDetailSaveState, 'saved');
 assert.ok(persisted.productDetailSavedAt);
 assert.match(status.textContent, /自动保存/);
 assert.equal(rendered, 0, 'Blur must not replace the form or interrupt the next focus/click');
+vm.runInContext(fs.readFileSync(path.join(root, 'src/product-development/pd-pricing-drafts.module.js'), 'utf8'), context);
+context.getProductDevelopmentTaskBySku = () => ({});
+context.productDevelopmentEnsureMaterialDrafts = () => {};
+context.productDevelopmentCleanText = (value) => String(value ?? '').trim();
+context.productDevelopmentSyncMaterialDimensions = () => {};
+context.productDevelopmentRecalculateMaterialDraft = () => {};
+context.productDevelopmentSyncMaterialDraftDom = () => {};
+detail.materialDrafts = {label:{materialName:'旧名称'}};
+const material = {
+  value:'标签新名称', type:'text',
+  classList:{contains:(name)=>name==='pfh-product-development-material-input'},
+  getAttribute:(key)=>({'data-material-sku':'SKU1','data-material-kind':'label','data-material-field':'materialName'})[key]||'',
+  closest:()=>({querySelector:()=>status}),
+};
+context.productDevelopmentHandleInput({target:material,type:'input'});
+assert.equal(detail.bomDraftDirty,true);
+context.productDevelopmentHandleChange({target:material,type:'change'});
+assert.equal(persisted.materialDrafts.label.materialName,'标签新名称');
+assert.equal(persisted.bomDraftDirty,false);
+assert.match(status.textContent,/自动保存/);
+assert.equal(rendered,0,'BOM autosave must not redraw the current form');
+assert(!fs.readFileSync(path.join(root,'src/product-development/pd-dom.module.js'),'utf8').includes('data-action="product-development-bom-save-local"'));
 target.getAttribute = (key) => ({ 'data-form-sku': 'SKU1', 'data-form-group': 'bom', 'data-form-key': '0.length' })[key] || '';
 target.value = '999';
 context.productDevelopmentHandleInput({ target });

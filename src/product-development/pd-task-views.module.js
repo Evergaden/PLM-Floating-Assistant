@@ -279,7 +279,7 @@
     if (priceLabel) priceLabel.textContent = draft.price ? '采购价：' + draft.price + ' 元' : (pricePlaceholder ? '采购价：' + pricePlaceholder : '采购价');
   }
 
-  function productDevelopmentHandleMaterialField(target) {
+  function productDevelopmentHandleMaterialField(target, eventType) {
     if (!target || !target.classList || !target.classList.contains('pfh-product-development-material-input')) return false;
     if (target.type === 'radio' && !target.checked) return true;
     const sku = String(target.getAttribute('data-material-sku') || '').trim().toUpperCase();
@@ -317,6 +317,7 @@
     detail.cacheSource = 'local-cache';
     scheduleProductDevelopmentReadonlyDetailCache(sku, detail);
     productDevelopmentSyncMaterialDraftDom(sku, kind, draft, target);
+    if (eventType === 'change') productDevelopmentSaveBomLocally(sku, target.closest && target.closest('.pfh-bom-form'));
     return true;
   }
 

@@ -160,7 +160,15 @@
 }
 #plm-floating-helper .pfh-settings-page .pfh-cloud-key {grid-template-columns:78px minmax(0,1fr);gap:9px;color:var(--pfh-theme-muted,#6b7897);font-size:12px;align-items:center
 }
-#plm-floating-helper .pfh-settings-page .pfh-cloud-key input {height:32px;border:1px solid var(--pfh-theme-border,rgba(190,199,220,.8));border-radius:10px;background:var(--pfh-theme-control-surface,rgba(255,255,255,.86));box-shadow:inset 0 1px 2px rgba(31,20,70,.05);color:var(--pfh-theme-text,#253047)
+#plm-floating-helper .pfh-settings-page .pfh-cloud-key input,
+#plm-floating-helper .pfh-settings-page .pfh-setting-row > :is(input[type="text"], input[type="number"], input[type="password"], input[type="url"], input[type="search"], input[type="email"], select),
+#plm-floating-helper .pfh-settings-page .pfh-pixel-room-field input {
+  min-width:0;max-width:100%;min-height:34px;box-sizing:border-box;padding:6px 10px;
+  border:1px solid var(--pfh-theme-border);border-radius:9px;background:var(--pfh-theme-control-surface);
+  color:var(--pfh-theme-text);font:inherit;font-size:12px;line-height:1.4;outline:0;
+}
+#plm-floating-helper .pfh-settings-page :is(.pfh-setting-row > input, .pfh-setting-row > select, .pfh-cloud-key input, .pfh-pixel-room-field input):focus-visible {
+  border-color:var(--pfh-theme-primary);box-shadow:0 0 0 3px var(--pfh-theme-primary-soft);
 }
 #plm-floating-helper .pfh-settings-page .pfh-cloud-backup p {display:block;margin:0 0 12px;padding:9px 12px;border-radius:11px;background:var(--pfh-theme-card,rgba(248,248,253,.82));color:var(--pfh-theme-muted,#6b7897);font-size:11.5px;line-height:1.55
 }

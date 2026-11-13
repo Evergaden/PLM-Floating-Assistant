@@ -214,10 +214,6 @@
       productDevelopmentRunProductDetailPlmSave(actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku());
       return true;
     }
-    if (action === 'product-development-bom-save-local') {
-      productDevelopmentSaveBomLocally(actionTarget && actionTarget.getAttribute('data-bom-sku') || getProductDevelopmentCurrentSku());
-      return true;
-    }
     if (action === 'product-development-bom-fill-plm') {
       productDevelopmentRunBomDomFill(actionTarget && actionTarget.getAttribute('data-bom-sku') || getProductDevelopmentCurrentSku());
       return true;
@@ -604,7 +600,7 @@
       if (files[0]) importProductDevelopmentBenchmarkImage(files[0]).catch((error) => showToast(formatErrorMessage(error)));
       return true;
     }
-    if (productDevelopmentHandleMaterialField(target)) return true;
+    if (productDevelopmentHandleMaterialField(target, 'change')) return true;
     if (!target.classList.contains('pfh-product-development-template-input')) return false;
     target.value = '';
     if (files[0]) importProductDevelopmentTemplate(files[0]).catch((error) => showToast(formatErrorMessage(error)));
