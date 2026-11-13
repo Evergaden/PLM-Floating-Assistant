@@ -737,6 +737,11 @@
   }
 
   async function productDevelopmentFillPlmPage2(detail) {
+    if (detail && detail.projectId) {
+      detail.bomRows = await productDevelopmentReadBomRows(detail.projectId);
+      delete detail.productDetailBomPriceSignature;
+      productDevelopmentSyncProcurementPrice(detail);
+    }
     const values = productDevelopmentDomAvailableValues(PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS, (definition) => productDevelopmentPrefillProductFieldValue(detail, definition));
     const procurementValues = productDevelopmentDomAvailableValues(PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS, (definition) => productDevelopmentProcurementFieldValue(detail, definition.key));
     const warnings = [];
@@ -918,6 +923,7 @@
       supplier: productDevelopmentCleanText(value('default_supplier_name', 'defaultSupplierName', 'supplier'), 180),
       supplierId: String(value('default_supplier_id', 'defaultSupplierId', 'supplierId')).trim(),
       price: value('sale_price', 'salePrice', 'purchase_price', 'purchasePrice') === '' ? '' : String(value('sale_price', 'salePrice', 'purchase_price', 'purchasePrice')),
+      isPricing: source.is_pricing === undefined ? undefined : source.is_pricing === true || source.is_pricing === 1 || source.is_pricing === '1',
       length: value('material_length', 'materialLength', 'length'),
       width: value('material_width', 'materialWidth', 'width'),
       height: value('material_height', 'materialHeight', 'height'),
@@ -1109,6 +1115,7 @@
       { key: 'projectStatus', label: '开发任务状态', value: source.projectStatus, source: '开发任务' },
     ]);
     const materialDraftDetail = {
+      categoryName,
       sku: source.sku,
       projectId: String(source.projectId || source.rowId || '').trim(),
       productMainId,
@@ -1124,6 +1131,7 @@
       projectCode: source.projectCode || '',
       categoryId,
       categoryName,
+      prefillOptions: Object.fromEntries(attrs.map((attr) => [attr.attr_id, productDevelopmentAttributeOptions(attr)]).filter(([, options]) => options.length)),
       productId: String(info.product_id || source.productId || productSnapshot && productSnapshot.productId || '').trim(),
       productGroupId: String(info.product_group_id || source.productGroupId || productSnapshot && productSnapshot.productGroupId || '').trim(),
       productMainId,
@@ -1247,17 +1255,39 @@
   }
 
   function productDevelopmentPrefillFieldHtml(field, formSku, value) {
+    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[formSku];
+    const options = productDevelopmentPrefillOptions(field, detail);
     const inputValue = productDevelopmentPrefillText(value, field && field.type === 'textarea' ? 12000 : 800);
     const missing = !inputValue;
     const isTextarea = field && field.type === 'textarea';
     const inputType = field && field.type === 'number' ? 'number' : 'text';
     const derived = field && ['outerVolume', 'standardPackingQuantity'].includes(field.key);
     const inputAttributes = ' class="pfh-product-development-form-input" data-form-sku="' + escapeHtml(formSku || '') + '" data-form-group="' + escapeHtml(field && field.formGroup || 'prefill') + '" data-form-key="' + escapeHtml(field && field.key || '') + '" data-form-control="' + escapeHtml(field && field.control || '') + '"' + (inputType === 'number' ? ' inputmode="decimal" step="any"' : '') + ' placeholder="' + escapeHtml(field && field.placeholder || '') + '"';
-    const readonly = derived ? ' readonly aria-readonly="true" title="按当前长宽高自动计算"' : '';
-    const control = isTextarea
+    const priceLocked = field && field.key === 'procurementPrice';
+    const readonly = derived ? ' readonly aria-readonly="true" title="按当前长宽高自动计算"' : priceLocked ? ' readonly aria-readonly="true" data-procurement-price-lock="true" title="采购单价 + 0.5；双击修改，离开后重新锁定"' : '';
+    const supplierListId = 'pfh-supplier-options-' + String(formSku).replace(/[^A-Za-z0-9_-]/g, '');
+    const supplier = field.key === 'supplier' && field.formGroup === 'procurement';
+    const choices = options.some((item) => item.label === inputValue) || !inputValue ? options : [{ label: inputValue, value: inputValue }, ...options];
+    const control = options.length ? '<select' + inputAttributes + '><option value="">请选择</option>' + choices.map((item) => '<option value="' + escapeHtml(item.label) + '"' + (item.label === inputValue ? ' selected' : '') + '>' + escapeHtml(item.label) + '</option>').join('') + '</select>' : isTextarea
       ? '<textarea' + inputAttributes + ' rows="4" style="width:100%;min-height:82px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--pfh-theme-border);border-radius:9px;outline:0;background:var(--pfh-theme-control-surface);color:var(--pfh-theme-text);font:inherit;font-size:11px;line-height:1.45;resize:vertical">' + escapeHtml(inputValue) + '</textarea>'
-      : '<input type="' + inputType + '"' + inputAttributes + readonly + ' value="' + escapeHtml(inputValue) + '">';
+      : '<input type="' + inputType + '"' + inputAttributes + readonly + (supplier ? ' data-supplier-search="true" list="' + supplierListId + '" autocomplete="off"' : '') + ' value="' + escapeHtml(inputValue) + '">' + (supplier ? '<datalist id="' + supplierListId + '">' + [{ label: inputValue }, ...(detail && detail.productDevelopmentSupplierOptions || [])].filter((item) => item.label).map((item) => '<option value="' + escapeHtml(item.label) + '"></option>').join('') + '</datalist>' : '');
     return '<label class="pfh-product-development-form-field' + (missing ? ' is-missing' : '') + '"><span>' + escapeHtml(field && field.label || '建品字段') + '</span>' + control + '</label>';
+  }
+
+  function productDevelopmentHandleProtectedField(event) {
+    const input = event && event.target;
+    if (!input || !input.getAttribute) return;
+    if (input.getAttribute('data-procurement-price-lock') === 'true') {
+      if (event.type === 'dblclick') {
+        input.readOnly = false;
+        input.setAttribute('aria-readonly', 'false');
+        input.focus();
+      } else if (event.type === 'focusout') {
+        input.readOnly = true;
+        input.setAttribute('aria-readonly', 'true');
+      }
+    }
+    if (event.type === 'focusin' && input.getAttribute('data-supplier-search') === 'true') productDevelopmentSearchSuppliers(input);
   }
 
   function productDevelopmentReadonlyBomFieldHtml(row, index, key, label, formSku) {

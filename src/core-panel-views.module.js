@@ -250,6 +250,7 @@
     panel.addEventListener('input', (event) => runDiagnosticAction(handlePanelInput, event));
     panel.addEventListener('paste', (event) => runDiagnosticAction(handlePanelPaste, event));
     panel.addEventListener('change', (event) => runDiagnosticAction(handlePanelChange, event));
+    ['dblclick', 'focusin', 'focusout'].forEach((type) => panel.addEventListener(type, productDevelopmentHandleProtectedField));
     panel.addEventListener('pointerdown', handleLedgerTableSkuPointerDown);
     panel.addEventListener('pointermove', handleLedgerTableSkuPointerMove);
     panel.addEventListener('pointerup', handleLedgerTableSkuPointerEnd);

@@ -735,15 +735,21 @@
         const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
         if (definition) {
           const scope = target.closest && target.closest('.pfh-detail');
+          if (key === 'procurementPrice') {
+            if (target.readOnly) return true;
+            detail.productDetailProcurementPriceSource = 'manual';
+          }
           if (['outerVolume', 'standardPackingQuantity'].includes(key)) {
             productDevelopmentRefreshDerivedDimensions(detail, scope);
             return true;
           }
           const value = String(target.value || '').slice(0, definition.type === 'textarea' ? 12000 : 800);
           const displayValue = productDevelopmentPrefillText(value, 12000);
-          productDevelopmentRememberLocalProductField(detail, { attrId: definition.attrId }, value, displayValue);
+          const option = (detail.prefillOptions && detail.prefillOptions[definition.attrId] || []).find((item) => item.label === displayValue);
+          const storedValue = option ? (Array.isArray(option.value) ? option.value : [option.value]) : value;
+          productDevelopmentRememberLocalProductField(detail, { attrId: definition.attrId }, storedValue, displayValue);
           productDevelopmentProductFieldCollections(detail).filter((item) => Number(item && item.attrId) === Number(definition.attrId)).forEach((item) => {
-            item.value = value;
+            item.value = storedValue;
             item.displayValue = displayValue;
             item.status = displayValue ? '已填写（本地）' : '待补充';
             item.source = displayValue ? '本地人工填写（未写入）' : '待人工补充';
@@ -758,8 +764,19 @@
         const definition = PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS.find((item) => item.key === key);
         if (definition) {
           const value = String(target.value || '').slice(0, 800);
+          if (key === 'supplier') {
+            const options = detail.productDevelopmentSupplierOptions || [];
+            if (!options.some((item) => item.label === value)) {
+              if (event.type === 'input') productDevelopmentSearchSuppliers(target);
+              return true;
+            }
+          }
           if (!detail.productDetailLocalProcurement || typeof detail.productDetailLocalProcurement !== 'object') detail.productDetailLocalProcurement = Object.create(null);
           detail.productDetailLocalProcurement[key] = value;
+          if (key === 'materialPrice') {
+            detail.productDetailProcurementPriceSource = 'default';
+            productDevelopmentSyncProcurementPrice(detail, target.closest && target.closest('.pfh-detail'));
+          }
           if (key === 'quantity') detail.productDetailProcurementQuantitySource = 'manual';
           productDevelopmentMarkProductDetailDirty(detail);
           persistDetail();

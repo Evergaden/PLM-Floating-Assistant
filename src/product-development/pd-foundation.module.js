@@ -756,7 +756,7 @@
     const taskSource = task && typeof task === 'object' ? task : {};
     const info = source.productInfo && typeof source.productInfo === 'object' ? source.productInfo : {};
     const local = source.productDetailLocalPage1 && typeof source.productDetailLocalPage1 === 'object' ? source.productDetailLocalPage1 : {};
-    const categories = [local.categoryPath, source.categoryName, source.plmCategory, source.category, info.category_name, taskSource.plmCategory, taskSource.categoryName]
+    const categories = [local.categoryPath, taskSource.plmCategory, taskSource.categoryName, source.categoryName, source.plmCategory, source.category, info.category_name]
       .map((value) => String(value || '').trim()).filter(Boolean);
     for (const category of categories) {
       if (/健康保健|滋补保健|保健食品|膳食|营养补充|dietary\s+supplement|health\s+supplement/i.test(category)) return true;

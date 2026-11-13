@@ -508,6 +508,7 @@
     [
       'productDetailDraftDirty',
       'productDetailSavedAt',
+      'productDetailProcurementPriceSource',
       'productDetailSaveState',
       'productDetailSaveMessage',
       'productDetailPlmSaveState',

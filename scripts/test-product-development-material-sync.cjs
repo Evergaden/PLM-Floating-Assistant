@@ -53,6 +53,11 @@ const normalized = context.productDevelopmentNormalizeMaterialDraft(null, 'box',
 assert.equal(normalized.materialId, 'CURRENT', 'Reference material IDs must not overwrite current bindings');
 assert.equal(normalized.referenceRemark, '哑膜');
 assert.equal(normalized.shelfLife, '');
+const noReference = { ...detail, productDevelopmentReworkLookup: null, bomRows: [] };
+const oldFood = context.productDevelopmentNormalizeMaterialDraft({materialName:'镁霜标签（圆弧 食品两年）',referenceRemark:'食品两年',shelfLife:'食品两年'}, 'label', noReference, {});
+assert(!oldFood.materialName.includes('食品两年'));
+assert.equal(oldFood.referenceRemark, '');
+assert.equal(oldFood.shelfLife, '');
 normalized.nameSource = 'generated';
 normalized.length = '4.5';
 sync('box', normalized, 'length');

@@ -318,7 +318,7 @@
       pics: Array.isArray(raw.pics) ? raw.pics.slice(0, 3) : (Array.isArray(existing && existing.pics) ? existing.pics.slice(0, 3) : []),
       packSpec,
       isSupplement,
-      referenceRemark: productDevelopmentCleanText(referenceRemark || raw.referenceRemark, 180),
+      referenceRemark: productDevelopmentCleanText(isSupplement ? referenceRemark || raw.referenceRemark : referenceRemark.replace(/食品两年/g, '').trim(), 180),
       shelfLife: productDevelopmentCleanText(isSupplement ? raw.shelfLife || defaults.shelfLife : (raw.shelfLife && raw.shelfLife !== '食品两年' ? raw.shelfLife : ''), 40),
       labelShape: productDevelopmentCleanText(isSupplement ? raw.labelShape || defaults.labelShape : (/圆弧/.test(referenceRemark) ? '圆弧' : raw.labelShape && raw.labelShape !== defaults.labelShape ? raw.labelShape : ''), 40),
       adhesive: productDevelopmentCleanText(isSupplement ? raw.adhesive || defaults.adhesive : (/玻璃加粘/.test(referenceRemark) ? '玻璃加粘' : raw.adhesive && raw.adhesive !== defaults.adhesive ? raw.adhesive : ''), 60),
@@ -342,6 +342,7 @@
         : productDevelopmentCleanText(existing && existing.specification, 240),
       price: productDevelopmentCleanText(raw.price !== undefined ? raw.price : existing && existing.price, 40),
     };
+    if (!isSupplement) draft.materialName = String(draft.materialName || '').replace(/食品两年/g, '').replace(/[（(]\s*[）)]/g, '').replace(/\s+([）)])/g, '$1').trim();
     if (!draft.materialName && draft.nameSource !== 'manual') draft.materialName = productDevelopmentMaterialDefaultName(kind, baseName, draft);
     if (!draft.specification && draft.specificationSource !== 'manual') draft.specification = productDevelopmentMaterialDefaultSpecification(kind, draft);
     if (kind !== 'instruction') {
@@ -513,8 +514,8 @@
 
   async function productDevelopmentReadBomRows(projectId) {
     const paths = [
-      '/api/ChemicalNewDevTask/GetProjectPMJoinList?id=' + encodeURIComponent(projectId),
       '/api/ChemicalNewAll/GetProjectPMJoinList?id=' + encodeURIComponent(projectId),
+      '/api/ChemicalNewDevTask/GetProjectPMJoinList?id=' + encodeURIComponent(projectId),
     ];
     const results = await Promise.allSettled(paths.map((path) => fetchPlmJson(path)));
     const fulfilled = results.filter((result) => result.status === 'fulfilled');
@@ -723,6 +724,7 @@
   }
 
   function productDevelopmentBuildProductDetailPayload(detail, task) {
+    productDevelopmentSyncProcurementPrice(detail);
     const source = detail && detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};
     const sku = productDevelopmentCleanText(detail && detail.sku || task && task.sku, 100).toUpperCase();
     const productId = productDevelopmentApiNumber(detail && detail.productId || source.product_id, null);
@@ -766,7 +768,7 @@
       srs_store_information: infoValue('srs_store_information', null),
       srs_store_supplier: infoValue('srs_store_supplier', null),
       product_version_id: infoValue('product_version_id', productDevelopmentApiNumber(detail && detail.productVersionId, null)),
-      procurement_price: infoValue('procurement_price', productDevelopmentProductDetailFieldValue(detail, 'procurement_rice') || null),
+      procurement_price: productDevelopmentPrefillProductFieldValue(detail, { key: 'procurementPrice', attrId: 152 }) || null,
       invoice_category: infoValue('invoice_category', ''),
       invoice_item_name: infoValue('invoice_item_name', detail && detail.productNameCn || sku),
       product_procure_infos: infoValue('product_procure_infos', []),
@@ -778,6 +780,8 @@
       })).filter((item) => Number.isFinite(item.attr_id) && item.attr_id > 0),
     };
     if (!product.category_id) throw new Error('建品资料缺少分类 ID，无法保存到 PLM');
+    const unitPrice = productDevelopmentProcurementFieldValue(detail, 'materialPrice');
+    if (unitPrice !== '' && Number.isFinite(Number(unitPrice)) && Array.isArray(product.product_procure_infos) && product.product_procure_infos[0]) product.product_procure_infos[0].material_price = Number(unitPrice);
     return product;
   }
 

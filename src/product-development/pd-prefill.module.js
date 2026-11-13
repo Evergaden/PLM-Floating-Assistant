@@ -28,6 +28,7 @@
   }
 
   function productDevelopmentPrefillProductFieldValue(detail, definition) {
+    if (definition && definition.key === 'procurementPrice') productDevelopmentSyncProcurementPrice(detail);
     if (definition && ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume', 'standardPackingQuantity'].includes(definition.key)) {
       productDevelopmentSyncReworkOuterDimensions(detail);
       productDevelopmentRefreshDerivedDimensions(detail);
@@ -43,6 +44,20 @@
     if (!field) return '';
     if (productDevelopmentPrefillText(field.displayValue)) return field.displayValue;
     return field.value === undefined ? '' : field.value;
+  }
+
+  function productDevelopmentSyncProcurementPrice(detail, scope) {
+    productDevelopmentApplyBomUnitPrice(detail);
+    if (!detail || detail.productDetailProcurementPriceSource === 'manual') return;
+    const raw = productDevelopmentPrefillText(productDevelopmentProcurementFieldValue(detail, 'materialPrice')).replace(/,/g, '');
+    if (raw === '' && !productDevelopmentPrefillHasValue(detail.productDetailLocalProcurement, 'materialPrice')) return;
+    const price = raw !== '' && Number.isFinite(Number(raw)) && Number(raw) >= 0 ? String(Number((Number(raw) + 0.5).toFixed(6))) : '';
+    const definition = { attrId: 152 };
+    if (String(productDevelopmentPrefillLocalAttrValue(detail, definition) ?? '') !== price) {
+      productDevelopmentRememberLocalProductField(detail, definition, price, price, '采购单价 + 0.5');
+      productDevelopmentProductFieldCollections(detail).filter((field) => Number(field.attrId) === 152).forEach((field) => { field.value = price; field.displayValue = price; });
+    }
+    if (scope) scope.querySelectorAll('[data-form-group="prefill"][data-form-key="procurementPrice"]').forEach((input) => { input.value = price; });
   }
 
   function productDevelopmentIsEntryProductName(value) {
@@ -114,6 +129,7 @@
   }
 
   function productDevelopmentProcurementFieldValue(detail, key) {
+    if (key === 'materialPrice') productDevelopmentApplyBomUnitPrice(detail);
     const local = detail && detail.productDetailLocalProcurement && typeof detail.productDetailLocalProcurement === 'object'
       ? detail.productDetailLocalProcurement
       : {};
@@ -135,6 +151,70 @@
     }[key] || [];
     const sourceKey = candidates.find((candidate) => row[candidate] !== undefined && row[candidate] !== null && row[candidate] !== '');
     return sourceKey ? row[sourceKey] : '';
+  }
+
+  function productDevelopmentApplyBomUnitPrice(detail) {
+    const rows = detail && Array.isArray(detail.bomRows) ? detail.bomRows : [];
+    const materials = rows.filter((row) => Number(row.typeValue) === 2 && row.isPricing !== false && row.isPricing !== 0);
+    if (!materials.length) return;
+    let total = 0;
+    for (const row of materials) {
+      const price = String(row.price ?? '').trim();
+      const usage = String(row.usage ?? '').trim();
+      if (!price || !usage || !Number.isFinite(Number(price)) || !Number.isFinite(Number(usage)) || Number(price) < 0 || Number(usage) < 0) return;
+      total += Number(price) * Number(usage);
+    }
+    const signature = JSON.stringify(materials.map((row) => [row.joinId, row.code, row.price, row.usage]));
+    if (detail.productDetailBomPriceSignature === signature) return;
+    detail.productDetailBomPriceSignature = signature;
+    if (!detail.productDetailLocalProcurement) detail.productDetailLocalProcurement = {};
+    const price = String(Number(total.toFixed(6)));
+    if (String(detail.productDetailLocalProcurement.materialPrice ?? '') !== price) detail.productDetailProcurementPriceSource = 'default';
+    detail.productDetailLocalProcurement.materialPrice = price;
+  }
+
+  // Fixed lists observed in the logged-in PLM drawer on 2026-11-13. Supplier choices use its live search API.
+  function productDevelopmentPrefillOptions(field, detail) {
+    const fixed = {
+      processType: ['直采', '来料加工', '仅加工'],
+      taxRate: ['不含税', '0.00%', '1.00%', '1.50%', '2.00%', '3.00%', '4.00%', '5.00%', '6.00%', '6.50%', '7.00%', '7.50%', '8.00%', '8.50%', '9.00%', '10.00%', '11.00%', '12.00%', '13.00%'],
+      productProductionLine: ['软管', '针管', '牙胶', '膏霜灌装', '水类灌装', '粉末类', '蜡基类', '其他手工', '鼻通', '粉底'],
+    };
+    const fromPlm = detail && detail.prefillOptions && detail.prefillOptions[field.attrId];
+    return Array.isArray(fromPlm) && fromPlm.length ? fromPlm : (fixed[field.key] || []).map((label) => ({ label, value: label }));
+  }
+
+  function productDevelopmentAttributeOptions(attr) {
+    const list = (value) => { if (Array.isArray(value)) return value; try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; } };
+    return list(attr.option_list_json).concat(list(attr.multi_attr_value_options_json).flatMap((group) => list(group.options))).map((option) => ({
+      value: option.value === undefined ? option.id : option.value,
+      label: String((option.option_label_list || []).find((item) => Number(item.language_id) === 1)?.label || (option.option_label_list || [])[0]?.label || option.mult_attr_value_name || option.label || option.value || ''),
+    })).filter((option) => option.value !== undefined && option.label);
+  }
+
+  function productDevelopmentSearchSuppliers(input) {
+    window.clearTimeout(input.pfhSupplierTimer);
+    const query = String(input.value || '').trim();
+    const sku = input.getAttribute('data-form-sku');
+    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+    if (!detail) return;
+    input.pfhSupplierQuery = query;
+    input.pfhSupplierTimer = window.setTimeout(async () => {
+      try {
+        input.setAttribute('aria-busy', 'true');
+        const payload = await fetchPlmJson('/api/ProjectFormData/GetSrmSupplierDataSourceList?page=1&pageSize=20&status=1&name=' + encodeURIComponent(query));
+        if (payload && payload.success === false) throw new Error('供应商查询失败');
+        if (!input.isConnected || input.pfhSupplierQuery !== query || state.productDevelopmentTaskFormData[sku] !== detail) return;
+        const list = payload && payload.data && payload.data.list;
+        detail.productDevelopmentSupplierOptions = (Array.isArray(list) ? list : []).map((item) => ({ label: String(item.company_supplier_name || ''), value: item.company_supplier_id })).filter((item) => item.label && item.value);
+        const datalist = document.getElementById(input.getAttribute('list'));
+        if (datalist) datalist.innerHTML = detail.productDevelopmentSupplierOptions.map((item) => '<option value="' + escapeHtml(item.label) + '"></option>').join('');
+        input.title = detail.productDevelopmentSupplierOptions.length ? '请从候选供应商中选择' : '没有匹配的供应商';
+        if (detail.productDevelopmentSupplierOptions.some((item) => item.label === input.value)) productDevelopmentHandleChange({ target: input });
+      } catch (_) {
+        if (input.isConnected && input.pfhSupplierQuery === query) input.title = '供应商查询失败，请重新输入后重试';
+      } finally { if (input.pfhSupplierQuery === query) input.removeAttribute('aria-busy'); }
+    }, 250);
   }
 
   function productDevelopmentApplyProductDetailLocalValues(detail) {
@@ -266,6 +346,10 @@
       materialPrice: enriched.procurementPrice,
     });
     if (detail.productDetailProcurementQuantitySource !== 'manual') detail.productDetailProcurementQuantitySource = 'default';
+    if (Array.isArray(detail.bomRows) && detail.bomRows.length) {
+      delete detail.productDetailBomPriceSignature;
+      productDevelopmentSyncProcurementPrice(detail);
+    }
     detail.reworkProductCode = enriched.code;
     productDevelopmentMarkProductDetailDirty(detail);
     return enriched;
