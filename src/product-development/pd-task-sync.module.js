@@ -77,7 +77,7 @@
       if (!scroll) return;
       const top = section.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop - tabs.getBoundingClientRect().height - 12;
       scroll.scrollTop = Math.max(0, top);
-      menu.querySelectorAll('[role="menuitem"]').forEach((node) => node.classList.toggle('is-active', node === item));
+      close();
     };
     const open = () => {
       if (!trigger.isConnected || state.view !== 'productDevelopmentTasks' || state.productDevelopmentTaskView !== 'detail') return;
