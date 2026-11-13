@@ -580,7 +580,7 @@
         labelWidth = ctx.measureText(label).width * safeScale;
         ctx.restore();
       }
-      const textGap = length > labelWidth + 48 * safeScale ? 26 * safeScale : 46 * safeScale;
+      const textGap = 46 * safeScale;
       const lineOffset = Number(layout && layout.offset) || 36;
       const labelOffset = Number(layout && layout.labelOffset) || lineOffset;
       const tangentShift = Number(layout && layout.tangentShift) || 0;
@@ -593,6 +593,8 @@
       };
       let angle = Math.atan2(dy, dx);
       if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
+      if (Math.abs(dy) > Math.abs(dx) * 3 && nx < 0) angle = -Math.PI / 2;
+      if (Math.abs(dx) > length * .12 && Math.abs(dy) > length * .12) angle = 0;
       return { label, fontScale: safeScale, lineStart, lineEnd, labelCenter, labelWidth, angle, normal: { x: nx, y: ny }, tangent: { x: tx, y: ty } };
     }
 
@@ -1193,10 +1195,10 @@
       const session = ensureSession(data);
       const topologyHint = session.topologyMessage ? ' · ' + session.topologyMessage + (session.topologyRuleVersion ? '（' + session.topologyRuleVersion + '）' : '') : '';
       const status = session.error ? '<div class="pfh-parameter-status is-error">' + context.escapeHtml(session.error) + '</div>' : (session.productResult ? '<div class="pfh-parameter-status">已生成产品尺寸图和英文参数图' + context.escapeHtml(topologyHint) + '。</div>' : '');
-      const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入透明 PNG 后显示预览</span>') + '</div>';
+      const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入白底图或透明 PNG 后显示预览</span>') + '</div>';
       const html = '<div class="pfh-detail-view-frame">' + context.detailViewTabs('parameterImage') + '<div class="pfh-parameter-scroll"><section class="pfh-parameter-page">' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
-          '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '>' + (session.busy ? '<i class="pfh-loading-scan" aria-hidden="true"></i>' : '') + '<strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>仅支持透明 PNG（JPG / WebP 请先导出为透明 PNG）</span><span>一张图可同时包含纸盒与产品</span></button>' +
+          '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '>' + (session.busy ? '<i class="pfh-loading-scan" aria-hidden="true"></i>' : '') + '<strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴白底图 / 透明图') + '</strong><span>支持 JPG、PNG、WebP；白底图在本地自动去除背景</span><span>一张图可同时包含纸盒与产品；低对比边缘可手动校准</span></button>' +
           (session.fileName ? '<small>已读取：' + context.escapeHtml(session.fileName) + '</small>' : '') +
           '<div class="pfh-parameter-fields">' +
             fieldHtml(session, 'englishName', '英文产品名', true) + fieldHtml(session, 'netContent', '净含量') + fieldHtml(session, 'grossWeight', '毛重') + fieldHtml(session, 'shelfLife', '保质期') + fieldHtml(session, 'features', 'FEATURES', true) +
@@ -1204,7 +1206,7 @@
           '</div>' +
           '<div class="pfh-parameter-options"><label><input type="checkbox" class="pfh-parameter-side"' + (session.showSide ? ' checked' : '') + '>纸盒展示侧面</label><label><input type="radio" name="pfh-parameter-front" value="length"' + (session.frontIsLength ? ' checked' : '') + '>正面为长</label><label><input type="radio" name="pfh-parameter-front" value="width"' + (!session.frontIsLength ? ' checked' : '') + '>正面为宽</label></div>' +
           '<div class="pfh-parameter-actions" style="grid-template-columns:repeat(3,minmax(0,1fr))"><button type="button" data-action="parameter-editor-open"' + (!session.file || session.busy ? ' disabled' : '') + '>手动修改</button><button type="button" data-action="parameter-image-regenerate"' + (!session.file || session.busy ? ' disabled' : '') + '>重新生成</button><button type="button" data-action="parameter-image-save"' + (!session.productResult || session.busy ? ' disabled' : '') + '>保存图片</button></div>' +
-          '<input type="file" class="pfh-parameter-file" accept="image/png,.png" hidden>' + status +
+          '<input type="file" class="pfh-parameter-file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" hidden>' + status +
         '</div><div class="pfh-parameter-previews">' + preview('产品尺寸图', session.productResult) + preview('英文参数图', session.englishResult) + '</div></div>' +
         '</section></div></div>';
       return html;
@@ -1660,8 +1662,13 @@
     }
 
     function fitSource(image, analysis, area) {
-      const scale = Math.min(area.width / analysis.sourceWidth, area.height / analysis.sourceHeight);
-      return { scale, x: area.x + (area.width - analysis.sourceWidth * scale) / 2, y: area.y + (area.height - analysis.sourceHeight * scale) / 2 };
+      const objects = [analysis.box, analysis.product].filter(Boolean);
+      const left = objects.length ? Math.min(...objects.map((rect) => rect.left)) : 0;
+      const top = objects.length ? Math.min(...objects.map((rect) => rect.top)) : 0;
+      const width = objects.length ? Math.max(...objects.map((rect) => rect.right)) - left : analysis.sourceWidth;
+      const height = objects.length ? Math.max(...objects.map((rect) => rect.bottom)) - top : analysis.sourceHeight;
+      const scale = Math.min(area.width / Math.max(1, width), area.height / Math.max(1, height));
+      return { scale, x: area.x + (area.width - width * scale) / 2 - left * scale, y: area.y + (area.height - height * scale) / 2 - top * scale };
     }
 
     function mapRect(rect, fit) {
@@ -1693,6 +1700,7 @@
         bottom: Math.max(lineStart.y, lineEnd.y) + 9,
       };
       return {
+        textBox, lineBox,
         left: Math.min(textBox.left, lineBox.left),
         top: Math.min(textBox.top, lineBox.top),
         right: Math.max(textBox.right, lineBox.right),
@@ -1714,7 +1722,7 @@
       const label = dimensionLabel(value);
       ctx.save(); ctx.font = '42px Arial';
       const baseOffset = Number(options && options.offset) || 36;
-      const textGap = length > ctx.measureText(label).width + 48 ? 26 : 46;
+      const textGap = 46;
       const labelWidth = ctx.measureText(label).width;
       ctx.restore();
       if (options && options.manualPlacement) {
@@ -1725,34 +1733,36 @@
           labelOffset: Number.isFinite(labelOffset) ? Math.max(8, labelOffset) : baseOffset,
           textGap,
           tangentShift: Number.isFinite(tangentShift) ? tangentShift : 0,
+          textAngle: Math.abs(dx) > length * .12 && Math.abs(dy) > length * .12 ? 0 : undefined,
         };
       }
-      // Keep the measurement geometry anchored to the detected edge.  Layout
-      // avoidance is allowed to move the value label, but never the dimension
-      // line itself; otherwise the line can appear detached from the product.
-      const lineStart = { x: start.x + nx * baseOffset, y: start.y + ny * baseOffset };
-      const lineEnd = { x: end.x + nx * baseOffset, y: end.y + ny * baseOffset };
       if (!options || !Array.isArray(options.avoidBoxes)) {
         return { lineOffset: baseOffset, labelOffset: baseOffset, textGap, tangentShift: 0 };
       }
-      const normalOffsets = [baseOffset, baseOffset + 44, baseOffset + 88, Math.max(18, baseOffset - 18), baseOffset + 132];
-      const tangentShifts = [0, 60, -60, 120, -120, 180, -180];
+      const normalOffsets = [baseOffset, baseOffset + 44, baseOffset + 88, baseOffset + 132, baseOffset + 220, baseOffset + 320, baseOffset + 440];
+      const tangentShifts = [0, 60, -60, 120, -120, 180, -180, 260, -260];
       const middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
       const angle = Math.atan2(dy, dx) > Math.PI / 2 || Math.atan2(dy, dx) < -Math.PI / 2 ? Math.atan2(dy, dx) + Math.PI : Math.atan2(dy, dx);
+      const diagonal = Math.abs(dx) > length * .12 && Math.abs(dy) > length * .12;
+      const angles = diagonal ? [0, angle] : [angle];
       let best = null;
-      normalOffsets.forEach((offset, normalIndex) => tangentShifts.forEach((tangentShift, tangentIndex) => {
+      normalOffsets.forEach((offset, normalIndex) => tangentShifts.forEach((tangentShift, tangentIndex) => angles.forEach((textAngle, angleIndex) => {
+        // Move an obstructed line outward with its label; keep the measured
+        // endpoints and direction, and prefer the closest clear placement.
+        const lineStart = { x: start.x + nx * offset, y: start.y + ny * offset };
+        const lineEnd = { x: end.x + nx * offset, y: end.y + ny * offset };
         const textCenter = { x: middle.x + nx * (offset + textGap) + tx * tangentShift, y: middle.y + ny * (offset + textGap) + ty * tangentShift };
-        const box = dimensionLayoutBox(start, end, labelWidth, angle, textCenter, lineStart, lineEnd);
-        const overlap = options.avoidBoxes.reduce((total, other) => total + dimensionOverlapArea(box, other), 0);
+        const box = dimensionLayoutBox(start, end, labelWidth, textAngle, textCenter, lineStart, lineEnd);
+        const overlap = dimensionOverlapArea(box.textBox, box.lineBox) + options.avoidBoxes.reduce((total, other) => total + dimensionOverlapArea(box.textBox, other) + dimensionOverlapArea(box.lineBox, other), 0);
         const bounds = options.bounds;
         const outside = bounds
           ? Math.max(0, bounds.left - box.left) + Math.max(0, bounds.top - box.top) + Math.max(0, box.right - bounds.right) + Math.max(0, box.bottom - bounds.bottom)
           : 0;
-        const movementPenalty = normalIndex * 0.2 + tangentIndex * 0.03;
+        const movementPenalty = normalIndex * 0.2 + tangentIndex * 0.03 + angleIndex * .1;
         const score = overlap * 100 + outside * 25 + movementPenalty;
-        if (!best || score < best.score) best = { score, lineOffset: baseOffset, labelOffset: offset, textGap, tangentShift, box };
-      }));
-      if (best) options.avoidBoxes.push(best.box);
+        if (!best || score < best.score) best = { score, lineOffset: offset, labelOffset: offset, textGap, tangentShift, textAngle, box };
+      })));
+      if (best) options.avoidBoxes.push(best.box.textBox, best.box.lineBox);
       return best || { lineOffset: baseOffset, labelOffset: baseOffset, textGap, tangentShift: 0 };
     }
 
@@ -1772,7 +1782,7 @@
       ctx.font = '42px Arial';
       const gap = rect.height > ctx.measureText(label).width + 48 ? 58 : 82;
       ctx.translate(x + (side === 'left' ? -gap : gap), (rect.top + rect.bottom) / 2);
-      ctx.rotate(Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.rotate(side === 'left' ? -Math.PI / 2 : Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(label, 0, 0); ctx.restore();
     }
 
@@ -1827,6 +1837,8 @@
       line(ctx, b.x - nx * tick, b.y - ny * tick, b.x + nx * tick, b.y + ny * tick);
       let angle = Math.atan2(dy, dx);
       if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
+      if (Number.isFinite(placement.textAngle)) angle = placement.textAngle;
+      if (Math.abs(dy) > Math.abs(dx) * 3 && nx < 0) angle = -Math.PI / 2;
       ctx.translate((start.x + end.x) / 2 + nx * (labelOffset + textGap) + tx * tangentShift, (start.y + end.y) / 2 + ny * (labelOffset + textGap) + ty * tangentShift);
       ctx.rotate(angle); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(label, 0, 0); ctx.restore();
@@ -1922,10 +1934,10 @@
       // carton front edge and leaving the product face unobstructed.  Keep the
       // established upper placement when a visible carton side is present.
       const productWidthBelow = !session.showSide;
-      const dimensionLayout = Number(area.width) < 600 ? {
-        avoidBoxes: [],
-        bounds: { left: Number(area.clipLeft) || area.x - 100, top: area.y - 80, right: area.x + area.width + 100, bottom: area.y + area.height + 80 },
-      } : null;
+      const dimensionLayout = {
+        avoidBoxes: [box, product].filter(Boolean).map((rect) => ({ left: rect.left - 10, top: rect.top - 10, right: rect.right + 10, bottom: rect.bottom + 10 })),
+        bounds: { left: Number(area.clipLeft) || 30, top: 30, right: 1570, bottom: 1530 },
+      };
       const manualBox = completeManualPath(session, 'box') ? session.manualPoints.box.slice(0, requiredManualPoints('box')) : null;
       const manualProduct = completeManualPath(session, 'product') ? session.manualPoints.product.slice(0, requiredManualPoints('product')) : null;
       if (session.singleBottle) {
@@ -2164,10 +2176,79 @@
       }
     }
 
-    const parameterImageFormatHint = '参数图仅支持透明 PNG；JPG / WebP 等图片请先导出为透明 PNG，再粘贴或拖入。';
+    const parameterImageFormatHint = '请使用白底或透明背景的 JPG、PNG、WebP 图片。';
 
     function isParameterPngFile(file) {
-      return Boolean(file && (/\.png$/i.test(file.name || '') || /^image\/png$/i.test(file.type || '')));
+      return Boolean(file && (/\.(?:png|jpe?g|webp)$/i.test(file.name || '') || /^image\/(?:png|jpeg|webp)$/i.test(file.type || '')));
+    }
+
+    function removeConnectedWhiteBackground(pixels, width, height) {
+      // Only erase near-white pixels reachable from the frame. Interior white
+      // printing stays opaque; never apply a global white-to-alpha filter.
+      const count = width * height;
+      const visited = new Uint8Array(count);
+      const queue = new Uint32Array(count);
+      let head = 0, tail = 0;
+      const visit = (index) => {
+        if (visited[index]) return;
+        visited[index] = 1;
+        const offset = index * 4;
+        const low = Math.min(pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+        const high = Math.max(pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+        if (pixels[offset + 3] <= 12 || (low >= 248 && high - low <= 7)) queue[tail++] = index;
+      };
+      for (let x = 0; x < width; x += 1) { visit(x); visit((height - 1) * width + x); }
+      for (let y = 0; y < height; y += 1) { visit(y * width); visit(y * width + width - 1); }
+      while (head < tail) {
+        const index = queue[head++];
+        pixels[index * 4 + 3] = 0;
+        const x = index % width;
+        if (x > 0) visit(index - 1);
+        if (x + 1 < width) visit(index + 1);
+        if (index >= width) visit(index - width);
+        if (index + width < count) visit(index + width);
+      }
+      const removed = tail;
+      // JPEG grain can leave isolated near-white flecks after the flood. They
+      // must not become the extrema used for product measurement.
+      visited.fill(0);
+      for (let seed = 0; seed < count; seed += 1) {
+        if (visited[seed] || pixels[seed * 4 + 3] <= 12) continue;
+        head = 0; tail = 1; queue[0] = seed; visited[seed] = 1;
+        while (head < tail) {
+          const index = queue[head++], x = index % width, y = Math.floor(index / width);
+          for (let yy = Math.max(0, y - 1); yy <= Math.min(height - 1, y + 1); yy += 1) {
+            for (let xx = Math.max(0, x - 1); xx <= Math.min(width - 1, x + 1); xx += 1) {
+              const next = yy * width + xx;
+              if (!visited[next] && pixels[next * 4 + 3] > 12) { visited[next] = 1; queue[tail++] = next; }
+            }
+          }
+        }
+        if (tail < count * .0003) for (let i = 0; i < tail; i += 1) pixels[queue[i] * 4 + 3] = 0;
+      }
+      return removed;
+    }
+
+    async function prepareParameterImageFile(file) {
+      const url = URL.createObjectURL(file);
+      try {
+        const image = await loadImage(url);
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(image, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const pixels = imageData.data;
+        let transparent = 0;
+        for (let i = 3; i < pixels.length; i += 4) if (pixels[i] <= 12) transparent += 1;
+        if (transparent > canvas.width * canvas.height * .01) return file;
+        const removed = removeConnectedWhiteBackground(pixels, canvas.width, canvas.height);
+        if (removed < canvas.width * canvas.height * .01) throw new Error('未识别到白色背景，请上传白底图或透明 PNG。');
+        ctx.putImageData(imageData, 0, 0);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error('白底图处理失败，请重试。');
+        return new File([blob], 'parameter-source.png', { type: 'image/png' });
+      } finally { URL.revokeObjectURL(url); }
     }
 
     function rejectParameterImage(data) {
@@ -2180,7 +2261,14 @@
     async function processFile(file, data, options) {
       const session = ensureSession(data);
       if (!isParameterPngFile(file)) { rejectParameterImage(data); return; }
-      session.file = file; session.fileName = file.name; session.showSide = null; session.showSideOverride = false; session.frontAxisOverride = false;
+      if (session.busy) return;
+      session.busy = true; session.error = ''; context.render();
+      let prepared;
+      try { prepared = await prepareParameterImageFile(file); }
+      catch (error) {
+        session.error = String(error && error.message || error); session.busy = false; context.render(); return;
+      }
+      session.file = prepared; session.fileName = file.name; session.showSide = null; session.showSideOverride = false; session.frontAxisOverride = false;
       session.topologyApplied = false; session.topologyRuleVersion = ''; session.topologyMessage = '';
       session.editorImage = null;
       session.editorSourceUrl = '';
@@ -2390,7 +2478,7 @@
         return;
       }
       if (candidates.some((item) => /^image\//i.test(item.type || '') && !isParameterPngFile(item)) && context.showToast) {
-        context.showToast('已读取 PNG；其他格式图片已忽略，请使用透明 PNG。');
+        context.showToast('已读取图片；不支持的格式已忽略，请使用 JPG、PNG 或 WebP。');
       }
       processFile(file, data, options);
     }

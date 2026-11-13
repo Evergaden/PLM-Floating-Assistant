@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.70
+// @version      2.10.71
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.70';
+  const SCRIPT_VERSION = '2.10.71';
   const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }\n#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n\n/* Text-only BOM controls, full-width material groups and aligned fields. */\n#plm-floating-helper .pfh-product-development-material-planner.pfh-bom-form {\n  display: grid;\n  gap: 16px;\n  min-width: 0;\n  padding: 16px;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-bom-form > header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-bom-form > header > .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; }\n#plm-floating-helper .pfh-product-development-detail-form > .pfh-product-development-product-form-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-detail-heading { display: contents; }\n#plm-floating-helper .pfh-product-development-product-form-header .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-bom-form > header h3 { font-size: 16px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form button[data-action] {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-bom-form button.is-primary { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-bom-form button:hover:not(:disabled) { border-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form button:disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-list { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card { align-content: start; gap: 12px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header { flex-direction: row; align-items: center; min-height: 36px; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header strong { font-size: 20px; font-weight: 700; line-height: 1.4; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled { padding-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled small { margin-left: 12px; color: var(--pfh-theme-muted); font-size: 11px; font-weight: 400; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-grid,\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-grid { grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); align-items: start; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field { gap: 8px; color: var(--pfh-theme-text); font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field > span { overflow: visible; white-space: normal; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field :is(input, select) { min-height: 36px; padding: 8px 12px; font: inherit; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form :is(button, input, select):focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 2px; }\n#plm-floating-helper .pfh-bom-dimensions { display: grid; grid-column: 1 / -1; grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-bom-dimensions.is-box { grid-template-columns: var(--pfh-bom-field-columns, repeat(3, minmax(0, 1fr))); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-options { gap: 12px; padding-top: 12px; border-top-style: solid; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group { gap: 8px; font-size: 11px; color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group > div { display: flex; min-height: 36px; box-sizing: border-box; align-items: center; gap: 16px; padding: 8px 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group input { accent-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-product-binding { padding: 12px; border-radius: 8px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid { gap: 12px; margin-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid small { font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-bom-form { --pfh-bom-field-columns: minmax(0, 1fr); }\n}\n";
   const SKU_DETAIL_LAYOUT_CSS = "/* Keep SKU identity above the independently scrolling detail content. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  height: auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  padding: 12px 14px 0;\n  overflow: hidden;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {\n  flex: 0 0 auto;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 0 0;\n}\n\n#plm-floating-helper .pfh-material-card {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 16px 18px;\r\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\r\n  border-radius: 16px;\r\n  background: var(--pfh-theme-card, #fff);\r\n}\r\n#plm-floating-helper .pfh-material-card small {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key] {\r\n  display: block;\r\n  min-width: 0;\r\n  overflow-wrap: anywhere;\r\n  /* Fill the inter-row gap without moving the text or overlapping targets. */\r\n  padding: 4px 10px;\r\n  margin: -4px -10px;\r\n  cursor: pointer;\r\n  border-radius: 6px;\r\n  transition: color .15s, background .15s;\r\n}\r\n#plm-floating-helper .pfh-material-size {\r\n  color: var(--pfh-theme-text, #17213a);\r\n  font-size: 15px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-code {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:hover,\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:focus-visible,\r\n#plm-floating-helper .pfh-material-card .is-copied {\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-soft, #f4efff);\r\n  outline: none;\r\n}\r\n\n/* Keep product context in the selected SKU card while the editor owns the detail pane. */\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active) {\n  position: relative;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active)::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  z-index: 10;\n  border-radius: inherit;\n  background: color-mix(in srgb, var(--pfh-theme-page, #f8f9ff) 58%, transparent);\n  pointer-events: none;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-list-head, .pfh-sku-list-toolbar, .pfh-sku-filter-toolbar, .pfh-list-pager, .pfh-search-result-toolbar, .pfh-workspace-search-host) {\n  opacity: .5;\n}\n\n#plm-floating-helper .pfh-development-detail-jump {\n  position: absolute;\n  z-index: 80;\n  display: grid;\n  gap: 4px;\n  width: 188px;\n  max-width: calc(100% - 16px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-development-detail-jump button {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  text-align: left;\n  font: inherit;\n  font-size: 12px;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-development-detail-jump button:is(:hover, :focus-visible, .is-active) { background: var(--pfh-theme-primary-soft); color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-development-detail-jump button:focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 1px; }\n#plm-floating-helper .pfh-development-detail-jump button:disabled { opacity: .45; cursor: default; }\n";
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
@@ -1145,7 +1145,7 @@
         labelWidth = ctx.measureText(label).width * safeScale;
         ctx.restore();
       }
-      const textGap = length > labelWidth + 48 * safeScale ? 26 * safeScale : 46 * safeScale;
+      const textGap = 46 * safeScale;
       const lineOffset = Number(layout && layout.offset) || 36;
       const labelOffset = Number(layout && layout.labelOffset) || lineOffset;
       const tangentShift = Number(layout && layout.tangentShift) || 0;
@@ -1158,6 +1158,8 @@
       };
       let angle = Math.atan2(dy, dx);
       if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
+      if (Math.abs(dy) > Math.abs(dx) * 3 && nx < 0) angle = -Math.PI / 2;
+      if (Math.abs(dx) > length * .12 && Math.abs(dy) > length * .12) angle = 0;
       return { label, fontScale: safeScale, lineStart, lineEnd, labelCenter, labelWidth, angle, normal: { x: nx, y: ny }, tangent: { x: tx, y: ty } };
     }
 
@@ -1758,10 +1760,10 @@
       const session = ensureSession(data);
       const topologyHint = session.topologyMessage ? ' · ' + session.topologyMessage + (session.topologyRuleVersion ? '（' + session.topologyRuleVersion + '）' : '') : '';
       const status = session.error ? '<div class="pfh-parameter-status is-error">' + context.escapeHtml(session.error) + '</div>' : (session.productResult ? '<div class="pfh-parameter-status">已生成产品尺寸图和英文参数图' + context.escapeHtml(topologyHint) + '。</div>' : '');
-      const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入透明 PNG 后显示预览</span>') + '</div>';
+      const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入白底图或透明 PNG 后显示预览</span>') + '</div>';
       const html = '<div class="pfh-detail-view-frame">' + context.detailViewTabs('parameterImage') + '<div class="pfh-parameter-scroll"><section class="pfh-parameter-page">' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
-          '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '>' + (session.busy ? '<i class="pfh-loading-scan" aria-hidden="true"></i>' : '') + '<strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>仅支持透明 PNG（JPG / WebP 请先导出为透明 PNG）</span><span>一张图可同时包含纸盒与产品</span></button>' +
+          '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '>' + (session.busy ? '<i class="pfh-loading-scan" aria-hidden="true"></i>' : '') + '<strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴白底图 / 透明图') + '</strong><span>支持 JPG、PNG、WebP；白底图在本地自动去除背景</span><span>一张图可同时包含纸盒与产品；低对比边缘可手动校准</span></button>' +
           (session.fileName ? '<small>已读取：' + context.escapeHtml(session.fileName) + '</small>' : '') +
           '<div class="pfh-parameter-fields">' +
             fieldHtml(session, 'englishName', '英文产品名', true) + fieldHtml(session, 'netContent', '净含量') + fieldHtml(session, 'grossWeight', '毛重') + fieldHtml(session, 'shelfLife', '保质期') + fieldHtml(session, 'features', 'FEATURES', true) +
@@ -1769,7 +1771,7 @@
           '</div>' +
           '<div class="pfh-parameter-options"><label><input type="checkbox" class="pfh-parameter-side"' + (session.showSide ? ' checked' : '') + '>纸盒展示侧面</label><label><input type="radio" name="pfh-parameter-front" value="length"' + (session.frontIsLength ? ' checked' : '') + '>正面为长</label><label><input type="radio" name="pfh-parameter-front" value="width"' + (!session.frontIsLength ? ' checked' : '') + '>正面为宽</label></div>' +
           '<div class="pfh-parameter-actions" style="grid-template-columns:repeat(3,minmax(0,1fr))"><button type="button" data-action="parameter-editor-open"' + (!session.file || session.busy ? ' disabled' : '') + '>手动修改</button><button type="button" data-action="parameter-image-regenerate"' + (!session.file || session.busy ? ' disabled' : '') + '>重新生成</button><button type="button" data-action="parameter-image-save"' + (!session.productResult || session.busy ? ' disabled' : '') + '>保存图片</button></div>' +
-          '<input type="file" class="pfh-parameter-file" accept="image/png,.png" hidden>' + status +
+          '<input type="file" class="pfh-parameter-file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" hidden>' + status +
         '</div><div class="pfh-parameter-previews">' + preview('产品尺寸图', session.productResult) + preview('英文参数图', session.englishResult) + '</div></div>' +
         '</section></div></div>';
       return html;
@@ -2225,8 +2227,13 @@
     }
 
     function fitSource(image, analysis, area) {
-      const scale = Math.min(area.width / analysis.sourceWidth, area.height / analysis.sourceHeight);
-      return { scale, x: area.x + (area.width - analysis.sourceWidth * scale) / 2, y: area.y + (area.height - analysis.sourceHeight * scale) / 2 };
+      const objects = [analysis.box, analysis.product].filter(Boolean);
+      const left = objects.length ? Math.min(...objects.map((rect) => rect.left)) : 0;
+      const top = objects.length ? Math.min(...objects.map((rect) => rect.top)) : 0;
+      const width = objects.length ? Math.max(...objects.map((rect) => rect.right)) - left : analysis.sourceWidth;
+      const height = objects.length ? Math.max(...objects.map((rect) => rect.bottom)) - top : analysis.sourceHeight;
+      const scale = Math.min(area.width / Math.max(1, width), area.height / Math.max(1, height));
+      return { scale, x: area.x + (area.width - width * scale) / 2 - left * scale, y: area.y + (area.height - height * scale) / 2 - top * scale };
     }
 
     function mapRect(rect, fit) {
@@ -2258,6 +2265,7 @@
         bottom: Math.max(lineStart.y, lineEnd.y) + 9,
       };
       return {
+        textBox, lineBox,
         left: Math.min(textBox.left, lineBox.left),
         top: Math.min(textBox.top, lineBox.top),
         right: Math.max(textBox.right, lineBox.right),
@@ -2279,7 +2287,7 @@
       const label = dimensionLabel(value);
       ctx.save(); ctx.font = '42px Arial';
       const baseOffset = Number(options && options.offset) || 36;
-      const textGap = length > ctx.measureText(label).width + 48 ? 26 : 46;
+      const textGap = 46;
       const labelWidth = ctx.measureText(label).width;
       ctx.restore();
       if (options && options.manualPlacement) {
@@ -2290,34 +2298,36 @@
           labelOffset: Number.isFinite(labelOffset) ? Math.max(8, labelOffset) : baseOffset,
           textGap,
           tangentShift: Number.isFinite(tangentShift) ? tangentShift : 0,
+          textAngle: Math.abs(dx) > length * .12 && Math.abs(dy) > length * .12 ? 0 : undefined,
         };
       }
-      // Keep the measurement geometry anchored to the detected edge.  Layout
-      // avoidance is allowed to move the value label, but never the dimension
-      // line itself; otherwise the line can appear detached from the product.
-      const lineStart = { x: start.x + nx * baseOffset, y: start.y + ny * baseOffset };
-      const lineEnd = { x: end.x + nx * baseOffset, y: end.y + ny * baseOffset };
       if (!options || !Array.isArray(options.avoidBoxes)) {
         return { lineOffset: baseOffset, labelOffset: baseOffset, textGap, tangentShift: 0 };
       }
-      const normalOffsets = [baseOffset, baseOffset + 44, baseOffset + 88, Math.max(18, baseOffset - 18), baseOffset + 132];
-      const tangentShifts = [0, 60, -60, 120, -120, 180, -180];
+      const normalOffsets = [baseOffset, baseOffset + 44, baseOffset + 88, baseOffset + 132, baseOffset + 220, baseOffset + 320, baseOffset + 440];
+      const tangentShifts = [0, 60, -60, 120, -120, 180, -180, 260, -260];
       const middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
       const angle = Math.atan2(dy, dx) > Math.PI / 2 || Math.atan2(dy, dx) < -Math.PI / 2 ? Math.atan2(dy, dx) + Math.PI : Math.atan2(dy, dx);
+      const diagonal = Math.abs(dx) > length * .12 && Math.abs(dy) > length * .12;
+      const angles = diagonal ? [0, angle] : [angle];
       let best = null;
-      normalOffsets.forEach((offset, normalIndex) => tangentShifts.forEach((tangentShift, tangentIndex) => {
+      normalOffsets.forEach((offset, normalIndex) => tangentShifts.forEach((tangentShift, tangentIndex) => angles.forEach((textAngle, angleIndex) => {
+        // Move an obstructed line outward with its label; keep the measured
+        // endpoints and direction, and prefer the closest clear placement.
+        const lineStart = { x: start.x + nx * offset, y: start.y + ny * offset };
+        const lineEnd = { x: end.x + nx * offset, y: end.y + ny * offset };
         const textCenter = { x: middle.x + nx * (offset + textGap) + tx * tangentShift, y: middle.y + ny * (offset + textGap) + ty * tangentShift };
-        const box = dimensionLayoutBox(start, end, labelWidth, angle, textCenter, lineStart, lineEnd);
-        const overlap = options.avoidBoxes.reduce((total, other) => total + dimensionOverlapArea(box, other), 0);
+        const box = dimensionLayoutBox(start, end, labelWidth, textAngle, textCenter, lineStart, lineEnd);
+        const overlap = dimensionOverlapArea(box.textBox, box.lineBox) + options.avoidBoxes.reduce((total, other) => total + dimensionOverlapArea(box.textBox, other) + dimensionOverlapArea(box.lineBox, other), 0);
         const bounds = options.bounds;
         const outside = bounds
           ? Math.max(0, bounds.left - box.left) + Math.max(0, bounds.top - box.top) + Math.max(0, box.right - bounds.right) + Math.max(0, box.bottom - bounds.bottom)
           : 0;
-        const movementPenalty = normalIndex * 0.2 + tangentIndex * 0.03;
+        const movementPenalty = normalIndex * 0.2 + tangentIndex * 0.03 + angleIndex * .1;
         const score = overlap * 100 + outside * 25 + movementPenalty;
-        if (!best || score < best.score) best = { score, lineOffset: baseOffset, labelOffset: offset, textGap, tangentShift, box };
-      }));
-      if (best) options.avoidBoxes.push(best.box);
+        if (!best || score < best.score) best = { score, lineOffset: offset, labelOffset: offset, textGap, tangentShift, textAngle, box };
+      })));
+      if (best) options.avoidBoxes.push(best.box.textBox, best.box.lineBox);
       return best || { lineOffset: baseOffset, labelOffset: baseOffset, textGap, tangentShift: 0 };
     }
 
@@ -2337,7 +2347,7 @@
       ctx.font = '42px Arial';
       const gap = rect.height > ctx.measureText(label).width + 48 ? 58 : 82;
       ctx.translate(x + (side === 'left' ? -gap : gap), (rect.top + rect.bottom) / 2);
-      ctx.rotate(Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.rotate(side === 'left' ? -Math.PI / 2 : Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(label, 0, 0); ctx.restore();
     }
 
@@ -2392,6 +2402,8 @@
       line(ctx, b.x - nx * tick, b.y - ny * tick, b.x + nx * tick, b.y + ny * tick);
       let angle = Math.atan2(dy, dx);
       if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
+      if (Number.isFinite(placement.textAngle)) angle = placement.textAngle;
+      if (Math.abs(dy) > Math.abs(dx) * 3 && nx < 0) angle = -Math.PI / 2;
       ctx.translate((start.x + end.x) / 2 + nx * (labelOffset + textGap) + tx * tangentShift, (start.y + end.y) / 2 + ny * (labelOffset + textGap) + ty * tangentShift);
       ctx.rotate(angle); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(label, 0, 0); ctx.restore();
@@ -2487,10 +2499,10 @@
       // carton front edge and leaving the product face unobstructed.  Keep the
       // established upper placement when a visible carton side is present.
       const productWidthBelow = !session.showSide;
-      const dimensionLayout = Number(area.width) < 600 ? {
-        avoidBoxes: [],
-        bounds: { left: Number(area.clipLeft) || area.x - 100, top: area.y - 80, right: area.x + area.width + 100, bottom: area.y + area.height + 80 },
-      } : null;
+      const dimensionLayout = {
+        avoidBoxes: [box, product].filter(Boolean).map((rect) => ({ left: rect.left - 10, top: rect.top - 10, right: rect.right + 10, bottom: rect.bottom + 10 })),
+        bounds: { left: Number(area.clipLeft) || 30, top: 30, right: 1570, bottom: 1530 },
+      };
       const manualBox = completeManualPath(session, 'box') ? session.manualPoints.box.slice(0, requiredManualPoints('box')) : null;
       const manualProduct = completeManualPath(session, 'product') ? session.manualPoints.product.slice(0, requiredManualPoints('product')) : null;
       if (session.singleBottle) {
@@ -2729,10 +2741,79 @@
       }
     }
 
-    const parameterImageFormatHint = '参数图仅支持透明 PNG；JPG / WebP 等图片请先导出为透明 PNG，再粘贴或拖入。';
+    const parameterImageFormatHint = '请使用白底或透明背景的 JPG、PNG、WebP 图片。';
 
     function isParameterPngFile(file) {
-      return Boolean(file && (/\.png$/i.test(file.name || '') || /^image\/png$/i.test(file.type || '')));
+      return Boolean(file && (/\.(?:png|jpe?g|webp)$/i.test(file.name || '') || /^image\/(?:png|jpeg|webp)$/i.test(file.type || '')));
+    }
+
+    function removeConnectedWhiteBackground(pixels, width, height) {
+      // Only erase near-white pixels reachable from the frame. Interior white
+      // printing stays opaque; never apply a global white-to-alpha filter.
+      const count = width * height;
+      const visited = new Uint8Array(count);
+      const queue = new Uint32Array(count);
+      let head = 0, tail = 0;
+      const visit = (index) => {
+        if (visited[index]) return;
+        visited[index] = 1;
+        const offset = index * 4;
+        const low = Math.min(pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+        const high = Math.max(pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+        if (pixels[offset + 3] <= 12 || (low >= 248 && high - low <= 7)) queue[tail++] = index;
+      };
+      for (let x = 0; x < width; x += 1) { visit(x); visit((height - 1) * width + x); }
+      for (let y = 0; y < height; y += 1) { visit(y * width); visit(y * width + width - 1); }
+      while (head < tail) {
+        const index = queue[head++];
+        pixels[index * 4 + 3] = 0;
+        const x = index % width;
+        if (x > 0) visit(index - 1);
+        if (x + 1 < width) visit(index + 1);
+        if (index >= width) visit(index - width);
+        if (index + width < count) visit(index + width);
+      }
+      const removed = tail;
+      // JPEG grain can leave isolated near-white flecks after the flood. They
+      // must not become the extrema used for product measurement.
+      visited.fill(0);
+      for (let seed = 0; seed < count; seed += 1) {
+        if (visited[seed] || pixels[seed * 4 + 3] <= 12) continue;
+        head = 0; tail = 1; queue[0] = seed; visited[seed] = 1;
+        while (head < tail) {
+          const index = queue[head++], x = index % width, y = Math.floor(index / width);
+          for (let yy = Math.max(0, y - 1); yy <= Math.min(height - 1, y + 1); yy += 1) {
+            for (let xx = Math.max(0, x - 1); xx <= Math.min(width - 1, x + 1); xx += 1) {
+              const next = yy * width + xx;
+              if (!visited[next] && pixels[next * 4 + 3] > 12) { visited[next] = 1; queue[tail++] = next; }
+            }
+          }
+        }
+        if (tail < count * .0003) for (let i = 0; i < tail; i += 1) pixels[queue[i] * 4 + 3] = 0;
+      }
+      return removed;
+    }
+
+    async function prepareParameterImageFile(file) {
+      const url = URL.createObjectURL(file);
+      try {
+        const image = await loadImage(url);
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(image, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const pixels = imageData.data;
+        let transparent = 0;
+        for (let i = 3; i < pixels.length; i += 4) if (pixels[i] <= 12) transparent += 1;
+        if (transparent > canvas.width * canvas.height * .01) return file;
+        const removed = removeConnectedWhiteBackground(pixels, canvas.width, canvas.height);
+        if (removed < canvas.width * canvas.height * .01) throw new Error('未识别到白色背景，请上传白底图或透明 PNG。');
+        ctx.putImageData(imageData, 0, 0);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error('白底图处理失败，请重试。');
+        return new File([blob], 'parameter-source.png', { type: 'image/png' });
+      } finally { URL.revokeObjectURL(url); }
     }
 
     function rejectParameterImage(data) {
@@ -2745,7 +2826,14 @@
     async function processFile(file, data, options) {
       const session = ensureSession(data);
       if (!isParameterPngFile(file)) { rejectParameterImage(data); return; }
-      session.file = file; session.fileName = file.name; session.showSide = null; session.showSideOverride = false; session.frontAxisOverride = false;
+      if (session.busy) return;
+      session.busy = true; session.error = ''; context.render();
+      let prepared;
+      try { prepared = await prepareParameterImageFile(file); }
+      catch (error) {
+        session.error = String(error && error.message || error); session.busy = false; context.render(); return;
+      }
+      session.file = prepared; session.fileName = file.name; session.showSide = null; session.showSideOverride = false; session.frontAxisOverride = false;
       session.topologyApplied = false; session.topologyRuleVersion = ''; session.topologyMessage = '';
       session.editorImage = null;
       session.editorSourceUrl = '';
@@ -2955,7 +3043,7 @@
         return;
       }
       if (candidates.some((item) => /^image\//i.test(item.type || '') && !isParameterPngFile(item)) && context.showToast) {
-        context.showToast('已读取 PNG；其他格式图片已忽略，请使用透明 PNG。');
+        context.showToast('已读取图片；不支持的格式已忽略，请使用 JPG、PNG 或 WebP。');
       }
       processFile(file, data, options);
     }
