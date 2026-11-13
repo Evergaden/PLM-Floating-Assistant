@@ -179,6 +179,13 @@ main.wrap:has(.admin-sidebar) .admin-sidebar {
   transition: background .2s ease, color .2s ease, transform .2s ease;
 }
 
+.admin-lucide-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
 .admin-nav-icon svg {
   width: 16px;
   height: 16px;

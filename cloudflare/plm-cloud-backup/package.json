@@ -17,8 +17,8 @@
     "copywriting-templates:check": "node ../../scripts/build-product-development-copywriting-templates.cjs --check && node ../../scripts/check-product-development-copywriting-templates.cjs",
     "remote:icons": "node scripts/build-remote-icons.cjs",
     "remote:icons:check": "node scripts/build-remote-icons.cjs --check",
-    "admin:build": "node scripts/build-admin-styles.cjs",
-    "admin:check": "node scripts/build-admin-styles.cjs --check",
+    "admin:build": "node scripts/build-admin-styles.cjs && node scripts/build-admin-icons.cjs",
+    "admin:check": "node scripts/build-admin-styles.cjs --check && node scripts/build-admin-icons.cjs --check",
     "assets:manifest": "npm run ui:check && node scripts/build-static-manifest.cjs",
     "brands:import": "node scripts/import-brand-compliance.cjs"
   },
