@@ -223,11 +223,11 @@
     'product-development-pricing',
     'product-development-stocking',
     'product-development-materials',
-    'product-development-history',
+
   ]);
   const DEFAULT_PRODUCT_DEVELOPMENT_FEATURE_GROUPS = Object.freeze({
     common: Object.freeze(['product-development-tasks', 'product-development-review', 'product-development-copywriting', 'product-development-ingredientFacts', 'product-development-pricing']),
-    more: Object.freeze(['product-development-stocking', 'product-development-materials', 'product-development-history']),
+    more: Object.freeze(['product-development-stocking', 'product-development-materials']),
   });
   const initialProductDevelopmentTaskCache = loadProductDevelopmentTaskCache();
   const initialProductDevelopmentTaskMeta = loadProductDevelopmentTaskMeta();
@@ -348,7 +348,7 @@
     productDevelopmentOneShotResult: null,
     productDevelopmentOneShotIngredientConfirmed: false,
     productDevelopmentOneShotBusy: false,
-    productDevelopmentHistory: loadProductDevelopmentHistory(),
+
     productDevelopmentStatus: '',
     productDevelopmentError: '',
     excelPanelOpen: false,
@@ -381,9 +381,7 @@
     cloudRecoveryCheckTimer: 0,
     cloudRecoveryFailureSources: [],
     homeFeatureDragId: '',
-    insightRecommendationSku: '',
-    insightRecommendationLoading: false,
-    insightRecommendation: null,
+
     exportType: 'excel',
     exportMenuOpen: false,
     skuSortMenuOpen: false,

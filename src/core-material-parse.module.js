@@ -329,18 +329,6 @@
     return { diameter, body, text: parts.join(' ') };
   }
 
-  function extractTubePrintDimensionNums(text) {
-    const source = String(text || '');
-    const labeled = source.match(/\u5370\u5237(?:\u5c3a\u5bf8)?[^\d]{0,20}(\d+(?:\.\d+)?)\s*[xX\u00d7*]\s*(\d+(?:\.\d+)?)\s*(mm|cm)/i);
-    if (labeled) {
-      const unit = labeled[3].toLowerCase();
-      return [normalizeDimensionUnitNumber(labeled[1], unit), normalizeDimensionUnitNumber(labeled[2], unit)];
-    }
-    const dimension = source.match(/(\d+(?:\.\d+)?)\s*[xX\u00d7*]\s*(\d+(?:\.\d+)?)\s*(mm|cm)/i);
-    if (!dimension) return null;
-    const unit = dimension[3].toLowerCase();
-    return [normalizeDimensionUnitNumber(dimension[1], unit), normalizeDimensionUnitNumber(dimension[2], unit)];
-  }
 
   function getTubeRulePrintSize(rule, body) {
     const width = rule.widths.reduce((sum, value) => sum + (Number(value) || 0), 0);
@@ -353,11 +341,6 @@
     return trimNumber(Number(spec.width)) + 'x' + trimNumber(Number(spec.height)) + 'cm';
   }
 
-  function normalizeDimensionUnitNumber(value, unit) {
-    const num = Number(value);
-    if (!Number.isFinite(num)) return 0;
-    return String(unit || '').toLowerCase() === 'mm' ? num / 10 : num;
-  }
 
   function extractTubeMeasure(text, label) {
     const source = String(text || '');

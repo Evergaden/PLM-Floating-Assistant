@@ -180,7 +180,7 @@
   }
 
   async function productDevelopmentPrepareRawMaterialDraft(result) {
-    if (!result || result.fromHistory) return;
+    if (!result) return;
     const { ingredientLines, claimLines } = productDevelopmentRawMaterialSplitLines(result);
     const naming = result.productNaming || {};
     const functionSummary = productDevelopmentCleanText(naming.functionSummary, 400);

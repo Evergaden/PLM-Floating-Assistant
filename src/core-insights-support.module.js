@@ -399,15 +399,6 @@
     return text.slice(0, 60);
   }
 
-  function getDisplayedProductCategory(data, editing) {
-    if (!data) return '';
-    const manualCategory = normalizeManualProductCategory(data.manualCategory);
-    if (manualCategory) return manualCategory;
-    const automaticCategory = String(data.aiProductType || data.aiCategory || data.productType || data.category || '').trim();
-    if (automaticCategory && !/^\u672a\u5206\u7c7b$/i.test(automaticCategory)) return automaticCategory;
-    const inferred = getProductTypeForInsight(data, null);
-    return inferred && !/^\u672a\u5206\u7c7b$/i.test(inferred) ? inferred : (editing ? '' : '未分类');
-  }
 
   function normalizeRuleKeywords(value) {
     if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);

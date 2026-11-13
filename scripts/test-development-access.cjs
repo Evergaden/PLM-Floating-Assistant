@@ -49,6 +49,11 @@ vm.runInContext(read('src/product-development/pd-dispatcher.module.js'), fronten
   assert.equal(dialogs, 2, 'Task tabs use the same permission prompt');
   assert.equal(frontend.productDevelopmentFeatureForAction('product-development-copywriting-ingredient-run'), 'development-ingredient');
   assert.equal(frontend.productDevelopmentFeatureForAction('product-development-copywriting-ingredient-confirm'), 'development-copywriting');
+  assert.equal(frontend.productDevelopmentHandleAction('product-development-history-view'), false, 'Removed history entry cannot reopen an independent page');
+  assert.equal(frontend.productDevelopmentHandleAction('product-development-history-open'), false, 'Removed history action does not load cached records');
+  frontend.homeViewHtml = (status) => 'home:' + status;
+  state.productDevelopmentView = 'history';
+  assert.equal(frontend.productDevelopmentViewHtml('ready'), 'home:ready', 'Stale history view falls back to the home page');
   currentUser = 'Bob';
   assert.equal(frontend.productDevelopmentHasAccess('development-review'), false, 'Account changes never inherit another user grant');
   const home = read('src/core-ledger-detail.module.js');

@@ -40,7 +40,7 @@ const context = vm.createContext({
   productDevelopmentCopywritingSnapshotValue: (snapshot) => ({ ...snapshot }),
   productDevelopmentValidateCopywriting: () => ({ efficacy: [], advantages: [], sellingPoints: [], ingredientFunctions: [] }),
   productDevelopmentFriendlyCopywritingError: (error) => error.message,
-  saveProductDevelopmentCopywritingCache: () => {}, saveProductDevelopmentHistory: () => {},
+  saveProductDevelopmentCopywritingCache: () => {},
   buildProductDevelopmentDocx: async () => ({ size: 42 }),
 });
 vm.runInContext(read('src/product-development/pd-copywriting-run.module.js'), context);

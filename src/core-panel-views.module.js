@@ -921,30 +921,7 @@
     if (overlay) overlay.remove();
   }
 
-  function positionUploadProgressOverlay(panel, overlay) {
-    if (!panel || !overlay) return;
-    const rect = panel.getBoundingClientRect();
-    const width = Math.min(Math.max(rect.width * 0.58, 220), 320);
-    const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + Math.max(0, (rect.width - width) / 2)));
-    const aboveTop = rect.top - 54;
-    const top = aboveTop >= 12 ? aboveTop : Math.min(window.innerHeight - 50, rect.bottom + 8);
-    overlay.style.width = width + 'px';
-    overlay.style.left = left + 'px';
-    overlay.style.top = Math.max(12, top) + 'px';
-    overlay.classList.toggle('is-below', aboveTop < 12);
-  }
 
-  function getUploadStepProgress(step) {
-    const text = String(step || '');
-    if (/\u6253\u5f00\u5546\u54c1|\u51c6\u5907/.test(text)) return 12;
-    if (/\u68c0\u67e5\u65e7\u5185\u5bb9|\u6e05\u7406/.test(text)) return 22;
-    if (/\u4e0a\u4f20\u63a8\u54c1\u8d44\u6599/.test(text)) return 38;
-    if (/\u4e0a\u4f20\u56fe\u5305\u7d20\u6750/.test(text)) return 52;
-    if (/\u6279\u91cf\u4e0a\u4f20|\u5339\u914d\u8868\u5355/.test(text)) return 68;
-    if (/\u63d0\u5ba1/.test(text)) return 82;
-    if (/\u4fdd\u5b58\u8349\u7a3f|\u5173\u95ed/.test(text)) return 92;
-    return 18;
-  }
 
   function capturePanelScroll(panel) {
     const selectors = ['.pfh-sku-scroll', '.pfh-detail-scroll', '.pfh-upload-list', '.pfh-ledger-list'];

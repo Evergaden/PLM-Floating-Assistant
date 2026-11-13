@@ -175,17 +175,6 @@
     }
   }
 
-  function saveManualToyEffectPacking(value) {
-    const normalized = normalizeManualToyEffectPacking(value);
-    state.manualToyEffectPacking = normalized;
-    try {
-      if (typeof GM_setValue === 'function') GM_setValue(MANUAL_TOY_EFFECT_PACKING_KEY, normalized);
-      else localStorage.setItem(MANUAL_TOY_EFFECT_PACKING_KEY, JSON.stringify(normalized));
-    } catch (error) {
-      console.warn('PLM manual effect packing save failed:', error);
-    }
-    return normalized;
-  }
 
   function saveMagicUploadQueue(queue) {
     // Keep runtime task/file references intact. Upload workers continue to
@@ -430,22 +419,6 @@
     return minutes + ' 分' + (rest ? ' ' + rest + ' 秒' : '');
   }
 
-  function getMagicUploadThroughput() {
-    const samples = state.magicUploadMetrics && Array.isArray(state.magicUploadMetrics.samples) ? state.magicUploadMetrics.samples.slice(-60) : [];
-    const rates = samples.map((sample) => {
-      const bytes = Number(sample && sample.bytes) || 0;
-      const durationMs = Number(sample && sample.durationMs) || 0;
-      return bytes && durationMs ? bytes / durationMs : 0;
-    }).filter((rate) => Number.isFinite(rate) && rate > 0);
-    if (!rates.length) return 0;
-    const median = (values) => {
-      const sorted = values.slice().sort((a, b) => a - b);
-      const middle = Math.floor(sorted.length / 2);
-      return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-    };
-    const recent = rates.slice(-12);
-    return median(rates) * .7 + median(recent) * .3;
-  }
 
   function getMagicUploadTaskByteTotals(task) {
     const fallbackTotalBytes = (task && task.files || []).reduce((sum, entry) => sum + Math.max(0, Number(entry && entry.size) || 0), 0) + (task && task.zipKey ? Math.max(0, Number(task.sourceSize) || 0) : 0);
@@ -457,10 +430,6 @@
     return { totalBytes, uploadedBytes, currentBytes };
   }
 
-  function getMagicUploadTaskRemainingBytes(task) {
-    const totals = getMagicUploadTaskByteTotals(task);
-    return Math.max(0, totals.totalBytes - totals.uploadedBytes - totals.currentBytes);
-  }
 
   function getMagicUploadTaskFileCount(task) {
     return (task && Array.isArray(task.files) ? task.files.length : 0) + (task && task.zipKey ? 1 : 0);
@@ -470,15 +439,6 @@
     return (task && Array.isArray(task.files) ? task.files.filter((entry) => entry && entry.status === 'success').length : 0) + (task && task.sourceUploaded ? 1 : 0);
   }
 
-  function smoothMagicUploadEtaSeconds(previous, target) {
-    const targetSeconds = Math.max(0, Math.round(Number(target) || 0));
-    const previousSeconds = Math.max(0, Math.round(Number(previous) || 0));
-    if (!targetSeconds) return 0;
-    if (!previousSeconds) return targetSeconds;
-    const maxStep = previousSeconds >= 120 ? 8 : (previousSeconds >= 60 ? 6 : 4);
-    const boundedTarget = Math.max(previousSeconds - maxStep, Math.min(previousSeconds + maxStep, targetSeconds));
-    return Math.max(1, Math.round(previousSeconds * .72 + boundedTarget * .28));
-  }
 
   function getMagicUploadAvgFileDurationMs() {
     const samples = state.magicUploadMetrics && Array.isArray(state.magicUploadMetrics.samples) ? state.magicUploadMetrics.samples.slice(-60) : [];

@@ -743,64 +743,6 @@
     return score;
   }
 
-  function findCopywritingUrlInVueState(card, fileName) {
-    if (!card) return '';
-    const roots = [];
-    let element = card;
-    for (let level = 0; element && level < 6; level += 1, element = element.parentElement) {
-      try {
-        Object.getOwnPropertyNames(element).filter((key) => /^__vue/i.test(key)).forEach((key) => roots.push(element[key]));
-      } catch (error) { /* no-op */ }
-    }
-    const queue = [];
-    roots.forEach((instance) => {
-      if (!instance || typeof instance !== 'object') return;
-      ['props', 'setupState', 'data', 'ctx', 'attrs'].forEach((key) => {
-        try { if (instance[key]) queue.push({ value: instance[key], depth: 0, key }); } catch (error) { /* no-op */ }
-      });
-      try { if (instance.vnode && instance.vnode.props) queue.push({ value: instance.vnode.props, depth: 0, key: 'vnode.props' }); } catch (error) { /* no-op */ }
-    });
-    const seen = new Set();
-    const candidates = [];
-    let inspected = 0;
-    const addCandidate = (value, key, sameFileObject) => {
-      const raw = String(value || '').replace(/\\u002f/gi, '/').replace(/\\\//g, '/');
-      const values = [raw].concat(raw.match(/https?:\/\/[^"'<>\s]+/gi) || []);
-      values.forEach((candidate) => {
-        const url = normalizeCopywritingUrl(candidate);
-        if (!url) return;
-        const baseScore = scoreCopywritingUrl(url, fileName);
-        const score = baseScore + (/url|path|download|file/i.test(String(key || '')) ? 20 : 0) + (sameFileObject ? 40 : 0);
-        if (baseScore > 20 || sameFileObject) candidates.push({ url, score });
-      });
-    };
-    while (queue.length && inspected < 700) {
-      const entry = queue.shift();
-      const value = entry.value;
-      inspected += 1;
-      if (typeof value === 'string') {
-        addCandidate(value, entry.key, false);
-        continue;
-      }
-      if (!value || typeof value !== 'object' || entry.depth >= 5 || seen.has(value)) continue;
-      if (value.nodeType || value === window || value === document) continue;
-      seen.add(value);
-      let keys = [];
-      try { keys = Object.keys(value).slice(0, 80); } catch (error) { continue; }
-      const normalizedName = String(fileName || '').toLowerCase();
-      const sameFileObject = Boolean(normalizedName && keys.some((key) => {
-        try { return typeof value[key] === 'string' && String(value[key]).toLowerCase().includes(normalizedName); } catch (error) { return false; }
-      }));
-      keys.forEach((key) => {
-        if (/^(?:parent|root|appContext|subTree|component|el|proxy|provides)$/i.test(key)) return;
-        let child;
-        try { child = value[key]; } catch (error) { return; }
-        if (typeof child === 'string') addCandidate(child, key, sameFileObject);
-        else if (child && typeof child === 'object') queue.push({ value: child, depth: entry.depth + 1, key });
-      });
-    }
-    return candidates.sort((a, b) => b.score - a.score)[0]?.url || '';
-  }
 
   async function captureCopywritingDownloadSource(card, fileName) {
     const wantsPdf = /\.pdf$/i.test(String(fileName || ''));

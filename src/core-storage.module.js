@@ -369,31 +369,6 @@
     renderShell();
   }
 
-  function archiveUploadFailure(item, status, reason, options) {
-    const completedAt = new Date().toLocaleString();
-    const latestQueue = loadUploadQueue();
-    const latestHistory = loadUploadHistory();
-    const latestItem = latestQueue.find((entry) => entry.id === item.id) || item;
-    const keepFiles = Boolean(options && options.keepFiles);
-    const archived = {
-      ...latestItem,
-      status: status || L.uploadFailed,
-      step: reason || latestItem.step || L.uploadFailed,
-      skipReason: reason || latestItem.skipReason || '',
-      completedAt,
-      updatedAt: completedAt,
-      xlsxKey: keepFiles ? (latestItem.xlsxKey || '') : '',
-      zipKey: keepFiles ? (latestItem.zipKey || '') : '',
-      copyrightFiles: getCopyrightUploadEntries(latestItem).map((entry) => ({ ...entry, key: keepFiles ? (entry.key || '') : '' })),
-      effectFiles: getToyEffectUploadEntries(latestItem).map((entry) => ({ ...entry, key: keepFiles ? (entry.key || '') : '' })),
-    };
-    const archivedKey = uploadHistoryKey(archived);
-    state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryKey(entry) !== archivedKey);
-    state.uploadHistory = [archived].concat(latestHistory.filter((entry) => uploadHistoryKey(entry) !== archivedKey)).slice(0, 200);
-    if (!keepFiles) cleanupUploadFiles(latestItem);
-    saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
-    renderShell();
-  }
 
   function markUploadQueueBlocked(item, status, reason, extra) {
     const latestQueue = loadUploadQueue();

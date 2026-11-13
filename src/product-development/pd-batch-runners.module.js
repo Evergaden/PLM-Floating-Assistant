@@ -292,16 +292,6 @@
       };
       state.productDevelopmentCopywriting = copyResult;
       saveProductDevelopmentCopywritingCache(copyResult);
-      saveProductDevelopmentHistory({
-        id,
-        sku: currentSku,
-        name: copySnapshot.name,
-        kind: 'copywriting',
-        createdAt: copyResult.createdAt,
-        fileName,
-        itemCount: content.efficacy.length + content.advantages.length + content.sellingPoints.length + content.ingredientFunctions.length,
-        templateVersion: copyResult.templateVersion,
-      });
       result.snapshot = copySnapshot;
       result.content = content;
       result.stage = 'copywriting';
@@ -485,16 +475,6 @@
         fromCache: false,
       };
       saveProductDevelopmentCopywritingCache(state.productDevelopmentCopywriting);
-      saveProductDevelopmentHistory({
-        id,
-        sku,
-        name: snapshot.name,
-        kind: 'copywriting',
-        createdAt: state.productDevelopmentCopywriting.createdAt,
-        fileName,
-        itemCount: content.efficacy.length + content.advantages.length + content.sellingPoints.length + content.ingredientFunctions.length,
-        templateVersion: state.productDevelopmentCopywriting.templateVersion,
-      });
       if (state.productDevelopmentOneShotResult && state.productDevelopmentOneShotResult.sku === sku) {
         state.productDevelopmentOneShotResult = null;
         state.productDevelopmentOneShotIngredientConfirmed = false;
@@ -692,7 +672,7 @@
     renderShell();
     try {
       await ensureProductDevelopmentIngredientTemplatesLoaded();
-      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || !(state.view === 'productDevelopmentTasks' ? state.productDevelopmentTaskView === 'ingredient' : state.productDevelopmentView === 'ingredient')) return;
+      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || !(state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'ingredient')) return;
       const template = productDevelopmentIngredientSelectedTemplate(kind, state.productDevelopmentIngredientTemplateId);
       if (!template) throw new Error('当前类型没有可用成分表模板');
       state.productDevelopmentIngredientTemplateId = template.id;
@@ -709,7 +689,7 @@
       cells.forEach((cell) => {
         if (Object.prototype.hasOwnProperty.call(draft.values, cell.address)) cell.value = draft.values[cell.address];
       });
-      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || !(state.view === 'productDevelopmentTasks' ? state.productDevelopmentTaskView === 'ingredient' : state.productDevelopmentView === 'ingredient')) return;
+      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || !(state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'ingredient')) return;
       state.productDevelopmentIngredientSheetName = worksheet.name;
       state.productDevelopmentIngredientEditor = {
         kind,

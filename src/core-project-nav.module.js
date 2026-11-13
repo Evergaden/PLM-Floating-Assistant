@@ -323,17 +323,6 @@
     return Boolean(await waitFor(() => /^\u8bbe\u8ba1\u4efb\u52a1/.test(getActiveProjectWorkflowTabText()), 5000, 120));
   }
 
-  async function ensureProjectAllTab() {
-    const active = getActiveProjectWorkflowTabText();
-    if (/^\u5168\u90e8/.test(active)) return true;
-    const tab = findProjectWorkflowTabByText('\u5168\u90e8');
-    if (!tab) {
-      addLog('error', '玩具文案：未找到新品开发「全部」页签');
-      return false;
-    }
-    clickElement(tab);
-    return Boolean(await waitFor(() => /^\u5168\u90e8/.test(getActiveProjectWorkflowTabText()), 5000, 120));
-  }
 
   function getActiveProjectWorkflowTabText() {
     const tab = Array.from(document.querySelectorAll('.filterTabs .ant-tabs-tab-active, .ant-tabs-tab-active'))
@@ -509,19 +498,6 @@
       .find(isLabelUploadScope) || null;
   }
 
-  function findBomEffectUploadItem(drawer) {
-    if (!drawer) return null;
-    const labels = Array.from(drawer.querySelectorAll('span, div'))
-      .filter(isVisibleElement)
-      .filter((el) => compactText(el.innerText || el.textContent) === '\u6548\u679c\u56fe');
-    for (const label of labels) {
-      let current = label.parentElement;
-      for (let depth = 0; current && current !== drawer && depth < 4; depth += 1, current = current.parentElement) {
-        if (current.querySelector('input[type="file"]')) return current;
-      }
-    }
-    return null;
-  }
 
   async function saveProjectBomDrawer(drawer) {
     const button = findButtonLikeInScope(drawer, '\u6279\u91cf\u4fdd\u5b58');

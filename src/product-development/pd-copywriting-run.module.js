@@ -91,16 +91,6 @@
         fromCache: false,
       };
       saveProductDevelopmentCopywritingCache(state.productDevelopmentCopywriting);
-      saveProductDevelopmentHistory({
-        id,
-        sku: snapshot.sku,
-        name: snapshot.name,
-        kind: 'copywriting',
-        createdAt: state.productDevelopmentCopywriting.createdAt,
-        fileName,
-        itemCount: content.efficacy.length + content.advantages.length + content.sellingPoints.length + content.ingredientFunctions.length,
-        templateVersion: state.productDevelopmentCopywriting.templateVersion,
-      });
       productDevelopmentLog('success', 'AI 文案已缓存到本地', sku + ' | id=' + id);
       if (state.productDevelopmentOneShotResult && state.productDevelopmentOneShotResult.sku === sku) {
         state.productDevelopmentOneShotResult = null;
@@ -229,66 +219,8 @@
       '</div>';
   }
 
-  function productDevelopmentSkuSummaryHtml(snapshot) {
-    const sku = getProductDevelopmentCurrentSku();
-    if (!sku) return '<div class="pfh-product-development-empty"><strong>还没有当前 SKU</strong><p>请先切换回设计任务，在 PLM 详情中打开一个产品，再进入产品开发。</p><button type="button" data-action="work-mode" data-work-mode="daily">返回设计任务</button></div>';
-    const data = snapshot || (state.data && state.data.sku === sku ? state.data : null) || {};
-    return '<article class="pfh-product-development-context"><div class="pfh-product-development-context-icon">' + iconHtml('package') + '</div><div><small>当前 PLM SKU</small><strong>' + escapeHtml(sku) + '</strong><p>' + escapeHtml(data.name || '等待读取产品资料') + '</p></div><button type="button" data-action="product-development-context-refresh">刷新资料</button></article>';
-  }
 
-  function productDevelopmentHistoryHtml(limit) {
-    const maxItems = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(PRODUCT_DEVELOPMENT_MAX_HISTORY, Number(limit))) : 4;
-    const history = normalizeProductDevelopmentHistory(state.productDevelopmentHistory).slice(0, maxItems);
-    if (!history.length) return '<div class="pfh-product-development-history-empty">本地历史记录会显示在这里</div>';
-    return history.map((item) => '<button type="button" class="pfh-product-development-history-row" data-action="product-development-history-open" data-history-id="' + escapeHtml(item.id) + '" title="打开本地历史"><span class="pfh-product-development-history-kind">' + escapeHtml(item.kind === 'review' ? '图' : '文') + '</span><div><strong>' + escapeHtml(item.sku) + '</strong><small>' + escapeHtml(item.createdAt) + ' · ' + escapeHtml(item.fileName || '') + '</small></div><em>' + (item.kind === 'review' ? item.itemCount + ' 个风险项' + (item.extractedTextCount ? ' · ' + item.extractedTextCount + ' 项文字' : '') : '文案') + '</em></button>').join('');
-  }
 
-  function productDevelopmentOpenHistory(item) {
-    if (!item) {
-      showToast('本地历史记录不存在或已被清理');
-      return;
-    }
-    state.workMode = 'product-development';
-    state.settings.workMode = 'product-development';
-    saveSettings(state.settings);
-    state.productDevelopmentReviewEditorOpen = false;
-    state.productDevelopmentError = '';
-    if (item.kind === 'review' && item.comparisonDataUrl) {
-      state.productDevelopmentView = 'review';
-      state.productDevelopmentReview = {
-        id: item.id,
-        sku: item.sku,
-        comparisonDataUrl: item.comparisonDataUrl,
-        items: [],
-        extractedTexts: [],
-        warnings: item.warnings || [],
-        productNaming: {
-          chineseProductName: item.productNameCn,
-          englishProductName: item.productNameEn,
-          functionSummary: '',
-          evidenceText: '',
-          confidence: 0,
-        },
-        fileName: item.fileName || productDevelopmentFileName(item.sku, 'infringement-comparison', 'png'),
-        createdAt: item.createdAt,
-        sourceImageDataUrl: '',
-        fromHistory: true,
-      };
-      state.productDevelopmentStatus = '已打开本地历史对照图，可滚动查看或下载 PNG';
-    } else if (item.kind === 'review') {
-      state.productDevelopmentView = 'review';
-      state.productDevelopmentReview = null;
-      state.productDevelopmentStatus = '这条历史只保存了索引，没有可预览的对照图，请重新分析';
-    } else {
-      state.productDevelopmentView = 'copywriting';
-      const cached = restoreProductDevelopmentCopywritingCache(item.sku, item.id) || restoreProductDevelopmentCopywritingCache(item.sku);
-      if (cached) cached.fromHistory = true;
-      state.productDevelopmentStatus = cached
-        ? '已打开本地缓存文案，可预览或重新构建并下载 DOCX'
-        : '这条旧历史只有生成记录，没有可恢复的文案内容';
-    }
-    renderShell();
-  }
 
   const PRODUCT_DEVELOPMENT_MATERIAL_LIBRARY_KEY = 'plm-floating-helper:product-development-materials:v1';
   const PRODUCT_DEVELOPMENT_MATERIAL_LIBRARY_MAX = 600;
@@ -420,38 +352,8 @@
       + '</section></div>';
   }
 
-  function productDevelopmentHistoryViewHtml() {
-    return '<div class="pfh-product-development pfh-product-development-subview">' +
-      '<header class="pfh-product-development-subview-head"><button type="button" class="pfh-upload-back" data-action="product-development-home" aria-label="返回产品开发主页">' + iconHtml('backArrow') + '</button><strong>本地历史</strong></header>' +
-      '<section class="pfh-product-development-section pfh-product-development-history"><div>' + productDevelopmentHistoryHtml(PRODUCT_DEVELOPMENT_MAX_HISTORY) + '</div></section></div>';
-  }
 
-  function productDevelopmentEvidenceHtml(snapshot) {
-    const ingredientText = snapshot && Array.isArray(snapshot.ingredients)
-      ? snapshot.ingredients.slice(0, 12).map((item) => [item.en, item.cn].filter(Boolean).join(' / ')).filter(Boolean).join('、')
-      : '';
-    const sellingPoints = snapshot && snapshot.sourceCopywriting && snapshot.sourceCopywriting.sellingPoints
-      ? productDevelopmentPairValues(snapshot.sourceCopywriting.sellingPoints)
-      : { en: '', cn: '' };
-    const sellingText = [sellingPoints.cn, sellingPoints.en].filter(Boolean).join(' / ');
-    const hint = snapshot ? '已读取当前 SKU 的只读资料' : '点击上方“刷新资料”读取当前 SKU';
-    return '<section class="pfh-product-development-section"><header><div><h3>成分与产品卖点</h3></div><span>' + escapeHtml(hint) + '</span></header><div class="pfh-product-development-grid"><article class="pfh-product-development-card"><div class="pfh-product-development-card-head"><span>' + iconHtml('box') + '</span><i>' + escapeHtml(snapshot ? String(snapshot.ingredients.length) + ' 项' : '待读取') + '</i></div><h3>有效成分</h3><p>' + escapeHtml(ingredientText || '尚未读取成分，生成前会再次校验当前 SKU。') + '</p></article><article class="pfh-product-development-card"><div class="pfh-product-development-card-head"><span>' + iconHtml('batchExcel') + '</span><i>' + (sellingText ? 'PLM' : '待读取') + '</i></div><h3>当前卖点</h3><p>' + escapeHtml(sellingText || '尚未读取卖点，生成时会优先使用 PLM 当前字段。') + '</p></article></div></section>';
-  }
 
-  function productDevelopmentHomeHtml() {
-    const sku = getProductDevelopmentCurrentSku();
-    const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku ? state.productDevelopmentSnapshot : null;
-    const cards = PRODUCT_DEVELOPMENT_FEATURES.map((feature) => {
-      const disabled = !feature.action;
-      const requiresSku = feature.requiresSku !== false;
-      return '<article class="pfh-product-development-card' + (disabled ? ' is-disabled' : '') + '"><div class="pfh-product-development-card-head"><span>' + iconHtml(feature.icon) + '</span></div><h3>' + escapeHtml(feature.title) + '</h3><p>' + escapeHtml(feature.subtitle) + '</p>' + (feature.action ? '<button type="button" data-action="' + feature.action + '"' + (requiresSku && !sku ? ' disabled' : '') + '>打开功能 →</button>' : '<small>功能占位</small>') + '</article>';
-    }).join('');
-    return '<div class="pfh-product-development">' + productDevelopmentModeSwitchHtml() +
-      productDevelopmentSkuSummaryHtml(snapshot) +
-      productDevelopmentEvidenceHtml(snapshot) +
-      '<section class="pfh-product-development-section"><header><div><h3>开发功能</h3></div></header><div class="pfh-product-development-grid">' + cards + '</div></section>' +
-      '<section class="pfh-product-development-section pfh-product-development-history"><header><div><h3>本地历史</h3></div></header><div>' + productDevelopmentHistoryHtml() + '</div></section></div>';
-  }
 
   function productDevelopmentPricingResultHtml(result, sku, detail) {
     if (!result) return '<div class="pfh-product-development-result-empty">请输入全包价格和税率，系统会按定价标准计算三档价格。</div>';
@@ -524,21 +426,17 @@
     const result = state.productDevelopmentReview;
     const sku = getProductDevelopmentCurrentSku();
     const resultMatchesCurrentSku = Boolean(result && result.sku === sku);
-    const canShowResult = Boolean(result && (resultMatchesCurrentSku || result.fromHistory));
+    const canShowResult = Boolean(result && resultMatchesCurrentSku);
     const items = canShowResult ? result.items || [] : [];
     const extractedTexts = canShowResult && Array.isArray(result.extractedTexts) ? result.extractedTexts : [];
     const riskCount = items.filter((item) => Array.isArray(item && item.riskTypes) && item.riskTypes.length).length;
     const extractedSummary = extractedTexts.length ? '<div class="pfh-product-development-preview-note"><strong>已读取 ' + extractedTexts.length + ' 项文字，识别风险 ' + riskCount + ' 项。</strong></div>' : '';
-    const canEditResult = canShowResult && !result.fromHistory;
+    const canEditResult = canShowResult;
     const previewCopyActions = Array.isArray(items) && items.length
       ? '<button type="button" data-action="product-development-review-copy-all" title="复制图片识别出的全部原文">复制全文</button><button type="button" data-action="product-development-review-copy-revised" title="复制当前修改后的中英文文案">复制修改后的文案</button>'
       : '';
     const preview = canShowResult && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>三列对照图预览</strong></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"' + (canEditResult ? ' data-action="product-development-review-editor-open" class="pfh-product-development-preview-zoom" title="点击打开对照编辑"' : '') + ' style="display:block;width:100%;min-width:0;max-width:100%;height:auto;object-fit:contain"></div><div class="pfh-product-development-preview-actions">' + (canEditResult ? '<button type="button" data-action="product-development-review-editor-open">编辑对照文字</button>' : '') + previewCopyActions + '<button type="button" data-action="product-development-review-download">下载 PNG</button></div></section>' : '';
-    const list = canShowResult
-      ? (result.fromHistory
-        ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字，请重新分析当前对标图片。</p></section>'
-        : '')
-      : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
+    const list = canShowResult ? '' : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
     const editor = canEditResult ? productDevelopmentReviewEditorHtml(result, items) : '';
     return '<div class="pfh-product-development pfh-product-development-subview">' +
       '<header class="pfh-product-development-subview-head"><button type="button" class="pfh-upload-back" data-action="product-development-home" aria-label="返回产品开发主页">' + iconHtml('backArrow') + '</button><strong>产品图风险筛查</strong></header>' +
@@ -590,8 +488,7 @@
   }
 
   function productDevelopmentWarmIngredientTemplates() {
-    const isVisible = () => (state.view === 'home' && state.productDevelopmentView === 'copywriting')
-      || (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting');
+    const isVisible = () => state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting';
     ensureProductDevelopmentIngredientTemplatesLoaded().then(() => {
       if (isVisible()) renderShell();
     }).catch((error) => {
@@ -766,7 +663,7 @@
     if (snapshotCopy) return snapshotCopy;
     const stored = productDevelopmentCleanText(review && (review.plainTextCopy || review.approvedPlainText || review.finalCopy), 12000);
     if (stored) return stored;
-    if (review && Array.isArray(review.items) && review.items.length && !review.fromHistory) {
+    if (review && Array.isArray(review.items) && review.items.length) {
       try {
         return productDevelopmentCleanText(productDevelopmentReviewCopyValue(review, 'revised'), 12000);
       } catch (_) {
@@ -1412,16 +1309,16 @@
 
   function productDevelopmentCopywritingDownloadButtonHtml(sku) {
     const result = state.productDevelopmentCopywriting;
-    const ready = Boolean(result && result.content && (result.sku === sku || result.fromHistory) && !state.productDevelopmentOneShotBusy && !state.productDevelopmentCopywritingBusy);
+    const ready = Boolean(result && result.content && result.sku === sku && !state.productDevelopmentOneShotBusy && !state.productDevelopmentCopywritingBusy);
     return '<button type="button" class="pfh-cw-download' + (ready ? ' is-ready' : '') + '" data-action="product-development-copywriting-download"' + (ready ? '' : ' disabled') + '>更新并下载文案</button>';
   }
 
   function productDevelopmentCopywritingHtml() {
     const sku = getProductDevelopmentCurrentSku();
     const currentResult = state.productDevelopmentCopywriting;
-    if ((!currentResult || currentResult.sku !== sku) && !(currentResult && currentResult.fromHistory) && sku) restoreProductDevelopmentCopywritingCache(sku);
+    if ((!currentResult || currentResult.sku !== sku) && sku) restoreProductDevelopmentCopywritingCache(sku);
     const result = state.productDevelopmentCopywriting;
-    const content = result && (result.sku === sku || result.fromHistory) ? result.content : null;
+    const content = result && result.sku === sku ? result.content : null;
     const displayError = state.productDevelopmentError || '';
     return '<div class="pfh-product-development pfh-product-development-subview pfh-cw-workspace">' +
       '<header class="pfh-product-development-subview-head"><button type="button" class="pfh-upload-back" data-action="product-development-home" aria-label="返回产品开发主页">' + iconHtml('backArrow') + '</button><strong>生成双语文案</strong></header>' +

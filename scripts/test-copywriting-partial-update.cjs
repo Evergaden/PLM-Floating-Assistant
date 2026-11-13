@@ -99,8 +99,8 @@ const request = (body, key = 'test') => new Request('https://test/ai-image/produ
   meta.productNameEn = 'New Cream';
   state.productDevelopmentOneShotInput = { sku: 'OTHER', regularIngredientsEn: 'WRONG' };
   assert.equal(ctx.productDevelopmentCopywritingUpdatePlan(result).changed, false, 'Ignore another SKU draft');
-  result.fromHistory = true; currentSku = 'OTHER';
-  assert.equal(ctx.productDevelopmentCopywritingUpdatePlan(result).changed, false, 'History downloads never borrow current SKU data');
+  currentSku = 'OTHER';
+  assert.throws(() => ctx.productDevelopmentCopywritingUpdatePlan(result), /对应的 SKU/, 'Downloads cannot borrow another SKU after history removal');
   currentSku = 'SKU1';
   result = makeResult();
   state.productDevelopmentOneShotInput = { sku: 'SKU1', regularIngredientsEn: '', regularIngredientsCn: '' };

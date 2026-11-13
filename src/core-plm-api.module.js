@@ -838,9 +838,6 @@
     return { value: result, state: found ? (result ? 'value' : 'empty') : '' };
   }
 
-  function getApiProductMetricValue(payload, variableName) {
-    return getApiProductMetricState(payload, variableName).value;
-  }
 
   function extractApiProductMetrics(payload) {
     const netContentState = getApiProductMetricState(payload, 'suttle');

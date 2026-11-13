@@ -694,13 +694,6 @@
     return Array.from(new Set(missing));
   }
 
-  function productDevelopmentProductDetailFieldValue(detail, key) {
-    const fields = productDevelopmentProductFieldCollections(detail);
-    const field = fields.find((item) => item && item.key === key);
-    if (field) return field.value !== undefined ? field.value : field.displayValue !== undefined ? field.displayValue : '';
-    const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key || key === 'procurement_rice' && Number(item.attrId) === 152);
-    return definition ? productDevelopmentPrefillProductFieldValue(detail, definition) : '';
-  }
 
   function productDevelopmentProductDetailLanguageConfig(detail, task) {
     const info = detail && detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};

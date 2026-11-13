@@ -247,7 +247,6 @@
     if (!result) throw new Error('暂无可下载的文案');
     const snapshot = JSON.parse(JSON.stringify(result.snapshot || { sku }));
     const content = JSON.parse(JSON.stringify(result.content));
-    if (result.sku !== sku && result.fromHistory) return { snapshot, content, changed: false };
     if (result.sku !== sku) throw new Error('请先打开该文案对应的 SKU');
     const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
     const task = getProductDevelopmentTaskBySku(sku) || { sku };

@@ -296,19 +296,6 @@
     };
   }
 
-  function productDevelopmentReworkLookupStatusText(detail) {
-    const lookup = productDevelopmentReworkLookupState(detail);
-    const referenceLabel = productDevelopmentReferenceLabel(detail);
-    if (lookup.status === 'loading') return '正在读取' + referenceLabel + '产品资料…';
-    if (lookup.status === 'error') return lookup.message || referenceLabel + '产品资料查询失败';
-    if (lookup.status === 'ready') {
-      const data = lookup.data || {};
-      const price = productDevelopmentPrefillText(data.procurementPrice);
-      const packing = productDevelopmentPrefillText(data.standardPackingQuantity);
-      return '已按 ' + (lookup.code || data.code || referenceLabel + '编码') + ' 回填' + (price ? '采购价 ' + price : '') + (packing ? ' · 标准装箱数 ' + packing : '');
-    }
-    return '填写' + referenceLabel + '编码后自动查询采购价、产线和价格档位；采购明细默认 JSJ / 直采 / 1000 件';
-  }
 
   function productDevelopmentClearReworkLocalProductFields(detail) {
     if (!detail || !detail.productDetailLocalValues || typeof detail.productDetailLocalValues !== 'object') return;
@@ -448,13 +435,6 @@
     };
   }
 
-  function productDevelopmentIsDefaultOrganizationField(field) {
-    if (!field) return false;
-    const key = String(field.key || '').trim();
-    return Boolean(PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS[key]
-      || Object.values(PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS).some((item) => Number(item.attrId) === Number(field.attrId)
-        || item.label === String(field.label || '').trim()));
-  }
 
   function productDevelopmentOrganizationDefaults(attrs) {
     return Object.keys(PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS).map((key) => {

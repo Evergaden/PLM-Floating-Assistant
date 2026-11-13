@@ -1221,16 +1221,6 @@
       });
     }
 
-    function loadFileImage(file) {
-      return new Promise((resolve, reject) => {
-        const url = URL.createObjectURL(file);
-        const image = new Image();
-        const release = () => URL.revokeObjectURL(url);
-        image.onload = () => { release(); resolve(image); };
-        image.onerror = () => { release(); reject(new Error('无法读取标注图片，请重新导入 PNG。')); };
-        image.src = url;
-      });
-    }
 
     function alphaBoundsRegion(pixels, width, height, x0, x1, y0, y1) {
       let left = x1, top = height, right = -1, bottom = -1;

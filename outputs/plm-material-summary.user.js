@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.75
+// @version      2.10.76
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.75';
+  const SCRIPT_VERSION = '2.10.76';
   const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }\n#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n\n/* Text-only BOM controls, full-width material groups and aligned fields. */\n#plm-floating-helper .pfh-product-development-material-planner.pfh-bom-form {\n  display: grid;\n  gap: 16px;\n  min-width: 0;\n  padding: 16px;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-bom-form > header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-bom-form > header > .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; }\n#plm-floating-helper .pfh-product-development-detail-form > .pfh-product-development-product-form-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-detail-heading { display: contents; }\n#plm-floating-helper .pfh-product-development-product-form-header .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-bom-form > header h3 { font-size: 16px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card button[data-action] {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-bom-form button.is-primary { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-bom-form button:hover:not(:disabled) { border-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form button:disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-list { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card { align-content: start; gap: 12px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header { flex-direction: row; align-items: center; min-height: 36px; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header strong { font-size: 20px; font-weight: 700; line-height: 1.4; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled { padding-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled small { margin-left: 12px; color: var(--pfh-theme-muted); font-size: 11px; font-weight: 400; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-grid,\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-grid { grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); align-items: start; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field { gap: 8px; color: var(--pfh-theme-text); font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field > span { overflow: visible; white-space: normal; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field :is(input, select) { min-height: 36px; padding: 8px 12px; font: inherit; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form :is(button, input, select):focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 2px; }\n#plm-floating-helper .pfh-bom-dimensions { display: grid; grid-column: 1 / -1; grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-bom-dimensions.is-box { grid-template-columns: var(--pfh-bom-field-columns, repeat(3, minmax(0, 1fr))); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-options { gap: 12px; padding-top: 12px; border-top-style: solid; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group { gap: 8px; font-size: 11px; color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group > div { display: flex; min-height: 36px; box-sizing: border-box; align-items: center; gap: 16px; padding: 8px 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group input { accent-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-product-binding { padding: 12px; border-radius: 8px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid { gap: 12px; margin-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid small { font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-bom-form { --pfh-bom-field-columns: minmax(0, 1fr); }\n}\n";
   const SKU_DETAIL_LAYOUT_CSS = "/* Keep SKU identity above the independently scrolling detail content. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  height: auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  padding: 12px 14px 0;\n  overflow: hidden;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {\n  flex: 0 0 auto;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 0 0;\n}\n\n#plm-floating-helper .pfh-material-card {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 16px 18px;\r\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\r\n  border-radius: 16px;\r\n  background: var(--pfh-theme-card, #fff);\r\n}\r\n#plm-floating-helper .pfh-material-card small {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key] {\r\n  display: block;\r\n  min-width: 0;\r\n  overflow-wrap: anywhere;\r\n  /* Fill the inter-row gap without moving the text or overlapping targets. */\r\n  padding: 4px 10px;\r\n  margin: -4px -10px;\r\n  cursor: pointer;\r\n  border-radius: 6px;\r\n  transition: color .15s, background .15s;\r\n}\r\n#plm-floating-helper .pfh-material-size {\r\n  color: var(--pfh-theme-text, #17213a);\r\n  font-size: 15px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-code {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:hover,\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:focus-visible,\r\n#plm-floating-helper .pfh-material-card .is-copied {\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-soft, #f4efff);\r\n  outline: none;\r\n}\r\n\n/* Keep product context in the selected SKU card while the editor owns the detail pane. */\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active) {\n  position: relative;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active)::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  z-index: 10;\n  border-radius: inherit;\n  background: color-mix(in srgb, var(--pfh-theme-page, #f8f9ff) 58%, transparent);\n  pointer-events: none;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-list-head, .pfh-sku-list-toolbar, .pfh-sku-filter-toolbar, .pfh-list-pager, .pfh-search-result-toolbar, .pfh-workspace-search-host) {\n  opacity: .5;\n}\n\n#plm-floating-helper .pfh-development-detail-jump {\n  position: absolute;\n  z-index: 80;\n  display: grid;\n  gap: 4px;\n  width: 188px;\n  max-width: calc(100% - 16px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-development-detail-jump button {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  text-align: left;\n  font: inherit;\n  font-size: 12px;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-development-detail-jump button:is(:hover, :focus-visible, .is-active) { background: var(--pfh-theme-primary-soft); color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-development-detail-jump button:focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 1px; }\n#plm-floating-helper .pfh-development-detail-jump button:disabled { opacity: .45; cursor: default; }\n";
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
@@ -518,7 +518,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.322';
+  const UI_ASSET_VERSION = '2.5.323';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -1786,16 +1786,6 @@
       });
     }
 
-    function loadFileImage(file) {
-      return new Promise((resolve, reject) => {
-        const url = URL.createObjectURL(file);
-        const image = new Image();
-        const release = () => URL.revokeObjectURL(url);
-        image.onload = () => { release(); resolve(image); };
-        image.onerror = () => { release(); reject(new Error('无法读取标注图片，请重新导入 PNG。')); };
-        image.src = url;
-      });
-    }
 
     function alphaBoundsRegion(pixels, width, height, x0, x1, y0, y1) {
       let left = x1, top = height, right = -1, bottom = -1;
@@ -4006,21 +3996,6 @@
     return brands;
   }
 
-  async function ensureBrandComplianceDataLoaded() {
-    if (Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length) return true;
-    try {
-      await refreshCloudAssets(false);
-    } catch (error) {
-      addLog('warn', '\u54c1\u724c\u5730\u5740\u8d44\u6e90\u52a0\u8f7d\u5931\u8d25', formatErrorMessage(error));
-    }
-    if (Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length) return true;
-    try {
-      await refreshBrandComplianceData();
-    } catch (error) {
-      addLog('warn', '\u54c1\u724c\u5730\u5740\u8bfb\u53d6\u5931\u8d25', formatErrorMessage(error));
-    }
-    return Boolean(Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length);
-  }
 
   function refreshCloudAssets(force) {
     if (cloudAssetRefreshPromise) return cloudAssetRefreshPromise;
@@ -6365,7 +6340,7 @@
     Object.freeze({ id: 'regular-ndc', label: '常规涉NDC', fileName: '（ndc）24国语言健康保健类、贴类涉ndc文案模板.docx', path: 'v1/product-development-copywriting-templates/regular-ndc.docx', bytes: 105603, sha256: '3639756c75be3e1d7c347cbe28f41054dadd96084530afafdf8cec328caa0c3e' }),
     Object.freeze({ id: 'regular-non-ndc', label: '常规非NDC', fileName: '(非ndc)24国语言美妆、个护类产品文案模板.docx', path: 'v1/product-development-copywriting-templates/regular-non-ndc.docx', bytes: 104184, sha256: '9eb0fd09d70fa193a9cb96651018186aa0e9188338f3d6d7423fc33fe8136428' }),
   ]);
-  const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
+
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_LIMIT = 8;
   const PRODUCT_DEVELOPMENT_REVIEW_LAYOUT_KEY = 'plm-floating-helper:product-development-review-layout:v1';
@@ -6418,7 +6393,7 @@
     regularIngredientsCn: '',
     regularIngredientsInactiveCn: '',
   });
-  const PRODUCT_DEVELOPMENT_MAX_HISTORY = 8;
+
   const productDevelopmentReviewDraftWriteTimers = Object.create(null);
   const productDevelopmentTaskMetaWriteTimers = Object.create(null);
   const productDevelopmentReworkLookupTimers = Object.create(null);
@@ -6508,13 +6483,13 @@
     Object.freeze({ pattern: /\bGUMM(?:Y|IES)\b/i, en: 'GUMMIES', zh: '粒软糖' }),
   ]);
   const PRODUCT_DEVELOPMENT_FEATURES = Object.freeze([
-    Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder', requiresSku: false }),
+    Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder' }),
     Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取全部图片文字，生成中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
     Object.freeze({ id: 'copywriting', title: '文案 DOCX', subtitle: '选择开发产品，生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
-    Object.freeze({ id: 'ingredientFacts', title: '制作成分表', subtitle: '按需加载云端人类或宠物模板摘要，编辑后导出 PDF', action: 'product-development-ingredient-open', icon: 'batchExcel', requiresSku: false }),
-    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '全包价格计算国内三档价格', action: 'product-development-pricing-open', icon: 'calculator', requiresSku: false }),
+    Object.freeze({ id: 'ingredientFacts', title: '制作成分表', subtitle: '按需加载云端人类或宠物模板摘要，编辑后导出 PDF', action: 'product-development-ingredient-open', icon: 'batchExcel' }),
+    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '全包价格计算国内三档价格', action: 'product-development-pricing-open', icon: 'calculator' }),
     Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '出单数量、手工贴标和返工 100 件规则', action: '', icon: 'box' }),
-    Object.freeze({ id: 'materials', title: '包材库', subtitle: 'BOM 用过的包材自动归档，图片化浏览', action: 'product-development-materials-view', icon: 'box', requiresSku: false }),
+    Object.freeze({ id: 'materials', title: '包材库', subtitle: 'BOM 用过的包材自动归档，图片化浏览', action: 'product-development-materials-view', icon: 'box' }),
   ]);
 
   // These are style examples from the supplied product-material workbook. They
@@ -6780,41 +6755,8 @@
     return draft;
   }
 
-  function normalizeProductDevelopmentHistory(value) {
-    const list = Array.isArray(value) ? value : [];
-    return list.map((item) => {
-      const source = item && typeof item === 'object' ? item : {};
-      return {
-        id: String(source.id || ''),
-        sku: String(source.sku || '').trim().toUpperCase(),
-        name: String(source.name || '').trim().slice(0, 200),
-        kind: source.kind === 'copywriting' ? 'copywriting' : 'review',
-        createdAt: String(source.createdAt || '').trim(),
-        fileName: String(source.fileName || '').trim().slice(0, 180),
-        itemCount: Math.max(0, Math.min(60, Number(source.itemCount) || 0)),
-        extractedTextCount: Math.max(0, Math.min(100, Number(source.extractedTextCount) || 0)),
-        templateVersion: String(source.templateVersion || '').trim().slice(0, 60),
-        productNameCn: productDevelopmentCleanText(source.productNameCn || source.chineseProductName, 180),
-        productNameEn: productDevelopmentCleanText(source.productNameEn || source.englishProductName, 180),
-        comparisonDataUrl: typeof source.comparisonDataUrl === 'string' && source.comparisonDataUrl.length < 2600000
-          ? source.comparisonDataUrl
-          : '',
-        warnings: Array.isArray(source.warnings) ? source.warnings.map((text) => String(text || '').trim()).filter(Boolean).slice(0, 12) : [],
-      };
-    }).filter((item) => item.sku && item.id).slice(0, PRODUCT_DEVELOPMENT_MAX_HISTORY);
-  }
 
-  function loadProductDevelopmentHistory() {
-    return normalizeProductDevelopmentHistory(readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_HISTORY_KEY, []));
-  }
 
-  function saveProductDevelopmentHistory(record) {
-    const current = normalizeProductDevelopmentHistory(state.productDevelopmentHistory);
-    const next = normalizeProductDevelopmentHistory([record].concat(current.filter((item) => item.id !== record.id)));
-    state.productDevelopmentHistory = next;
-    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_HISTORY_KEY, next);
-    return next;
-  }
 
   function productDevelopmentCopywritingSnapshotValue(value) {
     const source = value && typeof value === 'object' ? value : {};
@@ -6994,7 +6936,6 @@
       fileName: productDevelopmentCleanText(source.fileName || productDevelopmentFileName(sku, 'infringement-comparison', 'png'), 180),
       createdAt: productDevelopmentCleanText(source.createdAt || new Date().toLocaleString(), 80),
       updatedAt: Number(source.updatedAt) || Date.now(),
-      fromHistory: false,
     };
   }
 
@@ -7017,7 +6958,7 @@
   }
 
   function saveProductDevelopmentReviewDraft(result) {
-    if (!result || result.fromHistory) return;
+    if (!result) return;
     const draft = productDevelopmentReviewDraftValue(result);
     if (!draft) return;
     const entries = loadProductDevelopmentReviewDrafts();
@@ -7057,7 +6998,7 @@
   function restoreProductDevelopmentReviewDraft(sku) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     if (!normalizedSku) return null;
-    if (state.productDevelopmentReview && state.productDevelopmentReview.sku === normalizedSku && !state.productDevelopmentReview.fromHistory) return state.productDevelopmentReview;
+    if (state.productDevelopmentReview && state.productDevelopmentReview.sku === normalizedSku) return state.productDevelopmentReview;
     const draft = getProductDevelopmentReviewDraft(normalizedSku);
     if (!draft) return null;
     state.productDevelopmentReview = draft;
@@ -8799,19 +8740,6 @@
     };
   }
 
-  function productDevelopmentReworkLookupStatusText(detail) {
-    const lookup = productDevelopmentReworkLookupState(detail);
-    const referenceLabel = productDevelopmentReferenceLabel(detail);
-    if (lookup.status === 'loading') return '正在读取' + referenceLabel + '产品资料…';
-    if (lookup.status === 'error') return lookup.message || referenceLabel + '产品资料查询失败';
-    if (lookup.status === 'ready') {
-      const data = lookup.data || {};
-      const price = productDevelopmentPrefillText(data.procurementPrice);
-      const packing = productDevelopmentPrefillText(data.standardPackingQuantity);
-      return '已按 ' + (lookup.code || data.code || referenceLabel + '编码') + ' 回填' + (price ? '采购价 ' + price : '') + (packing ? ' · 标准装箱数 ' + packing : '');
-    }
-    return '填写' + referenceLabel + '编码后自动查询采购价、产线和价格档位；采购明细默认 JSJ / 直采 / 1000 件';
-  }
 
   function productDevelopmentClearReworkLocalProductFields(detail) {
     if (!detail || !detail.productDetailLocalValues || typeof detail.productDetailLocalValues !== 'object') return;
@@ -8951,13 +8879,6 @@
     };
   }
 
-  function productDevelopmentIsDefaultOrganizationField(field) {
-    if (!field) return false;
-    const key = String(field.key || '').trim();
-    return Boolean(PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS[key]
-      || Object.values(PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS).some((item) => Number(item.attrId) === Number(field.attrId)
-        || item.label === String(field.label || '').trim()));
-  }
 
   function productDevelopmentOrganizationDefaults(attrs) {
     return Object.keys(PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS).map((key) => {
@@ -9997,13 +9918,6 @@
     return Array.from(new Set(missing));
   }
 
-  function productDevelopmentProductDetailFieldValue(detail, key) {
-    const fields = productDevelopmentProductFieldCollections(detail);
-    const field = fields.find((item) => item && item.key === key);
-    if (field) return field.value !== undefined ? field.value : field.displayValue !== undefined ? field.displayValue : '';
-    const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key || key === 'procurement_rice' && Number(item.attrId) === 152);
-    return definition ? productDevelopmentPrefillProductFieldValue(detail, definition) : '';
-  }
 
   function productDevelopmentProductDetailLanguageConfig(detail, task) {
     const info = detail && detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};
@@ -11410,11 +11324,6 @@
     return productDevelopmentNormalizeReadonlyDetail(source, infoPayload, contentPayload, bomRows, productSnapshot, categoryId);
   }
 
-  function productDevelopmentReadonlyFieldHtml(field, formSku) {
-    const missing = !String(field.displayValue || '').trim();
-    const value = field.displayValue === '待人工补充' || field.displayValue === '待人工填写' ? '' : field.displayValue || '';
-    return '<label class="pfh-product-development-form-field' + (missing ? ' is-missing' : '') + '"><span>' + escapeHtml(field.label) + '</span><input type="text" class="pfh-product-development-form-input" data-form-sku="' + escapeHtml(formSku || '') + '" data-form-group="' + escapeHtml(field.formGroup || 'required') + '" data-form-key="' + escapeHtml(field.key || '') + '" value="' + escapeHtml(value) + '"></label>';
-  }
 
   function productDevelopmentPrefillFieldHtml(field, formSku, value) {
     const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[formSku];
@@ -11759,7 +11668,7 @@
   }
 
   async function productDevelopmentPrepareRawMaterialDraft(result) {
-    if (!result || result.fromHistory) return;
+    if (!result) return;
     const { ingredientLines, claimLines } = productDevelopmentRawMaterialSplitLines(result);
     const naming = result.productNaming || {};
     const functionSummary = productDevelopmentCleanText(naming.functionSummary, 400);
@@ -13475,20 +13384,6 @@
       state.productDevelopmentReview = reviewResult;
       saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
       productDevelopmentPrepareRawMaterialDraft(state.productDevelopmentReview);
-      saveProductDevelopmentHistory({
-        id,
-        sku: snapshot.sku,
-        name: snapshot.name,
-        kind: 'review',
-        createdAt: state.productDevelopmentReview.createdAt,
-        fileName,
-        itemCount: validated.items.filter((item) => Array.isArray(item.riskTypes) && item.riskTypes.length).length,
-        extractedTextCount: validated.extractedTexts.length,
-        comparisonDataUrl: comparison.dataUrl,
-        warnings: validated.warnings,
-        productNameCn: validated.productNaming.chineseProductName,
-        productNameEn: validated.productNaming.englishProductName,
-      });
       const riskCount = validated.items.filter((item) => Array.isArray(item.riskTypes) && item.riskTypes.length).length;
       state.productDevelopmentStatus = riskCount ? '已识别 ' + validated.extractedTexts.length + ' 项图片文字，生成 ' + riskCount + ' 项风险对照，请人工确认' : '已识别 ' + validated.extractedTexts.length + ' 项图片文字，未检测到风险，可下载留档并继续人工检查';
       showToast('侵权对照图已生成');
@@ -13808,7 +13703,7 @@
 
   function productDevelopmentOpenReviewEditorTab() {
     const result = state.productDevelopmentReview;
-    if (!result || result.fromHistory) {
+    if (!result) {
       showToast('当前结果不可编辑，请重新分析当前对标图片');
       return true;
     }
@@ -13851,7 +13746,7 @@
         productDevelopmentWriteReviewEditorLayout(data.layout);
         return;
       }
-      if (!result || result.fromHistory) return;
+      if (!result) return;
       if (data.type === 'pfh-review-tab-input') {
         const item = list[Number(data.index)];
         const field = String(data.field || '');
@@ -14109,21 +14004,7 @@
       result.comparisonDataUrl = comparison.dataUrl;
       result.manualEditedAt = new Date().toLocaleString();
       saveProductDevelopmentReviewDraft(result);
-      const naming = result.productNaming && typeof result.productNaming === 'object' ? result.productNaming : {};
-      saveProductDevelopmentHistory({
-        id: result.id,
-        sku: result.sku,
-        name: snapshot.name || result.sku,
-        kind: 'review',
-        createdAt: result.createdAt,
-        fileName: result.fileName,
-        itemCount: result.items.filter((item) => Array.isArray(item.riskTypes) && item.riskTypes.length).length,
-        extractedTextCount: Array.isArray(result.extractedTexts) ? result.extractedTexts.length : reviewedItems.length,
-        comparisonDataUrl: result.comparisonDataUrl,
-        warnings: Array.isArray(result.warnings) ? result.warnings : [],
-        productNameCn: naming.chineseProductName,
-        productNameEn: naming.englishProductName,
-      });
+
       state.productDevelopmentStatus = '已按人工修改重新生成对照图';
       showToast('人工修改已应用');
     } catch (error) {
@@ -14353,33 +14234,6 @@
     if (cells[2]) productDevelopmentSetCellLines(cells[2], directionsCn, doc);
   }
 
-  function productDevelopmentSetCellPrefixedLines(cell, prefix, lines, doc) {
-    const sourceParagraph = productDevelopmentXmlElements(cell, 'p')[0];
-    const sourceRuns = sourceParagraph ? productDevelopmentXmlElements(sourceParagraph, 'r').filter((run) => productDevelopmentCellText(run)) : [];
-    const headingRun = sourceRuns[0];
-    const bodyRun = sourceRuns[1] || sourceRuns[0];
-    const sourcePPr = sourceParagraph && productDevelopmentXmlElements(sourceParagraph, 'pPr')[0];
-    const headingRPr = headingRun && productDevelopmentXmlElements(headingRun, 'rPr')[0];
-    const bodyRPr = bodyRun && productDevelopmentXmlElements(bodyRun, 'rPr')[0];
-    const values = (Array.isArray(lines) ? lines : [lines]).filter((line) => String(line || '').trim());
-    const appendRun = (paragraph, textValue, runProperties) => {
-      const run = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:r');
-      if (runProperties) run.appendChild(runProperties.cloneNode(true));
-      const text = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:t');
-      text.setAttribute('xml:space', 'preserve');
-      text.textContent = productDevelopmentXmlSafeText(textValue);
-      run.appendChild(text);
-      paragraph.appendChild(run);
-    };
-    productDevelopmentClearCell(cell);
-    values.forEach((line, index) => {
-      const paragraph = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:p');
-      if (sourcePPr) paragraph.appendChild(sourcePPr.cloneNode(true));
-      if (index === 0 && prefix) appendRun(paragraph, String(prefix).trim() + ' ', headingRPr);
-      appendRun(paragraph, line, productDevelopmentBodyRunProperties(bodyRPr, doc));
-      cell.appendChild(paragraph);
-    });
-  }
 
   // The NDC template ships the ingredient headings as styled runs, e.g.
   // "ACTIVE INGREDIENTS:" (Arial Black) / "INACTIVE INGREDIENTS：" in the
@@ -14921,7 +14775,6 @@
     if (!result) throw new Error('暂无可下载的文案');
     const snapshot = JSON.parse(JSON.stringify(result.snapshot || { sku }));
     const content = JSON.parse(JSON.stringify(result.content));
-    if (result.sku !== sku && result.fromHistory) return { snapshot, content, changed: false };
     if (result.sku !== sku) throw new Error('请先打开该文案对应的 SKU');
     const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
     const task = getProductDevelopmentTaskBySku(sku) || { sku };
@@ -15222,16 +15075,6 @@
         fromCache: false,
       };
       saveProductDevelopmentCopywritingCache(state.productDevelopmentCopywriting);
-      saveProductDevelopmentHistory({
-        id,
-        sku: snapshot.sku,
-        name: snapshot.name,
-        kind: 'copywriting',
-        createdAt: state.productDevelopmentCopywriting.createdAt,
-        fileName,
-        itemCount: content.efficacy.length + content.advantages.length + content.sellingPoints.length + content.ingredientFunctions.length,
-        templateVersion: state.productDevelopmentCopywriting.templateVersion,
-      });
       productDevelopmentLog('success', 'AI 文案已缓存到本地', sku + ' | id=' + id);
       if (state.productDevelopmentOneShotResult && state.productDevelopmentOneShotResult.sku === sku) {
         state.productDevelopmentOneShotResult = null;
@@ -15360,66 +15203,8 @@
       '</div>';
   }
 
-  function productDevelopmentSkuSummaryHtml(snapshot) {
-    const sku = getProductDevelopmentCurrentSku();
-    if (!sku) return '<div class="pfh-product-development-empty"><strong>还没有当前 SKU</strong><p>请先切换回设计任务，在 PLM 详情中打开一个产品，再进入产品开发。</p><button type="button" data-action="work-mode" data-work-mode="daily">返回设计任务</button></div>';
-    const data = snapshot || (state.data && state.data.sku === sku ? state.data : null) || {};
-    return '<article class="pfh-product-development-context"><div class="pfh-product-development-context-icon">' + iconHtml('package') + '</div><div><small>当前 PLM SKU</small><strong>' + escapeHtml(sku) + '</strong><p>' + escapeHtml(data.name || '等待读取产品资料') + '</p></div><button type="button" data-action="product-development-context-refresh">刷新资料</button></article>';
-  }
 
-  function productDevelopmentHistoryHtml(limit) {
-    const maxItems = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(PRODUCT_DEVELOPMENT_MAX_HISTORY, Number(limit))) : 4;
-    const history = normalizeProductDevelopmentHistory(state.productDevelopmentHistory).slice(0, maxItems);
-    if (!history.length) return '<div class="pfh-product-development-history-empty">本地历史记录会显示在这里</div>';
-    return history.map((item) => '<button type="button" class="pfh-product-development-history-row" data-action="product-development-history-open" data-history-id="' + escapeHtml(item.id) + '" title="打开本地历史"><span class="pfh-product-development-history-kind">' + escapeHtml(item.kind === 'review' ? '图' : '文') + '</span><div><strong>' + escapeHtml(item.sku) + '</strong><small>' + escapeHtml(item.createdAt) + ' · ' + escapeHtml(item.fileName || '') + '</small></div><em>' + (item.kind === 'review' ? item.itemCount + ' 个风险项' + (item.extractedTextCount ? ' · ' + item.extractedTextCount + ' 项文字' : '') : '文案') + '</em></button>').join('');
-  }
 
-  function productDevelopmentOpenHistory(item) {
-    if (!item) {
-      showToast('本地历史记录不存在或已被清理');
-      return;
-    }
-    state.workMode = 'product-development';
-    state.settings.workMode = 'product-development';
-    saveSettings(state.settings);
-    state.productDevelopmentReviewEditorOpen = false;
-    state.productDevelopmentError = '';
-    if (item.kind === 'review' && item.comparisonDataUrl) {
-      state.productDevelopmentView = 'review';
-      state.productDevelopmentReview = {
-        id: item.id,
-        sku: item.sku,
-        comparisonDataUrl: item.comparisonDataUrl,
-        items: [],
-        extractedTexts: [],
-        warnings: item.warnings || [],
-        productNaming: {
-          chineseProductName: item.productNameCn,
-          englishProductName: item.productNameEn,
-          functionSummary: '',
-          evidenceText: '',
-          confidence: 0,
-        },
-        fileName: item.fileName || productDevelopmentFileName(item.sku, 'infringement-comparison', 'png'),
-        createdAt: item.createdAt,
-        sourceImageDataUrl: '',
-        fromHistory: true,
-      };
-      state.productDevelopmentStatus = '已打开本地历史对照图，可滚动查看或下载 PNG';
-    } else if (item.kind === 'review') {
-      state.productDevelopmentView = 'review';
-      state.productDevelopmentReview = null;
-      state.productDevelopmentStatus = '这条历史只保存了索引，没有可预览的对照图，请重新分析';
-    } else {
-      state.productDevelopmentView = 'copywriting';
-      const cached = restoreProductDevelopmentCopywritingCache(item.sku, item.id) || restoreProductDevelopmentCopywritingCache(item.sku);
-      if (cached) cached.fromHistory = true;
-      state.productDevelopmentStatus = cached
-        ? '已打开本地缓存文案，可预览或重新构建并下载 DOCX'
-        : '这条旧历史只有生成记录，没有可恢复的文案内容';
-    }
-    renderShell();
-  }
 
   const PRODUCT_DEVELOPMENT_MATERIAL_LIBRARY_KEY = 'plm-floating-helper:product-development-materials:v1';
   const PRODUCT_DEVELOPMENT_MATERIAL_LIBRARY_MAX = 600;
@@ -15551,38 +15336,8 @@
       + '</section></div>';
   }
 
-  function productDevelopmentHistoryViewHtml() {
-    return '<div class="pfh-product-development pfh-product-development-subview">' +
-      '<header class="pfh-product-development-subview-head"><button type="button" class="pfh-upload-back" data-action="product-development-home" aria-label="返回产品开发主页">' + iconHtml('backArrow') + '</button><strong>本地历史</strong></header>' +
-      '<section class="pfh-product-development-section pfh-product-development-history"><div>' + productDevelopmentHistoryHtml(PRODUCT_DEVELOPMENT_MAX_HISTORY) + '</div></section></div>';
-  }
 
-  function productDevelopmentEvidenceHtml(snapshot) {
-    const ingredientText = snapshot && Array.isArray(snapshot.ingredients)
-      ? snapshot.ingredients.slice(0, 12).map((item) => [item.en, item.cn].filter(Boolean).join(' / ')).filter(Boolean).join('、')
-      : '';
-    const sellingPoints = snapshot && snapshot.sourceCopywriting && snapshot.sourceCopywriting.sellingPoints
-      ? productDevelopmentPairValues(snapshot.sourceCopywriting.sellingPoints)
-      : { en: '', cn: '' };
-    const sellingText = [sellingPoints.cn, sellingPoints.en].filter(Boolean).join(' / ');
-    const hint = snapshot ? '已读取当前 SKU 的只读资料' : '点击上方“刷新资料”读取当前 SKU';
-    return '<section class="pfh-product-development-section"><header><div><h3>成分与产品卖点</h3></div><span>' + escapeHtml(hint) + '</span></header><div class="pfh-product-development-grid"><article class="pfh-product-development-card"><div class="pfh-product-development-card-head"><span>' + iconHtml('box') + '</span><i>' + escapeHtml(snapshot ? String(snapshot.ingredients.length) + ' 项' : '待读取') + '</i></div><h3>有效成分</h3><p>' + escapeHtml(ingredientText || '尚未读取成分，生成前会再次校验当前 SKU。') + '</p></article><article class="pfh-product-development-card"><div class="pfh-product-development-card-head"><span>' + iconHtml('batchExcel') + '</span><i>' + (sellingText ? 'PLM' : '待读取') + '</i></div><h3>当前卖点</h3><p>' + escapeHtml(sellingText || '尚未读取卖点，生成时会优先使用 PLM 当前字段。') + '</p></article></div></section>';
-  }
 
-  function productDevelopmentHomeHtml() {
-    const sku = getProductDevelopmentCurrentSku();
-    const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku ? state.productDevelopmentSnapshot : null;
-    const cards = PRODUCT_DEVELOPMENT_FEATURES.map((feature) => {
-      const disabled = !feature.action;
-      const requiresSku = feature.requiresSku !== false;
-      return '<article class="pfh-product-development-card' + (disabled ? ' is-disabled' : '') + '"><div class="pfh-product-development-card-head"><span>' + iconHtml(feature.icon) + '</span></div><h3>' + escapeHtml(feature.title) + '</h3><p>' + escapeHtml(feature.subtitle) + '</p>' + (feature.action ? '<button type="button" data-action="' + feature.action + '"' + (requiresSku && !sku ? ' disabled' : '') + '>打开功能 →</button>' : '<small>功能占位</small>') + '</article>';
-    }).join('');
-    return '<div class="pfh-product-development">' + productDevelopmentModeSwitchHtml() +
-      productDevelopmentSkuSummaryHtml(snapshot) +
-      productDevelopmentEvidenceHtml(snapshot) +
-      '<section class="pfh-product-development-section"><header><div><h3>开发功能</h3></div></header><div class="pfh-product-development-grid">' + cards + '</div></section>' +
-      '<section class="pfh-product-development-section pfh-product-development-history"><header><div><h3>本地历史</h3></div></header><div>' + productDevelopmentHistoryHtml() + '</div></section></div>';
-  }
 
   function productDevelopmentPricingResultHtml(result, sku, detail) {
     if (!result) return '<div class="pfh-product-development-result-empty">请输入全包价格和税率，系统会按定价标准计算三档价格。</div>';
@@ -15655,21 +15410,17 @@
     const result = state.productDevelopmentReview;
     const sku = getProductDevelopmentCurrentSku();
     const resultMatchesCurrentSku = Boolean(result && result.sku === sku);
-    const canShowResult = Boolean(result && (resultMatchesCurrentSku || result.fromHistory));
+    const canShowResult = Boolean(result && resultMatchesCurrentSku);
     const items = canShowResult ? result.items || [] : [];
     const extractedTexts = canShowResult && Array.isArray(result.extractedTexts) ? result.extractedTexts : [];
     const riskCount = items.filter((item) => Array.isArray(item && item.riskTypes) && item.riskTypes.length).length;
     const extractedSummary = extractedTexts.length ? '<div class="pfh-product-development-preview-note"><strong>已读取 ' + extractedTexts.length + ' 项文字，识别风险 ' + riskCount + ' 项。</strong></div>' : '';
-    const canEditResult = canShowResult && !result.fromHistory;
+    const canEditResult = canShowResult;
     const previewCopyActions = Array.isArray(items) && items.length
       ? '<button type="button" data-action="product-development-review-copy-all" title="复制图片识别出的全部原文">复制全文</button><button type="button" data-action="product-development-review-copy-revised" title="复制当前修改后的中英文文案">复制修改后的文案</button>'
       : '';
     const preview = canShowResult && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>三列对照图预览</strong></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"' + (canEditResult ? ' data-action="product-development-review-editor-open" class="pfh-product-development-preview-zoom" title="点击打开对照编辑"' : '') + ' style="display:block;width:100%;min-width:0;max-width:100%;height:auto;object-fit:contain"></div><div class="pfh-product-development-preview-actions">' + (canEditResult ? '<button type="button" data-action="product-development-review-editor-open">编辑对照文字</button>' : '') + previewCopyActions + '<button type="button" data-action="product-development-review-download">下载 PNG</button></div></section>' : '';
-    const list = canShowResult
-      ? (result.fromHistory
-        ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字，请重新分析当前对标图片。</p></section>'
-        : '')
-      : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
+    const list = canShowResult ? '' : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
     const editor = canEditResult ? productDevelopmentReviewEditorHtml(result, items) : '';
     return '<div class="pfh-product-development pfh-product-development-subview">' +
       '<header class="pfh-product-development-subview-head"><button type="button" class="pfh-upload-back" data-action="product-development-home" aria-label="返回产品开发主页">' + iconHtml('backArrow') + '</button><strong>产品图风险筛查</strong></header>' +
@@ -15721,8 +15472,7 @@
   }
 
   function productDevelopmentWarmIngredientTemplates() {
-    const isVisible = () => (state.view === 'home' && state.productDevelopmentView === 'copywriting')
-      || (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting');
+    const isVisible = () => state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting';
     ensureProductDevelopmentIngredientTemplatesLoaded().then(() => {
       if (isVisible()) renderShell();
     }).catch((error) => {
@@ -15897,7 +15647,7 @@
     if (snapshotCopy) return snapshotCopy;
     const stored = productDevelopmentCleanText(review && (review.plainTextCopy || review.approvedPlainText || review.finalCopy), 12000);
     if (stored) return stored;
-    if (review && Array.isArray(review.items) && review.items.length && !review.fromHistory) {
+    if (review && Array.isArray(review.items) && review.items.length) {
       try {
         return productDevelopmentCleanText(productDevelopmentReviewCopyValue(review, 'revised'), 12000);
       } catch (_) {
@@ -16543,16 +16293,16 @@
 
   function productDevelopmentCopywritingDownloadButtonHtml(sku) {
     const result = state.productDevelopmentCopywriting;
-    const ready = Boolean(result && result.content && (result.sku === sku || result.fromHistory) && !state.productDevelopmentOneShotBusy && !state.productDevelopmentCopywritingBusy);
+    const ready = Boolean(result && result.content && result.sku === sku && !state.productDevelopmentOneShotBusy && !state.productDevelopmentCopywritingBusy);
     return '<button type="button" class="pfh-cw-download' + (ready ? ' is-ready' : '') + '" data-action="product-development-copywriting-download"' + (ready ? '' : ' disabled') + '>更新并下载文案</button>';
   }
 
   function productDevelopmentCopywritingHtml() {
     const sku = getProductDevelopmentCurrentSku();
     const currentResult = state.productDevelopmentCopywriting;
-    if ((!currentResult || currentResult.sku !== sku) && !(currentResult && currentResult.fromHistory) && sku) restoreProductDevelopmentCopywritingCache(sku);
+    if ((!currentResult || currentResult.sku !== sku) && sku) restoreProductDevelopmentCopywritingCache(sku);
     const result = state.productDevelopmentCopywriting;
-    const content = result && (result.sku === sku || result.fromHistory) ? result.content : null;
+    const content = result && result.sku === sku ? result.content : null;
     const displayError = state.productDevelopmentError || '';
     return '<div class="pfh-product-development pfh-product-development-subview pfh-cw-workspace">' +
       '<header class="pfh-product-development-subview-head"><button type="button" class="pfh-upload-back" data-action="product-development-home" aria-label="返回产品开发主页">' + iconHtml('backArrow') + '</button><strong>生成双语文案</strong></header>' +
@@ -17586,16 +17336,6 @@
       };
       state.productDevelopmentCopywriting = copyResult;
       saveProductDevelopmentCopywritingCache(copyResult);
-      saveProductDevelopmentHistory({
-        id,
-        sku: currentSku,
-        name: copySnapshot.name,
-        kind: 'copywriting',
-        createdAt: copyResult.createdAt,
-        fileName,
-        itemCount: content.efficacy.length + content.advantages.length + content.sellingPoints.length + content.ingredientFunctions.length,
-        templateVersion: copyResult.templateVersion,
-      });
       result.snapshot = copySnapshot;
       result.content = content;
       result.stage = 'copywriting';
@@ -17779,16 +17519,6 @@
         fromCache: false,
       };
       saveProductDevelopmentCopywritingCache(state.productDevelopmentCopywriting);
-      saveProductDevelopmentHistory({
-        id,
-        sku,
-        name: snapshot.name,
-        kind: 'copywriting',
-        createdAt: state.productDevelopmentCopywriting.createdAt,
-        fileName,
-        itemCount: content.efficacy.length + content.advantages.length + content.sellingPoints.length + content.ingredientFunctions.length,
-        templateVersion: state.productDevelopmentCopywriting.templateVersion,
-      });
       if (state.productDevelopmentOneShotResult && state.productDevelopmentOneShotResult.sku === sku) {
         state.productDevelopmentOneShotResult = null;
         state.productDevelopmentOneShotIngredientConfirmed = false;
@@ -17986,7 +17716,7 @@
     renderShell();
     try {
       await ensureProductDevelopmentIngredientTemplatesLoaded();
-      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || !(state.view === 'productDevelopmentTasks' ? state.productDevelopmentTaskView === 'ingredient' : state.productDevelopmentView === 'ingredient')) return;
+      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || !(state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'ingredient')) return;
       const template = productDevelopmentIngredientSelectedTemplate(kind, state.productDevelopmentIngredientTemplateId);
       if (!template) throw new Error('当前类型没有可用成分表模板');
       state.productDevelopmentIngredientTemplateId = template.id;
@@ -18003,7 +17733,7 @@
       cells.forEach((cell) => {
         if (Object.prototype.hasOwnProperty.call(draft.values, cell.address)) cell.value = draft.values[cell.address];
       });
-      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || !(state.view === 'productDevelopmentTasks' ? state.productDevelopmentTaskView === 'ingredient' : state.productDevelopmentView === 'ingredient')) return;
+      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || !(state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'ingredient')) return;
       state.productDevelopmentIngredientSheetName = worksheet.name;
       state.productDevelopmentIngredientEditor = {
         kind,
@@ -18246,15 +17976,7 @@
   }
 
   function productDevelopmentViewHtml(statusText) {
-    const view = state.productDevelopmentView === 'pricing' ? 'pricing' : (state.productDevelopmentView === 'review' ? 'review' : (state.productDevelopmentView === 'copywriting' ? 'copywriting' : (state.productDevelopmentView === 'ingredient' ? 'ingredient' : 'home')));
-    const accessFeature = productDevelopmentFeatureForView(view);
-    if (accessFeature && !productDevelopmentHasAccess(accessFeature)) return '<div class="pfh-empty">前面的区域，以后再来探索吧</div>';
-    if (view === 'pricing') return productDevelopmentPricingViewHtml();
-    if (view === 'review') return productDevelopmentReviewHtml(statusText);
-    if (view === 'copywriting') return productDevelopmentCopywritingHtml(statusText);
-    if (view === 'ingredient') return productDevelopmentIngredientFactsHtml();
     if (state.productDevelopmentView === 'materials') return productDevelopmentMaterialsViewHtml(statusText);
-    if (state.productDevelopmentView === 'history') return productDevelopmentHistoryViewHtml(statusText);
     return homeViewHtml(statusText);
   }
 
@@ -18288,7 +18010,7 @@
     }
     if (action === 'product-development-copywriting-copy') {
       const result = state.productDevelopmentCopywriting;
-      if (result && result.content && (result.sku === getProductDevelopmentCurrentSku() || result.fromHistory)) {
+      if (result && result.content && result.sku === getProductDevelopmentCurrentSku()) {
         copyText([['产品功效', 'efficacy'], ['产品优势', 'advantages'], ['产品卖点', 'sellingPoints'], ['成分功能', 'ingredientFunctions']].map(([label, key]) => label + '\n' + (result.content[key] || []).map((item) => [item.titleEn, item.en || item.ingredientEn, item.titleCn, item.cn || item.ingredientCn].filter(Boolean).join('\n')).join('\n\n')).join('\n\n'));
         showToast('文案已复制');
       }
@@ -18313,28 +18035,8 @@
       return true;
     }
     if (action === 'product-development-pricing-open') {
-      if (state.view === 'productDevelopmentTasks') {
-        state.productDevelopmentTaskView = 'pricing';
-        renderShell();
-        return true;
-      }
-      state.workMode = 'product-development';
-      state.settings.workMode = 'product-development';
-      saveSettings(state.settings);
-      const sku = getProductDevelopmentCurrentSku();
-      const task = getProductDevelopmentTaskBySku(sku) || state.productDevelopmentSelectedTask;
-      state.productDevelopmentView = 'pricing';
-      state.view = 'home';
-      state.productDevelopmentError = '';
-      state.productDevelopmentStatus = '';
-      productDevelopmentPricingInputForSku(sku, state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku]);
+      state.productDevelopmentTaskView = 'pricing';
       renderShell();
-      const taskDetail = task && state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[task.sku];
-      if (task && task.sku && (!taskDetail || taskDetail.error)) {
-        hydrateProductDevelopmentTaskDetail(task).then(() => {
-          if (state.productDevelopmentView === 'pricing' && getProductDevelopmentCurrentSku() === task.sku) renderShell();
-        }).catch(() => {});
-      }
       return true;
     }
     if (action === 'product-development-pricing-apply') {
@@ -18537,34 +18239,11 @@
       renderShell();
       return true;
     }
-    if (action === 'product-development-history-view') {
-      state.productDevelopmentView = 'history';
-      state.productDevelopmentError = '';
-      renderShell();
-      return true;
-    }
-    if (action === 'product-development-history-open') {
-      const historyId = String(actionTarget && actionTarget.getAttribute('data-history-id') || '');
-      const item = normalizeProductDevelopmentHistory(state.productDevelopmentHistory).find((record) => record.id === historyId);
-      productDevelopmentOpenHistory(item);
-      return true;
-    }
     if (action === 'product-development-review-open') {
       state.productDevelopmentReviewEditorOpen = false;
-      state.workMode = 'product-development';
-      state.settings.workMode = 'product-development';
-      saveSettings(state.settings);
       restoreProductDevelopmentReviewDraft(getProductDevelopmentCurrentSku());
-      if (state.view === 'productDevelopmentTasks') {
-        state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
-        state.productDevelopmentTaskView = 'review';
-        state.productDevelopmentError = '';
-        state.productDevelopmentStatus = '';
-        renderShell();
-        return true;
-      }
-      state.productDevelopmentView = 'review';
-      state.view = 'home';
+      state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
+      state.productDevelopmentTaskView = 'review';
       state.productDevelopmentError = '';
       state.productDevelopmentStatus = '';
       renderShell();
@@ -18599,7 +18278,7 @@
     }
     if (action === 'product-development-review-translate-revised') {
       const result = state.productDevelopmentReview;
-      if (!result || result.fromHistory) {
+      if (!result) {
         showToast('当前结果不可编辑，请重新分析当前对标图片');
         return true;
       }
@@ -18642,7 +18321,7 @@
     }
     if (action === 'product-development-raw-material-translate') {
       const result = state.productDevelopmentReview;
-      if (!result || result.fromHistory || state.productDevelopmentRawMaterialTranslateBusy) return true;
+      if (!result || state.productDevelopmentRawMaterialTranslateBusy) return true;
       const draft = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
       const jobs = [];
       ['efficacyItems', 'ingredientItems'].forEach((key) => draft[key].forEach((item, index) => {
@@ -18675,7 +18354,7 @@
     }
     if (action === 'product-development-raw-material-add' || action === 'product-development-raw-material-remove') {
       const result = state.productDevelopmentReview;
-      if (!result || result.fromHistory) return true;
+      if (!result) return true;
       const group = String(actionTarget && actionTarget.getAttribute('data-raw-material-group') || '').trim();
       if (group !== 'efficacy' && group !== 'ingredients') return true;
       const draft = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
@@ -18740,23 +18419,9 @@
       return true;
     }
     if (action === 'product-development-copywriting-open') {
-      state.workMode = 'product-development';
-      state.settings.workMode = 'product-development';
-      saveSettings(state.settings);
-      const currentSku = getProductDevelopmentCurrentSku();
-      if (state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.fromHistory) state.productDevelopmentCopywriting = null;
-      restoreProductDevelopmentCopywritingCache(currentSku);
-      if (state.view === 'productDevelopmentTasks') {
-        state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
-        state.productDevelopmentTaskView = 'copywriting';
-        state.productDevelopmentError = '';
-        state.productDevelopmentStatus = '';
-        renderShell();
-        productDevelopmentWarmIngredientTemplates();
-        return true;
-      }
-      state.productDevelopmentView = 'copywriting';
-      state.view = 'home';
+      restoreProductDevelopmentCopywritingCache(getProductDevelopmentCurrentSku());
+      state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
+      state.productDevelopmentTaskView = 'copywriting';
       state.productDevelopmentError = '';
       state.productDevelopmentStatus = '';
       renderShell();
@@ -18806,7 +18471,7 @@
     if (!target || !target.classList) return false;
     if (target.getAttribute('data-product-development-one-shot-editor-field') || target.getAttribute('data-product-development-one-shot-row-index')) {
       window.setTimeout(() => {
-        if (state.productDevelopmentView === 'copywriting') renderShell();
+        if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting') renderShell();
       }, 0);
       return true;
     }
@@ -19118,7 +18783,7 @@
     }
     if (target.classList.contains('pfh-product-development-plain-copy-input')) {
       const result = state.productDevelopmentReview;
-      if (result && !result.fromHistory) {
+      if (result) {
         result.plainTextCopy = productDevelopmentCleanText(target.value, 12000);
         scheduleProductDevelopmentReviewDraftSave(result);
       }
@@ -19126,7 +18791,7 @@
     }
     if (target.classList.contains('pfh-product-development-raw-material-input')) {
       const result = state.productDevelopmentReview;
-      if (!result || result.fromHistory) return true;
+      if (!result) return true;
       const group = String(target.getAttribute('data-raw-material-group') || '').trim();
       const field = String(target.getAttribute('data-raw-material-field') || '').trim();
       const index = Number(target.getAttribute('data-raw-material-index'));
@@ -19383,11 +19048,11 @@
     'product-development-pricing',
     'product-development-stocking',
     'product-development-materials',
-    'product-development-history',
+
   ]);
   const DEFAULT_PRODUCT_DEVELOPMENT_FEATURE_GROUPS = Object.freeze({
     common: Object.freeze(['product-development-tasks', 'product-development-review', 'product-development-copywriting', 'product-development-ingredientFacts', 'product-development-pricing']),
-    more: Object.freeze(['product-development-stocking', 'product-development-materials', 'product-development-history']),
+    more: Object.freeze(['product-development-stocking', 'product-development-materials']),
   });
   const initialProductDevelopmentTaskCache = loadProductDevelopmentTaskCache();
   const initialProductDevelopmentTaskMeta = loadProductDevelopmentTaskMeta();
@@ -19508,7 +19173,7 @@
     productDevelopmentOneShotResult: null,
     productDevelopmentOneShotIngredientConfirmed: false,
     productDevelopmentOneShotBusy: false,
-    productDevelopmentHistory: loadProductDevelopmentHistory(),
+
     productDevelopmentStatus: '',
     productDevelopmentError: '',
     excelPanelOpen: false,
@@ -19541,9 +19206,7 @@
     cloudRecoveryCheckTimer: 0,
     cloudRecoveryFailureSources: [],
     homeFeatureDragId: '',
-    insightRecommendationSku: '',
-    insightRecommendationLoading: false,
-    insightRecommendation: null,
+
     exportType: 'excel',
     exportMenuOpen: false,
     skuSortMenuOpen: false,
@@ -21091,111 +20754,7 @@
     return next;
   }
 
-  async function diagnoseMissingDataBeforeSave(data) {
-    const missing = getMissingFieldsForData(data);
-    if (!missing.length || state.diagnosticRunning) return data;
-    const issueMeta = getDataQualityIssueMeta(data, missing);
-    if (issueMeta.kind === '\u53ef\u80fd PLM \u7a7a\u503c') return data;
 
-    const drawer = getProjectDrawerForSku(data.sku) || getProjectDrawer();
-    if (!drawer) {
-      addLog('warn', '\u6570\u636e\u7f3a\u5931\u8bca\u65ad\u8df3\u8fc7', data.sku + ' \u672a\u627e\u5230\u5bf9\u5e94\u62bd\u5c49');
-      return attachMissingDiagnostic(data, {
-        status: '\u672a\u6267\u884c',
-        reason: '\u672a\u627e\u5230\u5bf9\u5e94\u62bd\u5c49',
-        beforeMissing: missing,
-        afterMissing: missing,
-        fixed: [],
-        tabs: [],
-      });
-    }
-
-    const tabs = getDiagnosticTabsForMissing(missing);
-    if (!tabs.length) {
-      return attachMissingDiagnostic(data, {
-        status: '\u672a\u6267\u884c',
-        reason: '\u672a\u627e\u5230\u9700\u4e8c\u6b21\u8bfb\u53d6\u7684\u9875\u7b7e',
-        beforeMissing: missing,
-        afterMissing: missing,
-        fixed: [],
-        tabs: [],
-      });
-    }
-    state.diagnosticRunning = true;
-    addLog('info', '\u5f00\u59cb\u4e8c\u6b21\u8bfb\u53d6\u7f3a\u5931\u6570\u636e', data.sku + ' \u7f3a\uff1a' + missing.join('\u3001') + ' / ' + issueMeta.kind);
-    let merged = data;
-    const startedAt = Date.now();
-    const attempts = [];
-    try {
-      for (const tabName of tabs) {
-        await switchDrawerTab(drawer, tabName);
-        const beforeTabMissing = getMissingFieldsForData(merged);
-        let tabAttempts = 1;
-        merged = mergeData(merged, extractData(drawer, { forceSkuImage: tabName === L.productTab }));
-        let afterTabMissing = getMissingFieldsForData(merged);
-        if (afterTabMissing.length >= beforeTabMissing.length && afterTabMissing.some((field) => beforeTabMissing.includes(field))) {
-          tabAttempts += 1;
-          await wait(280);
-          merged = mergeData(merged, extractData(drawer, { forceSkuImage: tabName === L.productTab }));
-          afterTabMissing = getMissingFieldsForData(merged);
-        }
-        attempts.push({
-          tab: tabName,
-          count: tabAttempts,
-          beforeMissing: beforeTabMissing,
-          afterMissing: afterTabMissing,
-        });
-      }
-      const afterMissing = getMissingFieldsForData(merged);
-      const fixed = missing.filter((field) => !afterMissing.includes(field));
-      if (fixed.length) {
-        addLog('success', '\u4e8c\u6b21\u8bfb\u53d6\u5df2\u8865\u5230\u6570\u636e', data.sku + ' \u8865\u5230\uff1a' + fixed.join('\u3001'));
-      } else {
-        addLog('warn', '\u4e8c\u6b21\u8bfb\u53d6\u540e\u4ecd\u7f3a\u6570\u636e', data.sku + ' \u4ecd\u7f3a\uff1a' + afterMissing.join('\u3001'));
-      }
-      return attachMissingDiagnostic(merged, {
-        status: fixed.length ? '\u90e8\u5206\u8865\u5230' : '\u4ecd\u7f3a',
-        reason: fixed.length ? '\u4e8c\u6b21\u8bfb\u53d6\u6210\u529f\u8865\u5230\u90e8\u5206\u5b57\u6bb5' : '\u4e8c\u6b21\u8bfb\u53d6\u540e\u4ecd\u7f3a\u5b57\u6bb5',
-        beforeMissing: missing,
-        afterMissing,
-        fixed,
-        tabs,
-        attempts,
-        elapsedMs: Date.now() - startedAt,
-      });
-    } catch (error) {
-      addLog('warn', '\u4e8c\u6b21\u8bfb\u53d6\u7f3a\u5931\u6570\u636e\u5931\u8d25', data.sku + ' ' + formatErrorMessage(error));
-      return attachMissingDiagnostic(data, {
-        status: '\u5931\u8d25',
-        reason: formatErrorMessage(error),
-        beforeMissing: missing,
-        afterMissing: getMissingFieldsForData(data),
-        fixed: [],
-        tabs,
-        attempts,
-        elapsedMs: Date.now() - startedAt,
-      });
-    } finally {
-      state.diagnosticRunning = false;
-    }
-  }
-
-  function attachMissingDiagnostic(data, diagnostic) {
-    return normalizeData({
-      ...(data || {}),
-      lastMissingDiagnostic: {
-        status: String(diagnostic && diagnostic.status || '').slice(0, 40),
-        reason: String(diagnostic && diagnostic.reason || '').slice(0, 160),
-        beforeMissing: Array.isArray(diagnostic && diagnostic.beforeMissing) ? diagnostic.beforeMissing.slice(0, 20) : [],
-        afterMissing: Array.isArray(diagnostic && diagnostic.afterMissing) ? diagnostic.afterMissing.slice(0, 20) : [],
-        fixed: Array.isArray(diagnostic && diagnostic.fixed) ? diagnostic.fixed.slice(0, 20) : [],
-        tabs: Array.isArray(diagnostic && diagnostic.tabs) ? diagnostic.tabs.slice(0, 8) : [],
-        attempts: sanitizeDiagnosticAttempts(diagnostic && diagnostic.attempts),
-        elapsedMs: Number(diagnostic && diagnostic.elapsedMs || 0) || 0,
-        at: new Date().toLocaleString(),
-      },
-    });
-  }
 
   function sanitizeDiagnosticAttempts(attempts) {
     return Array.isArray(attempts) ? attempts.slice(0, 8).map((item) => ({
@@ -21206,16 +20765,6 @@
     })).filter((item) => item.tab) : [];
   }
 
-  function getDiagnosticTabsForMissing(missing) {
-    const tabs = [];
-    const needMaterial = missing.some((field) => ['\u5305\u88c5\u5c3a\u5bf8', '\u5370\u5237\u5c3a\u5bf8', '\u51c0\u542b\u91cf'].includes(field));
-    const needProduct = missing.some((field) => ['\u4ea7\u54c1\u5c3a\u5bf8', '\u6bdb\u91cd'].includes(field));
-    const needProductAsset = missing.some((field) => ['SKU\u56fe'].includes(field));
-    if (needMaterial) tabs.push(L.materialTab);
-    if (needProduct) tabs.push(L.productTab);
-    if (needProductAsset && !tabs.includes(L.productTab)) tabs.push(L.productTab);
-    return tabs;
-  }
 
   function requiresSkuImage(data) {
     return Boolean(data && data.projectStatus === '\u5df2\u5b8c\u6210');
@@ -22580,9 +22129,6 @@
     return { value: result, state: found ? (result ? 'value' : 'empty') : '' };
   }
 
-  function getApiProductMetricValue(payload, variableName) {
-    return getApiProductMetricState(payload, variableName).value;
-  }
 
   function extractApiProductMetrics(payload) {
     const netContentState = getApiProductMetricState(payload, 'suttle');
@@ -24041,18 +23587,6 @@
     return { diameter, body, text: parts.join(' ') };
   }
 
-  function extractTubePrintDimensionNums(text) {
-    const source = String(text || '');
-    const labeled = source.match(/\u5370\u5237(?:\u5c3a\u5bf8)?[^\d]{0,20}(\d+(?:\.\d+)?)\s*[xX\u00d7*]\s*(\d+(?:\.\d+)?)\s*(mm|cm)/i);
-    if (labeled) {
-      const unit = labeled[3].toLowerCase();
-      return [normalizeDimensionUnitNumber(labeled[1], unit), normalizeDimensionUnitNumber(labeled[2], unit)];
-    }
-    const dimension = source.match(/(\d+(?:\.\d+)?)\s*[xX\u00d7*]\s*(\d+(?:\.\d+)?)\s*(mm|cm)/i);
-    if (!dimension) return null;
-    const unit = dimension[3].toLowerCase();
-    return [normalizeDimensionUnitNumber(dimension[1], unit), normalizeDimensionUnitNumber(dimension[2], unit)];
-  }
 
   function getTubeRulePrintSize(rule, body) {
     const width = rule.widths.reduce((sum, value) => sum + (Number(value) || 0), 0);
@@ -24065,11 +23599,6 @@
     return trimNumber(Number(spec.width)) + 'x' + trimNumber(Number(spec.height)) + 'cm';
   }
 
-  function normalizeDimensionUnitNumber(value, unit) {
-    const num = Number(value);
-    if (!Number.isFinite(num)) return 0;
-    return String(unit || '').toLowerCase() === 'mm' ? num / 10 : num;
-  }
 
   function extractTubeMeasure(text, label) {
     const source = String(text || '');
@@ -25404,30 +24933,7 @@
     if (overlay) overlay.remove();
   }
 
-  function positionUploadProgressOverlay(panel, overlay) {
-    if (!panel || !overlay) return;
-    const rect = panel.getBoundingClientRect();
-    const width = Math.min(Math.max(rect.width * 0.58, 220), 320);
-    const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + Math.max(0, (rect.width - width) / 2)));
-    const aboveTop = rect.top - 54;
-    const top = aboveTop >= 12 ? aboveTop : Math.min(window.innerHeight - 50, rect.bottom + 8);
-    overlay.style.width = width + 'px';
-    overlay.style.left = left + 'px';
-    overlay.style.top = Math.max(12, top) + 'px';
-    overlay.classList.toggle('is-below', aboveTop < 12);
-  }
 
-  function getUploadStepProgress(step) {
-    const text = String(step || '');
-    if (/\u6253\u5f00\u5546\u54c1|\u51c6\u5907/.test(text)) return 12;
-    if (/\u68c0\u67e5\u65e7\u5185\u5bb9|\u6e05\u7406/.test(text)) return 22;
-    if (/\u4e0a\u4f20\u63a8\u54c1\u8d44\u6599/.test(text)) return 38;
-    if (/\u4e0a\u4f20\u56fe\u5305\u7d20\u6750/.test(text)) return 52;
-    if (/\u6279\u91cf\u4e0a\u4f20|\u5339\u914d\u8868\u5355/.test(text)) return 68;
-    if (/\u63d0\u5ba1/.test(text)) return 82;
-    if (/\u4fdd\u5b58\u8349\u7a3f|\u5173\u95ed/.test(text)) return 92;
-    return 18;
-  }
 
   function capturePanelScroll(panel) {
     const selectors = ['.pfh-sku-scroll', '.pfh-detail-scroll', '.pfh-upload-list', '.pfh-ledger-list'];
@@ -27367,17 +26873,6 @@
     }
   }
 
-  function saveManualToyEffectPacking(value) {
-    const normalized = normalizeManualToyEffectPacking(value);
-    state.manualToyEffectPacking = normalized;
-    try {
-      if (typeof GM_setValue === 'function') GM_setValue(MANUAL_TOY_EFFECT_PACKING_KEY, normalized);
-      else localStorage.setItem(MANUAL_TOY_EFFECT_PACKING_KEY, JSON.stringify(normalized));
-    } catch (error) {
-      console.warn('PLM manual effect packing save failed:', error);
-    }
-    return normalized;
-  }
 
   function saveMagicUploadQueue(queue) {
     // Keep runtime task/file references intact. Upload workers continue to
@@ -27622,22 +27117,6 @@
     return minutes + ' 分' + (rest ? ' ' + rest + ' 秒' : '');
   }
 
-  function getMagicUploadThroughput() {
-    const samples = state.magicUploadMetrics && Array.isArray(state.magicUploadMetrics.samples) ? state.magicUploadMetrics.samples.slice(-60) : [];
-    const rates = samples.map((sample) => {
-      const bytes = Number(sample && sample.bytes) || 0;
-      const durationMs = Number(sample && sample.durationMs) || 0;
-      return bytes && durationMs ? bytes / durationMs : 0;
-    }).filter((rate) => Number.isFinite(rate) && rate > 0);
-    if (!rates.length) return 0;
-    const median = (values) => {
-      const sorted = values.slice().sort((a, b) => a - b);
-      const middle = Math.floor(sorted.length / 2);
-      return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-    };
-    const recent = rates.slice(-12);
-    return median(rates) * .7 + median(recent) * .3;
-  }
 
   function getMagicUploadTaskByteTotals(task) {
     const fallbackTotalBytes = (task && task.files || []).reduce((sum, entry) => sum + Math.max(0, Number(entry && entry.size) || 0), 0) + (task && task.zipKey ? Math.max(0, Number(task.sourceSize) || 0) : 0);
@@ -27649,10 +27128,6 @@
     return { totalBytes, uploadedBytes, currentBytes };
   }
 
-  function getMagicUploadTaskRemainingBytes(task) {
-    const totals = getMagicUploadTaskByteTotals(task);
-    return Math.max(0, totals.totalBytes - totals.uploadedBytes - totals.currentBytes);
-  }
 
   function getMagicUploadTaskFileCount(task) {
     return (task && Array.isArray(task.files) ? task.files.length : 0) + (task && task.zipKey ? 1 : 0);
@@ -27662,15 +27137,6 @@
     return (task && Array.isArray(task.files) ? task.files.filter((entry) => entry && entry.status === 'success').length : 0) + (task && task.sourceUploaded ? 1 : 0);
   }
 
-  function smoothMagicUploadEtaSeconds(previous, target) {
-    const targetSeconds = Math.max(0, Math.round(Number(target) || 0));
-    const previousSeconds = Math.max(0, Math.round(Number(previous) || 0));
-    if (!targetSeconds) return 0;
-    if (!previousSeconds) return targetSeconds;
-    const maxStep = previousSeconds >= 120 ? 8 : (previousSeconds >= 60 ? 6 : 4);
-    const boundedTarget = Math.max(previousSeconds - maxStep, Math.min(previousSeconds + maxStep, targetSeconds));
-    return Math.max(1, Math.round(previousSeconds * .72 + boundedTarget * .28));
-  }
 
   function getMagicUploadAvgFileDurationMs() {
     const samples = state.magicUploadMetrics && Array.isArray(state.magicUploadMetrics.samples) ? state.magicUploadMetrics.samples.slice(-60) : [];
@@ -30943,11 +30409,6 @@
     return '<button type="button" class="pfh-source-readiness' + (state.toyCopywritingBusy ? '' : hasError ? ' is-missing' : ' is-ready') + '" data-action="toy-copywriting-fill" title="' + escapeHtml(hasError ? state.toyCopywritingError : '智能补充玩具文案') + '"' + (state.toyCopywritingBusy ? ' disabled' : '') + '><span><span>' + label + '</span><small>' + (state.toyCopywritingBusy ? '补充中' : hasError ? '重试' : '可补充') + '</small></span></button>';
   }
 
-  function sparkleEntranceIconHtml() {
-    return '<svg class="pfh-sparkle-entrance-icon" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">' +
-      '<path d="M571.993043 77.913043a89.043478 89.043478 0 0 1 87.485218 69.676522l43.52 194.003478A18.921739 18.921739 0 0 0 716.8 356.173913l192.333913 50.309565a89.043478 89.043478 0 0 1 22.928696 163.06087l-171.074783 101.398261a18.810435 18.810435 0 0 0-9.238261 17.474782l11.130435 198.455652a89.043478 89.043478 0 0 1-89.043478 94.608696 87.485217 87.485217 0 0 1-58.434783-22.260869L466.031304 827.770435a18.810435 18.810435 0 0 0-12.577391-4.786087 18.587826 18.587826 0 0 0-6.90087 1.335652l-185.09913 72.347826a91.492174 91.492174 0 0 1-33.391304 6.344348 89.043478 89.043478 0 0 1-81.363479-124.883478l78.692174-182.427826a19.144348 19.144348 0 0 0-2.782608-19.70087L96.946087 422.288696a89.043478 89.043478 0 0 1 68.452174-145.808696 80.806957 80.806957 0 0 1 8.904348 0l197.89913 18.476522h1.78087a18.810435 18.810435 0 0 0 15.582608-8.236522l107.297392-166.956522A87.485217 87.485217 0 0 1 571.993043 77.913043" fill="#FFD652"/><path d="M505.433043 546.393043l-418.83826-222.608695a87.04 87.04 0 0 1 86.483478-46.747826l193.669565 18.031304a27.714783 27.714783 0 0 0 15.026087-2.671304z" fill="#FFCD69"/><path d="M588.02087 78.692174l-82.476522 467.478261-123.881739-253.996522a28.382609 28.382609 0 0 0 11.130434-10.128696l104.96-163.84a87.707826 87.707826 0 0 1 90.267827-39.513043z" fill="#FFC952"/><path d="M709.008696 349.829565L505.544348 546.281739l82.476522-467.478261a87.373913 87.373913 0 0 1 71.123478 67.895652l42.629565 189.885218a27.603478 27.603478 0 0 0 7.234783 13.245217z" fill="#FFC248"/><path d="M975.693913 480.389565l-470.149565 66.003478L709.008696 349.829565a29.384348 29.384348 0 0 0 13.022608 7.791305l188.438261 49.196521a87.04 87.04 0 0 1 65.224348 73.572174zM933.286957 568.876522L765.885217 667.826087a26.824348 26.824348 0 0 0-11.130434 11.130435L505.655652 546.726957l470.149565-66.003479a86.928696 86.928696 0 0 1-42.51826 88.153044z" fill="#FFC536"/><path d="M713.572174 973.245217a87.81913 87.81913 0 0 1-97.28-13.245217L470.26087 831.443478a27.714783 27.714783 0 0 0-13.913044-6.678261l49.085217-278.260869z" fill="#F7A116"/><path d="M505.544348 546.504348L456.347826 824.765217a28.271304 28.271304 0 0 0-15.137391 1.558261L260.118261 897.113043a87.485217 87.485217 0 0 1-96.166957-21.036521L505.321739 546.504348z" fill="#F99C15"/><path d="M505.321739 546.504348L163.951304 876.076522A87.373913 87.373913 0 0 1 146.476522 779.130435l77.133913-178.086957a28.382609 28.382609 0 0 0 2.003478-15.137391z" fill="#FFB727"/><path d="M505.321739 546.504348l-279.707826 39.17913a27.937391 27.937391 0 0 0-6.121739-14.024348L96.166957 421.286957a87.151304 87.151304 0 0 1-9.683479-97.725218zM505.433043 546.54887l0.011131-0.111305 0.111304 0.022261-0.022261 0.111304z" fill="#FFC536"/><path d="M713.572174 973.245217L505.655652 546.726957 755.2 678.956522a27.492174 27.492174 0 0 0-3.116522 14.580869l11.130435 194.226087a87.262609 87.262609 0 0 1-49.641739 85.481739z" fill="#FFB727"/><path d="M463.544082 272.373941a21.481739 44.410435 36.19 1 0 52.445598-71.684071 21.481739 44.410435 36.19 1 0-52.445598 71.684071Z" fill="#fff"/><path d="M798.052174 168.292174l3.784348 8.013913a6.344348 6.344348 0 0 0 4.674782 3.450435l8.681739 1.446956a6.233043 6.233043 0 0 1 3.339131 11.130435l-6.455652 6.121739a6.455652 6.455652 0 0 0-1.892174 5.565218l1.335652 8.681739a6.233043 6.233043 0 0 1-9.126957 6.455652l-7.791304-4.229565a6.233043 6.233043 0 0 0-5.787826 0l-7.902609 4.006956a6.344348 6.344348 0 0 1-9.015652-6.789565l1.669565-8.570435a6.678261 6.678261 0 0 0-1.780869-5.676522l-6.233044-6.121739a6.344348 6.344348 0 0 1 3.673044-11.130434l8.681739-1.224348a5.89913 5.89913 0 0 0 4.786087-3.339131l4.006956-7.791304a6.344348 6.344348 0 0 1 11.353044 0z" fill="#FFC840"/><path d="M326.455652 202.24l-2.671304 26.37913a19.033043 19.033043 0 0 0 6.678261 16.473044l20.257391 17.140869a19.033043 19.033043 0 0 1-8.236522 33.391305l-25.933913 5.676522a19.144348 19.144348 0 0 0-13.57913 11.130434l-10.017392 24.598261a19.033043 19.033043 0 0 1-34.05913 2.448696l-13.356522-22.928696a18.921739 18.921739 0 0 0-15.026087-9.349565l-26.490434-2.003478a19.033043 19.033043 0 0 1-12.911305-31.610435l17.697392-19.812174a18.69913 18.69913 0 0 0 4.229565-17.252174l-6.344348-25.822609a19.033043 19.033043 0 0 1 26.156522-22.260869l24.375652 11.130435a19.255652 19.255652 0 0 0 17.586087-1.224348l22.260869-14.024348a19.033043 19.033043 0 0 1 29.384348 17.92zM889.655652 793.266087l-5.676522 10.462609a8.681739 8.681739 0 0 0 0 8.125217l5.342609 11.130435a8.236522 8.236522 0 0 1-9.126956 11.798261l-11.130435-2.893913a8.125217 8.125217 0 0 0-7.568696 1.892174l-8.45913 8.125217a8.793043 8.793043 0 0 1-14.469565-5.89913L836.452174 823.652174a9.572174 9.572174 0 0 0-4.563478-7.012174l-11.130435-6.121739a8.793043 8.793043 0 0 1 0-15.693913l11.130435-4.563478a8.125217 8.125217 0 0 0 4.786087-6.233044l1.780869-12.020869a8.236522 8.236522 0 0 1 14.692174-3.673044l8.236522 9.349565a8.45913 8.45913 0 0 0 7.457391 3.005218l11.798261-1.113044a9.126957 9.126957 0 0 1 9.015652 13.690435z" fill="#F99C15"/>' +
-      '</svg>';
-  }
 
   function toyCopywritingFeedbackHtml(data) {
     if (!data || !data.sku || state.toyCopywritingErrorSku !== data.sku || !state.toyCopywritingError) return '';
@@ -32312,13 +31773,7 @@
       description: feature.subtitle,
       disabled: !feature.action,
       badge: productDevelopmentFeatureForView(feature.id) && !productDevelopmentHasAccess(productDevelopmentFeatureForView(feature.id)) ? '未解锁' : '',
-    })).concat([{
-      id: 'product-development-history',
-      action: 'product-development-history-view',
-      icon: 'history',
-      title: '本地历史',
-      description: '查看已生成的对照图和文案记录',
-    }]);
+    }));
   }
 
   function productDevelopmentHomeFeatureEditHtml(entries) {
@@ -32704,27 +32159,8 @@
     return parts.join('');
   }
 
-  function supplementFactsVisibleRows(draft) {
-    return Array.isArray(draft.rows) && draft.rows.length
-      ? draft.rows
-      : [{ name: '', amount: '', dailyValue: '**' }];
-  }
 
-  function supplementFactsFieldHtml(key, label, value, placeholder) {
-    return '<label class="pfh-supplement-facts-field"><span>' + label + '</span><input type="text" data-supplement-facts-state="' + key + '" value="' + escapeHtml(value) + '" placeholder="' + escapeHtml(placeholder || '') + '" spellcheck="false"></label>';
-  }
 
-  function supplementFactsToolPanelHtml() {
-    const draft = normalizeSupplementFactsDraft(state.supplementFactsDraft);
-    state.supplementFactsDraft = draft;
-    const rows = supplementFactsVisibleRows(draft);
-    const rowMarkup = rows.map((row, index) => '<div class="pfh-supplement-facts-row"><input type="text" data-supplement-facts-row-index="' + index + '" data-supplement-facts-row-field="name" value="' + escapeHtml(row.name) + '" placeholder="Vitamin B6 (as ...)" spellcheck="false"><input type="text" data-supplement-facts-row-index="' + index + '" data-supplement-facts-row-field="amount" value="' + escapeHtml(row.amount) + '" placeholder="10 mg" spellcheck="false"><input type="text" data-supplement-facts-row-index="' + index + '" data-supplement-facts-row-field="dailyValue" value="' + escapeHtml(row.dailyValue) + '" placeholder="**" spellcheck="false"><button type="button" data-action="supplement-facts-remove-row" data-index="' + index + '" aria-label="删除这一行">×</button></div>').join('');
-    return '<section class="pfh-mini-tool-card pfh-tools-panel pfh-supplement-facts-tool"><div class="pfh-supplement-facts-head"><div><small>SUPPLEMENT FACTS</small><h3>成分表 PDF</h3><p>填写标签字段后，按参考文件的 A4 版式预览并打印保存。</p></div><span class="pfh-supplement-facts-chip">A4</span></div><div class="pfh-supplement-facts-layout"><div class="pfh-supplement-facts-editor">' +
-      '<div class="pfh-supplement-facts-fields">' + supplementFactsFieldHtml('title', '标题', draft.title, 'Supplement Facts') + supplementFactsFieldHtml('servingSize', 'Serving Size', draft.servingSize, '2 Capsules') + supplementFactsFieldHtml('servingsPerContainer', 'Serving Per Container', draft.servingsPerContainer, '30') + supplementFactsFieldHtml('filename', 'PDF 文件名', draft.filename, 'supplement-facts.pdf') + '</div>' +
-      '<div class="pfh-supplement-facts-section-title"><strong>成分行</strong><span>最多 18 行</span></div><div class="pfh-supplement-facts-row-head"><span>成分名称</span><span>每份含量</span><span>% DV</span><span></span></div><div class="pfh-supplement-facts-rows">' + rowMarkup + '</div><button type="button" class="pfh-supplement-facts-add" data-action="supplement-facts-add-row">＋ 添加成分行</button>' +
-      '<div class="pfh-supplement-facts-editor-footer"><label class="pfh-supplement-facts-check"><input type="checkbox" data-supplement-facts-state="showFooter"' + (draft.showFooter ? ' checked' : '') + '><span>显示 “**Daily Value not established.”</span></label><div class="pfh-mini-tool-actions"><button type="button" data-action="supplement-facts-load-sample">载入示例</button><button type="button" class="is-primary" data-action="supplement-facts-print">打印 / 保存 PDF</button></div></div></div>' +
-      '<div class="pfh-supplement-facts-preview-card"><div class="pfh-supplement-facts-preview-head"><div><strong>实时预览</strong><span>打印时选择“另存为 PDF”</span></div><span>595 × 842 pt</span></div><div class="pfh-supplement-facts-preview">' + renderSupplementFactsSvg(draft) + '</div></div></div></section>';
-  }
 
   function renderSupplementFactsPreviewInline() {
     const panel = ensurePanel();
@@ -36285,36 +35721,7 @@ self.onmessage = async function(event) {
     return label.length > 30 ? label.slice(0, 29) + '\u2026' : label;
   }
 
-  function updateProductThumbInPlace(data) {
-    if (!data || !data.sku || state.view !== 'detail' || !state.data || state.data.sku !== data.sku) return false;
-    const panel = ensurePanel();
-    const current = panel.querySelector('.pfh-product-hero .pfh-product-thumb');
-    if (!current) return false;
-    const src = getSkuListImageUrl(data);
-    if (!src) return false;
-    if (current.matches('button')) {
-      current.querySelectorAll('img').forEach((image) => {
-        if (image.getAttribute('src') !== src) image.setAttribute('src', src);
-      });
-    } else {
-      current.outerHTML = productThumbHtml(data);
-    }
-    return true;
-  }
 
-  function updateInsightRecommendationInPlace(sku) {
-    if (!sku || state.view !== 'detail' || !state.data || state.data.sku !== sku) return false;
-    if (state.skuEditMode) return true;
-    const panel = ensurePanel();
-    const section = panel.querySelector('.pfh-graphic-section');
-    if (!section) return false;
-    const current = section.querySelector('.pfh-smart-recommend');
-    const html = insightRecommendationHtml(state.data);
-    if (current && html) current.outerHTML = html;
-    else if (current) current.remove();
-    else if (html) section.insertAdjacentHTML('beforeend', html);
-    return true;
-  }
 
   function formatPrintSizeDisplay(data) {
     if (!data) return '';
@@ -36381,95 +35788,9 @@ self.onmessage = async function(event) {
     return list.length ? list.slice(0, 80) : DEFAULT_LOADING_TIPS.map((text) => ({ text, tipId: '', weight: 1 }));
   }
 
-  function insightRecommendationHtml(data) {
-    if (!data || !data.sku) return '';
-    const recommendation = state.insightRecommendationSku === data.sku ? state.insightRecommendation : null;
-    const categoryEditor = state.skuEditMode
-      ? '<input type="text" class="pfh-smart-category-input" data-sku-edit-key="manualCategory" value="' + escapeHtml(getDisplayedProductCategory(data, true)) + '" placeholder="例如：玩具" autocomplete="off" spellcheck="false">'
-      : '';
-    if (state.insightRecommendationLoading && state.insightRecommendationSku === data.sku && !state.skuEditMode) {
-      return '<div class="pfh-smart-recommend is-loading"><strong>\u667a\u80fd\u8865\u5168</strong><span>\u6b63\u5728\u5339\u914d\u5386\u53f2\u4ef7\u683c\u548c\u5546\u54c1\u7c7b\u578b...</span></div>';
-    }
-    if (!recommendation || !recommendation.recommendedPrice) {
-      return state.skuEditMode
-        ? '<div class="pfh-smart-recommend"><strong>\u667a\u80fd\u8865\u5168</strong><span>产品分类 / ' + categoryEditor + '</span></div>'
-        : '';
-    }
-    const type = recommendation.effectiveProductType || recommendation.recommendedProductType || recommendation.productType || '';
-    const confidence = recommendation.priceConfidence || recommendation.recommendationConfidence || '';
-    const stats = formatRecommendationPriceStats(recommendation.priceStats);
-    const reason = recommendation.recommendationReason || buildLocalRecommendationReason(recommendation, type);
-    const samples = formatRecommendationSamples(recommendation.priceSamples);
-    return '<div class="pfh-smart-recommend"><strong>\u667a\u80fd\u8865\u5168</strong>' +
-      '<span>\u63a8\u8350\u4ef7\u683c <b>' + escapeHtml(String(recommendation.recommendedPrice)) + '</b>' + (state.skuEditMode ? ' / ' + categoryEditor : (type ? ' / ' + escapeHtml(type) : '')) + (confidence ? ' / \u7f6e\u4fe1\u5ea6' + escapeHtml(confidence) : '') + '</span>' +
-      (stats || reason ? '<small>' + escapeHtml([stats, reason].filter(Boolean).join(' / ')) + '</small>' : '') +
-      (samples ? '<em>\u6837\u672c\u4f9d\u636e\uff1a' + escapeHtml(samples) + '</em>' : '') +
-      '</div>';
-  }
 
-  function formatRecommendationSamples(samples) {
-    if (!Array.isArray(samples) || !samples.length) return '';
-    return samples.slice(0, 3).map((item) => {
-      const sku = item && item.sku ? String(item.sku) : '';
-      const price = item && item.price ? String(item.price) : '';
-      const type = item && item.productType ? String(item.productType) : '';
-      const packQty = item && item.packQty ? '\u88c5' + String(item.packQty) : '';
-      return [sku, price ? '\uffe5' + price : '', type, packQty].filter(Boolean).join(' ');
-    }).filter(Boolean).join('；');
-  }
 
-  function scheduleInsightRecommendation(data) {
-    const sku = data && data.sku;
-    if (!sku || state.insightRecommendationLoading || state.insightRecommendationSku === sku) return;
-    state.insightRecommendationSku = sku;
-    state.insightRecommendation = null;
-    state.insightRecommendationLoading = true;
-    window.setTimeout(() => loadInsightRecommendationForDetail(sku).catch((error) => {
-      addLog('warn', '\u667a\u80fd\u8865\u5168\u5efa\u8bae\u83b7\u53d6\u5931\u8d25', sku + ' ' + formatErrorMessage(error));
-    }).finally(() => {
-      if (state.insightRecommendationSku === sku) {
-        state.insightRecommendationLoading = false;
-        if (!updateInsightRecommendationInPlace(sku)) renderShell();
-      }
-    }), 120);
-  }
 
-  async function loadInsightRecommendationForDetail(sku) {
-    const data = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : null));
-    if (!data || !data.sku) return;
-    const productType = getProductTypeForInsight(data, null);
-    const cloudRecommendation = await fetchInsightRecommendation(data, productType).catch(() => null);
-    const recommendedType = cloudRecommendation && cloudRecommendation.recommendedProductType && cloudRecommendation.recommendedProductType !== productType ? cloudRecommendation.recommendedProductType : '';
-    const effectiveProductType = recommendedType || (cloudRecommendation && cloudRecommendation.effectiveProductType) || productType;
-    const recommendation = cloudRecommendation && cloudRecommendation.recommendedPrice ? cloudRecommendation : getLocalPriceRecommendation(data, effectiveProductType);
-    if (!recommendation || !recommendation.recommendedPrice || state.insightRecommendationSku !== sku) return;
-    state.insightRecommendation = {
-      ...recommendation,
-      productType,
-      effectiveProductType,
-      recommendedProductType: recommendation.recommendedProductType || recommendedType || '',
-      recommendationReason: recommendation.recommendationReason || buildLocalRecommendationReason(recommendation, effectiveProductType),
-    };
-    syncInsightEvent('recommendation', {
-      sku: data.sku || '',
-      brand: data.brand || '',
-      name: data.name || '',
-      productType: effectiveProductType || productType || '',
-      price: String(recommendation.recommendedPrice || ''),
-      recommendedPrice: String(recommendation.recommendedPrice || ''),
-      source: recommendation.source || 'detail-recommendation',
-      reason: state.insightRecommendation.recommendationReason || '',
-      recommendationReason: state.insightRecommendation.recommendationReason || '',
-      productTypeSource: recommendation.productTypeSource || '',
-      productTypeScore: recommendation.productTypeScore || '',
-      typeSampleCount: recommendation.typeSampleCount || '',
-      recommendedProductType: state.insightRecommendation.recommendedProductType || '',
-      effectiveProductType,
-      priceConfidence: recommendation.priceConfidence || recommendation.recommendationConfidence || '',
-      recommendationConfidence: recommendation.priceConfidence || recommendation.recommendationConfidence || '',
-      priceStats: recommendation.priceStats || null,
-    });
-  }
 
   function getProductThumbUrl(data) {
     if (!data) return '';
@@ -36636,8 +35957,7 @@ self.onmessage = async function(event) {
     saveData(data.sku, next, { changeSource: '手动校准', trackEmptyChanges: true });
     state.skuEditMode = false;
     if (categoryChanged) {
-      state.insightRecommendationSku = '';
-      state.insightRecommendation = null;
+
       state.toyCopywritingErrorSku = '';
       state.toyCopywritingError = '';
     }
@@ -38085,64 +37405,6 @@ self.onmessage = async function(event) {
     return score;
   }
 
-  function findCopywritingUrlInVueState(card, fileName) {
-    if (!card) return '';
-    const roots = [];
-    let element = card;
-    for (let level = 0; element && level < 6; level += 1, element = element.parentElement) {
-      try {
-        Object.getOwnPropertyNames(element).filter((key) => /^__vue/i.test(key)).forEach((key) => roots.push(element[key]));
-      } catch (error) { /* no-op */ }
-    }
-    const queue = [];
-    roots.forEach((instance) => {
-      if (!instance || typeof instance !== 'object') return;
-      ['props', 'setupState', 'data', 'ctx', 'attrs'].forEach((key) => {
-        try { if (instance[key]) queue.push({ value: instance[key], depth: 0, key }); } catch (error) { /* no-op */ }
-      });
-      try { if (instance.vnode && instance.vnode.props) queue.push({ value: instance.vnode.props, depth: 0, key: 'vnode.props' }); } catch (error) { /* no-op */ }
-    });
-    const seen = new Set();
-    const candidates = [];
-    let inspected = 0;
-    const addCandidate = (value, key, sameFileObject) => {
-      const raw = String(value || '').replace(/\\u002f/gi, '/').replace(/\\\//g, '/');
-      const values = [raw].concat(raw.match(/https?:\/\/[^"'<>\s]+/gi) || []);
-      values.forEach((candidate) => {
-        const url = normalizeCopywritingUrl(candidate);
-        if (!url) return;
-        const baseScore = scoreCopywritingUrl(url, fileName);
-        const score = baseScore + (/url|path|download|file/i.test(String(key || '')) ? 20 : 0) + (sameFileObject ? 40 : 0);
-        if (baseScore > 20 || sameFileObject) candidates.push({ url, score });
-      });
-    };
-    while (queue.length && inspected < 700) {
-      const entry = queue.shift();
-      const value = entry.value;
-      inspected += 1;
-      if (typeof value === 'string') {
-        addCandidate(value, entry.key, false);
-        continue;
-      }
-      if (!value || typeof value !== 'object' || entry.depth >= 5 || seen.has(value)) continue;
-      if (value.nodeType || value === window || value === document) continue;
-      seen.add(value);
-      let keys = [];
-      try { keys = Object.keys(value).slice(0, 80); } catch (error) { continue; }
-      const normalizedName = String(fileName || '').toLowerCase();
-      const sameFileObject = Boolean(normalizedName && keys.some((key) => {
-        try { return typeof value[key] === 'string' && String(value[key]).toLowerCase().includes(normalizedName); } catch (error) { return false; }
-      }));
-      keys.forEach((key) => {
-        if (/^(?:parent|root|appContext|subTree|component|el|proxy|provides)$/i.test(key)) return;
-        let child;
-        try { child = value[key]; } catch (error) { return; }
-        if (typeof child === 'string') addCandidate(child, key, sameFileObject);
-        else if (child && typeof child === 'object') queue.push({ value: child, depth: entry.depth + 1, key });
-      });
-    }
-    return candidates.sort((a, b) => b.score - a.score)[0]?.url || '';
-  }
 
   async function captureCopywritingDownloadSource(card, fileName) {
     const wantsPdf = /\.pdf$/i.test(String(fileName || ''));
@@ -42343,24 +41605,6 @@ self.onmessage = async function(event) {
     window.setTimeout(() => processUploadQueue(mode), 80);
   }
 
-  function retryMagicEffectQueueItem(id) {
-    const queue = loadUploadQueue();
-    let found = false;
-    state.uploadQueue = queue.map((item) => {
-      if (item.id !== id || getUploadItemMode(item) !== 'toy-effect') return item;
-      found = true;
-      return {
-        ...item,
-        status: isUploadItemReady(item) ? '\u5f85\u4e0a\u4f20\u6548\u679c\u56fe' : '\u7f3a\u6587\u4ef6',
-        step: isUploadItemReady(item) ? '\u7b49\u5f85\u91cd\u8bd5\uff0c\u5c06\u91cd\u65b0\u67e5\u8be2\u9879\u76ee ID' : getMissingUploadText(item),
-        skipReason: '',
-        updatedAt: new Date().toLocaleString(),
-      };
-    });
-    if (!found) return;
-    saveUploadQueue();
-    startMagicEffectQueueInline();
-  }
 
   function clearMagicEffectQueue() {
     const queue = loadUploadQueue();
@@ -44140,41 +43384,6 @@ self.onmessage = async function(event) {
       .join('\n');
   }
 
-  async function saveDraftThenClosePurchaseEmptyProduct() {
-    if (!findPurchaseInfoEmptyError()) throw new Error('\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a');
-    const existingModal = getVisibleModal();
-    if (existingModal) {
-      if (isCancelConfigModal(existingModal)) {
-        cancelCancelConfigModal(existingModal);
-        await waitUntil(() => !getVisibleModal(), 10000, 100);
-        await waitUntil(() => findPurchaseInfoEmptyError(), 5000, 100);
-      } else {
-        closeVisibleModal(existingModal);
-        await waitUntil(() => !getVisibleModal(), 10000, 100);
-      }
-    }
-    const saved = await saveProductDraftBeforeClose();
-    if (!saved) {
-      state.uploadRunning = false;
-      saveUploadWorkerRunning(getUploadControlMode(), false);
-      throw new Error('\u8349\u7a3f\u672a\u4fdd\u5b58\u6210\u529f\uff0c\u5df2\u6682\u505c');
-    }
-    const running = getCurrentRunningUpload(loadUploadQueue(), getUploadControlMode());
-    if (running) updateUploadItem(running, '\u8fdb\u884c\u4e2d', '\u5173\u95ed\u5546\u54c1\u9875');
-    const drawer = Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open'))
-      .filter(isVisibleElement)
-      .pop();
-    const close = findDrawerCloseButton(drawer);
-    if (!close) throw new Error('\u672a\u627e\u5230\u5546\u54c1\u9875\u5173\u95ed\u6309\u94ae');
-    close.click();
-    const modal = await waitUntil(() => {
-      const topModal = getVisibleModal();
-      return topModal && isCancelConfigModal(topModal) ? topModal : null;
-    }, 10000, 100);
-    confirmCancelConfigModal(modal);
-    await waitUntil(() => !getVisibleModal() && !getOpenProductDrawer(), 10000, 100);
-    return { draftSaved: true };
-  }
 
   async function closeTopProductDrawer(options) {
     const result = { draftSaved: false };
@@ -44680,17 +43889,6 @@ self.onmessage = async function(event) {
     return Boolean(await waitFor(() => /^\u8bbe\u8ba1\u4efb\u52a1/.test(getActiveProjectWorkflowTabText()), 5000, 120));
   }
 
-  async function ensureProjectAllTab() {
-    const active = getActiveProjectWorkflowTabText();
-    if (/^\u5168\u90e8/.test(active)) return true;
-    const tab = findProjectWorkflowTabByText('\u5168\u90e8');
-    if (!tab) {
-      addLog('error', '玩具文案：未找到新品开发「全部」页签');
-      return false;
-    }
-    clickElement(tab);
-    return Boolean(await waitFor(() => /^\u5168\u90e8/.test(getActiveProjectWorkflowTabText()), 5000, 120));
-  }
 
   function getActiveProjectWorkflowTabText() {
     const tab = Array.from(document.querySelectorAll('.filterTabs .ant-tabs-tab-active, .ant-tabs-tab-active'))
@@ -44866,19 +44064,6 @@ self.onmessage = async function(event) {
       .find(isLabelUploadScope) || null;
   }
 
-  function findBomEffectUploadItem(drawer) {
-    if (!drawer) return null;
-    const labels = Array.from(drawer.querySelectorAll('span, div'))
-      .filter(isVisibleElement)
-      .filter((el) => compactText(el.innerText || el.textContent) === '\u6548\u679c\u56fe');
-    for (const label of labels) {
-      let current = label.parentElement;
-      for (let depth = 0; current && current !== drawer && depth < 4; depth += 1, current = current.parentElement) {
-        if (current.querySelector('input[type="file"]')) return current;
-      }
-    }
-    return null;
-  }
 
   async function saveProjectBomDrawer(drawer) {
     const button = findButtonLikeInScope(drawer, '\u6279\u91cf\u4fdd\u5b58');
@@ -46247,33 +45432,6 @@ self.onmessage = async function(event) {
     return { data: imageData, extra: imageExtra, imageSource: getToyLabelImageSource(imageData, imageExtra) };
   }
 
-  async function getPlmBarcodePreviewImage(sku) {
-    stopScan();
-    cancelDrawerTabFlow();
-    const drawer = sku ? getProjectDrawerForSku(sku) : getProjectDrawer();
-    if (!drawer) return null;
-    const token = beginForegroundDrawerTabFlow(sku, drawer);
-    try {
-      if (!(await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 }))) return null;
-      await waitForDrawerText(drawer, '\u6761\u7801\u6587\u4ef6', 1600);
-      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return null;
-      const label = Array.from(drawer.querySelectorAll('label, .ant-form-item-label, .ant-form-item-no-colon'))
-        .filter(isVisibleElement)
-        .find((el) => compactText(el.innerText || el.textContent) === '\u6761\u7801\u6587\u4ef6');
-      const item = label && label.closest('.ant-form-item');
-      if (!item) return null;
-      const img = Array.from(item.querySelectorAll('img'))
-        .filter(isVisibleElement)
-        .find((el) => {
-          const src = el.currentSrc || el.src || '';
-          return src && !/filePic\/pdf\.png/i.test(src) && !/filePic\/image\.png/i.test(src);
-        });
-      if (!img) return null;
-      return { dataUrl: img.currentSrc || img.src || '', source: 'plm-preview' };
-    } finally {
-      finishForegroundDrawerTabFlow(token);
-    }
-  }
 
   async function renderToyLabelPrintCanvas(options) {
     const width = Math.round((Number(options.widthCm) || 4) * 300);
@@ -46764,14 +45922,6 @@ self.onmessage = async function(event) {
     return true;
   }
 
-  async function waitForDrawerText(drawer, text, timeout) {
-    const startedAt = Date.now();
-    while (Date.now() - startedAt < timeout) {
-      if (getVisibleText(drawer).includes(text)) return true;
-      await wait(120);
-    }
-    return false;
-  }
 
   async function collectProductImageInfo(drawer, options) {
     const opts = options || {};
@@ -46965,16 +46115,7 @@ self.onmessage = async function(event) {
     if (close) close.click();
   }
 
-  function isProductDesignImage(img) {
-    const context = getDesignAssetContext(img);
-    if (isExcludedDesignImageContext(context)) return false;
-    return isStrictEffectImageFileContext(context);
-  }
 
-  function isProductDesignPreview(el) {
-    const context = getDesignAssetContext(el);
-    return !isExcludedDesignImageContext(context);
-  }
 
   function getDesignAssetContext(el) {
     const preferred = el.closest('.filePreviewCard, .filePreviewMainBox, .removeOtherContent');
@@ -47090,7 +46231,7 @@ self.onmessage = async function(event) {
       addLog('info', '\u56fd\u5185\u4e09\u6863\u4ef7\u683c\u8bfb\u53d6\u5931\u8d25\uff0c\u7ee7\u7eed\u4f7f\u7528\u672c\u5730\u4ef7\u683c', (data && data.sku || '') + ' | ' + formatErrorMessage(error));
     }
     const productType = getProductTypeForInsight(data, extra);
-    // 2026-08-07: 停用云端推荐价格 API（fetchInsightRecommendation 推荐价格不准，会写入 Excel）。
+    // 2026-08-07: 停用云端推荐价格 API，避免不准确的推荐写入 Excel。
     // 价格补全只使用本地历史推荐，避免 Excel 出现错误价格。
     const effectiveProductType = productType;
     const recommendation = getLocalPriceRecommendation(data, effectiveProductType);
@@ -49997,27 +49138,6 @@ self.onmessage = async function(event) {
     };
   }
 
-  function getLedgerAiImageMissingRequiredCopywriteFields(value) {
-    const items = Array.isArray(value) ? value : [];
-    return LEDGER_AI_IMAGE_REQUIRED_COPYWRITE_FIELDS.filter((rule) => {
-      const item = items.find((candidate) => {
-        const source = candidate && typeof candidate === 'object' ? candidate : {};
-        const type = String(source.type || source.key || '').trim().toLowerCase();
-        const title = [source.title_cn, source.titleCn, source.title_zh, source.titleZh, source.title, source.label_cn, source.labelCn, source.label, source.name]
-          .map((part) => String(part || '').trim().toLowerCase())
-          .filter(Boolean)
-          .join(' ');
-        return rule.types.some((candidateType) => type === candidateType)
-          || rule.labels.some((candidateLabel) => title.includes(String(candidateLabel).toLowerCase()));
-      });
-      if (!item) return true;
-      const values = getLedgerAiImageCopywriteValues(item);
-      const fallbackIsChinese = /[\u3400-\u9fff]/.test(values.fallback);
-      const english = values.value || (!fallbackIsChinese ? values.fallback : '');
-      const chinese = values.value_cn || (fallbackIsChinese ? values.fallback : '');
-      return !english || !chinese;
-    }).map((rule) => rule.label);
-  }
 
   function normalizeLedgerAiImageCopywriteItems(value) {
     return (Array.isArray(value) ? value : []).map((item, index) => {
@@ -50038,20 +49158,6 @@ self.onmessage = async function(event) {
     }).filter(Boolean).slice(0, 40);
   }
 
-  function buildLedgerAiImageCopywriteFromCache(data) {
-    const record = normalizeCopywritingRecord(data && data.copywriting);
-    if (!record) return [];
-    const sections = Array.isArray(record.sections) ? record.sections : [];
-    const source = sections.length ? sections : (record.fullText ? [{ key: 'product_description', label: '产品文案', text: record.fullText }] : []);
-    return normalizeLedgerAiImageCopywriteItems(source.map((section, index) => ({
-      id: index + 1,
-      type: section.key || 'product_text_' + (index + 1),
-      title: section.label || section.key || '',
-      title_cn: section.label || section.key || '',
-      value: section.text || '',
-      value_cn: section.text || '',
-    })));
-  }
 
   function getLedgerAiImagePayloadRoots(payload) {
     const roots = [];
@@ -50153,13 +49259,6 @@ self.onmessage = async function(event) {
     return target;
   }
 
-  function getLedgerAiImageMissingIngredientFields(ingredientPayload) {
-    const payload = ingredientPayload || {};
-    const missing = [];
-    if (!String(payload.product_ingredients_summary_ch || '').trim() || !String(payload.product_ingredients_summary_en || '').trim()) missing.push('成分');
-    if (!String(payload.product_ingredients_efficacy_ch || '').trim() || !String(payload.product_ingredients_efficacy_en || '').trim()) missing.push('成分功能');
-    return missing;
-  }
 
   function isValidLedgerAiImageText(value) {
     const text = String(value || '').trim();
@@ -50349,9 +49448,6 @@ self.onmessage = async function(event) {
     return [dedicated, genericPicture].filter((attr, index, items) => attr && items.indexOf(attr) === index);
   }
 
-  function getLedgerAiImageSkuAttribute(contentPayload) {
-    return getLedgerAiImageSkuAttributes(contentPayload)[0] || null;
-  }
 
   async function inspectLedgerAiImageSkuContent(contentPayload) {
     const attrs = getLedgerAiImageSkuAttributes(contentPayload);
@@ -51357,18 +50453,6 @@ self.onmessage = async function(event) {
     return result;
   }
 
-  function getLedgerAiPreparationPlmPatch(fields, language) {
-    const source = fields || {};
-    const lang = language === 'cn' ? 'cn' : 'en';
-    const valueOf = (key) => String(source[key] && source[key][lang] || '').trim();
-    return {
-      directions: valueOf('usage'),
-      sellingPoints: valueOf('sellingPoints'),
-      efficacy: valueOf('efficacy'),
-      advantages: valueOf('advantages'),
-      ingredients: valueOf('ingredientSummary'),
-    };
-  }
 
   function mergeLedgerAiImagePreparationFields(preparation, fields) {
     const target = preparation || {};
@@ -51896,16 +50980,6 @@ self.onmessage = async function(event) {
     window.setTimeout(() => refreshMaterialFromApiWithoutDrawer(sku, data).catch((error) => {
       addLog('warn', '今日工作台后台刷新物料失败', sku + ' | ' + formatErrorMessage(error));
     }), 0);
-  }
-
-  function getLedgerStatusClass(status) {
-    if (status === '已完成') return 'done';
-    if (status === '异常') return 'error';
-    if (status === '作废') return 'void';
-    if (status === '已定稿') return 'final';
-    if (status === '制作中') return 'doing';
-    if (status === '跳过') return 'skip';
-    return 'draft';
   }
 
   function buildCachePayload(options) {
@@ -53016,13 +52090,7 @@ self.onmessage = async function(event) {
     return cloudRequest('/insights/classification-summarize', { method: 'POST', timeoutMs: 90000, body: { version: SCRIPT_VERSION, aiModel: getInsightAiModelSetting(), samples: Array.isArray(samples) ? samples.slice(0, 300) : [] } });
   }
 
-  async function fetchInsightRecommendation(data, productType) {
-    const params = new URLSearchParams();
-    if (data && data.sku) params.set('sku', data.sku);
-    if (productType) params.set('productType', productType);
-    if (data && data.name) params.set('name', data.name);
-    return cloudRequest('/insights/recommend?' + params.toString(), { method: 'GET' });
-  }
+
 
   async function fetchLoadingTips() {
     const now = new Date();
@@ -54075,15 +53143,6 @@ self.onmessage = async function(event) {
     return text.slice(0, 60);
   }
 
-  function getDisplayedProductCategory(data, editing) {
-    if (!data) return '';
-    const manualCategory = normalizeManualProductCategory(data.manualCategory);
-    if (manualCategory) return manualCategory;
-    const automaticCategory = String(data.aiProductType || data.aiCategory || data.productType || data.category || '').trim();
-    if (automaticCategory && !/^\u672a\u5206\u7c7b$/i.test(automaticCategory)) return automaticCategory;
-    const inferred = getProductTypeForInsight(data, null);
-    return inferred && !/^\u672a\u5206\u7c7b$/i.test(inferred) ? inferred : (editing ? '' : '未分类');
-  }
 
   function normalizeRuleKeywords(value) {
     if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
@@ -54755,31 +53814,6 @@ self.onmessage = async function(event) {
     renderShell();
   }
 
-  function archiveUploadFailure(item, status, reason, options) {
-    const completedAt = new Date().toLocaleString();
-    const latestQueue = loadUploadQueue();
-    const latestHistory = loadUploadHistory();
-    const latestItem = latestQueue.find((entry) => entry.id === item.id) || item;
-    const keepFiles = Boolean(options && options.keepFiles);
-    const archived = {
-      ...latestItem,
-      status: status || L.uploadFailed,
-      step: reason || latestItem.step || L.uploadFailed,
-      skipReason: reason || latestItem.skipReason || '',
-      completedAt,
-      updatedAt: completedAt,
-      xlsxKey: keepFiles ? (latestItem.xlsxKey || '') : '',
-      zipKey: keepFiles ? (latestItem.zipKey || '') : '',
-      copyrightFiles: getCopyrightUploadEntries(latestItem).map((entry) => ({ ...entry, key: keepFiles ? (entry.key || '') : '' })),
-      effectFiles: getToyEffectUploadEntries(latestItem).map((entry) => ({ ...entry, key: keepFiles ? (entry.key || '') : '' })),
-    };
-    const archivedKey = uploadHistoryKey(archived);
-    state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryKey(entry) !== archivedKey);
-    state.uploadHistory = [archived].concat(latestHistory.filter((entry) => uploadHistoryKey(entry) !== archivedKey)).slice(0, 200);
-    if (!keepFiles) cleanupUploadFiles(latestItem);
-    saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
-    renderShell();
-  }
 
   function markUploadQueueBlocked(item, status, reason, extra) {
     const latestQueue = loadUploadQueue();

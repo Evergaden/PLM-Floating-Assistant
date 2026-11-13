@@ -118,27 +118,8 @@
     return parts.join('');
   }
 
-  function supplementFactsVisibleRows(draft) {
-    return Array.isArray(draft.rows) && draft.rows.length
-      ? draft.rows
-      : [{ name: '', amount: '', dailyValue: '**' }];
-  }
 
-  function supplementFactsFieldHtml(key, label, value, placeholder) {
-    return '<label class="pfh-supplement-facts-field"><span>' + label + '</span><input type="text" data-supplement-facts-state="' + key + '" value="' + escapeHtml(value) + '" placeholder="' + escapeHtml(placeholder || '') + '" spellcheck="false"></label>';
-  }
 
-  function supplementFactsToolPanelHtml() {
-    const draft = normalizeSupplementFactsDraft(state.supplementFactsDraft);
-    state.supplementFactsDraft = draft;
-    const rows = supplementFactsVisibleRows(draft);
-    const rowMarkup = rows.map((row, index) => '<div class="pfh-supplement-facts-row"><input type="text" data-supplement-facts-row-index="' + index + '" data-supplement-facts-row-field="name" value="' + escapeHtml(row.name) + '" placeholder="Vitamin B6 (as ...)" spellcheck="false"><input type="text" data-supplement-facts-row-index="' + index + '" data-supplement-facts-row-field="amount" value="' + escapeHtml(row.amount) + '" placeholder="10 mg" spellcheck="false"><input type="text" data-supplement-facts-row-index="' + index + '" data-supplement-facts-row-field="dailyValue" value="' + escapeHtml(row.dailyValue) + '" placeholder="**" spellcheck="false"><button type="button" data-action="supplement-facts-remove-row" data-index="' + index + '" aria-label="删除这一行">×</button></div>').join('');
-    return '<section class="pfh-mini-tool-card pfh-tools-panel pfh-supplement-facts-tool"><div class="pfh-supplement-facts-head"><div><small>SUPPLEMENT FACTS</small><h3>成分表 PDF</h3><p>填写标签字段后，按参考文件的 A4 版式预览并打印保存。</p></div><span class="pfh-supplement-facts-chip">A4</span></div><div class="pfh-supplement-facts-layout"><div class="pfh-supplement-facts-editor">' +
-      '<div class="pfh-supplement-facts-fields">' + supplementFactsFieldHtml('title', '标题', draft.title, 'Supplement Facts') + supplementFactsFieldHtml('servingSize', 'Serving Size', draft.servingSize, '2 Capsules') + supplementFactsFieldHtml('servingsPerContainer', 'Serving Per Container', draft.servingsPerContainer, '30') + supplementFactsFieldHtml('filename', 'PDF 文件名', draft.filename, 'supplement-facts.pdf') + '</div>' +
-      '<div class="pfh-supplement-facts-section-title"><strong>成分行</strong><span>最多 18 行</span></div><div class="pfh-supplement-facts-row-head"><span>成分名称</span><span>每份含量</span><span>% DV</span><span></span></div><div class="pfh-supplement-facts-rows">' + rowMarkup + '</div><button type="button" class="pfh-supplement-facts-add" data-action="supplement-facts-add-row">＋ 添加成分行</button>' +
-      '<div class="pfh-supplement-facts-editor-footer"><label class="pfh-supplement-facts-check"><input type="checkbox" data-supplement-facts-state="showFooter"' + (draft.showFooter ? ' checked' : '') + '><span>显示 “**Daily Value not established.”</span></label><div class="pfh-mini-tool-actions"><button type="button" data-action="supplement-facts-load-sample">载入示例</button><button type="button" class="is-primary" data-action="supplement-facts-print">打印 / 保存 PDF</button></div></div></div>' +
-      '<div class="pfh-supplement-facts-preview-card"><div class="pfh-supplement-facts-preview-head"><div><strong>实时预览</strong><span>打印时选择“另存为 PDF”</span></div><span>595 × 842 pt</span></div><div class="pfh-supplement-facts-preview">' + renderSupplementFactsSvg(draft) + '</div></div></div></section>';
-  }
 
   function renderSupplementFactsPreviewInline() {
     const panel = ensurePanel();

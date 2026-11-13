@@ -47,13 +47,7 @@
     return cloudRequest('/insights/classification-summarize', { method: 'POST', timeoutMs: 90000, body: { version: SCRIPT_VERSION, aiModel: getInsightAiModelSetting(), samples: Array.isArray(samples) ? samples.slice(0, 300) : [] } });
   }
 
-  async function fetchInsightRecommendation(data, productType) {
-    const params = new URLSearchParams();
-    if (data && data.sku) params.set('sku', data.sku);
-    if (productType) params.set('productType', productType);
-    if (data && data.name) params.set('name', data.name);
-    return cloudRequest('/insights/recommend?' + params.toString(), { method: 'GET' });
-  }
+
 
   async function fetchLoadingTips() {
     const now = new Date();

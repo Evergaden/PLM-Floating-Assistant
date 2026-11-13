@@ -1241,11 +1241,6 @@
     return productDevelopmentNormalizeReadonlyDetail(source, infoPayload, contentPayload, bomRows, productSnapshot, categoryId);
   }
 
-  function productDevelopmentReadonlyFieldHtml(field, formSku) {
-    const missing = !String(field.displayValue || '').trim();
-    const value = field.displayValue === '待人工补充' || field.displayValue === '待人工填写' ? '' : field.displayValue || '';
-    return '<label class="pfh-product-development-form-field' + (missing ? ' is-missing' : '') + '"><span>' + escapeHtml(field.label) + '</span><input type="text" class="pfh-product-development-form-input" data-form-sku="' + escapeHtml(formSku || '') + '" data-form-group="' + escapeHtml(field.formGroup || 'required') + '" data-form-key="' + escapeHtml(field.key || '') + '" value="' + escapeHtml(value) + '"></label>';
-  }
 
   function productDevelopmentPrefillFieldHtml(field, formSku, value) {
     const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[formSku];

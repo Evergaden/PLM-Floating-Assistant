@@ -821,24 +821,6 @@
     window.setTimeout(() => processUploadQueue(mode), 80);
   }
 
-  function retryMagicEffectQueueItem(id) {
-    const queue = loadUploadQueue();
-    let found = false;
-    state.uploadQueue = queue.map((item) => {
-      if (item.id !== id || getUploadItemMode(item) !== 'toy-effect') return item;
-      found = true;
-      return {
-        ...item,
-        status: isUploadItemReady(item) ? '\u5f85\u4e0a\u4f20\u6548\u679c\u56fe' : '\u7f3a\u6587\u4ef6',
-        step: isUploadItemReady(item) ? '\u7b49\u5f85\u91cd\u8bd5\uff0c\u5c06\u91cd\u65b0\u67e5\u8be2\u9879\u76ee ID' : getMissingUploadText(item),
-        skipReason: '',
-        updatedAt: new Date().toLocaleString(),
-      };
-    });
-    if (!found) return;
-    saveUploadQueue();
-    startMagicEffectQueueInline();
-  }
 
   function clearMagicEffectQueue() {
     const queue = loadUploadQueue();
@@ -2618,41 +2600,6 @@
       .join('\n');
   }
 
-  async function saveDraftThenClosePurchaseEmptyProduct() {
-    if (!findPurchaseInfoEmptyError()) throw new Error('\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a');
-    const existingModal = getVisibleModal();
-    if (existingModal) {
-      if (isCancelConfigModal(existingModal)) {
-        cancelCancelConfigModal(existingModal);
-        await waitUntil(() => !getVisibleModal(), 10000, 100);
-        await waitUntil(() => findPurchaseInfoEmptyError(), 5000, 100);
-      } else {
-        closeVisibleModal(existingModal);
-        await waitUntil(() => !getVisibleModal(), 10000, 100);
-      }
-    }
-    const saved = await saveProductDraftBeforeClose();
-    if (!saved) {
-      state.uploadRunning = false;
-      saveUploadWorkerRunning(getUploadControlMode(), false);
-      throw new Error('\u8349\u7a3f\u672a\u4fdd\u5b58\u6210\u529f\uff0c\u5df2\u6682\u505c');
-    }
-    const running = getCurrentRunningUpload(loadUploadQueue(), getUploadControlMode());
-    if (running) updateUploadItem(running, '\u8fdb\u884c\u4e2d', '\u5173\u95ed\u5546\u54c1\u9875');
-    const drawer = Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open'))
-      .filter(isVisibleElement)
-      .pop();
-    const close = findDrawerCloseButton(drawer);
-    if (!close) throw new Error('\u672a\u627e\u5230\u5546\u54c1\u9875\u5173\u95ed\u6309\u94ae');
-    close.click();
-    const modal = await waitUntil(() => {
-      const topModal = getVisibleModal();
-      return topModal && isCancelConfigModal(topModal) ? topModal : null;
-    }, 10000, 100);
-    confirmCancelConfigModal(modal);
-    await waitUntil(() => !getVisibleModal() && !getOpenProductDrawer(), 10000, 100);
-    return { draftSaved: true };
-  }
 
   async function closeTopProductDrawer(options) {
     const result = { draftSaved: false };

@@ -248,27 +248,6 @@
     };
   }
 
-  function getLedgerAiImageMissingRequiredCopywriteFields(value) {
-    const items = Array.isArray(value) ? value : [];
-    return LEDGER_AI_IMAGE_REQUIRED_COPYWRITE_FIELDS.filter((rule) => {
-      const item = items.find((candidate) => {
-        const source = candidate && typeof candidate === 'object' ? candidate : {};
-        const type = String(source.type || source.key || '').trim().toLowerCase();
-        const title = [source.title_cn, source.titleCn, source.title_zh, source.titleZh, source.title, source.label_cn, source.labelCn, source.label, source.name]
-          .map((part) => String(part || '').trim().toLowerCase())
-          .filter(Boolean)
-          .join(' ');
-        return rule.types.some((candidateType) => type === candidateType)
-          || rule.labels.some((candidateLabel) => title.includes(String(candidateLabel).toLowerCase()));
-      });
-      if (!item) return true;
-      const values = getLedgerAiImageCopywriteValues(item);
-      const fallbackIsChinese = /[\u3400-\u9fff]/.test(values.fallback);
-      const english = values.value || (!fallbackIsChinese ? values.fallback : '');
-      const chinese = values.value_cn || (fallbackIsChinese ? values.fallback : '');
-      return !english || !chinese;
-    }).map((rule) => rule.label);
-  }
 
   function normalizeLedgerAiImageCopywriteItems(value) {
     return (Array.isArray(value) ? value : []).map((item, index) => {
@@ -289,20 +268,6 @@
     }).filter(Boolean).slice(0, 40);
   }
 
-  function buildLedgerAiImageCopywriteFromCache(data) {
-    const record = normalizeCopywritingRecord(data && data.copywriting);
-    if (!record) return [];
-    const sections = Array.isArray(record.sections) ? record.sections : [];
-    const source = sections.length ? sections : (record.fullText ? [{ key: 'product_description', label: '产品文案', text: record.fullText }] : []);
-    return normalizeLedgerAiImageCopywriteItems(source.map((section, index) => ({
-      id: index + 1,
-      type: section.key || 'product_text_' + (index + 1),
-      title: section.label || section.key || '',
-      title_cn: section.label || section.key || '',
-      value: section.text || '',
-      value_cn: section.text || '',
-    })));
-  }
 
   function getLedgerAiImagePayloadRoots(payload) {
     const roots = [];
@@ -404,13 +369,6 @@
     return target;
   }
 
-  function getLedgerAiImageMissingIngredientFields(ingredientPayload) {
-    const payload = ingredientPayload || {};
-    const missing = [];
-    if (!String(payload.product_ingredients_summary_ch || '').trim() || !String(payload.product_ingredients_summary_en || '').trim()) missing.push('成分');
-    if (!String(payload.product_ingredients_efficacy_ch || '').trim() || !String(payload.product_ingredients_efficacy_en || '').trim()) missing.push('成分功能');
-    return missing;
-  }
 
   function isValidLedgerAiImageText(value) {
     const text = String(value || '').trim();
@@ -600,9 +558,6 @@
     return [dedicated, genericPicture].filter((attr, index, items) => attr && items.indexOf(attr) === index);
   }
 
-  function getLedgerAiImageSkuAttribute(contentPayload) {
-    return getLedgerAiImageSkuAttributes(contentPayload)[0] || null;
-  }
 
   async function inspectLedgerAiImageSkuContent(contentPayload) {
     const attrs = getLedgerAiImageSkuAttributes(contentPayload);
@@ -1608,18 +1563,6 @@
     return result;
   }
 
-  function getLedgerAiPreparationPlmPatch(fields, language) {
-    const source = fields || {};
-    const lang = language === 'cn' ? 'cn' : 'en';
-    const valueOf = (key) => String(source[key] && source[key][lang] || '').trim();
-    return {
-      directions: valueOf('usage'),
-      sellingPoints: valueOf('sellingPoints'),
-      efficacy: valueOf('efficacy'),
-      advantages: valueOf('advantages'),
-      ingredients: valueOf('ingredientSummary'),
-    };
-  }
 
   function mergeLedgerAiImagePreparationFields(preparation, fields) {
     const target = preparation || {};
@@ -2147,14 +2090,4 @@
     window.setTimeout(() => refreshMaterialFromApiWithoutDrawer(sku, data).catch((error) => {
       addLog('warn', '今日工作台后台刷新物料失败', sku + ' | ' + formatErrorMessage(error));
     }), 0);
-  }
-
-  function getLedgerStatusClass(status) {
-    if (status === '已完成') return 'done';
-    if (status === '异常') return 'error';
-    if (status === '作废') return 'void';
-    if (status === '已定稿') return 'final';
-    if (status === '制作中') return 'doing';
-    if (status === '跳过') return 'skip';
-    return 'draft';
   }

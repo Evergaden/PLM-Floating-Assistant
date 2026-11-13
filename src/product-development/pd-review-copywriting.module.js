@@ -261,20 +261,6 @@
       state.productDevelopmentReview = reviewResult;
       saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
       productDevelopmentPrepareRawMaterialDraft(state.productDevelopmentReview);
-      saveProductDevelopmentHistory({
-        id,
-        sku: snapshot.sku,
-        name: snapshot.name,
-        kind: 'review',
-        createdAt: state.productDevelopmentReview.createdAt,
-        fileName,
-        itemCount: validated.items.filter((item) => Array.isArray(item.riskTypes) && item.riskTypes.length).length,
-        extractedTextCount: validated.extractedTexts.length,
-        comparisonDataUrl: comparison.dataUrl,
-        warnings: validated.warnings,
-        productNameCn: validated.productNaming.chineseProductName,
-        productNameEn: validated.productNaming.englishProductName,
-      });
       const riskCount = validated.items.filter((item) => Array.isArray(item.riskTypes) && item.riskTypes.length).length;
       state.productDevelopmentStatus = riskCount ? '已识别 ' + validated.extractedTexts.length + ' 项图片文字，生成 ' + riskCount + ' 项风险对照，请人工确认' : '已识别 ' + validated.extractedTexts.length + ' 项图片文字，未检测到风险，可下载留档并继续人工检查';
       showToast('侵权对照图已生成');
@@ -594,7 +580,7 @@
 
   function productDevelopmentOpenReviewEditorTab() {
     const result = state.productDevelopmentReview;
-    if (!result || result.fromHistory) {
+    if (!result) {
       showToast('当前结果不可编辑，请重新分析当前对标图片');
       return true;
     }
@@ -637,7 +623,7 @@
         productDevelopmentWriteReviewEditorLayout(data.layout);
         return;
       }
-      if (!result || result.fromHistory) return;
+      if (!result) return;
       if (data.type === 'pfh-review-tab-input') {
         const item = list[Number(data.index)];
         const field = String(data.field || '');
@@ -895,21 +881,7 @@
       result.comparisonDataUrl = comparison.dataUrl;
       result.manualEditedAt = new Date().toLocaleString();
       saveProductDevelopmentReviewDraft(result);
-      const naming = result.productNaming && typeof result.productNaming === 'object' ? result.productNaming : {};
-      saveProductDevelopmentHistory({
-        id: result.id,
-        sku: result.sku,
-        name: snapshot.name || result.sku,
-        kind: 'review',
-        createdAt: result.createdAt,
-        fileName: result.fileName,
-        itemCount: result.items.filter((item) => Array.isArray(item.riskTypes) && item.riskTypes.length).length,
-        extractedTextCount: Array.isArray(result.extractedTexts) ? result.extractedTexts.length : reviewedItems.length,
-        comparisonDataUrl: result.comparisonDataUrl,
-        warnings: Array.isArray(result.warnings) ? result.warnings : [],
-        productNameCn: naming.chineseProductName,
-        productNameEn: naming.englishProductName,
-      });
+
       state.productDevelopmentStatus = '已按人工修改重新生成对照图';
       showToast('人工修改已应用');
     } catch (error) {
@@ -1139,33 +1111,6 @@
     if (cells[2]) productDevelopmentSetCellLines(cells[2], directionsCn, doc);
   }
 
-  function productDevelopmentSetCellPrefixedLines(cell, prefix, lines, doc) {
-    const sourceParagraph = productDevelopmentXmlElements(cell, 'p')[0];
-    const sourceRuns = sourceParagraph ? productDevelopmentXmlElements(sourceParagraph, 'r').filter((run) => productDevelopmentCellText(run)) : [];
-    const headingRun = sourceRuns[0];
-    const bodyRun = sourceRuns[1] || sourceRuns[0];
-    const sourcePPr = sourceParagraph && productDevelopmentXmlElements(sourceParagraph, 'pPr')[0];
-    const headingRPr = headingRun && productDevelopmentXmlElements(headingRun, 'rPr')[0];
-    const bodyRPr = bodyRun && productDevelopmentXmlElements(bodyRun, 'rPr')[0];
-    const values = (Array.isArray(lines) ? lines : [lines]).filter((line) => String(line || '').trim());
-    const appendRun = (paragraph, textValue, runProperties) => {
-      const run = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:r');
-      if (runProperties) run.appendChild(runProperties.cloneNode(true));
-      const text = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:t');
-      text.setAttribute('xml:space', 'preserve');
-      text.textContent = productDevelopmentXmlSafeText(textValue);
-      run.appendChild(text);
-      paragraph.appendChild(run);
-    };
-    productDevelopmentClearCell(cell);
-    values.forEach((line, index) => {
-      const paragraph = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:p');
-      if (sourcePPr) paragraph.appendChild(sourcePPr.cloneNode(true));
-      if (index === 0 && prefix) appendRun(paragraph, String(prefix).trim() + ' ', headingRPr);
-      appendRun(paragraph, line, productDevelopmentBodyRunProperties(bodyRPr, doc));
-      cell.appendChild(paragraph);
-    });
-  }
 
   // The NDC template ships the ingredient headings as styled runs, e.g.
   // "ACTIVE INGREDIENTS:" (Arial Black) / "INACTIVE INGREDIENTS：" in the

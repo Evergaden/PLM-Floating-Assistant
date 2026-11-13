@@ -460,80 +460,6 @@
   cursor: not-allowed;
 }
 
-#plm-floating-helper .pfh-product-development-history > div {
-  display: grid;
-  gap: 7px;
-}
-
-#plm-floating-helper .pfh-product-development-history-row {
-  display: flex;
-  width: 100%;
-  min-width: 0;
-  align-items: center;
-  gap: 9px;
-  padding: 9px 10px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--pfh-theme-control-surface);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background .2s ease, box-shadow .2s ease, transform .2s ease;
-}
-
-#plm-floating-helper .pfh-product-development-history-row:hover {
-  background: var(--pfh-theme-primary-soft);
-}
-
-#plm-floating-helper .pfh-product-development-history-row:focus-visible {
-  outline: 2px solid var(--pfh-theme-primary);
-  outline-offset: 2px;
-}
-
-#plm-floating-helper .pfh-product-development-history-kind {
-  display: grid;
-  width: 25px;
-  height: 25px;
-  flex: 0 0 25px;
-  place-items: center;
-  border-radius: 8px;
-  background: var(--pfh-theme-primary-soft);
-  color: var(--pfh-theme-primary);
-  font-size: 10px;
-}
-
-#plm-floating-helper .pfh-product-development-history-row > div {
-  display: grid;
-  min-width: 0;
-  flex: 1 1 auto;
-  gap: 2px;
-}
-
-#plm-floating-helper .pfh-product-development-history-row strong,
-#plm-floating-helper .pfh-product-development-history-row small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-#plm-floating-helper .pfh-product-development-history-row strong {
-  color: var(--pfh-theme-text);
-  font-size: 11px;
-}
-
-#plm-floating-helper .pfh-product-development-history-row small,
-#plm-floating-helper .pfh-product-development-history-row em,
-#plm-floating-helper .pfh-product-development-history-empty {
-  color: var(--pfh-theme-muted);
-  font-size: 9px;
-}
-
-#plm-floating-helper .pfh-product-development-history-row em {
-  flex: 0 0 auto;
-  font-style: normal;
-}
-
 #plm-floating-helper .pfh-product-development-empty {
   display: grid;
   gap: 8px;
@@ -1078,8 +1004,7 @@
 }
 
 #plm-floating-helper .pfh-product-development-review-workspace > .pfh-product-development-preview,
-#plm-floating-helper .pfh-product-development-review-workspace > .pfh-product-development-review-editor,
-#plm-floating-helper .pfh-product-development-review-workspace > .pfh-product-development-history-readonly {
+#plm-floating-helper .pfh-product-development-review-workspace > .pfh-product-development-review-editor {
   min-width: 0;
   align-self: start;
 }
@@ -1657,27 +1582,6 @@
   border-radius: 12px;
   color: var(--pfh-theme-muted);
   font-size: 10px;
-}
-
-#plm-floating-helper .pfh-product-development-history-readonly {
-  display: grid;
-  gap: 5px;
-  padding: 13px 14px;
-  border: 1px dashed var(--pfh-theme-border);
-  border-radius: 12px;
-  background: var(--pfh-theme-control-surface);
-}
-
-#plm-floating-helper .pfh-product-development-history-readonly strong {
-  color: var(--pfh-theme-text);
-  font-size: 11px;
-}
-
-#plm-floating-helper .pfh-product-development-history-readonly p {
-  margin: 0;
-  color: var(--pfh-theme-muted);
-  font-size: 10px;
-  line-height: 1.55;
 }
 
 #plm-floating-helper .pfh-product-development-copywriting-toolbar {

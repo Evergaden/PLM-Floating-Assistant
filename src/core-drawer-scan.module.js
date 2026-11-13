@@ -1283,111 +1283,7 @@
     return next;
   }
 
-  async function diagnoseMissingDataBeforeSave(data) {
-    const missing = getMissingFieldsForData(data);
-    if (!missing.length || state.diagnosticRunning) return data;
-    const issueMeta = getDataQualityIssueMeta(data, missing);
-    if (issueMeta.kind === '\u53ef\u80fd PLM \u7a7a\u503c') return data;
 
-    const drawer = getProjectDrawerForSku(data.sku) || getProjectDrawer();
-    if (!drawer) {
-      addLog('warn', '\u6570\u636e\u7f3a\u5931\u8bca\u65ad\u8df3\u8fc7', data.sku + ' \u672a\u627e\u5230\u5bf9\u5e94\u62bd\u5c49');
-      return attachMissingDiagnostic(data, {
-        status: '\u672a\u6267\u884c',
-        reason: '\u672a\u627e\u5230\u5bf9\u5e94\u62bd\u5c49',
-        beforeMissing: missing,
-        afterMissing: missing,
-        fixed: [],
-        tabs: [],
-      });
-    }
-
-    const tabs = getDiagnosticTabsForMissing(missing);
-    if (!tabs.length) {
-      return attachMissingDiagnostic(data, {
-        status: '\u672a\u6267\u884c',
-        reason: '\u672a\u627e\u5230\u9700\u4e8c\u6b21\u8bfb\u53d6\u7684\u9875\u7b7e',
-        beforeMissing: missing,
-        afterMissing: missing,
-        fixed: [],
-        tabs: [],
-      });
-    }
-    state.diagnosticRunning = true;
-    addLog('info', '\u5f00\u59cb\u4e8c\u6b21\u8bfb\u53d6\u7f3a\u5931\u6570\u636e', data.sku + ' \u7f3a\uff1a' + missing.join('\u3001') + ' / ' + issueMeta.kind);
-    let merged = data;
-    const startedAt = Date.now();
-    const attempts = [];
-    try {
-      for (const tabName of tabs) {
-        await switchDrawerTab(drawer, tabName);
-        const beforeTabMissing = getMissingFieldsForData(merged);
-        let tabAttempts = 1;
-        merged = mergeData(merged, extractData(drawer, { forceSkuImage: tabName === L.productTab }));
-        let afterTabMissing = getMissingFieldsForData(merged);
-        if (afterTabMissing.length >= beforeTabMissing.length && afterTabMissing.some((field) => beforeTabMissing.includes(field))) {
-          tabAttempts += 1;
-          await wait(280);
-          merged = mergeData(merged, extractData(drawer, { forceSkuImage: tabName === L.productTab }));
-          afterTabMissing = getMissingFieldsForData(merged);
-        }
-        attempts.push({
-          tab: tabName,
-          count: tabAttempts,
-          beforeMissing: beforeTabMissing,
-          afterMissing: afterTabMissing,
-        });
-      }
-      const afterMissing = getMissingFieldsForData(merged);
-      const fixed = missing.filter((field) => !afterMissing.includes(field));
-      if (fixed.length) {
-        addLog('success', '\u4e8c\u6b21\u8bfb\u53d6\u5df2\u8865\u5230\u6570\u636e', data.sku + ' \u8865\u5230\uff1a' + fixed.join('\u3001'));
-      } else {
-        addLog('warn', '\u4e8c\u6b21\u8bfb\u53d6\u540e\u4ecd\u7f3a\u6570\u636e', data.sku + ' \u4ecd\u7f3a\uff1a' + afterMissing.join('\u3001'));
-      }
-      return attachMissingDiagnostic(merged, {
-        status: fixed.length ? '\u90e8\u5206\u8865\u5230' : '\u4ecd\u7f3a',
-        reason: fixed.length ? '\u4e8c\u6b21\u8bfb\u53d6\u6210\u529f\u8865\u5230\u90e8\u5206\u5b57\u6bb5' : '\u4e8c\u6b21\u8bfb\u53d6\u540e\u4ecd\u7f3a\u5b57\u6bb5',
-        beforeMissing: missing,
-        afterMissing,
-        fixed,
-        tabs,
-        attempts,
-        elapsedMs: Date.now() - startedAt,
-      });
-    } catch (error) {
-      addLog('warn', '\u4e8c\u6b21\u8bfb\u53d6\u7f3a\u5931\u6570\u636e\u5931\u8d25', data.sku + ' ' + formatErrorMessage(error));
-      return attachMissingDiagnostic(data, {
-        status: '\u5931\u8d25',
-        reason: formatErrorMessage(error),
-        beforeMissing: missing,
-        afterMissing: getMissingFieldsForData(data),
-        fixed: [],
-        tabs,
-        attempts,
-        elapsedMs: Date.now() - startedAt,
-      });
-    } finally {
-      state.diagnosticRunning = false;
-    }
-  }
-
-  function attachMissingDiagnostic(data, diagnostic) {
-    return normalizeData({
-      ...(data || {}),
-      lastMissingDiagnostic: {
-        status: String(diagnostic && diagnostic.status || '').slice(0, 40),
-        reason: String(diagnostic && diagnostic.reason || '').slice(0, 160),
-        beforeMissing: Array.isArray(diagnostic && diagnostic.beforeMissing) ? diagnostic.beforeMissing.slice(0, 20) : [],
-        afterMissing: Array.isArray(diagnostic && diagnostic.afterMissing) ? diagnostic.afterMissing.slice(0, 20) : [],
-        fixed: Array.isArray(diagnostic && diagnostic.fixed) ? diagnostic.fixed.slice(0, 20) : [],
-        tabs: Array.isArray(diagnostic && diagnostic.tabs) ? diagnostic.tabs.slice(0, 8) : [],
-        attempts: sanitizeDiagnosticAttempts(diagnostic && diagnostic.attempts),
-        elapsedMs: Number(diagnostic && diagnostic.elapsedMs || 0) || 0,
-        at: new Date().toLocaleString(),
-      },
-    });
-  }
 
   function sanitizeDiagnosticAttempts(attempts) {
     return Array.isArray(attempts) ? attempts.slice(0, 8).map((item) => ({
@@ -1398,16 +1294,6 @@
     })).filter((item) => item.tab) : [];
   }
 
-  function getDiagnosticTabsForMissing(missing) {
-    const tabs = [];
-    const needMaterial = missing.some((field) => ['\u5305\u88c5\u5c3a\u5bf8', '\u5370\u5237\u5c3a\u5bf8', '\u51c0\u542b\u91cf'].includes(field));
-    const needProduct = missing.some((field) => ['\u4ea7\u54c1\u5c3a\u5bf8', '\u6bdb\u91cd'].includes(field));
-    const needProductAsset = missing.some((field) => ['SKU\u56fe'].includes(field));
-    if (needMaterial) tabs.push(L.materialTab);
-    if (needProduct) tabs.push(L.productTab);
-    if (needProductAsset && !tabs.includes(L.productTab)) tabs.push(L.productTab);
-    return tabs;
-  }
 
   function requiresSkuImage(data) {
     return Boolean(data && data.projectStatus === '\u5df2\u5b8c\u6210');

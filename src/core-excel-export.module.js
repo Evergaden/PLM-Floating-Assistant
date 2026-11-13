@@ -1265,33 +1265,6 @@
     return { data: imageData, extra: imageExtra, imageSource: getToyLabelImageSource(imageData, imageExtra) };
   }
 
-  async function getPlmBarcodePreviewImage(sku) {
-    stopScan();
-    cancelDrawerTabFlow();
-    const drawer = sku ? getProjectDrawerForSku(sku) : getProjectDrawer();
-    if (!drawer) return null;
-    const token = beginForegroundDrawerTabFlow(sku, drawer);
-    try {
-      if (!(await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 }))) return null;
-      await waitForDrawerText(drawer, '\u6761\u7801\u6587\u4ef6', 1600);
-      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return null;
-      const label = Array.from(drawer.querySelectorAll('label, .ant-form-item-label, .ant-form-item-no-colon'))
-        .filter(isVisibleElement)
-        .find((el) => compactText(el.innerText || el.textContent) === '\u6761\u7801\u6587\u4ef6');
-      const item = label && label.closest('.ant-form-item');
-      if (!item) return null;
-      const img = Array.from(item.querySelectorAll('img'))
-        .filter(isVisibleElement)
-        .find((el) => {
-          const src = el.currentSrc || el.src || '';
-          return src && !/filePic\/pdf\.png/i.test(src) && !/filePic\/image\.png/i.test(src);
-        });
-      if (!img) return null;
-      return { dataUrl: img.currentSrc || img.src || '', source: 'plm-preview' };
-    } finally {
-      finishForegroundDrawerTabFlow(token);
-    }
-  }
 
   async function renderToyLabelPrintCanvas(options) {
     const width = Math.round((Number(options.widthCm) || 4) * 300);
@@ -1782,14 +1755,6 @@
     return true;
   }
 
-  async function waitForDrawerText(drawer, text, timeout) {
-    const startedAt = Date.now();
-    while (Date.now() - startedAt < timeout) {
-      if (getVisibleText(drawer).includes(text)) return true;
-      await wait(120);
-    }
-    return false;
-  }
 
   async function collectProductImageInfo(drawer, options) {
     const opts = options || {};
@@ -1983,16 +1948,7 @@
     if (close) close.click();
   }
 
-  function isProductDesignImage(img) {
-    const context = getDesignAssetContext(img);
-    if (isExcludedDesignImageContext(context)) return false;
-    return isStrictEffectImageFileContext(context);
-  }
 
-  function isProductDesignPreview(el) {
-    const context = getDesignAssetContext(el);
-    return !isExcludedDesignImageContext(context);
-  }
 
   function getDesignAssetContext(el) {
     const preferred = el.closest('.filePreviewCard, .filePreviewMainBox, .removeOtherContent');
@@ -2108,7 +2064,7 @@
       addLog('info', '\u56fd\u5185\u4e09\u6863\u4ef7\u683c\u8bfb\u53d6\u5931\u8d25\uff0c\u7ee7\u7eed\u4f7f\u7528\u672c\u5730\u4ef7\u683c', (data && data.sku || '') + ' | ' + formatErrorMessage(error));
     }
     const productType = getProductTypeForInsight(data, extra);
-    // 2026-08-07: 停用云端推荐价格 API（fetchInsightRecommendation 推荐价格不准，会写入 Excel）。
+    // 2026-08-07: 停用云端推荐价格 API，避免不准确的推荐写入 Excel。
     // 价格补全只使用本地历史推荐，避免 Excel 出现错误价格。
     const effectiveProductType = productType;
     const recommendation = getLocalPriceRecommendation(data, effectiveProductType);

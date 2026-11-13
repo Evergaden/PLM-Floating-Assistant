@@ -1031,36 +1031,7 @@
     return label.length > 30 ? label.slice(0, 29) + '\u2026' : label;
   }
 
-  function updateProductThumbInPlace(data) {
-    if (!data || !data.sku || state.view !== 'detail' || !state.data || state.data.sku !== data.sku) return false;
-    const panel = ensurePanel();
-    const current = panel.querySelector('.pfh-product-hero .pfh-product-thumb');
-    if (!current) return false;
-    const src = getSkuListImageUrl(data);
-    if (!src) return false;
-    if (current.matches('button')) {
-      current.querySelectorAll('img').forEach((image) => {
-        if (image.getAttribute('src') !== src) image.setAttribute('src', src);
-      });
-    } else {
-      current.outerHTML = productThumbHtml(data);
-    }
-    return true;
-  }
 
-  function updateInsightRecommendationInPlace(sku) {
-    if (!sku || state.view !== 'detail' || !state.data || state.data.sku !== sku) return false;
-    if (state.skuEditMode) return true;
-    const panel = ensurePanel();
-    const section = panel.querySelector('.pfh-graphic-section');
-    if (!section) return false;
-    const current = section.querySelector('.pfh-smart-recommend');
-    const html = insightRecommendationHtml(state.data);
-    if (current && html) current.outerHTML = html;
-    else if (current) current.remove();
-    else if (html) section.insertAdjacentHTML('beforeend', html);
-    return true;
-  }
 
   function formatPrintSizeDisplay(data) {
     if (!data) return '';
@@ -1127,95 +1098,9 @@
     return list.length ? list.slice(0, 80) : DEFAULT_LOADING_TIPS.map((text) => ({ text, tipId: '', weight: 1 }));
   }
 
-  function insightRecommendationHtml(data) {
-    if (!data || !data.sku) return '';
-    const recommendation = state.insightRecommendationSku === data.sku ? state.insightRecommendation : null;
-    const categoryEditor = state.skuEditMode
-      ? '<input type="text" class="pfh-smart-category-input" data-sku-edit-key="manualCategory" value="' + escapeHtml(getDisplayedProductCategory(data, true)) + '" placeholder="例如：玩具" autocomplete="off" spellcheck="false">'
-      : '';
-    if (state.insightRecommendationLoading && state.insightRecommendationSku === data.sku && !state.skuEditMode) {
-      return '<div class="pfh-smart-recommend is-loading"><strong>\u667a\u80fd\u8865\u5168</strong><span>\u6b63\u5728\u5339\u914d\u5386\u53f2\u4ef7\u683c\u548c\u5546\u54c1\u7c7b\u578b...</span></div>';
-    }
-    if (!recommendation || !recommendation.recommendedPrice) {
-      return state.skuEditMode
-        ? '<div class="pfh-smart-recommend"><strong>\u667a\u80fd\u8865\u5168</strong><span>产品分类 / ' + categoryEditor + '</span></div>'
-        : '';
-    }
-    const type = recommendation.effectiveProductType || recommendation.recommendedProductType || recommendation.productType || '';
-    const confidence = recommendation.priceConfidence || recommendation.recommendationConfidence || '';
-    const stats = formatRecommendationPriceStats(recommendation.priceStats);
-    const reason = recommendation.recommendationReason || buildLocalRecommendationReason(recommendation, type);
-    const samples = formatRecommendationSamples(recommendation.priceSamples);
-    return '<div class="pfh-smart-recommend"><strong>\u667a\u80fd\u8865\u5168</strong>' +
-      '<span>\u63a8\u8350\u4ef7\u683c <b>' + escapeHtml(String(recommendation.recommendedPrice)) + '</b>' + (state.skuEditMode ? ' / ' + categoryEditor : (type ? ' / ' + escapeHtml(type) : '')) + (confidence ? ' / \u7f6e\u4fe1\u5ea6' + escapeHtml(confidence) : '') + '</span>' +
-      (stats || reason ? '<small>' + escapeHtml([stats, reason].filter(Boolean).join(' / ')) + '</small>' : '') +
-      (samples ? '<em>\u6837\u672c\u4f9d\u636e\uff1a' + escapeHtml(samples) + '</em>' : '') +
-      '</div>';
-  }
 
-  function formatRecommendationSamples(samples) {
-    if (!Array.isArray(samples) || !samples.length) return '';
-    return samples.slice(0, 3).map((item) => {
-      const sku = item && item.sku ? String(item.sku) : '';
-      const price = item && item.price ? String(item.price) : '';
-      const type = item && item.productType ? String(item.productType) : '';
-      const packQty = item && item.packQty ? '\u88c5' + String(item.packQty) : '';
-      return [sku, price ? '\uffe5' + price : '', type, packQty].filter(Boolean).join(' ');
-    }).filter(Boolean).join('；');
-  }
 
-  function scheduleInsightRecommendation(data) {
-    const sku = data && data.sku;
-    if (!sku || state.insightRecommendationLoading || state.insightRecommendationSku === sku) return;
-    state.insightRecommendationSku = sku;
-    state.insightRecommendation = null;
-    state.insightRecommendationLoading = true;
-    window.setTimeout(() => loadInsightRecommendationForDetail(sku).catch((error) => {
-      addLog('warn', '\u667a\u80fd\u8865\u5168\u5efa\u8bae\u83b7\u53d6\u5931\u8d25', sku + ' ' + formatErrorMessage(error));
-    }).finally(() => {
-      if (state.insightRecommendationSku === sku) {
-        state.insightRecommendationLoading = false;
-        if (!updateInsightRecommendationInPlace(sku)) renderShell();
-      }
-    }), 120);
-  }
 
-  async function loadInsightRecommendationForDetail(sku) {
-    const data = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : null));
-    if (!data || !data.sku) return;
-    const productType = getProductTypeForInsight(data, null);
-    const cloudRecommendation = await fetchInsightRecommendation(data, productType).catch(() => null);
-    const recommendedType = cloudRecommendation && cloudRecommendation.recommendedProductType && cloudRecommendation.recommendedProductType !== productType ? cloudRecommendation.recommendedProductType : '';
-    const effectiveProductType = recommendedType || (cloudRecommendation && cloudRecommendation.effectiveProductType) || productType;
-    const recommendation = cloudRecommendation && cloudRecommendation.recommendedPrice ? cloudRecommendation : getLocalPriceRecommendation(data, effectiveProductType);
-    if (!recommendation || !recommendation.recommendedPrice || state.insightRecommendationSku !== sku) return;
-    state.insightRecommendation = {
-      ...recommendation,
-      productType,
-      effectiveProductType,
-      recommendedProductType: recommendation.recommendedProductType || recommendedType || '',
-      recommendationReason: recommendation.recommendationReason || buildLocalRecommendationReason(recommendation, effectiveProductType),
-    };
-    syncInsightEvent('recommendation', {
-      sku: data.sku || '',
-      brand: data.brand || '',
-      name: data.name || '',
-      productType: effectiveProductType || productType || '',
-      price: String(recommendation.recommendedPrice || ''),
-      recommendedPrice: String(recommendation.recommendedPrice || ''),
-      source: recommendation.source || 'detail-recommendation',
-      reason: state.insightRecommendation.recommendationReason || '',
-      recommendationReason: state.insightRecommendation.recommendationReason || '',
-      productTypeSource: recommendation.productTypeSource || '',
-      productTypeScore: recommendation.productTypeScore || '',
-      typeSampleCount: recommendation.typeSampleCount || '',
-      recommendedProductType: state.insightRecommendation.recommendedProductType || '',
-      effectiveProductType,
-      priceConfidence: recommendation.priceConfidence || recommendation.recommendationConfidence || '',
-      recommendationConfidence: recommendation.priceConfidence || recommendation.recommendationConfidence || '',
-      priceStats: recommendation.priceStats || null,
-    });
-  }
 
   function getProductThumbUrl(data) {
     if (!data) return '';
@@ -1382,8 +1267,7 @@
     saveData(data.sku, next, { changeSource: '手动校准', trackEmptyChanges: true });
     state.skuEditMode = false;
     if (categoryChanged) {
-      state.insightRecommendationSku = '';
-      state.insightRecommendation = null;
+
       state.toyCopywritingErrorSku = '';
       state.toyCopywritingError = '';
     }

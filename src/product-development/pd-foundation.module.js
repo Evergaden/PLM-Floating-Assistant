@@ -16,7 +16,7 @@
     Object.freeze({ id: 'regular-ndc', label: '常规涉NDC', fileName: '（ndc）24国语言健康保健类、贴类涉ndc文案模板.docx', path: 'v1/product-development-copywriting-templates/regular-ndc.docx', bytes: 105603, sha256: '3639756c75be3e1d7c347cbe28f41054dadd96084530afafdf8cec328caa0c3e' }),
     Object.freeze({ id: 'regular-non-ndc', label: '常规非NDC', fileName: '(非ndc)24国语言美妆、个护类产品文案模板.docx', path: 'v1/product-development-copywriting-templates/regular-non-ndc.docx', bytes: 104184, sha256: '9eb0fd09d70fa193a9cb96651018186aa0e9188338f3d6d7423fc33fe8136428' }),
   ]);
-  const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
+
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_LIMIT = 8;
   const PRODUCT_DEVELOPMENT_REVIEW_LAYOUT_KEY = 'plm-floating-helper:product-development-review-layout:v1';
@@ -69,7 +69,7 @@
     regularIngredientsCn: '',
     regularIngredientsInactiveCn: '',
   });
-  const PRODUCT_DEVELOPMENT_MAX_HISTORY = 8;
+
   const productDevelopmentReviewDraftWriteTimers = Object.create(null);
   const productDevelopmentTaskMetaWriteTimers = Object.create(null);
   const productDevelopmentReworkLookupTimers = Object.create(null);
@@ -159,13 +159,13 @@
     Object.freeze({ pattern: /\bGUMM(?:Y|IES)\b/i, en: 'GUMMIES', zh: '粒软糖' }),
   ]);
   const PRODUCT_DEVELOPMENT_FEATURES = Object.freeze([
-    Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder', requiresSku: false }),
+    Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder' }),
     Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取全部图片文字，生成中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
     Object.freeze({ id: 'copywriting', title: '文案 DOCX', subtitle: '选择开发产品，生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
-    Object.freeze({ id: 'ingredientFacts', title: '制作成分表', subtitle: '按需加载云端人类或宠物模板摘要，编辑后导出 PDF', action: 'product-development-ingredient-open', icon: 'batchExcel', requiresSku: false }),
-    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '全包价格计算国内三档价格', action: 'product-development-pricing-open', icon: 'calculator', requiresSku: false }),
+    Object.freeze({ id: 'ingredientFacts', title: '制作成分表', subtitle: '按需加载云端人类或宠物模板摘要，编辑后导出 PDF', action: 'product-development-ingredient-open', icon: 'batchExcel' }),
+    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '全包价格计算国内三档价格', action: 'product-development-pricing-open', icon: 'calculator' }),
     Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '出单数量、手工贴标和返工 100 件规则', action: '', icon: 'box' }),
-    Object.freeze({ id: 'materials', title: '包材库', subtitle: 'BOM 用过的包材自动归档，图片化浏览', action: 'product-development-materials-view', icon: 'box', requiresSku: false }),
+    Object.freeze({ id: 'materials', title: '包材库', subtitle: 'BOM 用过的包材自动归档，图片化浏览', action: 'product-development-materials-view', icon: 'box' }),
   ]);
 
   // These are style examples from the supplied product-material workbook. They
@@ -431,41 +431,8 @@
     return draft;
   }
 
-  function normalizeProductDevelopmentHistory(value) {
-    const list = Array.isArray(value) ? value : [];
-    return list.map((item) => {
-      const source = item && typeof item === 'object' ? item : {};
-      return {
-        id: String(source.id || ''),
-        sku: String(source.sku || '').trim().toUpperCase(),
-        name: String(source.name || '').trim().slice(0, 200),
-        kind: source.kind === 'copywriting' ? 'copywriting' : 'review',
-        createdAt: String(source.createdAt || '').trim(),
-        fileName: String(source.fileName || '').trim().slice(0, 180),
-        itemCount: Math.max(0, Math.min(60, Number(source.itemCount) || 0)),
-        extractedTextCount: Math.max(0, Math.min(100, Number(source.extractedTextCount) || 0)),
-        templateVersion: String(source.templateVersion || '').trim().slice(0, 60),
-        productNameCn: productDevelopmentCleanText(source.productNameCn || source.chineseProductName, 180),
-        productNameEn: productDevelopmentCleanText(source.productNameEn || source.englishProductName, 180),
-        comparisonDataUrl: typeof source.comparisonDataUrl === 'string' && source.comparisonDataUrl.length < 2600000
-          ? source.comparisonDataUrl
-          : '',
-        warnings: Array.isArray(source.warnings) ? source.warnings.map((text) => String(text || '').trim()).filter(Boolean).slice(0, 12) : [],
-      };
-    }).filter((item) => item.sku && item.id).slice(0, PRODUCT_DEVELOPMENT_MAX_HISTORY);
-  }
 
-  function loadProductDevelopmentHistory() {
-    return normalizeProductDevelopmentHistory(readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_HISTORY_KEY, []));
-  }
 
-  function saveProductDevelopmentHistory(record) {
-    const current = normalizeProductDevelopmentHistory(state.productDevelopmentHistory);
-    const next = normalizeProductDevelopmentHistory([record].concat(current.filter((item) => item.id !== record.id)));
-    state.productDevelopmentHistory = next;
-    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_HISTORY_KEY, next);
-    return next;
-  }
 
   function productDevelopmentCopywritingSnapshotValue(value) {
     const source = value && typeof value === 'object' ? value : {};
@@ -645,7 +612,6 @@
       fileName: productDevelopmentCleanText(source.fileName || productDevelopmentFileName(sku, 'infringement-comparison', 'png'), 180),
       createdAt: productDevelopmentCleanText(source.createdAt || new Date().toLocaleString(), 80),
       updatedAt: Number(source.updatedAt) || Date.now(),
-      fromHistory: false,
     };
   }
 
@@ -668,7 +634,7 @@
   }
 
   function saveProductDevelopmentReviewDraft(result) {
-    if (!result || result.fromHistory) return;
+    if (!result) return;
     const draft = productDevelopmentReviewDraftValue(result);
     if (!draft) return;
     const entries = loadProductDevelopmentReviewDrafts();
@@ -708,7 +674,7 @@
   function restoreProductDevelopmentReviewDraft(sku) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     if (!normalizedSku) return null;
-    if (state.productDevelopmentReview && state.productDevelopmentReview.sku === normalizedSku && !state.productDevelopmentReview.fromHistory) return state.productDevelopmentReview;
+    if (state.productDevelopmentReview && state.productDevelopmentReview.sku === normalizedSku) return state.productDevelopmentReview;
     const draft = getProductDevelopmentReviewDraft(normalizedSku);
     if (!draft) return null;
     state.productDevelopmentReview = draft;

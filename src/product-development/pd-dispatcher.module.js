@@ -1,14 +1,6 @@
 
   function productDevelopmentViewHtml(statusText) {
-    const view = state.productDevelopmentView === 'pricing' ? 'pricing' : (state.productDevelopmentView === 'review' ? 'review' : (state.productDevelopmentView === 'copywriting' ? 'copywriting' : (state.productDevelopmentView === 'ingredient' ? 'ingredient' : 'home')));
-    const accessFeature = productDevelopmentFeatureForView(view);
-    if (accessFeature && !productDevelopmentHasAccess(accessFeature)) return '<div class="pfh-empty">前面的区域，以后再来探索吧</div>';
-    if (view === 'pricing') return productDevelopmentPricingViewHtml();
-    if (view === 'review') return productDevelopmentReviewHtml(statusText);
-    if (view === 'copywriting') return productDevelopmentCopywritingHtml(statusText);
-    if (view === 'ingredient') return productDevelopmentIngredientFactsHtml();
     if (state.productDevelopmentView === 'materials') return productDevelopmentMaterialsViewHtml(statusText);
-    if (state.productDevelopmentView === 'history') return productDevelopmentHistoryViewHtml(statusText);
     return homeViewHtml(statusText);
   }
 
@@ -42,7 +34,7 @@
     }
     if (action === 'product-development-copywriting-copy') {
       const result = state.productDevelopmentCopywriting;
-      if (result && result.content && (result.sku === getProductDevelopmentCurrentSku() || result.fromHistory)) {
+      if (result && result.content && result.sku === getProductDevelopmentCurrentSku()) {
         copyText([['产品功效', 'efficacy'], ['产品优势', 'advantages'], ['产品卖点', 'sellingPoints'], ['成分功能', 'ingredientFunctions']].map(([label, key]) => label + '\n' + (result.content[key] || []).map((item) => [item.titleEn, item.en || item.ingredientEn, item.titleCn, item.cn || item.ingredientCn].filter(Boolean).join('\n')).join('\n\n')).join('\n\n'));
         showToast('文案已复制');
       }
@@ -67,28 +59,8 @@
       return true;
     }
     if (action === 'product-development-pricing-open') {
-      if (state.view === 'productDevelopmentTasks') {
-        state.productDevelopmentTaskView = 'pricing';
-        renderShell();
-        return true;
-      }
-      state.workMode = 'product-development';
-      state.settings.workMode = 'product-development';
-      saveSettings(state.settings);
-      const sku = getProductDevelopmentCurrentSku();
-      const task = getProductDevelopmentTaskBySku(sku) || state.productDevelopmentSelectedTask;
-      state.productDevelopmentView = 'pricing';
-      state.view = 'home';
-      state.productDevelopmentError = '';
-      state.productDevelopmentStatus = '';
-      productDevelopmentPricingInputForSku(sku, state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku]);
+      state.productDevelopmentTaskView = 'pricing';
       renderShell();
-      const taskDetail = task && state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[task.sku];
-      if (task && task.sku && (!taskDetail || taskDetail.error)) {
-        hydrateProductDevelopmentTaskDetail(task).then(() => {
-          if (state.productDevelopmentView === 'pricing' && getProductDevelopmentCurrentSku() === task.sku) renderShell();
-        }).catch(() => {});
-      }
       return true;
     }
     if (action === 'product-development-pricing-apply') {
@@ -291,34 +263,11 @@
       renderShell();
       return true;
     }
-    if (action === 'product-development-history-view') {
-      state.productDevelopmentView = 'history';
-      state.productDevelopmentError = '';
-      renderShell();
-      return true;
-    }
-    if (action === 'product-development-history-open') {
-      const historyId = String(actionTarget && actionTarget.getAttribute('data-history-id') || '');
-      const item = normalizeProductDevelopmentHistory(state.productDevelopmentHistory).find((record) => record.id === historyId);
-      productDevelopmentOpenHistory(item);
-      return true;
-    }
     if (action === 'product-development-review-open') {
       state.productDevelopmentReviewEditorOpen = false;
-      state.workMode = 'product-development';
-      state.settings.workMode = 'product-development';
-      saveSettings(state.settings);
       restoreProductDevelopmentReviewDraft(getProductDevelopmentCurrentSku());
-      if (state.view === 'productDevelopmentTasks') {
-        state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
-        state.productDevelopmentTaskView = 'review';
-        state.productDevelopmentError = '';
-        state.productDevelopmentStatus = '';
-        renderShell();
-        return true;
-      }
-      state.productDevelopmentView = 'review';
-      state.view = 'home';
+      state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
+      state.productDevelopmentTaskView = 'review';
       state.productDevelopmentError = '';
       state.productDevelopmentStatus = '';
       renderShell();
@@ -353,7 +302,7 @@
     }
     if (action === 'product-development-review-translate-revised') {
       const result = state.productDevelopmentReview;
-      if (!result || result.fromHistory) {
+      if (!result) {
         showToast('当前结果不可编辑，请重新分析当前对标图片');
         return true;
       }
@@ -396,7 +345,7 @@
     }
     if (action === 'product-development-raw-material-translate') {
       const result = state.productDevelopmentReview;
-      if (!result || result.fromHistory || state.productDevelopmentRawMaterialTranslateBusy) return true;
+      if (!result || state.productDevelopmentRawMaterialTranslateBusy) return true;
       const draft = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
       const jobs = [];
       ['efficacyItems', 'ingredientItems'].forEach((key) => draft[key].forEach((item, index) => {
@@ -429,7 +378,7 @@
     }
     if (action === 'product-development-raw-material-add' || action === 'product-development-raw-material-remove') {
       const result = state.productDevelopmentReview;
-      if (!result || result.fromHistory) return true;
+      if (!result) return true;
       const group = String(actionTarget && actionTarget.getAttribute('data-raw-material-group') || '').trim();
       if (group !== 'efficacy' && group !== 'ingredients') return true;
       const draft = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
@@ -494,23 +443,9 @@
       return true;
     }
     if (action === 'product-development-copywriting-open') {
-      state.workMode = 'product-development';
-      state.settings.workMode = 'product-development';
-      saveSettings(state.settings);
-      const currentSku = getProductDevelopmentCurrentSku();
-      if (state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.fromHistory) state.productDevelopmentCopywriting = null;
-      restoreProductDevelopmentCopywritingCache(currentSku);
-      if (state.view === 'productDevelopmentTasks') {
-        state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
-        state.productDevelopmentTaskView = 'copywriting';
-        state.productDevelopmentError = '';
-        state.productDevelopmentStatus = '';
-        renderShell();
-        productDevelopmentWarmIngredientTemplates();
-        return true;
-      }
-      state.productDevelopmentView = 'copywriting';
-      state.view = 'home';
+      restoreProductDevelopmentCopywritingCache(getProductDevelopmentCurrentSku());
+      state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
+      state.productDevelopmentTaskView = 'copywriting';
       state.productDevelopmentError = '';
       state.productDevelopmentStatus = '';
       renderShell();
@@ -560,7 +495,7 @@
     if (!target || !target.classList) return false;
     if (target.getAttribute('data-product-development-one-shot-editor-field') || target.getAttribute('data-product-development-one-shot-row-index')) {
       window.setTimeout(() => {
-        if (state.productDevelopmentView === 'copywriting') renderShell();
+        if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting') renderShell();
       }, 0);
       return true;
     }
@@ -872,7 +807,7 @@
     }
     if (target.classList.contains('pfh-product-development-plain-copy-input')) {
       const result = state.productDevelopmentReview;
-      if (result && !result.fromHistory) {
+      if (result) {
         result.plainTextCopy = productDevelopmentCleanText(target.value, 12000);
         scheduleProductDevelopmentReviewDraftSave(result);
       }
@@ -880,7 +815,7 @@
     }
     if (target.classList.contains('pfh-product-development-raw-material-input')) {
       const result = state.productDevelopmentReview;
-      if (!result || result.fromHistory) return true;
+      if (!result) return true;
       const group = String(target.getAttribute('data-raw-material-group') || '').trim();
       const field = String(target.getAttribute('data-raw-material-field') || '').trim();
       const index = Number(target.getAttribute('data-raw-material-index'));

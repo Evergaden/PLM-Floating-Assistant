@@ -204,21 +204,6 @@
     return brands;
   }
 
-  async function ensureBrandComplianceDataLoaded() {
-    if (Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length) return true;
-    try {
-      await refreshCloudAssets(false);
-    } catch (error) {
-      addLog('warn', '\u54c1\u724c\u5730\u5740\u8d44\u6e90\u52a0\u8f7d\u5931\u8d25', formatErrorMessage(error));
-    }
-    if (Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length) return true;
-    try {
-      await refreshBrandComplianceData();
-    } catch (error) {
-      addLog('warn', '\u54c1\u724c\u5730\u5740\u8bfb\u53d6\u5931\u8d25', formatErrorMessage(error));
-    }
-    return Boolean(Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length);
-  }
 
   function refreshCloudAssets(force) {
     if (cloudAssetRefreshPromise) return cloudAssetRefreshPromise;
