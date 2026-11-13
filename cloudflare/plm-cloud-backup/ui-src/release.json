@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.323",
+  "version": "2.5.324",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {

@@ -1,4 +1,11 @@
 /* Product development mode owns an isolated workspace inside the shared shell. */
+#plm-floating-helper .pfh-product-development-task-tabs {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+#plm-floating-helper .pfh-product-development-task-tabs .pfh-detail-view-indicator {
+  width: calc((100% - 6px) / 6);
+}
+
 .pfh-development-permission-dialog {
   width: min(360px, calc(100vw - 32px));
   box-sizing: border-box;

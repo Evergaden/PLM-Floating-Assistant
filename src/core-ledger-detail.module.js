@@ -2121,7 +2121,7 @@
       ? ' draggable="true" data-home-feature-card="true" data-home-feature-id="' + escapeHtml(entry.id) + '" data-home-feature-group="' + escapeHtml(group) + '" role="listitem" tabindex="0" aria-label="拖动调整' + escapeHtml(entry.title) + '的位置"'
       : ' type="button" data-action="' + escapeHtml(entry.action) + '"';
     const editHandle = editing ? '<span class="pfh-home-entry-drag-handle" aria-hidden="true">⋮⋮</span>' : '';
-    return '<' + tag + ' class="pfh-home-entry ' + (className || '') + (disabled ? ' is-disabled' : '') + (editing ? ' is-editing-card' : '') + '"' + attrs + (disabled && !editing ? ' disabled aria-disabled="true"' : '') + '>' +
+    return '<' + tag + ' class="pfh-home-entry ' + (className || '') + (disabled || entry.accessLocked ? ' is-disabled' : '') + (editing ? ' is-editing-card' : '') + '"' + attrs + (disabled && !editing ? ' disabled aria-disabled="true"' : '') + '>' +
       '<span class="pfh-home-entry-icon">' + iconHtml(entry.icon) + '</span>' +
       '<span class="pfh-home-entry-copy"><strong>' + escapeHtml(entry.title) + '</strong><small>' + escapeHtml(entry.description) + '</small></span>' +
       (entry.badge ? '<i class="pfh-home-entry-badge">' + escapeHtml(entry.badge) + '</i>' : '') +
@@ -2165,11 +2165,11 @@
     return PRODUCT_DEVELOPMENT_FEATURES.map((feature) => ({
       id: 'product-development-' + feature.id,
       action: feature.action || 'product-development-placeholder',
-      icon: productDevelopmentFeatureForView(feature.id) && !productDevelopmentHasAccess(productDevelopmentFeatureForView(feature.id)) ? 'lock' : feature.icon,
+      icon: feature.icon,
       title: feature.title,
       description: feature.subtitle,
       disabled: !feature.action,
-      badge: productDevelopmentFeatureForView(feature.id) && !productDevelopmentHasAccess(productDevelopmentFeatureForView(feature.id)) ? '未解锁' : '',
+      accessLocked: Boolean(productDevelopmentFeatureForView(feature.id) && !productDevelopmentHasAccess(productDevelopmentFeatureForView(feature.id))),
     }));
   }
 

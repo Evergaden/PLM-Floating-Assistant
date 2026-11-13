@@ -118,7 +118,8 @@
   background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .28) 0%, transparent 65%);
 }
 
-#plm-floating-helper .pfh-detail-view-tabs button:disabled {
+#plm-floating-helper .pfh-detail-view-tabs button:disabled,
+#plm-floating-helper .pfh-detail-view-tabs button.is-access-locked {
   cursor: not-allowed;
   opacity: .48;
 }

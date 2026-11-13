@@ -1,7 +1,11 @@
 
   function productDevelopmentTaskTabsHtml(activeView) {
     const active = normalizeProductDevelopmentTaskTab(activeView || state.productDevelopmentTaskView);
-    const buttons = PRODUCT_DEVELOPMENT_TASK_TABS.map((tab) => '<button type="button" role="tab" data-action="product-development-task-tab" data-product-development-tab="' + tab.id + '" class="' + (tab.id === active ? 'is-active' : '') + '" aria-selected="' + String(tab.id === active) + '">' + escapeHtml(tab.label) + (productDevelopmentFeatureForView(tab.id) && !productDevelopmentHasAccess(productDevelopmentFeatureForView(tab.id)) ? ' ' + iconHtml('lock') : '') + '</button>').join('');
+    const buttons = PRODUCT_DEVELOPMENT_TASK_TABS.map((tab) => {
+      const feature = productDevelopmentFeatureForView(tab.id);
+      const locked = feature && !productDevelopmentHasAccess(feature);
+      return '<button type="button" role="tab" data-action="product-development-task-tab" data-product-development-tab="' + tab.id + '" class="' + (tab.id === active ? 'is-active' : '') + (locked ? ' is-access-locked' : '') + '" aria-selected="' + String(tab.id === active) + '"' + (locked ? ' aria-disabled="true"' : '') + '>' + escapeHtml(tab.label) + '</button>';
+    }).join('');
     return '<nav class="pfh-detail-view-tabs pfh-product-development-task-tabs" data-active-view="' + escapeHtml(active) + '" role="tablist" aria-label="开发 SKU 视图"><span class="pfh-detail-view-indicator" aria-hidden="true"></span>' + buttons + '</nav>';
   }
 

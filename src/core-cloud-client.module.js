@@ -208,7 +208,9 @@
         body: { name, instanceId: getClientInstanceId(), version: SCRIPT_VERSION, skuCount: state.index.length },
       }, { attempts: 3, baseDelayMs: 900 });
       if (findCurrentPlmUserName() !== name) return;
-      state.productDevelopmentAccess = { name, ...(response && response.developmentAccess || {}) };
+      if (response && productDevelopmentAccessMatchesUser(response.developmentAccessNames, name)) {
+        state.productDevelopmentAccess = { name, ...(response.developmentAccess || {}), checkedAt: Date.now() };
+      }
       const accessPatch = {};
       let accessChanged = false;
       if (response && typeof response.sizeImageEnabled === 'boolean') {

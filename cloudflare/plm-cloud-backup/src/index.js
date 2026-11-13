@@ -609,6 +609,7 @@ async function createWorkerAccessToken(user, env) {
     ver: 1,
     sub: String(user.id || '').slice(0, 160),
     userName: String(user.name || '').slice(0, 120),
+    accessNames: (Array.isArray(user.accessNames) ? user.accessNames : [user.name]).map(normalizeAccessUserName).filter(Boolean).slice(0, 8),
     tenantId: String(user.tenantId || '').slice(0, 120),
     companyName: String(user.companyName || '').slice(0, 160),
     iat: issuedAt,
@@ -762,8 +763,12 @@ function extractPlmUser(payload) {
   const candidates = prioritized.concat(getAuthObjectCandidates(payload)).filter((value, index, list) => list.indexOf(value) === index);
   const id = readFirstAuthField(candidates, ['userId', 'user_id', 'uid', 'accountId', 'account_id', 'employeeId', 'employee_id', 'username', 'userName', 'loginName', 'id'], 160);
   if (!id) return null;
+  const identityFields = ['userId', 'user_id', 'uid', 'accountId', 'account_id', 'employeeId', 'employee_id', 'username', 'userName', 'loginName', 'id'];
+  const identity = candidates.find((candidate) => identityFields.some((key) => String(candidate[key] || '').trim() === id)) || {};
+  const accessNames = [...new Set(['realName', 'real_name', 'name', 'nickname', 'nickName', 'username', 'userName', 'loginName'].map((key) => normalizeAccessUserName(identity[key])).filter(Boolean))].slice(0, 8);
   return {
     id,
+    accessNames,
     name: readFirstAuthField(candidates, ['name', 'realName', 'real_name', 'nickname', 'nickName', 'username', 'userName'], 120),
     tenantId: readFirstAuthField(candidates, ['tenantId', 'tenant_id', 'companyId', 'company_id', 'orgId', 'org_id'], 120),
     companyName: readFirstAuthField(candidates, ['companyName', 'company_name', 'orgName', 'org_name'], 160),
@@ -817,6 +822,7 @@ async function handleAuthExchange(request, env) {
     user: {
       id: user.id,
       name: user.name,
+      accessNames: user.accessNames,
       tenantId: user.tenantId,
       companyName: user.companyName,
     },
@@ -4499,11 +4505,16 @@ const DEVELOPMENT_FEATURE_COLUMNS = Object.freeze({
   'development-ingredient': 'development_ingredient_enabled',
 });
 
+function developmentAccessUserNames(request) {
+  const context = requestAuthContexts.get(request);
+  const claims = context && context.claims;
+  return [...new Set([claims && claims.userName, ...(Array.isArray(claims && claims.accessNames) ? claims.accessNames : [])].map(normalizeAccessUserName).filter(Boolean))].slice(0, 8);
+}
+
 async function developmentFeatureAccess(request, env) {
   await ensureFeatureAccessColumns(env);
-  const context = requestAuthContexts.get(request);
-  const name = normalizeAccessUserName(context && context.claims && context.claims.userName);
-  const row = name ? await env.DB.prepare('SELECT development_review_enabled, development_copywriting_enabled, development_ingredient_enabled FROM feature_access WHERE user_name = ?').bind(name).first() : null;
+  const names = developmentAccessUserNames(request);
+  const row = names.length ? await env.DB.prepare('SELECT MAX(development_review_enabled) AS development_review_enabled, MAX(development_copywriting_enabled) AS development_copywriting_enabled, MAX(development_ingredient_enabled) AS development_ingredient_enabled FROM feature_access WHERE user_name IN (' + names.map(() => '?').join(',') + ')').bind(...names).first() : null;
   return Object.fromEntries(Object.entries(DEVELOPMENT_FEATURE_COLUMNS).map(([key, column]) => [key, Boolean(row && Number(row[column]))]));
 }
 
@@ -4653,6 +4664,7 @@ async function handleUserHeartbeat(request, env) {
   return json({
     ok: true,
     developmentAccess: await developmentFeatureAccess(request, env),
+    developmentAccessNames: developmentAccessUserNames(request),
     sizeImageEnabled: Boolean(row && Number(row.size_image_enabled)),
     magicUploadEnabled: Boolean(row && Number(row.magic_upload_enabled)),
     parameterImageEnabled: Boolean(row && Number(row.parameter_image_enabled)),
@@ -7934,6 +7946,10 @@ async function handleRequest(request, env) {
     if (url.pathname === '/features/magic-upload' && request.method === 'GET') return handleMagicUploadAccess(request, env);
     if (url.pathname === '/features/parameter-image' && request.method === 'GET') return handleParameterImageAccess(request, env);
     if (url.pathname === '/features/lulu-theme' && request.method === 'GET') return handleLuluThemeAccess(request, env);
+    if (url.pathname === '/features/development' && request.method === 'GET') {
+      if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+      return json({ ok: true, developmentAccess: await developmentFeatureAccess(request, env), accessNames: developmentAccessUserNames(request) });
+    }
     if (url.pathname === '/users/heartbeat' && request.method === 'POST') return handleUserHeartbeat(request, env);
     if (url.pathname === '/notifications' && request.method === 'GET') return handleNotifications(request, env);
     if (url.pathname === '/notifications/read' && request.method === 'POST') return handleNotificationRead(request, env);

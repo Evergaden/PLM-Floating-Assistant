@@ -7,7 +7,12 @@
   function productDevelopmentHandleAction(action, actionTarget) {
     const accessFeature = productDevelopmentFeatureForAction(action, actionTarget);
     if (accessFeature && !productDevelopmentHasAccess(accessFeature)) {
-      showProductDevelopmentPermissionDialog();
+      const name = findCurrentPlmUserName();
+      refreshProductDevelopmentAccess({ force: true }).then(() => {
+        if (findCurrentPlmUserName() !== name) return;
+        if (productDevelopmentHasAccess(accessFeature)) productDevelopmentHandleAction(action, actionTarget);
+        else showProductDevelopmentPermissionDialog();
+      }).catch(() => showToast('权限检查失败，请稍后重试'));
       return true;
     }
     const workspaceViews = {

@@ -623,6 +623,8 @@
   scheduleParameterImageAccessRefresh(420);
   scheduleLuluThemeAccessRefresh(540);
   scheduleUserHeartbeat(800);
+  window.setTimeout(() => refreshProductDevelopmentAccess().catch(() => {}), 800);
+  window.addEventListener('focus', () => refreshProductDevelopmentAccess({ force: true }).catch(() => {}));
   scheduleNotificationRefresh(1600);
   scheduleScriptUpdateRefresh(2400, true);
   scheduleHomeGreetingRefresh(700 + Math.floor(Math.random() * 4500));
