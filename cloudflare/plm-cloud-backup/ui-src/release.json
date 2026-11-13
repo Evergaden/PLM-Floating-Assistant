@@ -94,6 +94,10 @@
       "mode": "module"
     },
     {
+      "path": "modules/development-detail-jump.css",
+      "mode": "module"
+    },
+    {
       "path": "modules/size-image-custom.css",
       "mode": "module"
     },

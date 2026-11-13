@@ -6,10 +6,12 @@
   }
 
   function setupProductDevelopmentTaskTabs(panel) {
+    closeProductDevelopmentDetailJumpMenu(panel);
     const tabs = panel && panel.querySelector('.pfh-product-development-task-tabs');
     const indicator = tabs && tabs.querySelector('.pfh-detail-view-indicator');
     const activeButton = tabs && tabs.querySelector('button.is-active');
     if (!tabs || !indicator || !activeButton) return;
+    setupProductDevelopmentDetailJump(panel, tabs);
     const transition = 'left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)';
     const moveIndicator = (button) => {
       if (!button) return;
@@ -29,6 +31,128 @@
       if (previousButton) moveIndicator(activeButton);
     });
     state.productDevelopmentTaskPreviousTab = '';
+  }
+
+  function closeProductDevelopmentDetailJumpMenu(panel) {
+    const menu = panel && panel.querySelector('.pfh-development-detail-jump');
+    if (menu && menu.pfhClose) menu.pfhClose();
+  }
+
+  function productDevelopmentDetailJumpTargets(panel) {
+    const form = panel.querySelector('.pfh-product-development-product-form-header');
+    return [
+      ['local', '产品本地填写', panel.querySelector('.pfh-product-development-task-local-meta')],
+      ['product', '填写建品信息', form && form.closest('section')],
+      ['box', '纸盒', panel.querySelector('[data-material-card="box"]')],
+    ];
+  }
+
+  function setupProductDevelopmentDetailJump(panel, tabs) {
+    const trigger = tabs.querySelector('[data-product-development-tab="detail"]');
+    if (!trigger) return;
+    trigger.setAttribute('aria-haspopup', 'menu');
+    trigger.setAttribute('aria-expanded', 'false');
+    if (trigger.pfhDetailJumpBound) return;
+    trigger.pfhDetailJumpBound = true;
+    let openTimer = 0;
+    let closeTimer = 0;
+    let menu = null;
+    let suppressClick = false;
+    const cancelOpen = () => window.clearTimeout(openTimer);
+    const close = () => {
+      cancelOpen();
+      window.clearTimeout(closeTimer);
+      if (menu) menu.remove();
+      menu = null;
+      trigger.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('pointerdown', outside, true);
+    };
+    const outside = (event) => { if (!trigger.contains(event.target) && !(menu && menu.contains(event.target))) close(); };
+    const leave = () => { cancelOpen(); closeTimer = window.setTimeout(close, 180); };
+    const jump = (item) => {
+      if (!item || item.disabled) return;
+      const target = productDevelopmentDetailJumpTargets(panel).find(([id]) => id === item.getAttribute('data-development-detail-jump'));
+      const section = target && target[2];
+      const scroll = section && section.closest('.pfh-detail-scroll');
+      if (!scroll) return;
+      const top = section.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop - tabs.getBoundingClientRect().height - 12;
+      scroll.scrollTop = Math.max(0, top);
+      menu.querySelectorAll('[role="menuitem"]').forEach((node) => node.classList.toggle('is-active', node === item));
+    };
+    const open = () => {
+      if (!trigger.isConnected || state.view !== 'productDevelopmentTasks' || state.productDevelopmentTaskView !== 'detail') return;
+      window.clearTimeout(closeTimer);
+      if (menu && menu.isConnected) return;
+      closeProductDevelopmentDetailJumpMenu(panel);
+      menu = document.createElement('div');
+      menu.className = 'pfh-development-detail-jump';
+      menu.setAttribute('role', 'menu');
+      menu.setAttribute('aria-label', '详情快捷目录');
+      menu.innerHTML = productDevelopmentDetailJumpTargets(panel).map(([id, label, section]) => '<button type="button" role="menuitem" data-development-detail-jump="' + id + '"' + (section ? '' : ' disabled') + '>' + label + '</button>').join('');
+      menu.pfhClose = close;
+      panel.appendChild(menu);
+      const panelRect = panel.getBoundingClientRect();
+      const triggerRect = trigger.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
+      menu.style.left = Math.max(8, Math.min(triggerRect.left - panelRect.left, panelRect.width - menuRect.width - 8)) + 'px';
+      menu.style.top = Math.max(8, Math.min(triggerRect.bottom - panelRect.top + 6, panelRect.height - menuRect.height - 8)) + 'px';
+      trigger.setAttribute('aria-expanded', 'true');
+      menu.addEventListener('pointerenter', () => window.clearTimeout(closeTimer));
+      menu.addEventListener('pointerleave', leave);
+      menu.addEventListener('pointerover', (event) => {
+        const item = event.target.closest('[data-development-detail-jump]');
+        if (item && !item.contains(event.relatedTarget)) jump(item);
+      });
+      menu.addEventListener('click', (event) => { jump(event.target.closest('[data-development-detail-jump]')); });
+      menu.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') { close(); trigger.focus({ preventScroll: true }); event.preventDefault(); return; }
+        if (event.key === 'Tab') { trigger.focus({ preventScroll: true }); close(); return; }
+        const items = Array.from(menu.querySelectorAll('button:not(:disabled)'));
+        if (!items.length) return;
+        const index = items.indexOf(event.target);
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          const next = (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+          items[next].focus({ preventScroll: true });
+          jump(items[next]);
+          event.preventDefault();
+        } else if (event.key === 'Enter' || event.key === ' ') { jump(event.target); event.preventDefault(); }
+      });
+      document.addEventListener('pointerdown', outside, true);
+    };
+    trigger.addEventListener('pointerenter', (event) => {
+      window.clearTimeout(closeTimer);
+      if (event.pointerType === 'touch') return;
+      cancelOpen();
+      openTimer = window.setTimeout(open, 450);
+    });
+    trigger.addEventListener('pointerleave', leave);
+    const endPress = () => {
+      cancelOpen();
+      document.removeEventListener('pointerup', endPress, true);
+      document.removeEventListener('pointercancel', endPress, true);
+      window.setTimeout(() => { suppressClick = false; }, 0);
+    };
+    trigger.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      cancelOpen();
+      openTimer = window.setTimeout(() => { open(); suppressClick = Boolean(menu); }, 350);
+      document.addEventListener('pointerup', endPress, true);
+      document.addEventListener('pointercancel', endPress, true);
+    });
+    trigger.addEventListener('click', (event) => {
+      if (!suppressClick) return;
+      suppressClick = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
+    trigger.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') { close(); event.preventDefault(); }
+      if (event.key !== 'ArrowDown') return;
+      open();
+      const first = menu && menu.querySelector('button:not(:disabled)');
+      if (first) first.focus({ preventScroll: true });
+      event.preventDefault();
+    });
   }
 
   function normalizeProductDevelopmentCachedTask(item) {

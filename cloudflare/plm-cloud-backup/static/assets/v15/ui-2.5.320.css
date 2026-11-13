@@ -8379,6 +8379,38 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
   opacity: .5;
 }
 
+/* source: modules/development-detail-jump.css (module) */
+#plm-floating-helper .pfh-development-detail-jump {
+  position: absolute;
+  z-index: 80;
+  display: grid;
+  gap: 4px;
+  width: 188px;
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 12px;
+  background: var(--pfh-theme-surface);
+  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);
+}
+#plm-floating-helper .pfh-development-detail-jump button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pfh-theme-text);
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+#plm-floating-helper .pfh-development-detail-jump button:is(:hover, :focus-visible, .is-active) { background: var(--pfh-theme-primary-soft); color: var(--pfh-theme-primary); }
+#plm-floating-helper .pfh-development-detail-jump button:focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 1px; }
+#plm-floating-helper .pfh-development-detail-jump button:disabled { opacity: .45; cursor: default; }
+
 /* source: modules/size-image-custom.css (module) */
 /* Custom size-image editor: a contained modal with a responsive form grid. */
 #plm-floating-helper[data-view="sizeImage"] .pfh-size-image-custom-layer {

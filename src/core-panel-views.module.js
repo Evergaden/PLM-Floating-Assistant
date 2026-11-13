@@ -772,6 +772,7 @@
   function renderShell(statusText) {
     stopPixelRoomAnimation();
     const panel = ensurePanel();
+    closeProductDevelopmentDetailJumpMenu(panel);
     if (state.view === 'unitConverter') {
       state.view = 'tools';
       state.toolsActiveTool = 'unit';
