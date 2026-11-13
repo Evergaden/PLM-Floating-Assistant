@@ -98,3 +98,41 @@ for (const value of [true, false, true]) {
   assert.equal(options.querySelectorAll('input').length, 2);
   assert.equal(options.querySelector('input[checked]').getAttribute('value'), String(value));
 }
+// The cache loader removes data-local-image and replaces src with a blob URL.
+// Later API/form refreshes must leave those hydrated nodes alone.
+let photoUrl = 'https://images.test/product.png';
+context.getSkuListImageUrl = () => photoUrl;
+context.getLedgerThumbnailUrl = (url) => url + '?thumbnail=1';
+vm.runInContext(extract(read('src/core-ledger-workbench.module.js'), '  function productThumbHtml(', '  function formatSkuDetailPriority('), context);
+context.productDevelopmentTaskHeroHtml = (task) => '<header class="pfh-product-development-task-hero">' + context.productThumbHtml({ sku: task.sku }) + '</header>';
+context.state.productDevelopmentTaskView = 'detail';
+context.renderProductDevelopmentTaskDetail(panel, '', { sku: 'SKU3' });
+const thumb = detail.querySelector('.pfh-product-thumb');
+const images = Array.from(thumb.querySelectorAll('img'));
+images.forEach((image, index) => {
+  image.pfhLocalImageSource = index ? photoUrl : context.getLedgerThumbnailUrl(photoUrl);
+  image.pfhLocalObjectUrl = 'blob:cached-' + index;
+  image.removeAttribute('data-local-image');
+  image.setAttribute('src', image.pfhLocalObjectUrl);
+});
+let imageEvents = 0;
+images[0].addEventListener('load', () => imageEvents++);
+for (const message of ['API refreshed', '', 'Supplier refreshed']) {
+  context.renderProductDevelopmentTaskDetail(panel, message, { sku: 'SKU3' });
+  assert.equal(detail.querySelector('.pfh-product-thumb'), thumb);
+  assert.equal(detail.querySelector('.pfh-thumb-frame img'), images[0]);
+  assert.equal(images[0].getAttribute('src'), 'blob:cached-0', 'Async refresh retains the decoded thumbnail URL');
+  assert.equal(images[1].getAttribute('src'), 'blob:cached-1', 'Full-size hover preview is retained too');
+}
+images[0].dispatchEvent(new document.defaultView.Event('load'));
+assert.equal(imageEvents, 1, 'Load/error/cache listeners survive refresh');
+// Even when the loader has fallen back from thumbnail to original, preserve it.
+images[0].pfhLocalImageSource = photoUrl;
+context.renderProductDevelopmentTaskDetail(panel, '', { sku: 'SKU3' });
+assert.equal(detail.querySelector('.pfh-thumb-frame img'), images[0]);
+photoUrl = 'https://images.test/new-product.png';
+context.renderProductDevelopmentTaskDetail(panel, '', { sku: 'SKU3' });
+assert.notEqual(detail.querySelector('.pfh-product-thumb'), thumb, 'A genuinely changed image starts a new loader lifecycle');
+assert.equal(detail.querySelector('.pfh-thumb-frame img').getAttribute('data-local-image'), context.getLedgerThumbnailUrl(photoUrl));
+assert.equal(images[0].isConnected, false);
+console.log('Development hero: cached thumbnail/preview URLs and listeners survive async refresh; changed sources create fresh image nodes');

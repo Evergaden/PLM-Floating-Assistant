@@ -1000,7 +1000,7 @@
     const src = sourceUrl || getSkuListImageUrl(data);
     if (!src) return '<span class="pfh-product-thumb is-empty">' + iconHtml('image') + '</span>';
     const thumbnail = getLedgerThumbnailUrl(src);
-    return '<button type="button" class="pfh-product-thumb" title="悬浮放大预览">' +
+    return '<button type="button" class="pfh-product-thumb" data-product-thumb-source="' + escapeHtml(src) + '" data-product-thumb-thumbnail="' + escapeHtml(thumbnail) + '" title="悬浮放大预览">' +
       '<span class="pfh-thumb-frame"><img data-local-image="' + escapeHtml(thumbnail) + '" data-local-image-fallback="' + escapeHtml(src) + '" alt=""></span>' +
       '<span class="pfh-thumb-preview"><img data-local-image="' + escapeHtml(src) + '" data-local-image-fallback="' + escapeHtml(thumbnail) + '" alt=""></span>' +
       '</button>';

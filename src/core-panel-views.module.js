@@ -1778,6 +1778,14 @@
       current.replaceWith(next);
       return;
     }
+    if (current.classList.contains('pfh-product-thumb') && next.classList.contains('pfh-product-thumb')) {
+      const source = next.getAttribute('data-product-thumb-source');
+      if (source && source === current.getAttribute('data-product-thumb-source') &&
+        next.getAttribute('data-product-thumb-thumbnail') === current.getAttribute('data-product-thumb-thumbnail')) return;
+      // Local-image hydration consumes data-local-image and assigns a blob URL.
+      // A changed source needs new nodes so the image observer can take ownership.
+      if (source) { current.replaceWith(next); return; }
+    }
     for (const attr of Array.from(current.attributes)) {
       if (current === document.activeElement && attr.name === 'value') continue;
       if (attr.name === 'style' && (current.pfhSkuViewPointerBound || current.classList.contains('pfh-sku-view-indicator'))) continue;
