@@ -522,6 +522,7 @@
       ingredientTable,
       copywritingCategory,
       regularIngredients,
+      ingredients: (Array.isArray(read('ingredients', null)) ? read('ingredients', []) : []).map((pair) => ({ en: productDevelopmentCleanText(pair && pair.en, 300), cn: productDevelopmentCleanText(pair && pair.cn, 300) })).filter((pair) => pair.en || pair.cn).slice(0, 80),
     };
   }
 
@@ -547,6 +548,7 @@
       updatedAt: Number(source.updatedAt) || Date.now(),
       blob: null,
       fromCache: true,
+      partialUpdateWarning: productDevelopmentCleanText(source.partialUpdateWarning, 1600),
     };
   }
 

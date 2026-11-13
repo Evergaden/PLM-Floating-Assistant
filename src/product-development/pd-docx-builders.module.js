@@ -242,6 +242,128 @@
     return createProductDevelopmentBuiltinDocx(documentXml);
   }
 
+  function productDevelopmentCopywritingUpdatePlan(result) {
+    const sku = getProductDevelopmentCurrentSku();
+    if (!result) throw new Error('暂无可下载的文案');
+    const snapshot = JSON.parse(JSON.stringify(result.snapshot || { sku }));
+    const content = JSON.parse(JSON.stringify(result.content));
+    if (result.sku !== sku && result.fromHistory) return { snapshot, content, changed: false };
+    if (result.sku !== sku) throw new Error('请先打开该文案对应的 SKU');
+    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+    const task = getProductDevelopmentTaskBySku(sku) || { sku };
+    const meta = getProductDevelopmentTaskMeta(task, detail);
+    const readName = (key, fallback) => productDevelopmentCleanText(meta[key] || detail && productDevelopmentPage1FieldValue(detail, key) || fallback, 300);
+    snapshot.englishName = readName('productNameEn', snapshot.englishName);
+    snapshot.name = readName('productNameCn', snapshot.name);
+    snapshot.brand = readName('brand', snapshot.brand);
+    const translateName = snapshot.englishName !== String(result.snapshot && result.snapshot.englishName || '')
+      && (snapshot.copywritingCategory === 'regular' || Array.isArray(content.productNameTranslations) && content.productNameTranslations.length > 0);
+    let ingredientsChanged = false;
+    let targets = null;
+    let removed = [];
+    const input = state.productDevelopmentOneShotInput;
+    if (snapshot.copywritingCategory === 'regular' && input && input.sku === sku) {
+      const parse = (key) => productDevelopmentParseRegularIngredientText(input[key]);
+      const active = parse('regularIngredientsEn');
+      const inactive = parse('regularIngredientsInactiveEn');
+      const activeCn = parse('regularIngredientsCn').map((pair) => pair.cn).filter(Boolean);
+      const inactiveCn = parse('regularIngredientsInactiveCn').map((pair) => pair.cn).filter(Boolean);
+      const regular = { activeEn: active.map((pair) => pair.en).filter(Boolean), inactiveEn: inactive.map((pair) => pair.en).filter(Boolean), activeCn, inactiveCn, cn: activeCn.concat(inactiveCn).join('、') };
+      const previous = snapshot.regularIngredients;
+      // Empty untouched drafts from old caches must not erase their saved table.
+      const hasDraft = active.length || inactive.length || activeCn.length || inactiveCn.length || state.productDevelopmentCopywritingDirtySku === sku;
+      if (hasDraft && JSON.stringify(regular) !== JSON.stringify(previous)) {
+        if (!active.length && !inactive.length) throw new Error('成分不能为空，原文案已保留');
+        ingredientsChanged = true;
+        snapshot.regularIngredients = regular;
+        const pairs = active.map((pair, index) => ({ en: pair.en, cn: activeCn[index] || pair.cn })).concat(inactive.map((pair, index) => ({ en: pair.en, cn: inactiveCn[index] || pair.cn })));
+        const key = (value) => String(value || '').trim().toLowerCase();
+        const all = new Map(pairs.filter((pair) => pair.en).map((pair) => [key(pair.en), pair]));
+        const old = Array.isArray(content.ingredientFunctions) ? content.ingredientFunctions : [];
+        const retained = old.map((item) => all.get(key(item.ingredientEn)) || pairs.find((pair) => pair.cn && key(pair.cn) === key(item.ingredientCn))).filter(Boolean);
+        const selected = new Map(retained.map((pair) => [key(pair.en), pair]));
+        productDevelopmentRegularHeroIngredients(pairs).forEach((pair) => { if (selected.size < 4) selected.set(key(pair.en), pair); });
+        targets = Array.from(selected.values()).map((pair) => {
+          const existing = old.find((item) => key(item.ingredientEn) === key(pair.en) || pair.cn && key(item.ingredientCn) === key(pair.cn));
+          return { pair, existing: existing ? { ...existing, ingredientEn: pair.en, ingredientCn: pair.cn || existing.ingredientCn } : null };
+        });
+        const previousNames = previous ? (previous.activeEn || []).concat(previous.inactiveEn || []) : old.map((item) => item.ingredientEn);
+        const previousCn = previous ? (previous.activeCn || []).concat(previous.inactiveCn || []) : old.map((item) => item.ingredientCn);
+        removed = previousNames.flatMap((name, index) => !all.has(key(name)) ? [name, previousCn[index]].filter(Boolean) : []);
+      }
+    }
+    const oneShot = state.productDevelopmentOneShotResult;
+    if (snapshot.copywritingCategory !== 'regular' && oneShot && oneShot.sku === sku && (result.id === oneShot.id || result.id === oneShot.id + '-copy')) {
+      const table = productDevelopmentOneShotConfirmedIngredientTable(oneShot);
+      const pairs = productDevelopmentOneShotConfirmedIngredients(oneShot);
+      if (!pairs.length || pairs.some((pair) => !pair.en)) throw new Error('请先填写完整的成分名称，原文案已保留');
+      snapshot.ingredientTable = { ...snapshot.ingredientTable, otherIngredientsEn: table.otherIngredientsEn, otherIngredientsCn: table.otherIngredientsCn };
+      const old = content.ingredientFunctions || [];
+      const previous = snapshot.ingredients || old.map((item) => ({ en: item.ingredientEn, cn: item.ingredientCn }));
+      ingredientsChanged = JSON.stringify(snapshot.ingredientTable) !== JSON.stringify(result.snapshot && result.snapshot.ingredientTable || {}) || JSON.stringify(pairs) !== JSON.stringify(previous);
+      snapshot.ingredients = pairs;
+      if (ingredientsChanged) {
+        targets = pairs.map((pair) => {
+          const existing = old.find((item) => item.ingredientEn.toLowerCase() === pair.en.toLowerCase() || pair.cn && item.ingredientCn === pair.cn);
+          return { pair, existing: existing ? { ...existing, ingredientEn: pair.en, ingredientCn: pair.cn || existing.ingredientCn } : null };
+        });
+        removed = previous.filter((pair) => !pairs.some((item) => item.en.toLowerCase() === pair.en.toLowerCase())).flatMap((pair) => [pair.en, pair.cn].filter(Boolean));
+      }
+    }
+    const changed = ingredientsChanged || snapshot.englishName !== String(result.snapshot && result.snapshot.englishName || '') || snapshot.name !== String(result.snapshot && result.snapshot.name || '') || snapshot.brand !== String(result.snapshot && result.snapshot.brand || '');
+    return { snapshot, content, translateName, targets, removed, changed, signature: JSON.stringify([snapshot, targets, result.content]) };
+  }
+
+  async function productDevelopmentUpdateCopywritingForDownload(result) {
+    const plan = productDevelopmentCopywritingUpdatePlan(result);
+    if (!plan.changed) return result;
+    const missing = plan.targets ? plan.targets.filter((item) => !item.existing).map((item) => item.pair) : [];
+    if (plan.translateName || missing.length) {
+      const response = await withCopywritingTimeout(cloudRequest('/ai-image/product-development-copywriting', {
+        method: 'POST', timeoutMs: 300000,
+        body: { mode: 'partial-update', sku: result.sku, englishName: plan.snapshot.englishName, translateName: plan.translateName, ingredients: missing, copywritingCategory: plan.snapshot.copywritingCategory || 'food' },
+      }), 320000, '局部更新文案');
+      const patch = response && response.patch;
+      if (!patch) throw new Error('局部更新未返回结果，原文案已保留');
+      if (plan.translateName) {
+        if (!Array.isArray(patch.productNameTranslations) || patch.productNameTranslations.length !== 24 || patch.productNameTranslations.some((item) => typeof item !== 'string' || !item.trim())) throw new Error('24 国名称翻译不完整，原文案已保留');
+        if (patch.productNameTranslations[0].trim().toLowerCase() !== plan.snapshot.englishName.toLowerCase()) throw new Error('名称翻译与当前英文名不符，原文案已保留');
+        plan.content.productNameTranslations = patch.productNameTranslations;
+      }
+      if (missing.length) {
+        if (!Array.isArray(patch.ingredientFunctions) || patch.ingredientFunctions.length !== missing.length) throw new Error('成分功能更新不完整，原文案已保留');
+        missing.forEach((pair, index) => {
+          const item = patch.ingredientFunctions[index];
+          if (!item || item.ingredientEn !== pair.en || !String(item.en || '').trim() || !String(item.cn || '').trim()) throw new Error('成分功能与输入不匹配，原文案已保留');
+        });
+        let index = 0;
+        plan.targets.forEach((item) => { if (!item.existing) item.existing = patch.ingredientFunctions[index++]; });
+      }
+    }
+    if (plan.targets) plan.content.ingredientFunctions = plan.targets.map((item) => item.existing);
+    if (productDevelopmentCopywritingUpdatePlan(result).signature !== plan.signature) throw new Error('资料在更新期间发生变化，请再次下载；原文案已保留');
+    const protectedText = JSON.stringify(['efficacy', 'advantages', 'sellingPoints', 'directions'].map((key) => plan.content[key])).toLowerCase();
+    const mentioned = plan.removed.filter((name) => protectedText.includes(String(name).toLowerCase()));
+    result.snapshot = plan.snapshot;
+    result.content = plan.content;
+    result.blob = null;
+    result.docxBlob = null;
+    result.fileName = productDevelopmentCopywritingFileName(plan.snapshot);
+    result.docxFileName = result.fileName;
+    result.updatedAt = Date.now();
+    result.partialUpdateWarning = mentioned.length ? '保留文案中仍提到已移除成分：' + mentioned.join('、') + '，请核对。' : '';
+    state.productDevelopmentCopywritingDirtySku = '';
+    saveProductDevelopmentCopywritingCache(result);
+    const oneShot = state.productDevelopmentOneShotResult;
+    if (oneShot && (result.id === oneShot.id || result.id === oneShot.id + '-copy')) {
+      oneShot.snapshot = result.snapshot;
+      oneShot.content = result.content;
+      oneShot.docxBlob = null;
+      oneShot.docxFileName = result.fileName;
+    }
+    return result;
+  }
+
   async function rebuildProductDevelopmentCachedDocx(result) {
     if (!result || !result.content) throw new Error('本地没有可恢复的产品文案');
     const template = resolveProductDevelopmentCachedCopywritingTemplate(result);
@@ -311,14 +433,17 @@
   async function downloadProductDevelopmentCopywritingResult() {
     let result = state.productDevelopmentCopywriting || restoreProductDevelopmentCopywritingCache(getProductDevelopmentCurrentSku());
     if (!result || !result.content) throw new Error('暂无可下载的 DOCX');
-    const handle = await chooseCopywritingSaveTarget(result.fileName || productDevelopmentCopywritingFileName(result.snapshot || result));
+    if (state.productDevelopmentCopywritingBusy || state.productDevelopmentOneShotBusy) return;
+    const plan = productDevelopmentCopywritingUpdatePlan(result);
+    const handle = await chooseCopywritingSaveTarget(productDevelopmentCopywritingFileName(plan.snapshot));
     if (!handle) return;
-    if (!result.blob) {
+    if (plan.changed || !result.blob) {
       state.productDevelopmentCopywritingBusy = true;
-      state.productDevelopmentStatus = '正在从本地缓存恢复 DOCX…';
+      state.productDevelopmentStatus = '正在更新并生成文案 DOCX，其他文案保留…';
       state.productDevelopmentError = '';
       renderShell();
       try {
+        result = await productDevelopmentUpdateCopywritingForDownload(result);
         result = await rebuildProductDevelopmentCachedDocx(result);
         state.productDevelopmentStatus = '本地缓存 DOCX 已恢复，可继续下载';
       } finally {
@@ -327,5 +452,6 @@
       }
     }
     await writeImageBlobToFileHandle(handle, await productDevelopmentTraceDocxBlob(result.blob));
-    showToast('文案已保存');
+    state.productDevelopmentStatus = result.partialUpdateWarning || '文案已保存，其他文案保留';
+    showToast(result.partialUpdateWarning || '文案已保存');
   }

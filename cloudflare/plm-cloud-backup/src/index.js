@@ -3890,10 +3890,57 @@ async function handleProductDevelopmentOneShot(request, env) {
   }
 }
 
+async function handleProductDevelopmentCopywritingPatch(body, env) {
+  const englishName = cleanText(body.englishName, 300);
+  const translateName = body.translateName === true;
+  const ingredients = normalizeProductDevelopmentIngredientInput(body.ingredients);
+  const category = body.copywritingCategory === 'regular' ? 'regular' : 'food';
+  if (!cleanText(body.sku, 80) || translateName && !englishName || !translateName && !ingredients.length) return json({ ok: false, error: 'partial update requires SKU and changed fields' }, 400);
+  const validate = (candidate) => {
+    const parsed = parseProductDevelopmentJson(candidate.text);
+    const patch = {};
+    if (translateName) {
+      const names = parsed.productNameTranslations;
+      if (!Array.isArray(names) || names.length !== 24 || names.some((name) => typeof name !== 'string' || !name.trim() || name.length > 300)) throw new Error('partial update requires exactly 24 product names');
+      if (names[0].trim().toLowerCase() !== englishName.toLowerCase()) throw new Error('partial update English name must match input');
+      patch.productNameTranslations = names.map((name) => name.trim());
+    }
+    if (ingredients.length) {
+      if (!Array.isArray(parsed.ingredientFunctions) || parsed.ingredientFunctions.length !== ingredients.length) throw new Error('partial update ingredient count mismatch');
+      patch.ingredientFunctions = ingredients.map((pair, index) => {
+        const item = parsed.ingredientFunctions[index];
+        if (!item || item.ingredientEn !== pair.en) throw new Error('partial update ingredient order mismatch');
+        const en = cleanText(item.en, 1200);
+        const cn = cleanText(item.cn, 1200);
+        if (!en || !cn || productDevelopmentFindCopywritingRestriction(en + '\n' + cn, { copywritingCategory: category })) throw new Error('partial update ingredient function is missing or restricted');
+        return { ingredientEn: pair.en, ingredientCn: pair.cn || cleanText(item.ingredientCn, 300), en, cn };
+      });
+    }
+    // Ignore every other field, even if a model returns a complete document.
+    return patch;
+  };
+  try {
+    const result = await callPreferredAiText(env, {
+      temperature: 0, maxTokens: 6000, primaryTimeoutMs: 240000, fallbackTimeoutMs: 120000, skipGemini: true, responseMimeType: 'application/json',
+      system: [
+        '只返回 JSON 对象，局部更新产品资料，禁止生成功效、优势、卖点、使用说明或其他区域。',
+        'translateName=true 时返回 productNameTranslations，恰好 24 项，顺序：英语、德语、法语、西班牙语、意大利语、丹麦语、捷克语、瑞典语、希腊语、芬兰语、葡萄牙语、荷兰语、保加利亚语、克罗地亚语、爱沙尼亚语、匈牙利语、爱尔兰语、拉脱维亚语、立陶宛语、马耳他语、波兰语、罗马尼亚语、斯洛伐克语、斯洛文尼亚语。第一项严格保留输入英文名，其余准确翻译，只放名称，不加语言名或编号。',
+        '有 ingredients 时仅为这些成分返回 ingredientFunctions，按输入顺序，每项 {ingredientEn,ingredientCn,en,cn}。保留输入成分名，英文功能 10-15 词，中文对应。仅写有依据的温和成分功能，不写用量频次、疾病治疗、饮食属性、生产质量背书。常规非食品仅写美妆个护功能，食品仅写温和营养支持。',
+        '未请求的字段不要返回；不可补写或修改其他文案。',
+      ].join('\n'),
+      prompt: JSON.stringify({ englishName, translateName, ingredients, copywritingCategory: category }),
+    }, validate);
+    return json({ ok: true, patch: result.value });
+  } catch (error) {
+    return json({ ok: false, error: '局部更新失败，原文案保留：' + cleanText(error && error.message, 400) }, 502);
+  }
+}
+
 async function handleProductDevelopmentCopywriting(request, env) {
   if (!requireApiKey(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
   const body = await parseJson(request);
   if (!body) return json({ ok: false, error: 'application/json body required' }, 400);
+  if (body.mode === 'partial-update') return handleProductDevelopmentCopywritingPatch(body, env);
   const sku = cleanText(body.sku, 80);
   const name = cleanText(body.name, 300);
   const englishName = cleanText(body.englishName, 300);

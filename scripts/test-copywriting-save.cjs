@@ -16,6 +16,11 @@ const context = vm.createContext({ Blob, Uint8Array, DOMParser, XMLSerializer, c
 for (const file of ['src/core-download-utils.module.js', 'src/product-development/pd-docx-builders.module.js', 'src/product-development/pd-one-shot.module.js']) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context);
 }
+// Partial updates have their own integration regression; this fixture isolates
+// the file picker, watermark package preservation and write ordering.
+context.productDevelopmentCopywritingUpdatePlan = (result) => ({ snapshot: result.snapshot || {}, changed: false });
+context.productDevelopmentUpdateCopywritingForDownload = async (result) => result;
+context.productDevelopmentCopywritingFileName = () => 'test.docx';
 const cp = 'http://schemas.openxmlformats.org/package/2006/metadata/core-properties';
 const dc = 'http://purl.org/dc/elements/1.1/';
 const entries = {

@@ -369,13 +369,16 @@
       showToast('请先确认成分表并生成文案');
       return;
     }
-    const handle = await chooseCopywritingSaveTarget(result.docxFileName || productDevelopmentCopywritingFileName(result.snapshot || result));
+    if (state.productDevelopmentOneShotBusy || state.productDevelopmentCopywritingBusy) return;
+    const plan = productDevelopmentCopywritingUpdatePlan(result);
+    const handle = await chooseCopywritingSaveTarget(productDevelopmentCopywritingFileName(plan.snapshot));
     if (!handle) return;
-    if (!result.docxBlob) {
+    if (plan.changed || !result.docxBlob) {
       state.productDevelopmentOneShotBusy = true;
       state.productDevelopmentStatus = '正在恢复文案 DOCX…';
       renderShell();
       try {
+        await productDevelopmentUpdateCopywritingForDownload(result);
         const file = await productDevelopmentOneShotBuildDocx(result);
         result.docxBlob = file.blob;
       } finally {
@@ -384,7 +387,7 @@
       }
     }
     await writeImageBlobToFileHandle(handle, await productDevelopmentTraceDocxBlob(result.docxBlob));
-    showToast('文案已保存');
+    showToast(result.partialUpdateWarning || '文案已保存');
   }
 
   function productDevelopmentOneShotConfirmedIngredientTable(result) {

@@ -1267,7 +1267,7 @@
     if (!result || result.sku !== getProductDevelopmentCurrentSku() || !result.content) return;
     state.productDevelopmentCopywritingDirtySku = result.sku;
     const node = document.querySelector('#' + PANEL_ID + ' [data-cw-result-status]');
-    if (node) node.textContent = '输入已修改，当前为上次生成结果；请重新生成';
+    if (node) node.textContent = '输入已修改；下载时更新名称和成分，其他文案保留';
   }
 
   function productDevelopmentCopywritingUpdateIngredientCounts(root) {
@@ -1407,13 +1407,13 @@
 
   function productDevelopmentCopywritingResultHeaderHtml(result, content) {
     if (!content) return '';
-    return '<header class="pfh-cw-result-head"><div><h3>文案结果</h3><p data-cw-result-status>' + escapeHtml(state.productDevelopmentCopywritingDirtySku === getProductDevelopmentCurrentSku() ? '输入已修改，当前为上次生成结果；请重新生成' : result && result.templateLabel || '当前模板') + '</p></div><div><button type="button" data-action="product-development-copywriting-copy">复制全文</button></div></header>';
+    return '<header class="pfh-cw-result-head"><div><h3>文案结果</h3><p data-cw-result-status>' + escapeHtml(state.productDevelopmentCopywritingDirtySku === getProductDevelopmentCurrentSku() ? '输入已修改；下载时更新名称和成分，其他文案保留' : result && (result.partialUpdateWarning || result.templateLabel) || '当前模板') + '</p></div><div><button type="button" data-action="product-development-copywriting-copy">复制全文</button></div></header>';
   }
 
   function productDevelopmentCopywritingDownloadButtonHtml(sku) {
     const result = state.productDevelopmentCopywriting;
     const ready = Boolean(result && result.content && (result.sku === sku || result.fromHistory) && !state.productDevelopmentOneShotBusy && !state.productDevelopmentCopywritingBusy);
-    return '<button type="button" class="pfh-cw-download' + (ready ? ' is-ready' : '') + '" data-action="product-development-copywriting-download"' + (ready ? '' : ' disabled') + '>下载文档</button>';
+    return '<button type="button" class="pfh-cw-download' + (ready ? ' is-ready' : '') + '" data-action="product-development-copywriting-download"' + (ready ? '' : ' disabled') + '>更新并下载文案</button>';
   }
 
   function productDevelopmentCopywritingHtml() {

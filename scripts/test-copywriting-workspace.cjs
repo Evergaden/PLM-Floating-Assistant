@@ -131,7 +131,7 @@ async function run() {
   assert.equal(renders, 2);
   const buttonHost = document.createElement('div');
   buttonHost.innerHTML = context.productDevelopmentCopywritingDownloadButtonHtml('SKU1');
-  assert.equal(buttonHost.firstElementChild.textContent, '下载文档');
+  assert.equal(buttonHost.firstElementChild.textContent, '更新并下载文案');
   assert.equal(buttonHost.firstElementChild.classList.contains('is-ready'), true, 'Available document downloads are highlighted');
   assert.equal(buttonHost.firstElementChild.disabled, false);
   const previousResult = state.productDevelopmentCopywriting;
