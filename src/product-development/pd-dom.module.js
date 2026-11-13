@@ -624,15 +624,9 @@
     const referenceLabel = productDevelopmentReferenceLabel(detail, task);
     const isSupplement = productDevelopmentIsSupplement(detail, task);
     const packagingRows = productDevelopmentReferencePackagingRows(detail, task);
-    if (!isSupplement && reworkProductCode && !packagingRows.length) throw new Error('尚未读取到对标包材，请先查询对标产品 BOM；不会从“成品”入口添加对标产品');
     productDevelopmentEnsureMaterialDrafts(detail, task);
-    const drafts = [
-      ['box', detail.materialDrafts.box],
-      ['label', detail.materialDrafts.label],
-      ['instruction', detail.materialDrafts.instruction],
-    ].filter(([, draft]) => draft && draft.enabled !== false);
-    const missing = drafts.flatMap(([kind, draft]) => productDevelopmentMaterialDraftMissingFields(kind, draft));
-    if (missing.length) throw new Error('请先补充 BOM：' + missing.join('、'));
+    const { drafts, skipped } = productDevelopmentReadyBomDrafts(detail);
+    if (!isSupplement && reworkProductCode && !packagingRows.length) skipped.push('对标包材（尚未读取到完整资料）');
     let drawer = productDevelopmentBomDomDrawer(normalizedSku);
     if (!drawer && typeof ensureProjectBomDrawerForData === 'function') {
       drawer = await ensureProjectBomDrawerForData({
@@ -644,7 +638,6 @@
     if (!drawer) throw new Error('请先在 PLM 打开当前 SKU 的“绑定 BOM”抽屉');
     if (productDevelopmentBomDomActiveEditor(drawer) || productDevelopmentBomDomProductSearch(drawer)) throw new Error('PLM 当前还有未确认的物料或成品搜索行，请先确定或取消后再试');
     const added = [];
-    const skipped = [];
     for (const [kind, draft] of drafts) {
       const title = productDevelopmentBomDomKindLabel(kind);
       if (productDevelopmentMaterialExistingRow(detail, kind) || productDevelopmentBomDomCardMatches(drawer, kind, draft)) {
@@ -1261,10 +1254,10 @@
     const missing = !inputValue;
     const isTextarea = field && field.type === 'textarea';
     const inputType = field && field.type === 'number' ? 'number' : 'text';
-    const derived = field && ['outerVolume', 'standardPackingQuantity'].includes(field.key);
+    const derived = field && ['outerVolume', 'standardPackingQuantity', 'firstPrice', 'secondPrice', 'thirdPrice'].includes(field.key);
     const inputAttributes = ' class="pfh-product-development-form-input" data-form-sku="' + escapeHtml(formSku || '') + '" data-form-group="' + escapeHtml(field && field.formGroup || 'prefill') + '" data-form-key="' + escapeHtml(field && field.key || '') + '" data-form-control="' + escapeHtml(field && field.control || '') + '"' + (inputType === 'number' ? ' inputmode="decimal" step="any"' : '') + ' placeholder="' + escapeHtml(field && field.placeholder || '') + '"';
     const priceLocked = field && field.key === 'procurementPrice';
-    const readonly = derived ? ' readonly aria-readonly="true" title="按当前长宽高自动计算"' : priceLocked ? ' readonly aria-readonly="true" data-procurement-price-lock="true" title="采购单价 + 0.5；双击修改，离开后重新锁定"' : '';
+    const readonly = derived ? ' readonly aria-readonly="true" title="' + (/Price$/.test(field.key) ? '按成本价自动计算' : '按当前长宽高自动计算') + '"' : priceLocked ? ' readonly aria-readonly="true" data-procurement-price-lock="true" title="采购单价 + 0.5；双击修改，离开后重新锁定"' : '';
     const supplierListId = 'pfh-supplier-options-' + String(formSku).replace(/[^A-Za-z0-9_-]/g, '');
     const supplier = field.key === 'supplier' && field.formGroup === 'procurement';
     const choices = options.some((item) => item.label === inputValue) || !inputValue ? options : [{ label: inputValue, value: inputValue }, ...options];

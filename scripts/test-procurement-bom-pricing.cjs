@@ -33,6 +33,17 @@ detail.bomRows.push(context.productDevelopmentReadonlyBomRow({ type:2, id:9, cod
 detail.bomRows.push(context.productDevelopmentReadonlyBomRow({ type:1, id:10, code:'FINISHED', sale_price:100, usage_value:1 }));
 assert.equal(context.productDevelopmentProcurementFieldValue(detail, 'materialPrice'), '1.41', 'Exclude unchecked pricing and finished-product rows');
 const scope = document.querySelector('.pfh-detail');
+detail.fields.push({attrId:153,key:'costPrice',value:'4'});
+context.productDevelopmentSyncCostTierPrices(detail);
+for (const [key,attrId,wanted] of [['thirdPrice',156,'6.00'],['secondPrice',155,'7.00'],['firstPrice',154,'8.00']]) assert.equal(context.productDevelopmentPrefillProductFieldValue(detail,{key,attrId}),wanted);
+scope.innerHTML = ['costPrice','thirdPrice','secondPrice','firstPrice'].map(key=>context.productDevelopmentPrefillFieldHtml({key,formGroup:'prefill',type:'number'},'SKU1',key==='costPrice'?'4':'')).join('');
+const cost = scope.querySelector('[data-form-key="costPrice"]');
+cost.value='5.25'; context.productDevelopmentHandleInput({target:cost,type:'input'});
+assert.equal(scope.querySelector('[data-form-key="thirdPrice"]').value,'7.25');
+assert.equal(scope.querySelector('[data-form-key="secondPrice"]').value,'8.25');
+assert.equal(scope.querySelector('[data-form-key="firstPrice"]').value,'9.25');
+cost.value=''; context.productDevelopmentHandleInput({target:cost,type:'input'});
+assert.equal(scope.querySelector('[data-form-key="thirdPrice"]').value,'');
 scope.innerHTML = context.productDevelopmentPrefillFieldHtml(procurementDefinition, 'SKU1', '1.91') + context.productDevelopmentPrefillFieldHtml({key:'materialPrice',formGroup:'procurement',type:'number',label:'单价'},'SKU1','1.41');
 const priceInput = scope.querySelector('[data-form-key="procurementPrice"]');
 priceInput.readOnly = true;

@@ -28,6 +28,7 @@
   }
 
   function productDevelopmentPrefillProductFieldValue(detail, definition) {
+    if (definition && ['firstPrice', 'secondPrice', 'thirdPrice'].includes(definition.key)) productDevelopmentSyncCostTierPrices(detail);
     if (definition && definition.key === 'procurementPrice') productDevelopmentSyncProcurementPrice(detail);
     if (definition && ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume', 'standardPackingQuantity'].includes(definition.key)) {
       productDevelopmentSyncReworkOuterDimensions(detail);
@@ -44,6 +45,21 @@
     if (!field) return '';
     if (productDevelopmentPrefillText(field.displayValue)) return field.displayValue;
     return field.value === undefined ? '' : field.value;
+  }
+
+  function productDevelopmentSyncCostTierPrices(detail, scope) {
+    if (!detail) return;
+    const fields = productDevelopmentProductFieldCollections(detail);
+    const costField = fields.find((field) => Number(field.attrId) === 153 || field.key === 'costPrice');
+    const local = productDevelopmentPrefillLocalAttrValue(detail, { attrId: 153 });
+    const raw = productDevelopmentPrefillText(local !== undefined ? local : costField && (costField.displayValue || costField.value)).replace(/,/g, '');
+    const cost = raw !== '' && Number.isFinite(Number(raw)) && Number(raw) >= 0 ? Number(raw) : null;
+    for (const [key, attrId, increase] of [['thirdPrice',156,2], ['secondPrice',155,3], ['firstPrice',154,4]]) {
+      const value = cost === null ? '' : productDevelopmentRoundUnitPrice(cost + increase);
+      productDevelopmentRememberLocalProductField(detail, { attrId }, value, value, '成本价自动计算');
+      fields.filter((field) => Number(field.attrId) === attrId).forEach((field) => { field.value = value; field.displayValue = value; });
+      if (scope) scope.querySelectorAll('[data-form-group="prefill"][data-form-key="' + key + '"]').forEach((input) => { input.value = value; input.closest('label')?.classList.toggle('is-missing', value === ''); });
+    }
   }
 
   function productDevelopmentSyncProcurementPrice(detail, scope) {

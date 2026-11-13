@@ -735,6 +735,7 @@
         const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
         if (definition) {
           const scope = target.closest && target.closest('.pfh-detail');
+          if (['firstPrice', 'secondPrice', 'thirdPrice'].includes(key)) { productDevelopmentSyncCostTierPrices(detail, scope); return true; }
           if (key === 'procurementPrice') {
             if (target.readOnly) return true;
             detail.productDetailProcurementPriceSource = 'manual';
@@ -755,6 +756,7 @@
             item.source = displayValue ? '本地人工填写（未写入）' : '待人工补充';
           });
           if (['outerLength', 'outerWidth', 'outerHeight'].includes(key)) productDevelopmentRefreshDerivedDimensions(detail, scope);
+          if (key === 'costPrice') productDevelopmentSyncCostTierPrices(detail, scope);
           productDevelopmentMarkProductDetailDirty(detail);
           persistDetail();
         }

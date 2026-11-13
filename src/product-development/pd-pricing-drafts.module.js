@@ -549,6 +549,17 @@
     });
   }
 
+  function productDevelopmentReadyBomDrafts(detail) {
+    const skipped = [];
+    const drafts = ['box', 'label', 'instruction'].map((kind) => [kind, detail.materialDrafts[kind]])
+      .filter(([, draft]) => draft && draft.enabled !== false).filter(([kind, draft]) => {
+        const missing = productDevelopmentMaterialDraftMissingFields(kind, draft);
+        if (missing.length) skipped.push((kind === 'box' ? '纸盒' : kind === 'label' ? '标签' : '说明书') + '（缺少：' + missing.join('、') + '）');
+        return !missing.length;
+      });
+    return { drafts, skipped };
+  }
+
   async function productDevelopmentSaveBomToPlm(sku) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
@@ -558,17 +569,18 @@
     const projectId = String(detail.projectId || task.projectId || task.rowId || '').trim();
     if (!/^\d+$/.test(projectId)) throw new Error('当前开发任务缺少有效项目 ID');
     productDevelopmentEnsureMaterialDrafts(detail, task);
-    const drafts = [
-      ['box', detail.materialDrafts.box],
-      ['label', detail.materialDrafts.label],
-      ['instruction', detail.materialDrafts.instruction],
-    ].filter(([, draft]) => draft && draft.enabled !== false);
-    const missing = drafts.flatMap(([kind, draft]) => productDevelopmentMaterialDraftMissingFields(kind, draft));
-    if (missing.length) throw new Error('请先补充 BOM：' + missing.join('、'));
+    const { drafts, skipped } = productDevelopmentReadyBomDrafts(detail);
     const referenceCode = getProductDevelopmentTaskMeta(task, detail).reworkProductCode;
-    const packagingRows = productDevelopmentReferencePackagingRows(detail, task);
-    if (!productDevelopmentIsSupplement(detail, task) && referenceCode && !packagingRows.length) throw new Error('尚未读取到对标包材，请先查询对标产品的 BOM；不会把对标产品作为成品添加');
-    if (packagingRows.some((row) => !/^\d+$/.test(String(row.materialId || '')) || row.materialType === '' || row.materialType === null || row.materialType === undefined)) throw new Error('对标包材缺少物料 ID 或包材类型，请使用“一键填入 PLM BOM”按名称选择包材');
+    const packagingRows = productDevelopmentReferencePackagingRows(detail, task).filter((row) => {
+      const ready = /^\d+$/.test(String(row.materialId || '')) && row.materialType !== '' && row.materialType !== null && row.materialType !== undefined;
+      if (!ready) skipped.push('对标包材 ' + row.code + '（缺少物料 ID 或类型）');
+      return ready;
+    });
+    if (!productDevelopmentIsSupplement(detail, task) && referenceCode && !packagingRows.length) skipped.push('对标包材（尚未读取到完整资料）');
+    if (!drafts.length && !packagingRows.length) {
+      detail.bomPlmSaveMessage = '没有可保存的完整物料；已跳过：' + skipped.join('、');
+      return { skipped, rows: detail.bomRows || [] };
+    }
     let rows = Array.isArray(detail.bomRows) ? detail.bomRows.slice() : [];
     const productMainId = await productDevelopmentResolveProductMainId(task, detail, rows);
     if (!productMainId) {
@@ -625,7 +637,7 @@
     const pricing = rows.map(productDevelopmentBomPricingPayload).filter(Boolean);
     if (pricing.length) await fetchPlmApiJson('/api/ChemicalNewBom/SaveBomPricing', pricing);
     detail.bomRows = rows;
-    detail.bomDraftDirty = false;
+    detail.bomDraftDirty = skipped.length > 0;
     detail.bomDraftSavedAt = new Date().toLocaleString();
     detail.bomDraftSaveState = 'saved';
     detail.bomDraftSaveMessage = '已同步 PLM · ' + detail.bomDraftSavedAt;
@@ -634,9 +646,10 @@
       ? 'BOM 已保存到 PLM；项目未建品，图片同步已跳过'
       : 'BOM 已保存到 PLM';
     detail.bomPlmSaveState = 'saved';
+    if (skipped.length) detail.bomPlmSaveMessage += '；已跳过：' + skipped.join('、');
     detail.cacheSource = 'local-cache';
     saveProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
-    return { warning: syncMessage, rows };
+    return { warning: syncMessage, rows, skipped };
   }
 
   function productDevelopmentSaveBomLocally(sku) {
@@ -724,6 +737,7 @@
   }
 
   function productDevelopmentBuildProductDetailPayload(detail, task) {
+    productDevelopmentSyncCostTierPrices(detail);
     productDevelopmentSyncProcurementPrice(detail);
     const source = detail && detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};
     const sku = productDevelopmentCleanText(detail && detail.sku || task && task.sku, 100).toUpperCase();

@@ -95,7 +95,27 @@ const detail = { sku: 'SKU1', projectId: '12', productMainId: '999', productDeve
   detail.supplement = false;
   detail.productDevelopmentReworkLookup.data.bomRows = [];
   const writes = calls.length;
-  await assert.rejects(context.productDevelopmentSaveBomToPlm('SKU1'), /尚未读取到对标包材/);
-  assert.equal(calls.length, writes, 'Missing reference data fails before any PLM mutation');
+  const empty = await context.productDevelopmentSaveBomToPlm('SKU1');
+  assert(empty.skipped.some((item) => item.includes('对标包材')));
+  assert.equal(calls.length, writes, 'No ready material means no PLM mutation');
+  detail.materialDrafts.label = { enabled:true, incomplete:true };
+  detail.materialDrafts.box = { enabled:true, materialName:'完整纸盒' };
+  context.productDevelopmentMaterialDraftMissingFields = (kind,draft) => draft.incomplete ? ['标签规格型号','标签长度'] : [];
+  const ready = context.productDevelopmentReadyBomDrafts(detail);
+  assert.deepEqual(Array.from(ready.drafts, ([kind]) => kind), ['box']);
+  let filled = [];
+  context.productDevelopmentBomDomFillEditor = async (target,kind) => { filled.push(kind); };
+  const partial = await context.productDevelopmentFillBomDrawer('SKU1');
+  assert.deepEqual(filled,['box'],'An incomplete label cannot block the complete box');
+  assert(partial.skipped.some((item) => item.includes('标签规格型号')));
+  context.productDevelopmentMaterialDraftPayload = () => ({code:'BOX'});
+  const save = context.fetchPlmApiJson;
+  context.fetchPlmApiJson = async (url,body) => {
+    if(url.endsWith('/SaveMaterialDraftOfProduct')) { rows.push({code:'BOX',joinId:'20',materialId:'502',materialType:0,typeValue:2}); return {data:{id:502,code:'BOX'}}; }
+    return save(url,body);
+  };
+  const saved = await context.productDevelopmentSaveBomToPlm('SKU1');
+  assert(saved.skipped.some((item)=>item.includes('标签规格型号')));
+  assert.equal(detail.materialDrafts.label.materialId,undefined,'Skipped label is never created');
   console.log('Reference BOM: packaging classification, exact search/menu/type sequence, duplicate prevention and current-product API binding passed');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
