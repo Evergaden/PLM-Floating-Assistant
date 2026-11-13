@@ -56,19 +56,21 @@
     trigger.pfhDetailJumpBound = true;
     let openTimer = 0;
     let closeTimer = 0;
+    let selectionTimer = 0;
     let menu = null;
     let suppressClick = false;
     const cancelOpen = () => window.clearTimeout(openTimer);
     const close = () => {
       cancelOpen();
       window.clearTimeout(closeTimer);
+      window.clearTimeout(selectionTimer);
       if (menu) menu.remove();
       menu = null;
       trigger.setAttribute('aria-expanded', 'false');
       document.removeEventListener('pointerdown', outside, true);
     };
     const outside = (event) => { if (!trigger.contains(event.target) && !(menu && menu.contains(event.target))) close(); };
-    const leave = () => { cancelOpen(); closeTimer = window.setTimeout(close, 180); };
+    const leave = () => { cancelOpen(); window.clearTimeout(selectionTimer); closeTimer = window.setTimeout(close, 180); };
     const jump = (item) => {
       if (!item || item.disabled) return;
       const target = productDevelopmentDetailJumpTargets(panel).find(([id]) => id === item.getAttribute('data-development-detail-jump'));
@@ -95,13 +97,27 @@
       const triggerRect = trigger.getBoundingClientRect();
       const menuRect = menu.getBoundingClientRect();
       menu.style.left = Math.max(8, Math.min(triggerRect.left - panelRect.left, panelRect.width - menuRect.width - 8)) + 'px';
-      menu.style.top = Math.max(8, Math.min(triggerRect.bottom - panelRect.top + 6, panelRect.height - menuRect.height - 8)) + 'px';
+      menu.style.top = Math.max(8, Math.min(triggerRect.bottom - panelRect.top, panelRect.height - menuRect.height - 8)) + 'px';
       trigger.setAttribute('aria-expanded', 'true');
       menu.addEventListener('pointerenter', () => window.clearTimeout(closeTimer));
       menu.addEventListener('pointerleave', leave);
+      const armSelection = (item) => {
+        window.clearTimeout(closeTimer);
+        window.clearTimeout(selectionTimer);
+        if (!item.disabled) selectionTimer = window.setTimeout(() => { if (menu && menu.contains(item)) jump(item); }, 220);
+      };
       menu.addEventListener('pointerover', (event) => {
         const item = event.target.closest('[data-development-detail-jump]');
-        if (item && !item.contains(event.relatedTarget)) jump(item);
+        if (!item || item.contains(event.relatedTarget)) return;
+        armSelection(item);
+      });
+      menu.addEventListener('pointermove', (event) => {
+        const item = event.target.closest('[data-development-detail-jump]');
+        if (item) armSelection(item);
+      });
+      menu.addEventListener('pointerout', (event) => {
+        const item = event.target.closest('[data-development-detail-jump]');
+        if (item && !item.contains(event.relatedTarget)) window.clearTimeout(selectionTimer);
       });
       menu.addEventListener('click', (event) => { jump(event.target.closest('[data-development-detail-jump]')); });
       menu.addEventListener('keydown', (event) => {
