@@ -71,7 +71,7 @@
     return task;
   }
 
-  async function setLocalImageSource(image, url) {
+  async function setLocalImageSource(image, url, fallbackUrl) {
     if (image.pfhLocalImageSource === url && image.getAttribute && image.getAttribute('src')) return;
     image.pfhLocalImageSource = url;
     if (!/^https?:\/\//i.test(url)) { image.src = url; return; }
@@ -82,14 +82,18 @@
       const objectUrl = URL.createObjectURL(blob);
       image.pfhLocalObjectUrl = objectUrl;
       image.addEventListener('error', () => {
-        if (image.pfhLocalObjectUrl !== objectUrl) return;
+        if (image.pfhLocalObjectUrl !== objectUrl || image.pfhLocalImageSource !== url) return;
         URL.revokeObjectURL(objectUrl); delete image.pfhLocalObjectUrl;
         localImageTransaction('readwrite', store => store.delete(url)).catch(() => {});
-        image.src = url;
+        if (fallbackUrl && fallbackUrl !== url) setLocalImageSource(image, fallbackUrl);
+        else image.src = url;
       }, { once: true });
       image.src = objectUrl;
     } catch (_) {
-      if (image.isConnected && image.pfhLocalImageSource === url) image.src = url;
+      if (image.isConnected && image.pfhLocalImageSource === url) {
+        if (fallbackUrl && fallbackUrl !== url) await setLocalImageSource(image, fallbackUrl);
+        else image.src = url;
+      }
     }
   }
 
@@ -103,7 +107,7 @@
         const url = image.getAttribute('data-local-image');
         if (!url) continue;
         image.removeAttribute('data-local-image'); active++;
-        setLocalImageSource(image, url).finally(() => { active--; pump(); });
+        setLocalImageSource(image, url, image.getAttribute('data-local-image-fallback')).finally(() => { active--; pump(); });
       }
     };
     const visible = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => {

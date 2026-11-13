@@ -105,6 +105,16 @@ async function checkPrice() {
   await assert.rejects(price.productDevelopmentDomCommitNumber(field, 'invalid'), /有效数字/);
   forceError = true;
   await assert.rejects(price.productDevelopmentDomCommitNumber(field, 2.02), /尚未通过/);
+  forceError = false;
+  const blur = field.blur.bind(field);
+  field.blur = () => { blur(); if (model === 1000) field.stored = '1,000'; };
+  await price.productDevelopmentDomCommitNumber(field, 1000, '最小起订量');
+  assert.equal(model, 1000, 'Formatted thousands still verify against the numeric form value');
+  const getAttribute = field.getAttribute.bind(field);
+  field.getAttribute = (name) => name === 'aria-valuemax' ? '10000' : getAttribute(name);
+  const eventCount = events.length;
+  await assert.rejects(price.productDevelopmentDomCommitNumber(field, 40425, '标准装箱数'), /标准装箱数.*最大 10000/);
+  assert.equal(events.length, eventCount, 'Out-of-range values must not clear or write the PLM field');
 }
 checkDimensions();
 checkPrice().then(() => console.log('Product development price commit and BOM dimensions regression passed')).catch((error) => { console.error(error); process.exitCode = 1; });

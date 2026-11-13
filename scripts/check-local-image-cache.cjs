@@ -40,6 +40,18 @@ function session() {
   const image = { isConnected: true, addEventListener() {} };
   await third.setLocalImageSource(image, 'https://test/fail');
   assert.equal(image.src, 'https://test/fail', 'network failure falls back to normal image loading');
+  const fallbackImage = { isConnected: true, addEventListener() {} };
+  await third.setLocalImageSource(fallbackImage, 'https://test/fail', 'https://test/thumbnail');
+  assert.equal(fallbackImage.pfhLocalImageSource, 'https://test/thumbnail', 'Original download failure uses the available thumbnail');
+  assert(fallbackImage.src.startsWith('blob:'));
+  URL.revokeObjectURL(fallbackImage.pfhLocalObjectUrl);
+  const handlers = [];
+  const corruptImage = { isConnected: true, addEventListener(type, callback) { if (type === 'error') handlers.push(callback); } };
+  await third.setLocalImageSource(corruptImage, 'https://test/corrupt', 'https://test/thumbnail');
+  handlers[0]();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(corruptImage.pfhLocalImageSource, 'https://test/thumbnail', 'A cached blob decoding error also falls back to the thumbnail');
+  URL.revokeObjectURL(corruptImage.pfhLocalObjectUrl);
   const detached = { isConnected: false };
   await third.setLocalImageSource(detached, 'https://test/detached');
   assert.equal(detached.src, undefined, 'detached image does not allocate an object URL');

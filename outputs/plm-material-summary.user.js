@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.62
+// @version      2.10.63
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.62';
+  const SCRIPT_VERSION = '2.10.63';
   const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }\n#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n\n/* Text-only BOM controls, full-width material groups and aligned fields. */\n#plm-floating-helper .pfh-product-development-material-planner.pfh-bom-form {\n  display: grid;\n  gap: 16px;\n  min-width: 0;\n  padding: 16px;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-bom-form > header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-bom-form > header > .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; }\n#plm-floating-helper .pfh-product-development-detail-form > .pfh-product-development-product-form-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-detail-heading { display: contents; }\n#plm-floating-helper .pfh-product-development-product-form-header .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-bom-form > header h3 { font-size: 16px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form button[data-action] {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-bom-form button.is-primary { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-bom-form button:hover:not(:disabled) { border-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form button:disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-list { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card { align-content: start; gap: 12px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header { flex-direction: row; align-items: center; min-height: 36px; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header strong { font-size: 20px; font-weight: 700; line-height: 1.4; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled { padding-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled small { margin-left: 12px; color: var(--pfh-theme-muted); font-size: 11px; font-weight: 400; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-grid,\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-grid { grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); align-items: start; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field { gap: 8px; color: var(--pfh-theme-text); font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field > span { overflow: visible; white-space: normal; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field :is(input, select) { min-height: 36px; padding: 8px 12px; font: inherit; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form :is(button, input, select):focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 2px; }\n#plm-floating-helper .pfh-bom-dimensions { display: grid; grid-column: 1 / -1; grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-bom-dimensions.is-box { grid-template-columns: var(--pfh-bom-field-columns, repeat(3, minmax(0, 1fr))); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-options { gap: 12px; padding-top: 12px; border-top-style: solid; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group { gap: 8px; font-size: 11px; color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group > div { display: flex; min-height: 36px; box-sizing: border-box; align-items: center; gap: 16px; padding: 8px 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group input { accent-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-product-binding { padding: 12px; border-radius: 8px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid { gap: 12px; margin-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid small { font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-bom-form { --pfh-bom-field-columns: minmax(0, 1fr); }\n}\n";
   const SKU_DETAIL_LAYOUT_CSS = "/* Keep SKU identity above the independently scrolling detail content. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  height: auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  padding: 12px 14px 0;\n  overflow: hidden;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {\n  flex: 0 0 auto;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 0 0;\n}\n\n#plm-floating-helper .pfh-material-card {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 16px 18px;\r\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\r\n  border-radius: 16px;\r\n  background: var(--pfh-theme-card, #fff);\r\n}\r\n#plm-floating-helper .pfh-material-card small {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key] {\r\n  display: block;\r\n  min-width: 0;\r\n  overflow-wrap: anywhere;\r\n  /* Fill the inter-row gap without moving the text or overlapping targets. */\r\n  padding: 4px 10px;\r\n  margin: -4px -10px;\r\n  cursor: pointer;\r\n  border-radius: 6px;\r\n  transition: color .15s, background .15s;\r\n}\r\n#plm-floating-helper .pfh-material-size {\r\n  color: var(--pfh-theme-text, #17213a);\r\n  font-size: 15px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-code {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:hover,\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:focus-visible,\r\n#plm-floating-helper .pfh-material-card .is-copied {\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-soft, #f4efff);\r\n  outline: none;\r\n}\r\n\n/* Keep product context in the selected SKU card while the editor owns the detail pane. */\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active) {\n  position: relative;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active)::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  z-index: 10;\n  border-radius: inherit;\n  background: color-mix(in srgb, var(--pfh-theme-page, #f8f9ff) 58%, transparent);\n  pointer-events: none;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-list-head, .pfh-sku-list-toolbar, .pfh-sku-filter-toolbar, .pfh-list-pager, .pfh-search-result-toolbar, .pfh-workspace-search-host) {\n  opacity: .5;\n}\n";
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
@@ -116,7 +116,7 @@
     return task;
   }
 
-  async function setLocalImageSource(image, url) {
+  async function setLocalImageSource(image, url, fallbackUrl) {
     if (image.pfhLocalImageSource === url && image.getAttribute && image.getAttribute('src')) return;
     image.pfhLocalImageSource = url;
     if (!/^https?:\/\//i.test(url)) { image.src = url; return; }
@@ -127,14 +127,18 @@
       const objectUrl = URL.createObjectURL(blob);
       image.pfhLocalObjectUrl = objectUrl;
       image.addEventListener('error', () => {
-        if (image.pfhLocalObjectUrl !== objectUrl) return;
+        if (image.pfhLocalObjectUrl !== objectUrl || image.pfhLocalImageSource !== url) return;
         URL.revokeObjectURL(objectUrl); delete image.pfhLocalObjectUrl;
         localImageTransaction('readwrite', store => store.delete(url)).catch(() => {});
-        image.src = url;
+        if (fallbackUrl && fallbackUrl !== url) setLocalImageSource(image, fallbackUrl);
+        else image.src = url;
       }, { once: true });
       image.src = objectUrl;
     } catch (_) {
-      if (image.isConnected && image.pfhLocalImageSource === url) image.src = url;
+      if (image.isConnected && image.pfhLocalImageSource === url) {
+        if (fallbackUrl && fallbackUrl !== url) await setLocalImageSource(image, fallbackUrl);
+        else image.src = url;
+      }
     }
   }
 
@@ -148,7 +152,7 @@
         const url = image.getAttribute('data-local-image');
         if (!url) continue;
         image.removeAttribute('data-local-image'); active++;
-        setLocalImageSource(image, url).finally(() => { active--; pump(); });
+        setLocalImageSource(image, url, image.getAttribute('data-local-image-fallback')).finally(() => { active--; pump(); });
       }
     };
     const visible = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => {
@@ -6505,11 +6509,11 @@
     Object.freeze({ key: 'productProductionLine', attrId: 131, label: '产品产线', domId: 'form_item_3_attr_group_35_0_attr_language_config_json_0_value', control: 'select' }),
     Object.freeze({ key: 'minimumOrderQuantity', attrId: 2764, label: '最小起订量', domId: 'form_item_3_attr_group_35_1_attr_language_config_json_0_value', type: 'number' }),
     Object.freeze({ key: 'procurementPrice', attrId: 152, label: '采购价', domId: 'form_item_procurement_price', type: 'number' }),
-    Object.freeze({ key: 'costPrice', attrId: 153, label: '成本价', domId: 'form_item_6_attr_group_0_1_attr_language_config_json_0_value', type: 'number' }),
-    Object.freeze({ key: 'firstPrice', attrId: 154, label: '国内一档价格', domId: 'form_item_6_attr_group_35_0_attr_language_config_json_0_value', type: 'number' }),
-    Object.freeze({ key: 'secondPrice', attrId: 155, label: '国内二档价格', domId: 'form_item_6_attr_group_35_1_attr_language_config_json_0_value', type: 'number' }),
-    Object.freeze({ key: 'thirdPrice', attrId: 156, label: '国内三档价格', domId: 'form_item_6_attr_group_35_2_attr_language_config_json_0_value', type: 'number' }),
-    Object.freeze({ key: 'standardPackingQuantity', attrId: 123, label: '标准装箱数', domId: 'form_item_7_attr_group_0_0_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'costPrice', attrId: 153, label: '成本价', domId: 'form_item_7_attr_group_0_1_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'firstPrice', attrId: 154, label: '国内一档价格', domId: 'form_item_7_attr_group_35_0_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'secondPrice', attrId: 155, label: '国内二档价格', domId: 'form_item_7_attr_group_35_1_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'thirdPrice', attrId: 156, label: '国内三档价格', domId: 'form_item_7_attr_group_35_2_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'standardPackingQuantity', attrId: 123, label: '标准装箱数', domId: 'form_item_8_attr_group_0_0_attr_language_config_json_0_value', type: 'number' }),
   ]);
 
   const PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS = Object.freeze([
@@ -7768,6 +7772,12 @@
     return (Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks : []).find((item) => item && item.sku === normalizedSku) || null;
   }
 
+  function productDevelopmentTaskImageUrl(task, data) {
+    const row = task || {};
+    const source = data || {};
+    return row.productListImageUrl || row.benchmarkImageUrl || source.productListImageUrl || source.benchmarkImageUrl || getSkuListImageUrl(source) || '';
+  }
+
   function productDevelopmentTaskSeedData(task) {
     const row = task || {};
     const sku = String(row.sku || '').trim().toUpperCase();
@@ -8049,7 +8059,7 @@
     if (!items.length) return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll">' + (searchTokens.length || activeFilterCount ? '<div class="pfh-empty">没有符合搜索或筛选条件的产品</div>' : taskEmptyStateHtml('暂无产品开发任务', '当前用户没有开发人员字段匹配的产品任务')) + '</div></div>';
     const cards = items.map((item) => {
       const data = productDevelopmentTaskSeedData(item);
-      const image = item.productListImageUrl || item.benchmarkImageUrl || data.productListImageUrl || data.benchmarkImageUrl || '';
+      const image = productDevelopmentTaskImageUrl(item, data);
       return skuListCardHtml(item, listMode, state.productDevelopmentTaskSelectedSku, {
         imageSignature,
         action: 'product-development-task-select',
@@ -9803,10 +9813,15 @@
     return true;
   }
 
-  async function productDevelopmentDomCommitNumber(element, value) {
-    if (!element || element.disabled || element.readOnly) throw new Error('单价控件不可编辑');
+  async function productDevelopmentDomCommitNumber(element, value, fieldLabel) {
+    const label = fieldLabel || '单价';
+    if (!element || element.disabled || element.readOnly) throw new Error(label + '控件不可编辑');
     const text = String(value === null || value === undefined ? '' : value).trim();
-    if (!text || !Number.isFinite(Number(text))) throw new Error('单价不是有效数字');
+    if (!text || !Number.isFinite(Number(text))) throw new Error(label + '不是有效数字');
+    for (const [attribute, below] of [['aria-valuemin', true], ['aria-valuemax', false]]) {
+      const bound = element.getAttribute(attribute);
+      if (bound !== null && bound !== '' && Number.isFinite(Number(bound)) && (below ? Number(text) < Number(bound) : Number(text) > Number(bound))) throw new Error(label + '超出 PLM 允许范围（' + (below ? '最小 ' : '最大 ') + bound + '）');
+    }
     // InputNumber can show a DOM value while its form model is still empty.
     // Commit an actual value transition, then let the focused control blur.
     const id = element.id;
@@ -9814,12 +9829,12 @@
     productDevelopmentDomNativeSetter(element, '', ['input', 'change']);
     await productDevelopmentDomWait(30);
     const input = id ? document.getElementById(id) : element;
-    if (!input || !input.isConnected) throw new Error('单价控件已刷新，请重新填写');
+    if (!input || !input.isConnected) throw new Error(label + '控件已刷新，请重新填写');
     input.focus();
     productDevelopmentDomNativeSetter(input, text, ['input', 'change']);
     await productDevelopmentDomWait(30);
     const commitInput = id ? document.getElementById(id) : input;
-    if (!commitInput || !commitInput.isConnected) throw new Error('单价控件已刷新，请重新填写');
+    if (!commitInput || !commitInput.isConnected) throw new Error(label + '控件已刷新，请重新填写');
     if (commitInput !== input) commitInput.focus();
     commitInput.blur();
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -9827,10 +9842,10 @@
       const current = id ? document.getElementById(id) : input;
       const item = current && current.closest('.ant-form-item');
       const error = item && item.querySelector('.ant-form-item-explain-error');
-      if (current && String(current.value).trim() && Number(current.value) === Number(text)
+      if (current && String(current.value).trim() && Number(String(current.value).replace(/,/g, '')) === Number(text)
         && current.getAttribute('aria-invalid') !== 'true' && !(error && productDevelopmentDomVisible(error))) return true;
     }
-    throw new Error('单价尚未通过 PLM 表单校验，请检查该控件');
+    throw new Error(label + '尚未通过 PLM 表单校验，请检查该控件');
   }
 
   function productDevelopmentDomSelectedText(input) {
@@ -10446,6 +10461,35 @@
     return definitions.map((definition) => ({ definition, value: valueReader(definition) })).filter((item) => productDevelopmentPrefillText(item.value));
   }
 
+  function productDevelopmentDomResolveField(definition) {
+    const panel = typeof PANEL_ID === 'string' ? document.getElementById(PANEL_ID) : null;
+    const usable = (element) => element && element.matches('input,textarea') && element.type !== 'hidden' && element.type !== 'file'
+      && !element.disabled && (!element.readOnly || definition.control) && !(panel && panel.contains(element)) && productDevelopmentDomVisible(element);
+    const normalize = (value) => productDevelopmentDomText(value).replace(/[\s*＊:：]/g, '').replace(/（/g, '(').replace(/）/g, ')');
+    const wanted = normalize(definition.label);
+    const labels = Array.from(document.querySelectorAll('label')).filter((label) => !(panel && panel.contains(label)));
+    const fromLabels = (matches) => Array.from(new Set(matches.flatMap((label) => {
+      const linked = document.getElementById(label.getAttribute('for'));
+      if (usable(linked)) return [linked];
+      return Array.from((label.closest('.ant-form-item') || label).querySelectorAll('input,textarea')).filter(usable);
+    })));
+    // PLM exposes the stable attribute ID on the label, while the input ID contains changing group indexes.
+    const attributes = definition.attrId ? labels.filter((label) => Array.from(label.querySelectorAll('[id]')).some((node) => node.id === String(definition.attrId))) : [];
+    const attributeFields = fromLabels(attributes);
+    if (attributeFields.length) return attributeFields.length === 1 ? attributeFields[0] : null;
+    const labelFields = fromLabels(labels.filter((label) => [label.getAttribute('title'), label.textContent, label.firstElementChild && label.firstElementChild.textContent].some((value) => normalize(value) === wanted)));
+    if (labelFields.length) return labelFields.length === 1 ? labelFields[0] : null;
+    const placeholders = new Set([wanted, '请输入' + wanted, '请选择' + wanted]);
+    const inputs = Array.from(document.querySelectorAll('input,textarea')).filter(usable).filter((input) => placeholders.has(normalize(input.getAttribute('placeholder'))));
+    if (inputs.length) return inputs.length === 1 ? inputs[0] : null;
+    const direct = document.getElementById(definition.domId);
+    if (!usable(direct)) return null;
+    const item = direct.closest('.ant-form-item');
+    const label = item && item.querySelector('label');
+    if (label && ![label.textContent, label.firstElementChild && label.firstElementChild.textContent].some((value) => normalize(value) === wanted)) return null;
+    return direct;
+  }
+
   async function productDevelopmentFillPlmPage1(detail) {
     await productDevelopmentDomEnsureEnglishLanguage();
     const values = productDevelopmentDomAvailableValues(PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS, (definition) => productDevelopmentPage1FieldValue(detail, definition.key));
@@ -10453,7 +10497,7 @@
     if (!values.length) return { warnings: ['悬浮助手页面1暂无可填写的数据'] };
     for (const item of values) {
       const definition = item.definition;
-      const element = document.getElementById(definition.domId);
+      const element = productDevelopmentDomResolveField(definition);
       if (!element) {
         warnings.push('页面1未找到“' + definition.label + '”控件');
         continue;
@@ -10476,7 +10520,7 @@
     if (!values.length && !procurementValues.length) return { warnings: ['悬浮助手页面2暂无可填写的数据'] };
     for (const item of values) {
       const definition = item.definition;
-      const element = document.getElementById(definition.domId);
+      const element = productDevelopmentDomResolveField(definition);
       if (!element) {
         warnings.push('页面2未找到“' + definition.label + '”控件');
         continue;
@@ -10484,6 +10528,7 @@
       const value = productDevelopmentPrefillText(item.value, definition.type === 'textarea' ? 12000 : 800);
       try {
         if (definition.control) await productDevelopmentDomSelectOption(element, value, definition.control);
+        else if (definition.type === 'number') await productDevelopmentDomCommitNumber(element, value, definition.label);
         else productDevelopmentDomNativeSetter(element, value);
       } catch (error) {
         warnings.push(definition.label + '：' + formatErrorMessage(error));
@@ -10540,9 +10585,9 @@
     Promise.resolve().then(() => runner(detail)).then((result) => {
       const baseMessage = normalizedPage === 'page1'
         ? '页面1已填写，请确认后在 PLM 点击下一步'
-        : '页面2已填写，请检查文件并在 PLM 手动上传后保存';
+        : '页面2已填写，请核对后在 PLM 保存';
       const warnings = result && Array.isArray(result.warnings) ? result.warnings : [];
-      state.productDevelopmentStatus = warnings.length ? baseMessage + '；' + warnings.join('；') : baseMessage;
+      state.productDevelopmentStatus = warnings.length ? (normalizedPage === 'page1' ? '页面1' : '页面2') + '部分字段未填入：' + warnings.join('；') : baseMessage;
       showToast(state.productDevelopmentStatus);
     }).catch((error) => {
       state.productDevelopmentError = formatErrorMessage(error);
@@ -11441,7 +11486,7 @@
     const sku = String(source.sku || data.sku || '未选择 SKU').trim().toUpperCase();
     const title = [source.brand || data.brand, source.name || data.name].filter(Boolean).join(' ') || sku;
     const status = source.projectStatus || data.projectStatus || '开发任务';
-    return '<section class="pfh-section pfh-file-section pfh-product-development-task-hero"><div class="pfh-product-hero"><div class="pfh-title-meta pfh-sku-detail-card">' + productThumbHtml(data) + '<div class="pfh-detail-card-content"><div class="pfh-detail-card-heading"><span class="pfh-detail-sku-badge" title="当前开发 SKU">' + iconHtml('tag') + '<span>' + escapeHtml(sku) + '</span></span><strong class="pfh-detail-product-title" title="产品开发详情">' + escapeHtml(title) + '</strong></div><div class="pfh-detail-card-meta"><span class="is-design-type" title="产品开发任务">' + iconHtml('tag') + '<span>产品开发</span></span><span class="is-design-type" title="开发状态">' + iconHtml('info') + '<span>' + escapeHtml(status) + '</span></span></div></div></div></div></section>';
+    return '<section class="pfh-section pfh-file-section pfh-product-development-task-hero"><div class="pfh-product-hero"><div class="pfh-title-meta pfh-sku-detail-card">' + productThumbHtml(data, productDevelopmentTaskImageUrl(source, data)) + '<div class="pfh-detail-card-content"><div class="pfh-detail-card-heading"><span class="pfh-detail-sku-badge" title="当前开发 SKU">' + iconHtml('tag') + '<span>' + escapeHtml(sku) + '</span></span><strong class="pfh-detail-product-title" title="产品开发详情">' + escapeHtml(title) + '</strong></div><div class="pfh-detail-card-meta"><span class="is-design-type" title="产品开发任务">' + iconHtml('tag') + '<span>产品开发</span></span><span class="is-design-type" title="开发状态">' + iconHtml('info') + '<span>' + escapeHtml(status) + '</span></span></div></div></div></div></section>';
   }
 
   function productDevelopmentTaskEmbeddedViewHtml(view, statusText) {
@@ -35599,12 +35644,13 @@ self.onmessage = async function(event) {
     return match ? (match[1] + ' 年 ' + Number(match[2]) + ' 月') : String(month || '本月');
   }
 
-  function productThumbHtml(data) {
-    const src = getSkuListImageUrl(data);
+  function productThumbHtml(data, sourceUrl) {
+    const src = sourceUrl || getSkuListImageUrl(data);
     if (!src) return '<span class="pfh-product-thumb is-empty">' + iconHtml('image') + '</span>';
+    const thumbnail = getLedgerThumbnailUrl(src);
     return '<button type="button" class="pfh-product-thumb" title="悬浮放大预览">' +
-      '<span class="pfh-thumb-frame"><img data-local-image="' + escapeHtml(src) + '" alt=""></span>' +
-      '<span class="pfh-thumb-preview"><img data-local-image="' + escapeHtml(src) + '" alt=""></span>' +
+      '<span class="pfh-thumb-frame"><img data-local-image="' + escapeHtml(thumbnail) + '" data-local-image-fallback="' + escapeHtml(src) + '" alt=""></span>' +
+      '<span class="pfh-thumb-preview"><img data-local-image="' + escapeHtml(src) + '" data-local-image-fallback="' + escapeHtml(thumbnail) + '" alt=""></span>' +
       '</button>';
   }
 

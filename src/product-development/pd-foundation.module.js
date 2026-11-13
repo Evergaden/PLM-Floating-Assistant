@@ -248,11 +248,11 @@
     Object.freeze({ key: 'productProductionLine', attrId: 131, label: '产品产线', domId: 'form_item_3_attr_group_35_0_attr_language_config_json_0_value', control: 'select' }),
     Object.freeze({ key: 'minimumOrderQuantity', attrId: 2764, label: '最小起订量', domId: 'form_item_3_attr_group_35_1_attr_language_config_json_0_value', type: 'number' }),
     Object.freeze({ key: 'procurementPrice', attrId: 152, label: '采购价', domId: 'form_item_procurement_price', type: 'number' }),
-    Object.freeze({ key: 'costPrice', attrId: 153, label: '成本价', domId: 'form_item_6_attr_group_0_1_attr_language_config_json_0_value', type: 'number' }),
-    Object.freeze({ key: 'firstPrice', attrId: 154, label: '国内一档价格', domId: 'form_item_6_attr_group_35_0_attr_language_config_json_0_value', type: 'number' }),
-    Object.freeze({ key: 'secondPrice', attrId: 155, label: '国内二档价格', domId: 'form_item_6_attr_group_35_1_attr_language_config_json_0_value', type: 'number' }),
-    Object.freeze({ key: 'thirdPrice', attrId: 156, label: '国内三档价格', domId: 'form_item_6_attr_group_35_2_attr_language_config_json_0_value', type: 'number' }),
-    Object.freeze({ key: 'standardPackingQuantity', attrId: 123, label: '标准装箱数', domId: 'form_item_7_attr_group_0_0_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'costPrice', attrId: 153, label: '成本价', domId: 'form_item_7_attr_group_0_1_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'firstPrice', attrId: 154, label: '国内一档价格', domId: 'form_item_7_attr_group_35_0_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'secondPrice', attrId: 155, label: '国内二档价格', domId: 'form_item_7_attr_group_35_1_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'thirdPrice', attrId: 156, label: '国内三档价格', domId: 'form_item_7_attr_group_35_2_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'standardPackingQuantity', attrId: 123, label: '标准装箱数', domId: 'form_item_8_attr_group_0_0_attr_language_config_json_0_value', type: 'number' }),
   ]);
 
   const PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS = Object.freeze([

@@ -277,6 +277,12 @@
     return (Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks : []).find((item) => item && item.sku === normalizedSku) || null;
   }
 
+  function productDevelopmentTaskImageUrl(task, data) {
+    const row = task || {};
+    const source = data || {};
+    return row.productListImageUrl || row.benchmarkImageUrl || source.productListImageUrl || source.benchmarkImageUrl || getSkuListImageUrl(source) || '';
+  }
+
   function productDevelopmentTaskSeedData(task) {
     const row = task || {};
     const sku = String(row.sku || '').trim().toUpperCase();
@@ -558,7 +564,7 @@
     if (!items.length) return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll">' + (searchTokens.length || activeFilterCount ? '<div class="pfh-empty">没有符合搜索或筛选条件的产品</div>' : taskEmptyStateHtml('暂无产品开发任务', '当前用户没有开发人员字段匹配的产品任务')) + '</div></div>';
     const cards = items.map((item) => {
       const data = productDevelopmentTaskSeedData(item);
-      const image = item.productListImageUrl || item.benchmarkImageUrl || data.productListImageUrl || data.benchmarkImageUrl || '';
+      const image = productDevelopmentTaskImageUrl(item, data);
       return skuListCardHtml(item, listMode, state.productDevelopmentTaskSelectedSku, {
         imageSignature,
         action: 'product-development-task-select',

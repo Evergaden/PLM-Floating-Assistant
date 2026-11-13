@@ -36,10 +36,15 @@
     return true;
   }
 
-  async function productDevelopmentDomCommitNumber(element, value) {
-    if (!element || element.disabled || element.readOnly) throw new Error('单价控件不可编辑');
+  async function productDevelopmentDomCommitNumber(element, value, fieldLabel) {
+    const label = fieldLabel || '单价';
+    if (!element || element.disabled || element.readOnly) throw new Error(label + '控件不可编辑');
     const text = String(value === null || value === undefined ? '' : value).trim();
-    if (!text || !Number.isFinite(Number(text))) throw new Error('单价不是有效数字');
+    if (!text || !Number.isFinite(Number(text))) throw new Error(label + '不是有效数字');
+    for (const [attribute, below] of [['aria-valuemin', true], ['aria-valuemax', false]]) {
+      const bound = element.getAttribute(attribute);
+      if (bound !== null && bound !== '' && Number.isFinite(Number(bound)) && (below ? Number(text) < Number(bound) : Number(text) > Number(bound))) throw new Error(label + '超出 PLM 允许范围（' + (below ? '最小 ' : '最大 ') + bound + '）');
+    }
     // InputNumber can show a DOM value while its form model is still empty.
     // Commit an actual value transition, then let the focused control blur.
     const id = element.id;
@@ -47,12 +52,12 @@
     productDevelopmentDomNativeSetter(element, '', ['input', 'change']);
     await productDevelopmentDomWait(30);
     const input = id ? document.getElementById(id) : element;
-    if (!input || !input.isConnected) throw new Error('单价控件已刷新，请重新填写');
+    if (!input || !input.isConnected) throw new Error(label + '控件已刷新，请重新填写');
     input.focus();
     productDevelopmentDomNativeSetter(input, text, ['input', 'change']);
     await productDevelopmentDomWait(30);
     const commitInput = id ? document.getElementById(id) : input;
-    if (!commitInput || !commitInput.isConnected) throw new Error('单价控件已刷新，请重新填写');
+    if (!commitInput || !commitInput.isConnected) throw new Error(label + '控件已刷新，请重新填写');
     if (commitInput !== input) commitInput.focus();
     commitInput.blur();
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -60,10 +65,10 @@
       const current = id ? document.getElementById(id) : input;
       const item = current && current.closest('.ant-form-item');
       const error = item && item.querySelector('.ant-form-item-explain-error');
-      if (current && String(current.value).trim() && Number(current.value) === Number(text)
+      if (current && String(current.value).trim() && Number(String(current.value).replace(/,/g, '')) === Number(text)
         && current.getAttribute('aria-invalid') !== 'true' && !(error && productDevelopmentDomVisible(error))) return true;
     }
-    throw new Error('单价尚未通过 PLM 表单校验，请检查该控件');
+    throw new Error(label + '尚未通过 PLM 表单校验，请检查该控件');
   }
 
   function productDevelopmentDomSelectedText(input) {
@@ -679,6 +684,35 @@
     return definitions.map((definition) => ({ definition, value: valueReader(definition) })).filter((item) => productDevelopmentPrefillText(item.value));
   }
 
+  function productDevelopmentDomResolveField(definition) {
+    const panel = typeof PANEL_ID === 'string' ? document.getElementById(PANEL_ID) : null;
+    const usable = (element) => element && element.matches('input,textarea') && element.type !== 'hidden' && element.type !== 'file'
+      && !element.disabled && (!element.readOnly || definition.control) && !(panel && panel.contains(element)) && productDevelopmentDomVisible(element);
+    const normalize = (value) => productDevelopmentDomText(value).replace(/[\s*＊:：]/g, '').replace(/（/g, '(').replace(/）/g, ')');
+    const wanted = normalize(definition.label);
+    const labels = Array.from(document.querySelectorAll('label')).filter((label) => !(panel && panel.contains(label)));
+    const fromLabels = (matches) => Array.from(new Set(matches.flatMap((label) => {
+      const linked = document.getElementById(label.getAttribute('for'));
+      if (usable(linked)) return [linked];
+      return Array.from((label.closest('.ant-form-item') || label).querySelectorAll('input,textarea')).filter(usable);
+    })));
+    // PLM exposes the stable attribute ID on the label, while the input ID contains changing group indexes.
+    const attributes = definition.attrId ? labels.filter((label) => Array.from(label.querySelectorAll('[id]')).some((node) => node.id === String(definition.attrId))) : [];
+    const attributeFields = fromLabels(attributes);
+    if (attributeFields.length) return attributeFields.length === 1 ? attributeFields[0] : null;
+    const labelFields = fromLabels(labels.filter((label) => [label.getAttribute('title'), label.textContent, label.firstElementChild && label.firstElementChild.textContent].some((value) => normalize(value) === wanted)));
+    if (labelFields.length) return labelFields.length === 1 ? labelFields[0] : null;
+    const placeholders = new Set([wanted, '请输入' + wanted, '请选择' + wanted]);
+    const inputs = Array.from(document.querySelectorAll('input,textarea')).filter(usable).filter((input) => placeholders.has(normalize(input.getAttribute('placeholder'))));
+    if (inputs.length) return inputs.length === 1 ? inputs[0] : null;
+    const direct = document.getElementById(definition.domId);
+    if (!usable(direct)) return null;
+    const item = direct.closest('.ant-form-item');
+    const label = item && item.querySelector('label');
+    if (label && ![label.textContent, label.firstElementChild && label.firstElementChild.textContent].some((value) => normalize(value) === wanted)) return null;
+    return direct;
+  }
+
   async function productDevelopmentFillPlmPage1(detail) {
     await productDevelopmentDomEnsureEnglishLanguage();
     const values = productDevelopmentDomAvailableValues(PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS, (definition) => productDevelopmentPage1FieldValue(detail, definition.key));
@@ -686,7 +720,7 @@
     if (!values.length) return { warnings: ['悬浮助手页面1暂无可填写的数据'] };
     for (const item of values) {
       const definition = item.definition;
-      const element = document.getElementById(definition.domId);
+      const element = productDevelopmentDomResolveField(definition);
       if (!element) {
         warnings.push('页面1未找到“' + definition.label + '”控件');
         continue;
@@ -709,7 +743,7 @@
     if (!values.length && !procurementValues.length) return { warnings: ['悬浮助手页面2暂无可填写的数据'] };
     for (const item of values) {
       const definition = item.definition;
-      const element = document.getElementById(definition.domId);
+      const element = productDevelopmentDomResolveField(definition);
       if (!element) {
         warnings.push('页面2未找到“' + definition.label + '”控件');
         continue;
@@ -717,6 +751,7 @@
       const value = productDevelopmentPrefillText(item.value, definition.type === 'textarea' ? 12000 : 800);
       try {
         if (definition.control) await productDevelopmentDomSelectOption(element, value, definition.control);
+        else if (definition.type === 'number') await productDevelopmentDomCommitNumber(element, value, definition.label);
         else productDevelopmentDomNativeSetter(element, value);
       } catch (error) {
         warnings.push(definition.label + '：' + formatErrorMessage(error));
@@ -773,9 +808,9 @@
     Promise.resolve().then(() => runner(detail)).then((result) => {
       const baseMessage = normalizedPage === 'page1'
         ? '页面1已填写，请确认后在 PLM 点击下一步'
-        : '页面2已填写，请检查文件并在 PLM 手动上传后保存';
+        : '页面2已填写，请核对后在 PLM 保存';
       const warnings = result && Array.isArray(result.warnings) ? result.warnings : [];
-      state.productDevelopmentStatus = warnings.length ? baseMessage + '；' + warnings.join('；') : baseMessage;
+      state.productDevelopmentStatus = warnings.length ? (normalizedPage === 'page1' ? '页面1' : '页面2') + '部分字段未填入：' + warnings.join('；') : baseMessage;
       showToast(state.productDevelopmentStatus);
     }).catch((error) => {
       state.productDevelopmentError = formatErrorMessage(error);
