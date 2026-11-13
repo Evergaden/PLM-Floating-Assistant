@@ -1257,7 +1257,7 @@
     const derived = field && ['outerVolume', 'standardPackingQuantity', 'firstPrice', 'secondPrice', 'thirdPrice'].includes(field.key);
     const inputAttributes = ' class="pfh-product-development-form-input" data-form-sku="' + escapeHtml(formSku || '') + '" data-form-group="' + escapeHtml(field && field.formGroup || 'prefill') + '" data-form-key="' + escapeHtml(field && field.key || '') + '" data-form-control="' + escapeHtml(field && field.control || '') + '"' + (inputType === 'number' ? ' inputmode="decimal" step="any"' : '') + ' placeholder="' + escapeHtml(field && field.placeholder || '') + '"';
     const priceLocked = field && field.key === 'procurementPrice';
-    const readonly = derived ? ' readonly aria-readonly="true" title="' + (/Price$/.test(field.key) ? '按成本价自动计算' : '按当前长宽高自动计算') + '"' : priceLocked ? ' readonly aria-readonly="true" data-procurement-price-lock="true" title="采购单价 + 0.5；双击修改，离开后重新锁定"' : '';
+    const readonly = derived ? ' readonly aria-readonly="true" title="' + (/Price$/.test(field.key) ? '按成本价自动计算' : '按当前长宽高自动计算') + '"' : priceLocked ? ' readonly aria-readonly="true" data-procurement-price-lock="true" style="caret-color:transparent;cursor:default" title="采购单价 + 0.5；双击修改，离开后重新锁定"' : '';
     const supplierListId = 'pfh-supplier-options-' + String(formSku).replace(/[^A-Za-z0-9_-]/g, '');
     const supplier = field.key === 'supplier' && field.formGroup === 'procurement';
     const choices = options.some((item) => item.label === inputValue) || !inputValue ? options : [{ label: inputValue, value: inputValue }, ...options];
@@ -1274,10 +1274,14 @@
       if (event.type === 'dblclick') {
         input.readOnly = false;
         input.setAttribute('aria-readonly', 'false');
+        input.style.caretColor = 'auto';
+        input.style.cursor = 'text';
         input.focus();
       } else if (event.type === 'focusout') {
         input.readOnly = true;
         input.setAttribute('aria-readonly', 'true');
+        input.style.caretColor = 'transparent';
+        input.style.cursor = 'default';
       }
     }
     if (event.type === 'focusin' && input.getAttribute('data-supplier-search') === 'true') productDevelopmentSearchSuppliers(input);
