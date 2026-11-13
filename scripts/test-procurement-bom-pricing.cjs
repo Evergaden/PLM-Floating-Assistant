@@ -23,6 +23,7 @@ context.productDevelopmentSetProductAttrValue = (value, attrId, languageId, data
 };
 // Sanitized numeric fixture from the user HAR, excluding headers, credentials and supplier records.
 const raw = [[0.19,1],[0.04,1],[1.08,1],[2,0.05]].map(([price, usage], i) => ({ id:i+1, code:'M'+i, type:2, sale_price:price, usage_value:usage, is_pricing:true }));
+for (const [value, rounded] of [['1.2462','1.25'],['1.2449','1.24'],['1.005','1.01'],['10.075','10.08'],['0','0.00'],['2','2.00']]) assert.equal(context.productDevelopmentRoundUnitPrice(value),rounded);
 detail.bomRows = raw.map(context.productDevelopmentReadonlyBomRow);
 const procurementDefinition = { key:'procurementPrice', attrId:152, formGroup:'prefill', type:'number', label:'采购价' };
 assert.equal(context.productDevelopmentProcurementFieldValue(detail, 'materialPrice'), '1.41');
@@ -46,6 +47,12 @@ assert.equal(priceInput.readOnly, true);
 const unitInput = scope.querySelector('[data-form-key="materialPrice"]');
 unitInput.value = '2.03'; context.productDevelopmentHandleInput({ target:unitInput, type:'input' });
 assert.equal(priceInput.value, '2.53', 'Unit price changes update procurement price immediately');
+unitInput.value = '1.2462'; context.productDevelopmentHandleInput({target:unitInput,type:'change'});
+assert.equal(unitInput.value, '1.25');
+assert.equal(detail.productDetailLocalProcurement.materialPrice,'1.25');
+assert.equal(priceInput.value,'1.75');
+const roundingDetail = { bomRows: [{typeValue:2,price:'1.2462',usage:'1'}] };
+assert.equal(context.productDevelopmentProcurementFieldValue(roundingDetail,'materialPrice'),'1.25','Round the final weighted BOM sum to two places');
 detail.bomRows[3].usage = '0.1';
 assert.equal(context.productDevelopmentProcurementFieldValue(detail, 'materialPrice'), '1.51', 'New BOM pricing replaces an old unit price');
 assert.equal(context.productDevelopmentPrefillProductFieldValue(detail, procurementDefinition), '2.01');

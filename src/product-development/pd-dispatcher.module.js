@@ -763,7 +763,11 @@
       if (detail && group === 'procurement') {
         const definition = PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS.find((item) => item.key === key);
         if (definition) {
-          const value = String(target.value || '').slice(0, 800);
+          let value = String(target.value || '').slice(0, 800);
+          if (key === 'materialPrice' && event.type === 'change') {
+            const rounded = productDevelopmentRoundUnitPrice(value);
+            if (rounded !== '') { value = rounded; target.value = rounded; }
+          }
           if (key === 'supplier') {
             const options = detail.productDevelopmentSupplierOptions || [];
             if (!options.some((item) => item.label === value)) {

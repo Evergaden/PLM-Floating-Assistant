@@ -51,7 +51,8 @@
     if (!detail || detail.productDetailProcurementPriceSource === 'manual') return;
     const raw = productDevelopmentPrefillText(productDevelopmentProcurementFieldValue(detail, 'materialPrice')).replace(/,/g, '');
     if (raw === '' && !productDevelopmentPrefillHasValue(detail.productDetailLocalProcurement, 'materialPrice')) return;
-    const price = raw !== '' && Number.isFinite(Number(raw)) && Number(raw) >= 0 ? String(Number((Number(raw) + 0.5).toFixed(6))) : '';
+    const unitPrice = productDevelopmentRoundUnitPrice(raw);
+    const price = unitPrice !== '' ? (Number(unitPrice) + 0.5).toFixed(2) : '';
     const definition = { attrId: 152 };
     if (String(productDevelopmentPrefillLocalAttrValue(detail, definition) ?? '') !== price) {
       productDevelopmentRememberLocalProductField(detail, definition, price, price, '采购单价 + 0.5');
@@ -137,7 +138,7 @@
       const legacyDefault = key === 'quantity' && String(local[key]) === '100'
         && detail.productDetailProcurementQuantitySource !== 'manual'
         && (detail.productDetailProcurementQuantitySource === 'default' || detail.productDevelopmentReworkLookup);
-      return legacyDefault ? PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT.quantity : local[key];
+      return legacyDefault ? PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT.quantity : key === 'materialPrice' ? productDevelopmentRoundUnitPrice(local[key]) : local[key];
     }
     if (key === 'quantity') return PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT.quantity;
     const row = productDevelopmentProcurementRow(detail);
@@ -150,7 +151,14 @@
       materialPrice: ['material_price', 'materialPrice', 'unit_price', 'unitPrice'],
     }[key] || [];
     const sourceKey = candidates.find((candidate) => row[candidate] !== undefined && row[candidate] !== null && row[candidate] !== '');
-    return sourceKey ? row[sourceKey] : '';
+    return sourceKey ? (key === 'materialPrice' ? productDevelopmentRoundUnitPrice(row[sourceKey]) : row[sourceKey]) : '';
+  }
+
+  function productDevelopmentRoundUnitPrice(value) {
+    const text = String(value ?? '').trim().replace(/,/g, '');
+    const number = Number(text);
+    if (!text || !Number.isFinite(number) || number < 0) return '';
+    return (Math.round((number + Number.EPSILON * Math.max(1, number)) * 100) / 100).toFixed(2);
   }
 
   function productDevelopmentApplyBomUnitPrice(detail) {
@@ -168,7 +176,7 @@
     if (detail.productDetailBomPriceSignature === signature) return;
     detail.productDetailBomPriceSignature = signature;
     if (!detail.productDetailLocalProcurement) detail.productDetailLocalProcurement = {};
-    const price = String(Number(total.toFixed(6)));
+    const price = productDevelopmentRoundUnitPrice(total);
     if (String(detail.productDetailLocalProcurement.materialPrice ?? '') !== price) detail.productDetailProcurementPriceSource = 'default';
     detail.productDetailLocalProcurement.materialPrice = price;
   }
