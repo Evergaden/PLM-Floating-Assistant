@@ -113,6 +113,9 @@ CREATE TABLE IF NOT EXISTS feature_access (
   magic_upload_enabled INTEGER NOT NULL DEFAULT 0,
   parameter_image_enabled INTEGER NOT NULL DEFAULT 0,
   lulu_theme_enabled INTEGER NOT NULL DEFAULT 0,
+  development_review_enabled INTEGER NOT NULL DEFAULT 0,
+  development_copywriting_enabled INTEGER NOT NULL DEFAULT 0,
+  development_ingredient_enabled INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

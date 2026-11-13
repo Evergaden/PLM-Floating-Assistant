@@ -2888,6 +2888,9 @@ function sanitizeProductDevelopmentReviewCandidate(value, brand, rules = {}) {
 }
 
 async function handleProductDevelopmentReview(request, env) {
+  if (!requireApiKey(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
+  const denied = await requireDevelopmentFeature(request, env, 'development-review');
+  if (denied) return denied;
   if (!requireApiKey(request, env)) return json({ ok: false, error: 'unauthorized', items: [] }, 401);
   const body = await parseJson(request);
   if (!body) return json({ ok: false, error: 'application/json body required', items: [] }, 400);
@@ -3696,10 +3699,17 @@ function sanitizeProductDevelopmentOneShotCandidate(value, context) {
 
 async function handleProductDevelopmentOneShot(request, env) {
   if (!requireApiKey(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
+  const denied = await requireDevelopmentFeature(request, env, 'development-ingredient');
+  if (denied) return denied;
+  if (!requireApiKey(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
   const body = await parseJson(request);
   if (!body) return json({ ok: false, error: 'application/json body required' }, 400);
   const requestedStage = cleanText(body.stage || body.mode, 40).toLowerCase();
   const ingredientOnly = ['ingredient', 'ingredient-table', 'table'].includes(requestedStage);
+  if (!ingredientOnly) {
+    const copyDenied = await requireDevelopmentFeature(request, env, 'development-copywriting');
+    if (copyDenied) return copyDenied;
+  }
   const ingredientKind = String(body.kind || 'human').trim().toLowerCase() === 'pet' ? 'pet' : 'human';
   const defaultProductType = ingredientKind === 'pet' ? 'Pet food supplement / liquid drops' : 'Human dietary supplement / liquid drops';
   const image = cleanModelScopeImages([body.imageDataUrl])[0] || '';
@@ -3937,6 +3947,9 @@ async function handleProductDevelopmentCopywritingPatch(body, env) {
 }
 
 async function handleProductDevelopmentCopywriting(request, env) {
+  if (!requireApiKey(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
+  const denied = await requireDevelopmentFeature(request, env, 'development-copywriting');
+  if (denied) return denied;
   if (!requireApiKey(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
   const body = await parseJson(request);
   if (!body) return json({ ok: false, error: 'application/json body required' }, 400);
@@ -4479,13 +4492,32 @@ async function listFeatureAccess(env) {
   return result.results || [];
 }
 
+const DEVELOPMENT_FEATURE_COLUMNS = Object.freeze({
+  'development-review': 'development_review_enabled',
+  'development-copywriting': 'development_copywriting_enabled',
+  'development-ingredient': 'development_ingredient_enabled',
+});
+
+async function developmentFeatureAccess(request, env) {
+  await ensureFeatureAccessColumns(env);
+  const context = requestAuthContexts.get(request);
+  const name = normalizeAccessUserName(context && context.claims && context.claims.userName);
+  const row = name ? await env.DB.prepare('SELECT development_review_enabled, development_copywriting_enabled, development_ingredient_enabled FROM feature_access WHERE user_name = ?').bind(name).first() : null;
+  return Object.fromEntries(Object.entries(DEVELOPMENT_FEATURE_COLUMNS).map(([key, column]) => [key, Boolean(row && Number(row[column]))]));
+}
+
+async function requireDevelopmentFeature(request, env, feature) {
+  const access = await developmentFeatureAccess(request, env);
+  return access[feature] ? null : json({ ok: false, error: 'feature_access_denied', feature, message: '前面的区域，以后再来探索吧' }, 403);
+}
+
 let featureAccessColumnsReady = false;
 async function ensureFeatureAccessColumns(env) {
   if (featureAccessColumnsReady) return;
   try {
-    await env.DB.prepare('SELECT magic_upload_enabled, parameter_image_enabled, lulu_theme_enabled FROM feature_access LIMIT 1').first();
+    await env.DB.prepare('SELECT magic_upload_enabled, parameter_image_enabled, lulu_theme_enabled, development_review_enabled, development_copywriting_enabled, development_ingredient_enabled FROM feature_access LIMIT 1').first();
   } catch (_) {
-    for (const column of ['magic_upload_enabled', 'parameter_image_enabled', 'lulu_theme_enabled']) {
+    for (const column of ['magic_upload_enabled', 'parameter_image_enabled', 'lulu_theme_enabled', ...Object.values(DEVELOPMENT_FEATURE_COLUMNS)]) {
       try {
         await env.DB.prepare('ALTER TABLE feature_access ADD COLUMN ' + column + ' INTEGER NOT NULL DEFAULT 0').run();
       } catch (_) {
@@ -4542,6 +4574,7 @@ async function handleFeatureAccessSave(request, env) {
   const name = normalizeAccessUserName(body.userName);
   if (name) {
     const featureColumns = {
+      ...DEVELOPMENT_FEATURE_COLUMNS,
       'size-image': 'size_image_enabled',
       'magic-upload': 'magic_upload_enabled',
       'parameter-image': 'parameter_image_enabled',
@@ -4557,7 +4590,11 @@ async function handleFeatureAccessSave(request, env) {
       lulu_theme_enabled: 0,
     };
     flags[column] = enabled;
-    await env.DB.prepare('INSERT INTO feature_access (user_name, size_image_enabled, magic_upload_enabled, parameter_image_enabled, lulu_theme_enabled, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(user_name) DO UPDATE SET ' + column + ' = excluded.' + column + ', updated_at = CURRENT_TIMESTAMP').bind(name, flags.size_image_enabled, flags.magic_upload_enabled, flags.parameter_image_enabled, flags.lulu_theme_enabled).run();
+    if (Object.values(DEVELOPMENT_FEATURE_COLUMNS).includes(column)) {
+      await env.DB.prepare('INSERT INTO feature_access (user_name, ' + column + ', updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(user_name) DO UPDATE SET ' + column + '=excluded.' + column + ', updated_at=CURRENT_TIMESTAMP').bind(name, enabled).run();
+    } else {
+      await env.DB.prepare('INSERT INTO feature_access (user_name, size_image_enabled, magic_upload_enabled, parameter_image_enabled, lulu_theme_enabled, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(user_name) DO UPDATE SET ' + column + ' = excluded.' + column + ', updated_at = CURRENT_TIMESTAMP').bind(name, flags.size_image_enabled, flags.magic_upload_enabled, flags.parameter_image_enabled, flags.lulu_theme_enabled).run();
+    }
     await env.DB.prepare('INSERT INTO feature_access_logs (user_name, feature_key, enabled) VALUES (?, ?, ?)').bind(name, feature, enabled).run();
   }
   return adminRedirect('/admin');
@@ -4614,6 +4651,7 @@ async function handleUserHeartbeat(request, env) {
   const row = await env.DB.prepare('SELECT size_image_enabled, magic_upload_enabled, parameter_image_enabled, lulu_theme_enabled FROM feature_access WHERE user_name=?').bind(name).first();
   return json({
     ok: true,
+    developmentAccess: await developmentFeatureAccess(request, env),
     sizeImageEnabled: Boolean(row && Number(row.size_image_enabled)),
     magicUploadEnabled: Boolean(row && Number(row.magic_upload_enabled)),
     parameterImageEnabled: Boolean(row && Number(row.parameter_image_enabled)),
@@ -6344,7 +6382,7 @@ async function handleAdminPage(request, env) {
   await ensureHomeGreetingsTable(env);
   await ensureDiagnosticTable(env);
   const [users, dashboard, usageTotals, trendData, campaigns, holidays, featureRules, notifications, notificationReads, brands, feedbackEntries, homeGreetings, diagnosticSummary, diagnosticTop, diagnosticRecent] = await Promise.all([
-    env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, COALESCE(a.magic_upload_enabled,0) AS magic_upload_enabled, COALESCE(a.parameter_image_enabled,0) AS parameter_image_enabled, COALESCE(a.lulu_theme_enabled,0) AS lulu_theme_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.magic_upload_enabled, a.parameter_image_enabled, a.lulu_theme_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
+    env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, COALESCE(a.magic_upload_enabled,0) AS magic_upload_enabled, COALESCE(a.parameter_image_enabled,0) AS parameter_image_enabled, COALESCE(a.lulu_theme_enabled,0) AS lulu_theme_enabled, COALESCE(a.development_review_enabled,0) AS development_review_enabled, COALESCE(a.development_copywriting_enabled,0) AS development_copywriting_enabled, COALESCE(a.development_ingredient_enabled,0) AS development_ingredient_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.magic_upload_enabled, a.parameter_image_enabled, a.lulu_theme_enabled, a.development_review_enabled, a.development_copywriting_enabled, a.development_ingredient_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
     env.DB.prepare(`SELECT
       COUNT(*) AS users,
       SUM(CASE WHEN last_seen_at>=datetime('now','-1 day') THEN 1 ELSE 0 END) AS active_today,
@@ -6737,7 +6775,7 @@ function renderAdminDashboardPage(users, dashboard, trendData, campaigns, holida
       '<form class="form notification-edit" method="post" action="/admin/notifications/save"><input type="hidden" name="notificationId" value="' + htmlEscape(notice.notification_id) + '"><label class="wide"><span>标题</span><input name="title" maxlength="120" required value="' + htmlEscape(notice.title) + '"></label><label class="wide"><span>通知内容</span><textarea name="content" maxlength="4000" required>' + htmlEscape(notice.content) + '</textarea></label><div class="row"><label class="checks"><input type="hidden" name="enabled" value="0"><input type="checkbox" name="enabled" value="1"' + (Number(notice.enabled) ? ' checked' : '') + '>启用</label><label class="checks"><input type="checkbox" name="resetRead" value="1">清空阅读记录</label><label class="checks"><input type="checkbox" name="republish" value="1">按当前时间重新发布</label></div><div class="sub">发布时间：' + htmlEscape(formatBeijingDateTime(notice.published_at) || notice.published_at) + '</div><div class="read-state"><b>已读：</b>' + htmlEscape(readDetail) + '</div><div class="read-state"><b>未读：</b>' + htmlEscape(unreadNames.join('、') || '暂无') + '</div><div class="actions"><button type="submit">保存修改</button></div></form>' +
       '<form method="post" action="/admin/notifications/delete" onsubmit="return confirm(\'确定删除这条通知吗？\')"><input type="hidden" name="notificationId" value="' + htmlEscape(notice.notification_id) + '"><button class="ghost danger" type="submit">删除通知</button></form></div></details>';
   }).join('');
-  const userRows = users.map((user) => '<tr><td><strong>' + htmlEscape(user.user_name) + '</strong></td><td>' + htmlEscape(user.script_version || '—') + '</td><td>' + htmlEscape(Number(user.sku_count || 0)) + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_seen_at) || '尚未上报') + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_backup_at) || '—') + '</td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="feature" value="size-image"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.size_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="feature" value="magic-upload"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.magic_upload_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="feature" value="parameter-image"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.parameter_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="feature" value="lulu-theme"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.lulu_theme_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td></tr>').join('');
+  const userRows = users.map((user) => '<tr><td><strong>' + htmlEscape(user.user_name) + '</strong></td><td>' + htmlEscape(user.script_version || '—') + '</td><td>' + htmlEscape(Number(user.sku_count || 0)) + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_seen_at) || '尚未上报') + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_backup_at) || '—') + '</td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="feature" value="size-image"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.size_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="feature" value="magic-upload"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.magic_upload_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="feature" value="parameter-image"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.parameter_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="feature" value="lulu-theme"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.lulu_theme_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td>' + Object.entries(DEVELOPMENT_FEATURE_COLUMNS).map(([feature, column]) => '<td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="feature" value="' + feature + '"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user[column]) ? ' checked' : '') + ' aria-label="' + htmlEscape(user.user_name + ' ' + ({ 'development-review': '侵权图', 'development-copywriting': '编辑文案', 'development-ingredient': '成分表' })[feature]) + '" onchange="this.form.submit()"><span></span></label></form></td>').join('') + '</tr>').join('');
   const tipEditorRows = campaigns.map((tip, index) => {
     const prefix = 'tip_' + index + '_';
     const option = (value, label) => '<option value="' + value + '"' + (tip.access_mode === value ? ' selected' : '') + '>' + label + '</option>';
@@ -6757,7 +6795,7 @@ function renderAdminDashboardPage(users, dashboard, trendData, campaigns, holida
   const brandAdminSection = '<section class="card" id="brand-compliance"><div class="cardhead"><h2>品牌地址维护（' + (brands || []).length + '）</h2><div class="sub">这里保存后，用户刷新 PLM 页面即可读取最新分销商、欧代、英代和美代信息；别名也可以匹配同一品牌。</div></div><div class="form"><div class="tiplist">' +
     renderBrandComplianceEditor({}, 0, true) + brandEditorRows +
     '</div></div></section>';
-  const userAdminSection = '<section class="card" id="users"><div class="cardhead"><h2>使用人与功能权限</h2><div class="sub">尺寸图、参数图、魔法上传和噜噜乐园主题分别控制</div></div><form class="form" method="post" action="/admin/access/save"><div class="actions"><input name="userName" maxlength="40" placeholder="手动添加姓名" required><input type="hidden" name="feature" value="size-image"><input type="hidden" name="enabled" value="1"><button>添加并开通尺寸图</button></div></form><div class="tablebox"><table><thead><tr><th>姓名</th><th>版本</th><th>SKU数</th><th>最后活跃</th><th>最近备份</th><th>尺寸图</th><th>魔法上传</th><th>参数图</th><th>噜噜主题</th></tr></thead><tbody>' + (userRows || '<tr><td colspan="9">等待新版脚本上报使用人</td></tr>') + '</tbody></table></div></section>';
+  const userAdminSection = '<section class="card" id="users"><div class="cardhead"><h2>使用人与功能权限</h2><div class="sub">各功能分别控制；侵权图、编辑文案和成分表默认关闭，按用户手动开通</div></div><form class="form" method="post" action="/admin/access/save"><div class="actions"><input name="userName" maxlength="40" placeholder="手动添加姓名" required><input type="hidden" name="feature" value="size-image"><input type="hidden" name="enabled" value="1"><button>添加并开通尺寸图</button></div></form><div class="tablebox"><table><thead><tr><th>姓名</th><th>版本</th><th>SKU数</th><th>最后活跃</th><th>最近备份</th><th>尺寸图</th><th>魔法上传</th><th>参数图</th><th>噜噜主题</th><th>侵权图</th><th>编辑文案</th><th>成分表</th></tr></thead><tbody>' + (userRows || '<tr><td colspan="12">等待新版脚本上报使用人</td></tr>') + '</tbody></table></div></section>';
   const metrics = [
     ['使用人', dashboard.users || 0], ['今日活跃', dashboard.active_today || 0], ['近7日活跃', dashboard.active_week || 0],
     ['云端SKU汇总', dashboard.sku_total || 0], ['云备份用户', dashboard.backup_users || 0],

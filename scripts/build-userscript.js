@@ -37,6 +37,8 @@ const modules = [
     name: 'product-development',
     files: [
       path.join(root, 'src', 'product-development', 'pd-foundation.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-permission-art.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-access.module.js'),
       path.join(root, 'src', 'product-development', 'pd-task-sync.module.js'),
       path.join(root, 'src', 'product-development', 'pd-prefill.module.js'),
       path.join(root, 'src', 'product-development', 'pd-pricing-drafts.module.js'),

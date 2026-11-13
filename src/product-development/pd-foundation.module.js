@@ -161,7 +161,7 @@
   const PRODUCT_DEVELOPMENT_FEATURES = Object.freeze([
     Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder', requiresSku: false }),
     Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取全部图片文字，生成中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
-    Object.freeze({ id: 'copywriting', title: '文案 DOCX', subtitle: '按当前 SKU 成分和卖点生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
+    Object.freeze({ id: 'copywriting', title: '文案 DOCX', subtitle: '选择开发产品，生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
     Object.freeze({ id: 'ingredientFacts', title: '制作成分表', subtitle: '按需加载云端人类或宠物模板摘要，编辑后导出 PDF', action: 'product-development-ingredient-open', icon: 'batchExcel', requiresSku: false }),
     Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '全包价格计算国内三档价格', action: 'product-development-pricing-open', icon: 'calculator', requiresSku: false }),
     Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '出单数量、手工贴标和返工 100 件规则', action: '', icon: 'box' }),
@@ -1180,6 +1180,8 @@
     { id: 'detail', label: '详情' },
     { id: 'review', label: '侵权图' },
     { id: 'copywriting', label: '编辑文案' },
+    { id: 'ingredient', label: '成分表' },
+    { id: 'pricing', label: '定价标准' },
     { id: 'placeholder', label: '尺寸图' },
   ]);
 

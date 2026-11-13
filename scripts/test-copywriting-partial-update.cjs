@@ -7,6 +7,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const worker = vm.createContext({ Request, Response, URL, console });
 vm.runInContext(read('cloudflare/plm-cloud-backup/src/index.js').replace(/^import .+;\r?$/gm, '').replace('export default {', 'const workerExport = {'), worker);
+worker.requireDevelopmentFeature = async () => null; // Authorized-user fixture; access denial is covered by test-development-access.cjs.
 function extract(file, name) {
   const text = read(file);
   const start = text.indexOf('  function ' + name + '(');

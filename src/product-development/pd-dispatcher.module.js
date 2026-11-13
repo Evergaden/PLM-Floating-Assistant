@@ -1,6 +1,8 @@
 
   function productDevelopmentViewHtml(statusText) {
     const view = state.productDevelopmentView === 'pricing' ? 'pricing' : (state.productDevelopmentView === 'review' ? 'review' : (state.productDevelopmentView === 'copywriting' ? 'copywriting' : (state.productDevelopmentView === 'ingredient' ? 'ingredient' : 'home')));
+    const accessFeature = productDevelopmentFeatureForView(view);
+    if (accessFeature && !productDevelopmentHasAccess(accessFeature)) return '<div class="pfh-empty">前面的区域，以后再来探索吧</div>';
     if (view === 'pricing') return productDevelopmentPricingViewHtml();
     if (view === 'review') return productDevelopmentReviewHtml(statusText);
     if (view === 'copywriting') return productDevelopmentCopywritingHtml(statusText);
@@ -11,6 +13,21 @@
   }
 
   function productDevelopmentHandleAction(action, actionTarget) {
+    const accessFeature = productDevelopmentFeatureForAction(action, actionTarget);
+    if (accessFeature && !productDevelopmentHasAccess(accessFeature)) {
+      showProductDevelopmentPermissionDialog();
+      return true;
+    }
+    const workspaceViews = {
+      'product-development-review-open': 'review',
+      'product-development-copywriting-open': 'copywriting',
+      'product-development-ingredient-open': 'ingredient',
+      'product-development-pricing-open': 'pricing',
+    };
+    if (workspaceViews[action] && state.view !== 'productDevelopmentTasks') {
+      openProductDevelopmentTaskWorkspace(workspaceViews[action]);
+      return true;
+    }
     if (action === 'product-development-copywriting-more') {
       const moreWrapper = actionTarget && actionTarget.closest('.pfh-cw-tools');
       if (moreWrapper) productDevelopmentCopywritingSetToolsOpen(moreWrapper, !moreWrapper.classList.contains('is-open'));
@@ -50,6 +67,11 @@
       return true;
     }
     if (action === 'product-development-pricing-open') {
+      if (state.view === 'productDevelopmentTasks') {
+        state.productDevelopmentTaskView = 'pricing';
+        renderShell();
+        return true;
+      }
       state.workMode = 'product-development';
       state.settings.workMode = 'product-development';
       saveSettings(state.settings);
@@ -77,8 +99,7 @@
       state.workMode = 'product-development';
       state.settings.workMode = 'product-development';
       saveSettings(state.settings);
-      state.productDevelopmentView = 'ingredient';
-      state.view = 'home';
+      state.productDevelopmentTaskView = 'ingredient';
       state.productDevelopmentIngredientError = '';
       state.productDevelopmentIngredientStatus = '';
       renderShell();
@@ -237,6 +258,7 @@
       if (next === current) return true;
       state.productDevelopmentTaskPreviousTab = current;
       state.productDevelopmentTaskView = next;
+      if (next === 'ingredient') loadProductDevelopmentIngredientEditor();
       state.productDevelopmentError = '';
       state.productDevelopmentStatus = '';
       const taskPanel = ensurePanel();

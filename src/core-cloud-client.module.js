@@ -213,6 +213,8 @@
         method: 'POST',
         body: { name, instanceId: getClientInstanceId(), version: SCRIPT_VERSION, skuCount: state.index.length },
       }, { attempts: 3, baseDelayMs: 900 });
+      if (findCurrentPlmUserName() !== name) return;
+      state.productDevelopmentAccess = { name, ...(response && response.developmentAccess || {}) };
       const accessPatch = {};
       let accessChanged = false;
       if (response && typeof response.sizeImageEnabled === 'boolean') {
@@ -245,7 +247,7 @@
       }
       if (accessChanged) {
         cacheFeatureAccess(name, accessPatch);
-        if (state.view === 'home' || state.view === 'about' || state.view === 'parameterImage') renderShell();
+        if (state.view === 'home' || state.view === 'about' || state.view === 'parameterImage' || state.view === 'productDevelopmentTasks') renderShell();
       }
       if (!response || typeof response.magicUploadEnabled !== 'boolean') refreshMagicUploadAccess();
       if (!response || typeof response.parameterImageEnabled !== 'boolean') refreshParameterImageAccess();

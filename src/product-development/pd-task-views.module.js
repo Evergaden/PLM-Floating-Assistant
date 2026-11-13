@@ -331,7 +331,11 @@
   }
 
   function productDevelopmentTaskEmbeddedViewHtml(view, statusText) {
-    const source = view === 'review' ? productDevelopmentReviewHtml(statusText) : productDevelopmentCopywritingHtml(statusText);
+    const feature = productDevelopmentFeatureForView(view);
+    if (feature && !productDevelopmentHasAccess(feature)) return '<div class="pfh-empty">前面的区域，以后再来探索吧</div>';
+    const source = view === 'review' ? productDevelopmentReviewHtml(statusText)
+      : view === 'ingredient' ? productDevelopmentIngredientFactsHtml()
+        : view === 'pricing' ? productDevelopmentPricingViewHtml() : productDevelopmentCopywritingHtml(statusText);
     const template = document.createElement('template');
     template.innerHTML = source;
     const root = template.content.firstElementChild;
@@ -511,13 +515,13 @@
     state.openingProjectDetailSku = '';
   }
 
-  function openProductDevelopmentTaskWorkspace() {
+  function openProductDevelopmentTaskWorkspace(view) {
     suspendDesignCollectionForProductDevelopment();
     state.workMode = 'product-development';
     state.settings.workMode = 'product-development';
     saveSettings(state.settings);
     state.productDevelopmentView = 'home';
-    state.productDevelopmentTaskView = 'detail';
+    state.productDevelopmentTaskView = normalizeProductDevelopmentTaskTab(view);
     state.productDevelopmentTaskPreviousTab = '';
     state.view = 'productDevelopmentTasks';
     state.copywritingMode = false;
@@ -532,7 +536,10 @@
       const first = selected || (Array.isArray(rows) ? rows[0] : null);
       if (!first) return;
       if (!selected) selectProductDevelopmentTask(first.sku);
-      else renderShell();
+      state.productDevelopmentTaskView = normalizeProductDevelopmentTaskTab(view);
+      renderShell();
+      if (view === 'ingredient') loadProductDevelopmentIngredientEditor();
+      if (view === 'copywriting') productDevelopmentWarmIngredientTemplates();
     }).catch(() => {});
   }
 

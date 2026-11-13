@@ -7,6 +7,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const source = read('cloudflare/plm-cloud-backup/src/index.js');
 const worker = vm.createContext({ Request, Response, URL, console });
 vm.runInContext(source.replace(/^import .+;\r?$/gm, '').replace('export default {', 'const workerExport = {'), worker);
+worker.requireDevelopmentFeature = async () => null; // Authorized-user fixture; access denial is covered by test-development-access.cjs.
 const foundation = read('src/product-development/pd-foundation.module.js');
 const frontend = vm.createContext({ formatErrorMessage: (error) => error.message });
 vm.runInContext(foundation.slice(foundation.indexOf('  const PRODUCT_DEVELOPMENT_COPYWRITING_RESTRICTION_RULES'), foundation.indexOf('  const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION')), frontend);

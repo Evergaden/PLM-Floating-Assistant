@@ -692,7 +692,7 @@
     renderShell();
     try {
       await ensureProductDevelopmentIngredientTemplatesLoaded();
-      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || state.productDevelopmentView !== 'ingredient') return;
+      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || !(state.view === 'productDevelopmentTasks' ? state.productDevelopmentTaskView === 'ingredient' : state.productDevelopmentView === 'ingredient')) return;
       const template = productDevelopmentIngredientSelectedTemplate(kind, state.productDevelopmentIngredientTemplateId);
       if (!template) throw new Error('当前类型没有可用成分表模板');
       state.productDevelopmentIngredientTemplateId = template.id;
@@ -709,7 +709,7 @@
       cells.forEach((cell) => {
         if (Object.prototype.hasOwnProperty.call(draft.values, cell.address)) cell.value = draft.values[cell.address];
       });
-      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || state.productDevelopmentView !== 'ingredient') return;
+      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || !(state.view === 'productDevelopmentTasks' ? state.productDevelopmentTaskView === 'ingredient' : state.productDevelopmentView === 'ingredient')) return;
       state.productDevelopmentIngredientSheetName = worksheet.name;
       state.productDevelopmentIngredientEditor = {
         kind,

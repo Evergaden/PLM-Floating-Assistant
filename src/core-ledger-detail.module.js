@@ -2167,14 +2167,14 @@
   }
 
   function productDevelopmentHomeFeatureEntries() {
-    const sku = getProductDevelopmentCurrentSku();
     return PRODUCT_DEVELOPMENT_FEATURES.map((feature) => ({
       id: 'product-development-' + feature.id,
       action: feature.action || 'product-development-placeholder',
-      icon: feature.icon,
+      icon: productDevelopmentFeatureForView(feature.id) && !productDevelopmentHasAccess(productDevelopmentFeatureForView(feature.id)) ? 'lock' : feature.icon,
       title: feature.title,
       description: feature.subtitle,
-      disabled: !feature.action || (feature.requiresSku !== false && !sku),
+      disabled: !feature.action,
+      badge: productDevelopmentFeatureForView(feature.id) && !productDevelopmentHasAccess(productDevelopmentFeatureForView(feature.id)) ? '未解锁' : '',
     })).concat([{
       id: 'product-development-history',
       action: 'product-development-history-view',
@@ -2196,7 +2196,6 @@
   }
 
   function productDevelopmentHomeFeaturePageHtml() {
-    const sku = getProductDevelopmentCurrentSku();
     const featureEntries = productDevelopmentHomeFeatureEntries();
     if (state.homeFeatureEditMode) {
       return '<div class="pfh-home-feature-page pfh-home-feature-page-product">' + productDevelopmentHomeFeatureEditHtml(featureEntries) + '</div>';
@@ -2207,10 +2206,10 @@
     const secondaryEntries = groups.more.map((id) => byId.get(id)).filter(Boolean);
     const primary = commonEntries[0] || null;
     const quickEntries = commonEntries.slice(1);
-    const productMeta = sku ? '当前 SKU：' + sku : '请先在设计任务中打开一个 SKU';
+
     return '<div class="pfh-home-feature-page pfh-home-feature-page-product">' +
       '<div class="pfh-home-feature-layout">' + (primary ? homeFeatureEntryHtml(primary, 'pfh-home-entry-primary') : '<div class="pfh-home-feature-empty">暂无开发入口</div>') + '<div class="pfh-home-quick-grid">' + quickEntries.map((entry) => homeFeatureEntryHtml(entry, 'pfh-home-entry-quick')).join('') + '</div></div>' +
-      '<div class="pfh-home-secondary-label">其他开发功能 · ' + escapeHtml(productMeta) + '</div><div class="pfh-home-secondary-grid">' + secondaryEntries.map((entry) => homeFeatureEntryHtml(entry, 'pfh-home-entry-secondary')).join('') + '</div>' +
+      '<div class="pfh-home-secondary-label">其他开发功能</div><div class="pfh-home-secondary-grid">' + secondaryEntries.map((entry) => homeFeatureEntryHtml(entry, 'pfh-home-entry-secondary')).join('') + '</div>' +
       '</div>';
   }
 
