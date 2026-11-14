@@ -328,7 +328,28 @@
     function editorClient() {
       let current = null;
       let marks = [], active = null, tool = 'view', annotationKey = '', dirty = false, revision = 0;
-      const redo = [];
+      const redo = [], history = [];
+      let selected = -1, drag = null;
+      function checkpoint() { history.push(JSON.stringify(marks)); if (history.length > 100) history.shift(); redo.length = 0; }
+      function screenPoints(mark) {
+        const rect = document.getElementById('benchmark').getBoundingClientRect();
+        return mark.points.map((p) => mark.page ? [p[0] * innerWidth, p[1] - scrollY] : [rect.left + p[0] * rect.width, rect.top + p[1] * rect.height]);
+      }
+      function bounds(mark) {
+        const points = screenPoints(mark), xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
+        if (mark.tool === 'text') { xs.push(xs[0] + Math.max(50, String(mark.text || '').length * Math.max(20, mark.width * 5) * .65)); ys.push(ys[0] + Math.max(24, mark.width * 6)); }
+        return { left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys) };
+      }
+      function editText(x, y, value, done) {
+        const input = document.createElement('textarea');
+        input.className = 'annotation-input'; input.value = value || '';
+        input.style.left = Math.max(8, Math.min(x, innerWidth - 220)) + 'px'; input.style.top = Math.max(8, y) + 'px';
+        document.body.appendChild(input); input.focus();
+        let finished = false;
+        const finish = (save) => { if (finished) return; finished = true; const text = input.value; input.remove(); if (save && text.trim()) done(text); };
+        input.addEventListener('keydown', (event) => { if (event.key === 'Escape') finish(false); if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') finish(true); });
+        input.addEventListener('blur', () => finish(true));
+      }
       const send = (data) => window.opener && window.opener.postMessage({ source: 'pfh-review-tab', ...data }, '*');
       const persistMarks = () => {
         dirty = true;
@@ -376,6 +397,9 @@
           }
           ctx.restore();
         }
+        if (tool === 'select' && selected >= 0 && marks[selected]) {
+          const b = bounds(marks[selected]); ctx.save(); ctx.strokeStyle = '#17695f'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]); ctx.strokeRect(b.left - 8, b.top - 8, Math.max(16, b.right - b.left + 16), Math.max(16, b.bottom - b.top + 16)); ctx.restore();
+        }
       }
       function point(event) {
         const r = event.target.getBoundingClientRect();
@@ -383,7 +407,7 @@
       }
       function finishMark() {
         if (!active) return;
-        marks.push(active); active = null; redo.length = 0;
+        checkpoint(); marks.push(active); active = null;
         drawMarks(); persistMarks();
       }
       document.addEventListener('pointerdown', (event) => {
@@ -391,22 +415,56 @@
         event.preventDefault();
         const p = point(event);
         if (tool === 'view') { document.getElementById('benchmark').click(); return; }
+        if (tool === 'select') {
+          selected = -1;
+          for (let i = marks.length - 1; i >= 0; i--) {
+            if (marks[i].tool === 'eraser') continue;
+            const b = bounds(marks[i]);
+            if (event.clientX >= b.left - 12 && event.clientX <= b.right + 12 && event.clientY >= b.top - 12 && event.clientY <= b.bottom + 12) { selected = i; break; }
+          }
+          if (selected >= 0) {
+            const m = marks[selected], pts = screenPoints(m), end = pts[pts.length - 1];
+            drag = { start: p, original: JSON.parse(JSON.stringify(m)), changed: false, resize: ['rect', 'arrow', 'mosaic'].includes(m.tool) && Math.hypot(event.clientX - end[0], event.clientY - end[1]) < 18 };
+            event.target.setPointerCapture(event.pointerId);
+          }
+          drawMarks(); return;
+        }
         active = { page: true, tool, points: [p], color: document.getElementById('mark-color').value, width: Number(document.getElementById('mark-width').value) };
         if (tool === 'text') {
-          active.text = document.getElementById('mark-text').value;
-          if (!active.text.trim()) { active = null; document.getElementById('status').textContent = '请先填写标注文字，再点击图片放置'; return; }
-          finishMark(); return;
+          const pending = active; active = null;
+          editText(event.clientX, event.clientY, '', (text) => { active = pending; active.text = text; finishMark(); }); return;
         }
         event.target.setPointerCapture(event.pointerId);
       });
       document.addEventListener('pointermove', (event) => {
+        if (drag && selected >= 0 && event.target.id === 'annotation-canvas') {
+          const p = point(event), mark = marks[selected], original = drag.original;
+          if (!drag.changed && (Math.abs(p[0] - drag.start[0]) * innerWidth > 2 || Math.abs(p[1] - drag.start[1]) > 2)) { checkpoint(); drag.changed = true; }
+          if (drag.changed) {
+            const rect = document.getElementById('benchmark').getBoundingClientRect();
+            const dx = p[0] - drag.start[0], dy = p[1] - drag.start[1];
+            mark.points = original.points.map((v) => mark.page ? [v[0] + dx, v[1] + dy] : [v[0] + dx * innerWidth / rect.width, v[1] + dy / rect.height]);
+            if (drag.resize) mark.points[0] = original.points[0].slice();
+            drawMarks();
+          }
+          return;
+        }
         if (!active || event.target.id !== 'annotation-canvas') return;
         const p = point(event);
         if (['pen', 'eraser'].includes(active.tool)) active.points.push(p);
         else active.points[1] = p;
         drawMarks();
       });
-      document.addEventListener('pointerup', finishMark);
+      document.addEventListener('pointerup', () => { if (drag) { if (drag.changed) persistMarks(); drag = null; } else finishMark(); });
+      document.addEventListener('dblclick', (event) => {
+        if (tool !== 'select' || event.target.id !== 'annotation-canvas' || selected < 0 || marks[selected].tool !== 'text') return;
+        const index = selected;
+        editText(event.clientX, event.clientY, marks[index].text, (text) => { checkpoint(); marks[index].text = text; drawMarks(); persistMarks(); });
+      });
+      document.addEventListener('keydown', (event) => {
+        if (tool !== 'select' || selected < 0 || event.target.matches('input,textarea,select')) return;
+        if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); checkpoint(); marks.splice(selected, 1); selected = -1; drawMarks(); persistMarks(); }
+      });
       document.addEventListener('pointercancel', () => { active = null; drawMarks(); });
       document.addEventListener('click', (event) => {
         const button = event.target.closest('[data-mark-tool]');
@@ -414,9 +472,11 @@
           tool = button.dataset.markTool;
           document.getElementById('annotation-canvas').style.pointerEvents = tool === 'view' ? 'none' : 'auto';
           document.querySelectorAll('[data-mark-tool]').forEach((b) => b.setAttribute('aria-pressed', String(b === button)));
+          drawMarks();
         }
-        if (event.target.id === 'mark-undo' && marks.length) { redo.push(marks.pop()); drawMarks(); persistMarks(); }
-        if (event.target.id === 'mark-redo' && redo.length) { marks.push(redo.pop()); drawMarks(); persistMarks(); }
+        if (event.target.id === 'mark-delete' && selected >= 0) { checkpoint(); marks.splice(selected, 1); selected = -1; drawMarks(); persistMarks(); }
+        if (event.target.id === 'mark-undo' && history.length) { redo.push(JSON.stringify(marks)); marks = JSON.parse(history.pop()); selected = -1; drawMarks(); persistMarks(); }
+        if (event.target.id === 'mark-redo' && redo.length) { history.push(JSON.stringify(marks)); marks = JSON.parse(redo.pop()); selected = -1; drawMarks(); persistMarks(); }
       });
       window.addEventListener('scroll', drawMarks, { passive: true });
       window.addEventListener('resize', drawMarks);
@@ -497,7 +557,7 @@
       send({ type: 'pfh-review-tab-ready' });
     }
     const css = `*{box-sizing:border-box}body{margin:0;background:#f5f7f8;color:#243339;font:15px/1.6 'Segoe UI','Microsoft YaHei',sans-serif}header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 32px;background:#fff;border-bottom:1px solid #dce3e5}h1{font-size:21px;margin:0}h2{font-size:16px;margin:0 0 20px}small,.muted,#meta{font-size:13px;color:#596970}small{display:block;font-weight:400}main{padding:28px 32px}#board{display:grid;grid-template-columns:var(--w1,minmax(220px,.85fr)) var(--w2,minmax(260px,1fr)) minmax(260px,1fr);gap:28px;align-items:start}section,aside{min-width:0}aside{position:sticky;top:20px}#benchmark{display:block;width:100%;max-height:65vh;object-fit:contain;background:#fff;border-radius:12px;cursor:zoom-in}aside p{font-size:12px;color:#596970}textarea{display:block;width:100%;height:65vh;min-height:360px;resize:vertical;padding:16px;border:1px solid #cbd5d9;border-radius:10px;background:#fff;font:inherit;line-height:1.7;color:#243339;caret-color:#17695f}textarea:focus-visible,button:focus-visible{outline:2px solid #17695f;outline-offset:3px}.translation textarea{background:#eaf1f0;border-color:transparent;resize:vertical}.text-row{margin-bottom:20px}.text-row label,.text-row span{display:block;margin-bottom:7px;font-size:12px;color:#596970}button{padding:9px 16px;border:1px solid #cbd5d9;border-radius:8px;background:#fff;color:#243339;cursor:pointer}button:hover{background:#edf3f2}#copy{background:#17695f;color:white;border-color:#17695f}nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#status{color:#17695f;font-size:13px}#report{margin-top:36px;padding:28px;background:#fff;border-radius:12px}article{border-top:1px solid #e1e7e9;padding:18px 0}article strong{font-size:14px}blockquote{margin:8px 0;color:#596970;white-space:pre-wrap}article p{margin:6px 0;max-width:75ch}dialog{border:0;border-radius:12px;max-width:90vw;max-height:90vh;padding:12px}dialog::backdrop{background:#14252bd9}dialog img{max-width:85vw;max-height:82vh}::selection{background:#cce5df}@media(max-width:900px){header{align-items:start;flex-direction:column}main{padding:20px}#board{grid-template-columns:1fr 1fr;gap:16px}aside{grid-column:1/-1;position:static}#benchmark{max-height:300px}}@media(max-width:560px){#board{grid-template-columns:1fr}aside{grid-column:auto}header{padding:20px}}`;
-    return '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>包装文案编辑</title><style>' + css + '.tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 32px;background:#fff;border-bottom:1px solid #dce3e5}.tools input{padding:10px;border:1px solid #cbd5d9;border-radius:8px;font:inherit;width:160px}.suggestion{margin:16px 0;padding:16px;background:#f5f7f8;border-radius:8px}.suggestion p{white-space:pre-wrap}.annotation-stage{position:relative;background:#fff;border-radius:12px;overflow:hidden}.annotation-stage #benchmark{max-height:none;height:auto;border-radius:0}.annotation-stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}.annotation-tools button[aria-pressed="true"]{background:#17695f;color:#fff}.annotation-tools input[type="color"]{width:44px;padding:2px;height:32px}.annotation-tools label{display:flex;gap:8px;align-items:center}header{position:sticky;top:0;z-index:30;align-items:center}.header-tools{flex:1;min-width:0}.header-tools .tools{padding:3px 8px;border:0;gap:6px}.header-tools .tools input{padding:5px;width:120px}.header-tools button{padding:5px 9px}.header-tools .muted{display:none}#annotation-canvas{position:fixed;inset:0;width:100vw;height:100vh;z-index:20;pointer-events:none;touch-action:none;cursor:crosshair}@media(max-width:900px){header{position:relative}.header-tools .tools{padding:6px 0}}</style><body><header><div><h1>包装文案编辑</h1><div id="meta"></div></div><div class="header-tools"><div class="tools"><label for="net-value">净含量换算</label><input id="net-value" placeholder="60g / 100ml"><button id="net-add">换算并添加到英文</button><span class="muted">克 → OZ · 毫升 → 美制 FL.OZ</span></div><div class="tools annotation-tools" aria-label="图片标注工具"><button data-mark-tool="view" aria-pressed="true">查看</button><button data-mark-tool="arrow" aria-pressed="false">箭头</button><button data-mark-tool="rect" aria-pressed="false">方框</button><button data-mark-tool="mosaic" aria-pressed="false">马赛克</button><button data-mark-tool="text" aria-pressed="false">文字</button><button data-mark-tool="pen" aria-pressed="false">画笔</button><button data-mark-tool="eraser" aria-pressed="false">橡皮擦</button><label>颜色 <input id="mark-color" type="color" value="#d63638"></label><label>粗细 <select id="mark-width"><option value="3">细</option><option value="6" selected>中</option><option value="10">粗</option></select></label><input id="mark-text" placeholder="输入标注文字" aria-label="标注文字"><button id="mark-undo">撤销</button><button id="mark-redo">重做</button></div></div><nav><span id="status" role="status"></span><button id="save-close">保存并关闭</button><button id="retry">重新翻译</button><button id="copy">复制英文文案</button></nav></header><canvas id="annotation-canvas" aria-label="网页标注画布"></canvas><main><div id="board"></div><section id="report"></section></main><dialog id="zoom"><img alt="产品对标大图"></dialog><script>const formatNetContent = ' + productDevelopmentFormatReviewNetContent.toString() + ';(' + editorClient.toString() + ')();</scr' + 'ipt></body></html>';
+    return '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>包装文案编辑</title><style>' + css + '.tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 32px;background:#fff;border-bottom:1px solid #dce3e5}.tools input{padding:10px;border:1px solid #cbd5d9;border-radius:8px;font:inherit;width:160px}.suggestion{margin:16px 0;padding:16px;background:#f5f7f8;border-radius:8px}.suggestion p{white-space:pre-wrap}.annotation-stage{position:relative;background:#fff;border-radius:12px;overflow:hidden}.annotation-stage #benchmark{max-height:none;height:auto;border-radius:0}.annotation-stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}.annotation-tools button[aria-pressed="true"]{background:#17695f;color:#fff}.annotation-tools input[type="color"]{width:44px;padding:2px;height:32px}.annotation-tools label{display:flex;gap:8px;align-items:center}header{position:sticky;top:0;z-index:30;align-items:center}.header-tools{flex:1;min-width:0}.header-tools .tools{padding:3px 8px;border:0;gap:6px}.header-tools .tools input{padding:5px;width:120px}.header-tools button{padding:5px 9px}.header-tools .muted{display:none}#annotation-canvas{position:fixed;inset:0;width:100vw;height:100vh;z-index:20;pointer-events:none;touch-action:none;cursor:crosshair}@media(max-width:900px){header{position:relative}.header-tools .tools{padding:6px 0}}.header-tools .tools{gap:5px}.header-tools button{border-color:transparent;background:#f1f5f4;color:#34534f;border-radius:8px;font-weight:600;transition:background .15s,color .15s}.header-tools button:hover{background:#dcebe7}.header-tools input{background:#f5f8f7;border-color:#dce7e3;border-radius:8px}.annotation-tools select{appearance:none;border:0;border-radius:7px;padding:6px 20px 6px 9px;background:#edf4f1;color:#34534f}.annotation-tools label{font-size:12px;color:#526d66}.annotation-tools input[type="color"]{width:30px;height:30px;border:0;border-radius:50%;overflow:hidden;background:none}.annotation-input{position:fixed;z-index:100;width:220px;height:90px;min-height:0;padding:10px;background:white;border:2px solid #17695f;border-radius:8px;box-shadow:0 10px 30px #173d3433;resize:both}</style><body><header><div><h1>包装文案编辑</h1><div id="meta"></div></div><div class="header-tools"><div class="tools"><label for="net-value">净含量换算</label><input id="net-value" placeholder="60g / 100ml"><button id="net-add">换算并添加到英文</button><span class="muted">克 → OZ · 毫升 → 美制 FL.OZ</span></div><div class="tools annotation-tools" aria-label="图片标注工具"><button data-mark-tool="view" aria-pressed="true">查看</button><button data-mark-tool="select" aria-pressed="false" title="拖动标注，拖动终点调整大小，双击编辑文字">选择</button><button data-mark-tool="arrow" aria-pressed="false">箭头</button><button data-mark-tool="rect" aria-pressed="false">方框</button><button data-mark-tool="mosaic" aria-pressed="false">马赛克</button><button data-mark-tool="text" aria-pressed="false">文字</button><button data-mark-tool="pen" aria-pressed="false">画笔</button><button data-mark-tool="eraser" aria-pressed="false">橡皮擦</button><label>颜色 <input id="mark-color" type="color" value="#d63638"></label><label>粗细 <select id="mark-width"><option value="3">细</option><option value="6" selected>中</option><option value="10">粗</option></select></label><button id="mark-delete" title="删除选中标注">删除</button><button id="mark-undo">撤销</button><button id="mark-redo">重做</button></div></div><nav><span id="status" role="status"></span><button id="save-close">保存并关闭</button><button id="retry">重新翻译</button><button id="copy">复制英文文案</button></nav></header><canvas id="annotation-canvas" aria-label="网页标注画布"></canvas><main><div id="board"></div><section id="report"></section></main><dialog id="zoom"><img alt="产品对标大图"></dialog><script>const formatNetContent = ' + productDevelopmentFormatReviewNetContent.toString() + ';(' + editorClient.toString() + ')();</scr' + 'ipt></body></html>';
   }
 
   function productDevelopmentOpenReviewEditorTab() {
