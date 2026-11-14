@@ -1468,6 +1468,13 @@
 
   function productDevelopmentValidateReview(result, snapshot) {
     const source = result && typeof result === 'object' ? result : {};
+    if (source.reviewMode === 'original-report') {
+      const items = (source.items || source.texts || []).filter((item) => item.onPackaging !== false && typeof item.sourceText === 'string' && item.sourceText.trim()).slice(0, 80).map((item, index) => ({
+        ...item, id: String(item.id || index + 1), replacementEn: item.sourceText, replacementZh: '',
+        riskTypes: Array.isArray(item.riskTypes) ? item.riskTypes : [], revisionAction: '', replacementOptions: [],
+      }));
+      return { items, extractedTexts: items.map((item) => ({ ...item })), warnings: source.warnings || [], provider: source.provider, model: source.model, packagingBboxes: [], productNaming: {} };
+    }
     const brand = snapshot && snapshot.brand ? [snapshot.brand] : [];
     const sourceItems = Array.isArray(source.texts) && source.texts.length ? source.texts : source.items;
     const extractedTexts = productDevelopmentNormalizeRiskItems({ items: sourceItems, packagingBboxes: source.packagingBboxes }, { brand, snapshot });

@@ -435,17 +435,15 @@
     const previewCopyActions = Array.isArray(items) && items.length
       ? '<button type="button" data-action="product-development-review-copy-all" title="复制图片识别出的全部原文">复制全文</button><button type="button" data-action="product-development-review-copy-revised" title="复制当前修改后的中英文文案">复制修改后的文案</button>'
       : '';
-    const preview = canShowResult && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>三列对照图预览</strong></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"' + (canEditResult ? ' data-action="product-development-review-editor-open" class="pfh-product-development-preview-zoom" title="点击打开对照编辑"' : '') + ' style="display:block;width:100%;min-width:0;max-width:100%;height:auto;object-fit:contain"></div><div class="pfh-product-development-preview-actions">' + (canEditResult ? '<button type="button" data-action="product-development-review-editor-open">编辑对照文字</button>' : '') + previewCopyActions + '<button type="button" data-action="product-development-review-download">下载 PNG</button></div></section>' : '';
+    const preview = canShowResult ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>包装原文与中文风险报告</strong></div><div class="pfh-product-development-preview-actions"><button type="button" data-action="product-development-review-editor-open">打开文案编辑与翻译</button>' + previewCopyActions + '</div>' + items.map((item, index) => '<p><strong>文字块 ' + (index + 1) + '</strong> · ' + escapeHtml(item.riskTypes && item.riskTypes.length ? item.riskReason || '存在待核查风险' : '暂未发现明显风险') + '</p>').join('') + '</section>' : '';
     const list = canShowResult ? '' : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
-    const editor = canEditResult ? productDevelopmentReviewEditorHtml(result, items) : '';
+    const editor = '';
     return '<div class="pfh-product-development pfh-product-development-subview">' +
       '<header class="pfh-product-development-subview-head"><button type="button" class="pfh-upload-back" data-action="product-development-home" aria-label="返回产品开发主页">' + iconHtml('backArrow') + '</button><strong>产品图风险筛查</strong></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
+      '<section class="pfh-product-development-work-card"><div><h3>提取包装原文与风险分析</h3></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
       extractedSummary +
-      (canShowResult ? productDevelopmentProductNamingHtml(result) : '') +
-      (canEditResult ? productDevelopmentPlainTextCopyHtml(result) : '') +
       preview + list + editor + '</div>';
   }
 

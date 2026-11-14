@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.81
+// @version      2.10.82
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.81';
+  const SCRIPT_VERSION = '2.10.82';
   const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }\n#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n\n/* Text-only BOM controls, full-width material groups and aligned fields. */\n#plm-floating-helper .pfh-product-development-material-planner.pfh-bom-form {\n  display: grid;\n  gap: 16px;\n  min-width: 0;\n  padding: 16px;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-bom-form > header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-bom-form > header > .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; }\n#plm-floating-helper .pfh-product-development-detail-form > .pfh-product-development-product-form-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-detail-heading { display: contents; }\n#plm-floating-helper .pfh-product-development-product-form-header .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-bom-form > header h3 { font-size: 16px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card button[data-action] {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-bom-form button.is-primary { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-bom-form button:hover:not(:disabled) { border-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form button:disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-list { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card { align-content: start; gap: 12px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header { flex-direction: row; align-items: center; min-height: 36px; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header strong { font-size: 20px; font-weight: 700; line-height: 1.4; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled { padding-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled small { margin-left: 12px; color: var(--pfh-theme-muted); font-size: 11px; font-weight: 400; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-grid,\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-grid { grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); align-items: start; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field { gap: 8px; color: var(--pfh-theme-text); font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field > span { overflow: visible; white-space: normal; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field :is(input, select) { min-height: 36px; padding: 8px 12px; font: inherit; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form :is(button, input, select):focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 2px; }\n#plm-floating-helper .pfh-bom-dimensions { display: grid; grid-column: 1 / -1; grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-bom-dimensions.is-box { grid-template-columns: var(--pfh-bom-field-columns, repeat(3, minmax(0, 1fr))); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-options { gap: 12px; padding-top: 12px; border-top-style: solid; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group { gap: 8px; font-size: 11px; color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group > div { display: flex; min-height: 36px; box-sizing: border-box; align-items: center; gap: 16px; padding: 8px 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group input { accent-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-product-binding { padding: 12px; border-radius: 8px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid { gap: 12px; margin-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid small { font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-bom-form { --pfh-bom-field-columns: minmax(0, 1fr); }\n}\n";
   const SKU_DETAIL_LAYOUT_CSS = "/* Keep SKU identity above the independently scrolling detail content. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  height: auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  padding: 12px 14px 0;\n  overflow: hidden;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {\n  flex: 0 0 auto;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 0 0;\n}\n\n#plm-floating-helper .pfh-material-card {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 16px 18px;\r\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\r\n  border-radius: 16px;\r\n  background: var(--pfh-theme-card, #fff);\r\n}\r\n#plm-floating-helper .pfh-material-card small {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key] {\r\n  display: block;\r\n  min-width: 0;\r\n  overflow-wrap: anywhere;\r\n  /* Fill the inter-row gap without moving the text or overlapping targets. */\r\n  padding: 4px 10px;\r\n  margin: -4px -10px;\r\n  cursor: pointer;\r\n  border-radius: 6px;\r\n  transition: color .15s, background .15s;\r\n}\r\n#plm-floating-helper .pfh-material-size {\r\n  color: var(--pfh-theme-text, #17213a);\r\n  font-size: 15px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-code {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:hover,\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:focus-visible,\r\n#plm-floating-helper .pfh-material-card .is-copied {\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-soft, #f4efff);\r\n  outline: none;\r\n}\r\n\n/* Keep product context in the selected SKU card while the editor owns the detail pane. */\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active) {\n  position: relative;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active)::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  z-index: 10;\n  border-radius: inherit;\n  background: color-mix(in srgb, var(--pfh-theme-page, #f8f9ff) 58%, transparent);\n  pointer-events: none;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-list-head, .pfh-sku-list-toolbar, .pfh-sku-filter-toolbar, .pfh-list-pager, .pfh-search-result-toolbar, .pfh-workspace-search-host) {\n  opacity: .5;\n}\n\n#plm-floating-helper .pfh-development-detail-jump {\n  position: absolute;\n  z-index: 80;\n  display: grid;\n  gap: 4px;\n  width: 188px;\n  max-width: calc(100% - 16px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-development-detail-jump button {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  text-align: left;\n  font: inherit;\n  font-size: 12px;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-development-detail-jump button:is(:hover, :focus-visible, .is-active) { background: var(--pfh-theme-primary-soft); color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-development-detail-jump button:focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 1px; }\n#plm-floating-helper .pfh-development-detail-jump button:disabled { opacity: .45; cursor: default; }\n";
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
@@ -6921,10 +6921,11 @@
       productType: productDevelopmentCleanText(source.productType || source.category, 180),
       netContent: productDevelopmentCleanText(source.netContent, 120).toUpperCase(),
       humanSupplement: source.humanSupplement === true,
+      reviewMode: source.reviewMode || '',
       sourceImageDataUrl: dataUrl(source.sourceImageDataUrl, 2600000),
       sourceImageName: productDevelopmentCleanText(source.sourceImageName || source.benchmarkImageName, 180),
       comparisonDataUrl: dataUrl(source.comparisonDataUrl, 2600000),
-      items: (Array.isArray(source.items) ? source.items : []).map(productDevelopmentReviewDraftItem).slice(0, 80),
+      items: (Array.isArray(source.items) ? source.items : []).map((item) => source.reviewMode === 'original-report' ? { ...productDevelopmentReviewDraftItem(item), sourceText: String(item.sourceText || ''), replacementEn: String(item.replacementEn == null ? item.sourceText || '' : item.replacementEn), replacementZh: String(item.replacementZh || ''), riskReason: String(item.riskReason || '') } : productDevelopmentReviewDraftItem(item)).slice(0, 80),
       extractedTexts: (Array.isArray(source.extractedTexts) ? source.extractedTexts : []).map(productDevelopmentReviewDraftItem).slice(0, 80),
       packagingBboxes: productDevelopmentReviewPackagingBboxes(source).slice(0, 8),
       warnings: Array.isArray(source.warnings) ? source.warnings.map((item) => productDevelopmentCleanText(item, 240)).filter(Boolean).slice(0, 12) : [],
@@ -13007,6 +13008,13 @@
 
   function productDevelopmentValidateReview(result, snapshot) {
     const source = result && typeof result === 'object' ? result : {};
+    if (source.reviewMode === 'original-report') {
+      const items = (source.items || source.texts || []).filter((item) => item.onPackaging !== false && typeof item.sourceText === 'string' && item.sourceText.trim()).slice(0, 80).map((item, index) => ({
+        ...item, id: String(item.id || index + 1), replacementEn: item.sourceText, replacementZh: '',
+        riskTypes: Array.isArray(item.riskTypes) ? item.riskTypes : [], revisionAction: '', replacementOptions: [],
+      }));
+      return { items, extractedTexts: items.map((item) => ({ ...item })), warnings: source.warnings || [], provider: source.provider, model: source.model, packagingBboxes: [], productNaming: {} };
+    }
     const brand = snapshot && snapshot.brand ? [snapshot.brand] : [];
     const sourceItems = Array.isArray(source.texts) && source.texts.length ? source.texts : source.items;
     const extractedTexts = productDevelopmentNormalizeRiskItems({ items: sourceItems, packagingBboxes: source.packagingBboxes }, { brand, snapshot });
@@ -13055,142 +13063,6 @@
       if (line || !chars.length) lines.push(line);
     });
     return lines.slice(0, maxLines || 3);
-  }
-
-  async function composeProductDevelopmentComparison(sourceDataUrl, items, snapshot) {
-    const image = await loadImage(sourceDataUrl);
-    const iw = image.naturalWidth || image.width || 1;
-    const ih = image.naturalHeight || image.height || 1;
-    const padding = 34;
-    const columnGap = 22;
-    const headerHeight = 94;
-    const imageColumnWidth = Math.max(820, Math.min(1100, Math.max(820, iw)));
-    const englishColumnWidth = 620;
-    const translationColumnWidth = 760;
-    const imageAreaWidth = imageColumnWidth - padding * 2;
-    const imageAreaHeight = Math.max(820, Math.min(1700, ih * imageAreaWidth / iw));
-    const displayItems = (Array.isArray(items) ? items : []).slice(0, 80);
-    const englishTextWidth = englishColumnWidth - 92;
-    const translationTextWidth = translationColumnWidth - 68;
-    const bodyFont = '400 24px Arial, Microsoft YaHei, sans-serif';
-    const bodyLineHeight = 30;
-    const riskFont = '700 18px Arial, Microsoft YaHei, sans-serif';
-    const riskLineHeight = 24;
-    const measureCanvas = document.createElement('canvas');
-    const measureCtx = measureCanvas.getContext('2d');
-    if (!measureCtx) throw new Error('无法创建对照图测量画布');
-    const rowHeights = displayItems.map((item, index) => {
-      const isRisk = Array.isArray(item.riskTypes) && item.riskTypes.length;
-      const riskLabel = '风险 · ' + item.riskTypes.join('、') + (Array.isArray(item.riskTerms) && item.riskTerms.length ? ' · ' + item.riskTerms.join('、') : '');
-      measureCtx.font = riskFont;
-      const riskLines = isRisk
-        ? productDevelopmentCanvasTextLines(measureCtx, riskLabel, englishTextWidth, 2).length
-        : 0;
-      measureCtx.font = bodyFont;
-      const sourceLines = productDevelopmentCanvasTextLines(measureCtx, item.sourceText || '（未读取到可靠原文）', englishTextWidth, 6).length;
-      const replacementEnLines = productDevelopmentCanvasTextLines(measureCtx, item.replacementEn || item.sourceText, translationTextWidth, 6).length;
-      const replacementZhLines = productDevelopmentCanvasTextLines(measureCtx, item.replacementZh || item.translationZh || item.sourceText, translationTextWidth, 6).length;
-      const riskHeight = isRisk ? riskLines * riskLineHeight + 8 : 0;
-      const leftHeight = sourceLines * bodyLineHeight;
-      const rightHeight = replacementEnLines * bodyLineHeight + 8 + replacementZhLines * bodyLineHeight;
-      return Math.max(68, Math.max(riskHeight + leftHeight, rightHeight)) + 14;
-    });
-    const contentHeight = Math.max(imageAreaHeight, rowHeights.reduce((total, value) => total + value, 0) + 24);
-    const footerHeight = 42;
-    const height = padding * 2 + headerHeight + contentHeight + footerHeight;
-    const canvas = document.createElement('canvas');
-    canvas.width = padding * 2 + imageColumnWidth + englishColumnWidth + translationColumnWidth + columnGap * 2;
-    canvas.height = Math.ceil(height);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('无法创建对照图画布');
-    const imageX = padding;
-    const englishX = imageX + imageColumnWidth + columnGap;
-    const translationX = englishX + englishColumnWidth + columnGap;
-    const panelY = padding;
-    const panelHeight = height - padding * 2 - footerHeight;
-    const contentY = panelY + headerHeight;
-    ctx.fillStyle = '#f6f8fb';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(imageX, panelY, imageColumnWidth, panelHeight);
-    ctx.fillRect(englishX, panelY, englishColumnWidth, panelHeight);
-    ctx.fillRect(translationX, panelY, translationColumnWidth, panelHeight);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    const titleFont = '700 32px Arial, Microsoft YaHei, sans-serif';
-    ctx.font = titleFont;
-    ctx.fillStyle = '#172033';
-    ctx.fillText('Benchmark Image / 对标图', imageX + 26, panelY + 27);
-    ctx.fillText('English Original / 英文原文', englishX + 26, panelY + 27);
-    ctx.fillText('Revised Copy / 改写与翻译', translationX + 26, panelY + 27);
-    ctx.fillStyle = '#dbe4f1';
-    ctx.fillRect(imageX + 26, panelY + 76, 78, 4);
-    ctx.fillStyle = '#8b6ac8';
-    ctx.fillRect(englishX + 26, panelY + 76, 78, 4);
-    ctx.fillStyle = '#27a5a0';
-    ctx.fillRect(translationX + 26, panelY + 76, 78, 4);
-    const scale = Math.min(imageAreaWidth / iw, imageAreaHeight / ih);
-    const drawWidth = iw * scale;
-    const drawHeight = ih * scale;
-    const drawX = imageX + (imageColumnWidth - drawWidth) / 2;
-    const drawY = contentY + (imageAreaHeight - drawHeight) / 2;
-    ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
-    ctx.strokeStyle = '#d7dee9';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(imageX, panelY, imageColumnWidth, panelHeight);
-    ctx.strokeRect(englishX, panelY, englishColumnWidth, panelHeight);
-    ctx.strokeRect(translationX, panelY, translationColumnWidth, panelHeight);
-    let rowY = contentY + 18;
-    displayItems.forEach((item, index) => {
-      const isRisk = Array.isArray(item.riskTypes) && item.riskTypes.length;
-      const rowTextX = englishX + 66;
-      const rightTextX = translationX + 42;
-      const riskLabel = '风险 · ' + item.riskTypes.join('、') + (Array.isArray(item.riskTerms) && item.riskTerms.length ? ' · ' + item.riskTerms.join('、') : '');
-      const riskHeight = isRisk
-        ? (() => {
-          ctx.font = riskFont;
-          return productDevelopmentCanvasTextLines(ctx, riskLabel, englishTextWidth, 2).length * riskLineHeight + 8;
-        })()
-        : 0;
-      ctx.fillStyle = isRisk ? '#b42318' : '#718096';
-      ctx.font = '700 16px Arial, Microsoft YaHei, sans-serif';
-      ctx.fillText(String(index + 1).padStart(2, '0'), englishX + 26, rowY + 2);
-      const riskLines = isRisk
-        ? productDevelopmentWrapCanvasText(ctx, riskLabel, rowTextX, rowY, englishTextWidth, riskLineHeight, 2)
-        : 0;
-      const sourceY = rowY + riskHeight;
-      const revisedY = rowY;
-      ctx.fillStyle = '#2f415b';
-      ctx.font = bodyFont;
-      productDevelopmentWrapCanvasText(ctx, item.sourceText || '（未读取到可靠原文）', rowTextX, sourceY, englishTextWidth, bodyLineHeight, 6);
-      ctx.fillStyle = '#8b6ac8';
-      ctx.fillRect(translationX + 26, revisedY + 4, 4, 22);
-      ctx.font = bodyFont;
-      const replacementEnLines = productDevelopmentWrapCanvasText(ctx, item.replacementEn || item.sourceText, rightTextX, revisedY, translationTextWidth, bodyLineHeight, 6);
-      const replacementZhY = revisedY + replacementEnLines * bodyLineHeight + 8;
-      ctx.fillStyle = '#168b87';
-      ctx.fillRect(translationX + 26, replacementZhY + 4, 4, 22);
-      ctx.font = bodyFont;
-      productDevelopmentWrapCanvasText(ctx, item.replacementZh || item.translationZh || item.sourceText, rightTextX, replacementZhY, translationTextWidth, bodyLineHeight, 6);
-      ctx.fillStyle = '#e8edf4';
-      ctx.fillRect(englishX + 22, rowY + (rowHeights[index] || 82) - 8, englishColumnWidth - 44, 1);
-      ctx.fillRect(translationX + 22, rowY + (rowHeights[index] || 82) - 8, translationColumnWidth - 44, 1);
-      rowY += rowHeights[index] || 188;
-    });
-    if (!displayItems.length) {
-      ctx.fillStyle = '#667085';
-      ctx.font = '24px Arial, Microsoft YaHei, sans-serif';
-      ctx.fillText('未提取到可确认的图片文字', englishX + 26, contentY + 52);
-      ctx.fillText('请手动添加或重新分析', translationX + 26, contentY + 52);
-    }
-    ctx.fillStyle = '#98a2b3';
-    ctx.font = '16px Arial, Microsoft YaHei, sans-serif';
-    ctx.fillText('SKU ' + String(snapshot && snapshot.sku || '') + ' · 对标图保留 · 原文 / 英文改写 / 中文翻译 · 坐标不可靠时不绘制红框 · 仅生成审核稿', padding, height - 27);
-    return {
-      dataUrl: canvas.toDataURL('image/png'),
-      width: canvas.width,
-      height: canvas.height,
-    };
   }
 
   function productDevelopmentFileName(sku, suffix, extension) {
@@ -13283,15 +13155,14 @@
           efficacy: snapshot.sourceCopywriting.efficacy,
           namingExamples: PRODUCT_DEVELOPMENT_NAME_EXAMPLES,
           reviewRuleVersion: PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION,
+          reviewMode: 'original-report',
           namingRule: '英文产品名取对标图上清晰可见的产品主标题；如果产品名带有（入口），英文产品名固定填写 Dietary Supplement；中文产品名使用适用对象、朦胧作用/状态和剂型组合，不使用医疗、预防、治疗、绝对化或夸大表达。',
           imageDataUrl: image.dataUrl,
           referenceUrl: snapshot.referenceUrl,
         },
       });
+      if (response.reviewMode !== 'original-report') throw new Error('服务端尚未更新到原文与中文报告模式，请先部署新版 Worker');
       const validated = productDevelopmentValidateReview(response, snapshot);
-      state.productDevelopmentStatus = '正在生成左图右文的本地对照图…';
-      renderShell();
-      const comparison = await composeProductDevelopmentComparison(image.dataUrl, validated.items, snapshot);
       const id = 'pd-review-' + Date.now().toString(36);
       const fileName = productDevelopmentFileName(snapshot.sku, 'infringement-comparison', 'png');
       const reviewResult = {
@@ -13303,7 +13174,8 @@
         humanSupplement,
         sourceImageDataUrl: image.dataUrl,
         sourceImageName: state.productDevelopmentBenchmarkImageName,
-        comparisonDataUrl: comparison.dataUrl,
+        reviewMode: 'original-report',
+        comparisonDataUrl: '',
         items: validated.items,
         extractedTexts: validated.extractedTexts,
         packagingBboxes: validated.packagingBboxes,
@@ -13319,8 +13191,8 @@
       state.productDevelopmentReview = reviewResult;
       saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
       const riskCount = validated.items.filter((item) => Array.isArray(item.riskTypes) && item.riskTypes.length).length;
-      state.productDevelopmentStatus = riskCount ? '已识别 ' + validated.extractedTexts.length + ' 项图片文字，生成 ' + riskCount + ' 项风险对照，请人工确认' : '已识别 ' + validated.extractedTexts.length + ' 项图片文字，未检测到风险，可下载留档并继续人工检查';
-      showToast('侵权对照图已生成');
+      state.productDevelopmentStatus = '已识别 ' + validated.extractedTexts.length + ' 项包装文字，发现 ' + riskCount + ' 项待核查风险；打开编辑页修改英文';
+      showToast('原文与中文风险报告已生成');
     } catch (error) {
       state.productDevelopmentError = formatErrorMessage(error);
       state.productDevelopmentStatus = '';
@@ -13371,6 +13243,27 @@
   // back to the helper state via window.postMessage.
   let productDevelopmentEditorTabWindow = null;
   let productDevelopmentEditorTabBridgeInstalled = false;
+  const productDevelopmentReviewTranslationTimers = new WeakMap();
+
+  function productDevelopmentTranslateReviewItem(result, item) {
+    const previous = productDevelopmentReviewTranslationTimers.get(item);
+    if (previous) window.clearTimeout(previous);
+    const english = item.replacementEn;
+    item.replacementZh = '';
+    productDevelopmentReviewTranslationTimers.set(item, window.setTimeout(async () => {
+      try {
+        const translated = english.trim() ? await productDevelopmentTranslateEnToZh(english) : '';
+        if (item.replacementEn !== english || state.productDevelopmentReview !== result) return;
+        item.replacementZh = translated;
+        saveProductDevelopmentReviewDraft(result);
+        state.productDevelopmentStatus = '英文已保存 · 中文翻译已更新';
+      } catch (_) {
+        if (item.replacementEn !== english) return;
+        state.productDevelopmentStatus = '英文已保存 · 翻译失败，请点击重新翻译';
+      }
+      productDevelopmentPushEditorTabData();
+    }, 600));
+  }
 
   function productDevelopmentEditorTabRiskInfo(item) {
     const riskTypes = Array.isArray(item && item.riskTypes) ? item.riskTypes : [];
@@ -13424,9 +13317,9 @@
         const risk = productDevelopmentEditorTabRiskInfo(item);
         return {
           index,
-          sourceText: productDevelopmentCleanText(item && item.sourceText, 400),
-          replacementEn: productDevelopmentCleanText(item && item.replacementEn, 300),
-          replacementZh: productDevelopmentCleanText(item && (item.replacementZh || item.translationZh), 500),
+          sourceText: String(item && item.sourceText || ''),
+          replacementEn: String(item && item.replacementEn != null ? item.replacementEn : item.sourceText || ''),
+          replacementZh: String(item && item.replacementZh || ''),
           isRisk: risk.isRisk,
           riskLabel: risk.label,
           riskReason: risk.reason,
@@ -13450,189 +13343,51 @@
   }
 
   function productDevelopmentEditorTabDocumentHtml() {
-    const css = [
-      '* { box-sizing: border-box; }',
-      'html, body { margin: 0; padding: 0; height: 100%; }',
-      "body { font: 13px/1.5 -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f6f5fb; color: #1f1937; display: flex; flex-direction: column; }",
-      'header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 24px; background: #fff; border-bottom: 1px solid #e6e2f2; }',
-      'header b { font-size: 15px; }',
-      'header #status { color: #6b6484; font-size: 12px; margin-left: 12px; }',
-      'header #meta { color: #6b6484; font-size: 12px; white-space: nowrap; }',
-      '#warnings { display: none; flex-wrap: wrap; gap: 6px; padding: 10px 24px; background: #fff7e6; border-bottom: 1px solid #ffe3ad; }',
-      '#warnings span { font-size: 11px; color: #8a5b00; background: #fff; border: 1px solid #ffd88a; border-radius: 999px; padding: 3px 10px; }',
-      'main { flex: 1; overflow: auto; padding: 18px 24px; }',
-      '#board-wrap { position: relative; }',
-      '#board { display: grid; grid-template-columns: var(--w1, 440px) var(--w2, minmax(0, 1fr)) minmax(260px, 1fr); gap: 14px; }',
-      '#board.is-empty { display: block; }',
-      '.colhead { font-weight: 600; font-size: 12px; padding-bottom: 6px; border-bottom: 2px solid #d9d4ea; margin-bottom: 4px; }',
-      '.colhead.blue { border-color: #7b9dff; color: #4463c9; }',
-      '.colhead.teal { border-color: #4fc3c0; color: #2c8f8c; }',
-      '.imgwrap { background: #fff; border: 1px solid #e2ddf0; border-radius: 14px; padding: 10px; margin-bottom: 12px; text-align: center; }',
-      '.imgwrap img { max-width: 100%; border-radius: 8px; display: block; margin: 0 auto; cursor: zoom-in; }',
-      '.imgwrap img:hover { opacity: .9; }',
-      '.imgwrap small { color: #8b84a6; font-size: 11px; display: block; margin-top: 6px; }',
-      '.imgside { position: sticky; top: 0; align-self: start; }',
-      '.card { background: #fff; border: 1px solid #e2ddf0; border-radius: 14px; padding: 12px; margin-bottom: 12px; }',
-      '.card.is-risk { border-color: #f3b9b9; background: #fffafa; }',
-      '.cardhead { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }',
-      '.num { color: #8b84a6; font-size: 11px; font-weight: 700; }',
-      '.badge { font-size: 11px; border-radius: 999px; padding: 2px 10px; }',
-      '.badge.bad { background: #fbe4e4; color: #b43636; }',
-      '.badge.ok { background: #e2f4ea; color: #2e7d4f; }',
-      '.del { margin-left: auto; width: 22px; height: 22px; border: 0; border-radius: 50%; background: transparent; color: #a39cbb; font-size: 15px; cursor: pointer; }',
-      '.del:hover { background: #f0edf9; color: #6b6484; }',
-      'textarea { width: 100%; min-height: 64px; resize: vertical; border: 1px solid #d9d4ea; border-radius: 10px; padding: 8px 10px; font: 12.5px/1.55 ui-monospace, Consolas, monospace; color: #1f1937; background: #fbfaff; }',
-      'textarea:focus { outline: none; border-color: #8b6ae0; background: #fff; }',
-      '.rev textarea { margin-bottom: 8px; }',
-      '.rev textarea:last-child { margin-bottom: 0; }',
-      '.rev textarea.zh { border-color: #bfe3e2; background: #f7fdfd; }',
-      '.reason { margin-top: 8px; color: #b43636; font-size: 11px; }',
-      '.empty { padding: 40px; text-align: center; color: #8b84a6; background: #fff; border: 1px dashed #d9d4ea; border-radius: 14px; }',
-      'footer { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px 24px; background: #fff; border-top: 1px solid #e6e2f2; }',
-      'footer button { border: 1px solid #d9d4ea; background: #fff; color: #4a4462; border-radius: 10px; padding: 7px 14px; font-size: 12.5px; cursor: pointer; }',
-      'footer button:hover { border-color: #8b6ae0; color: #6d51c7; }',
-      'footer button:disabled { opacity: .55; cursor: default; }',
-      'footer button.primary { background: #6d51c7; border-color: #6d51c7; color: #fff; }',
-      'footer button.primary:hover { background: #5d44b2; }',
-      'footer button.ghost { background: transparent; border-color: transparent; color: #8b84a6; }',
-      'footer button.ghost:hover { border-color: #d9d4ea; color: #6d51c7; }',
-      'footer .hint { margin-left: auto; color: #a39cbb; font-size: 11px; }',
-      '.splitter { position: absolute; top: 0; bottom: 0; width: 10px; z-index: 3; display: none; cursor: col-resize; touch-action: none; }',
-      '#board.is-empty ~ .splitter { display: none !important; }',
-      '.splitter::before { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; border-radius: 2px; background: transparent; transition: background .18s; }',
-      '.splitter:hover::before, .splitter.is-active::before { background: #8b6ae0; }',
-      'body.is-resizing { cursor: col-resize; user-select: none; }',
-      'body.is-resizing textarea { pointer-events: none; }',
-      '#lightbox { position: fixed; inset: 0; background: rgba(20, 16, 38, .88); display: none; align-items: center; justify-content: center; z-index: 99; cursor: zoom-out; padding: 40px; }',
-      '#lightbox.is-open { display: flex; }',
-      '#lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; box-shadow: 0 24px 80px rgba(0,0,0,.45); }',
-      '#lightbox .lb-tip { position: absolute; bottom: 18px; left: 0; right: 0; text-align: center; color: rgba(255,255,255,.7); font-size: 12px; }',
-    ].join('');
-    const js = [
-      "(function(){",
-      "var payload=null;",
-      "var LS_KEY='pfh-review-editor-layout:v1';",
-      "var DEFAULT_W1=440;",
-      "var layout={w1:0,w2:0};",
-      "var layoutReady=false;",
-      "var drag=null;",
-      "function clamp(v,a,b){return Math.max(a,Math.min(b,v));}",
-      "function boardEl(){return document.getElementById('board');}",
-      "function readLocalLayout(){try{var raw=localStorage.getItem(LS_KEY);if(!raw)return null;var v=JSON.parse(raw);if(!v||typeof v!=='object')return null;return {w1:clamp(Math.round(Number(v.w1)||0),0,1200),w2:clamp(Math.round(Number(v.w2)||0),0,1600)};}catch(_){return null;}}",
-      "function saveLayout(){try{localStorage.setItem(LS_KEY,JSON.stringify({w1:layout.w1,w2:layout.w2}));}catch(_){}send({type:'pfh-review-tab-layout',layout:{w1:layout.w1,w2:layout.w2}});}",
-      "function applyLayout(w1,w2){layout={w1:Math.round(Number(w1)||0),w2:Math.round(Number(w2)||0)};var b=boardEl();if(!b)return;b.style.setProperty('--w1',(layout.w1||DEFAULT_W1)+'px');b.style.setProperty('--w2',layout.w2?layout.w2+'px':'minmax(0, 1fr)');placeSplitters();}",
-      "function placeSplitters(){var wrap=document.getElementById('board-wrap');var s1=document.getElementById('sp1');var s2=document.getElementById('sp2');if(!wrap||!s1||!s2)return;var img=boardEl().querySelector('.imgside');var src=boardEl().querySelector('.card:not(.rev)');if(!img||!src){s1.style.display=s2.style.display='none';return;}var base=wrap.getBoundingClientRect().left;s1.style.display=s2.style.display='block';s1.style.left=(img.getBoundingClientRect().right-base+2)+'px';s2.style.left=(src.getBoundingClientRect().right-base+2)+'px';}",
-      "function lockWidths(){var b=boardEl();var img=b.querySelector('.imgside');var src=b.querySelector('.card:not(.rev)');if(img&&!layout.w1)layout.w1=Math.round(img.getBoundingClientRect().width);if(src&&!layout.w2)layout.w2=Math.round(src.getBoundingClientRect().width);applyLayout(layout.w1,layout.w2);}",
-      "function initLayout(p){if(layoutReady)return;layoutReady=true;var cached=readLocalLayout();if(cached&&(cached.w1||cached.w2)){applyLayout(cached.w1,cached.w2);return;}var r=p&&p.layout?p.layout:{w1:0,w2:0};applyLayout(r.w1,r.w2);}",
-      "function resetLayout(){applyLayout(0,0);saveLayout();flash('已恢复默认列宽');}",
-      "function renderKey(p){return p.items.map(function(x){return (x.isRisk?'1':'0')+String(x.riskLabel||'')+'~'+String(x.riskReason||'');}).join('|');}",
-      "function updateImages(p){var a=document.getElementById('bench2');var b=document.getElementById('compare2');if(a&&a.getAttribute('src')!==(p.image||''))a.src=p.image||'';if(b&&b.getAttribute('src')!==(p.comparison||''))b.src=p.comparison||'';}",
-      "function postRender(p){var b=boardEl();if(!b)return;b.querySelectorAll('.imgwrap img').forEach(function(im){im.setAttribute('data-zoom','');im.title='点击查看大图';});b.dataset.key=p.items.length?renderKey(p):'';initLayout(p);placeSplitters();}",
-      "function updateBoard(p){var b=boardEl();if(!b||!p.items.length)return false;var key=renderKey(p);if(b.dataset.key!==key||!b.querySelector('.imgside')||b.querySelectorAll('.card:not(.rev)').length!==p.items.length)return false;b.querySelectorAll('textarea[data-field]').forEach(function(ta){if(document.activeElement===ta)return;var item=p.items[Number(ta.dataset.i)];if(!item)return;var v=String(item[ta.dataset.field]==null?'':item[ta.dataset.field]);if(ta.value!==v)ta.value=v;});updateImages(p);postRender(p);return true;}",
-      "function openLightbox(src){var lb=document.getElementById('lightbox');var img=document.getElementById('lightbox-img');if(!lb||!img||!src)return;img.src=src;lb.classList.add('is-open');}",
-      "function closeLightbox(){var lb=document.getElementById('lightbox');if(lb)lb.classList.remove('is-open');}",
-      "function endDrag(){if(!drag)return;if(drag.node)drag.node.classList.remove('is-active');drag=null;document.body.classList.remove('is-resizing');saveLayout();}",
-      "function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');}",
-      "function send(msg){try{if(window.opener)window.opener.postMessage(Object.assign({source:'pfh-review-tab'},msg),'*');}catch(_){}}",
-      "function copyText(t){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){flash('已复制');}).catch(function(){fallbackCopy(t);});}else{fallbackCopy(t);}}",
-      "function fallbackCopy(t){var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');flash('已复制');}catch(_){flash('复制失败');}ta.remove();}",
-      "function flash(msg){var el=document.getElementById('status');if(el){el.textContent=msg;setTimeout(function(){if(payload&&el.textContent===msg)el.textContent=payload.status||'';},1600);}}",
-      "function pad(n){return String(n).length<2?'0'+n:String(n);}",
-      "function render(p){",
-      "payload=p;",
-      "document.getElementById('status').textContent=p.status||'';",
-      "document.getElementById('meta').textContent=(p.sku?'SKU '+p.sku+' · ':'')+p.items.length+' 个文字块';",
-      "var w=document.getElementById('warnings');",
-      "w.style.display=(p.warnings&&p.warnings.length)?'flex':'none';",
-      "w.innerHTML=(p.warnings||[]).map(function(x){return '<span>'+esc(x)+'</span>';}).join('');",
-      "var board=document.getElementById('board');",
-      "if(!p.items.length)board.classList.add('is-empty');else board.classList.remove('is-empty');",
-      "if(!p.items.length)postRender(p);",
-      "if(updateBoard(p)){syncButtons(p);return;}",
-      "if(!p.items.length){board.innerHTML='<div class=\"empty\">未检测到文字，请点下方「手动添加文字」。</div>';syncButtons(p);return;}",
-      "var n=p.items.length;",
-      "var html='<aside class=\"imgside\" style=\"grid-row:1 / span '+n+'\"><div class=\"colhead\">Benchmark Image / 对标图</div><div class=\"imgwrap\"><img id=\"bench2\"></div><div class=\"imgwrap\"><small>对照图预览</small><img id=\"compare2\"></div></aside>';",
-      "p.items.forEach(function(item){",
-      "html+='<div class=\"card'+(item.isRisk?' is-risk':'')+'\"><div class=\"cardhead\"><span class=\"num\">'+pad(item.index+1)+'</span><span class=\"badge '+(item.isRisk?'bad\">风险 · '+esc(item.riskLabel):'ok\">可保留')+'</span><button class=\"del\" data-del=\"'+item.index+'\" title=\"删除该行\">×</button></div>'+" +
-        "'<textarea data-i=\"'+item.index+'\" data-field=\"sourceText\" spellcheck=\"false\" placeholder=\"图片原文（可编辑）\">'+esc(item.sourceText)+'</textarea>'" +
-        "+(item.isRisk?'<div class=\"reason\">'+esc(item.riskReason)+'</div>':'')+'</div>';",
-      "html+='<div class=\"card rev'+(item.isRisk?' is-risk':'')+'\"><textarea class=\"en\" data-i=\"'+item.index+'\" data-field=\"replacementEn\" spellcheck=\"false\" placeholder=\"English rewrite / 英文改写\">'+esc(item.replacementEn)+'</textarea><textarea class=\"zh\" data-i=\"'+item.index+'\" data-field=\"replacementZh\" spellcheck=\"false\" placeholder=\"中文翻译\">'+esc(item.replacementZh)+'</textarea></div>';",
-      "});",
-      "board.innerHTML=html;",
-      "document.getElementById('bench2').src=p.image||'';",
-      "document.getElementById('compare2').src=p.comparison||'';",
-      "syncButtons(p);",
-      "postRender(p);",
-      "}",
-      "function syncButtons(p){",
-      "var t=document.getElementById('btn-translate');",
-      "t.disabled=!!p.busy.translate;",
-      "t.textContent=p.busy.translate?'正在翻译…':'改写翻译为中文';",
-      "var r=document.getElementById('btn-recompose');",
-      "r.disabled=!!p.busy.recompose;",
-      "r.textContent=p.busy.recompose?'正在重新生成…':'按修改重新生成对照图';",
-      "}",
-      "document.addEventListener('input',function(e){",
-      "var t=e.target;",
-      "if(t&&t.tagName==='TEXTAREA'&&t.dataset.field){send({type:'pfh-review-tab-input',index:Number(t.dataset.i),field:t.dataset.field,value:t.value});}",
-      "});",
-      "document.addEventListener('click',function(e){",
-      "var lb=document.getElementById('lightbox');",
-      "if(lb&&lb.classList.contains('is-open')){closeLightbox();return;}",
-      "if(e.target&&e.target.id==='btn-reset-layout'){resetLayout();return;}",
-      "var zoom=e.target&&e.target.closest?e.target.closest('[data-zoom]'):null;",
-      "if(zoom){openLightbox(zoom.getAttribute('src')||'');return;}",
-      "var el=e.target&&e.target.closest?e.target.closest('[data-del]'):null;",
-      "if(el){send({type:'pfh-review-tab-remove',index:Number(el.dataset.del)});return;}",
-      "var id=e.target&&e.target.id;",
-      "if(id==='btn-translate'){send({type:'pfh-review-tab-translate'});}",
-      "else if(id==='btn-add'){send({type:'pfh-review-tab-add'});}",
-      "else if(id==='btn-recompose'){send({type:'pfh-review-tab-recompose'});}",
-      "else if(id==='btn-copy-all'){if(payload){copyText(payload.items.map(function(x){return x.sourceText;}).filter(Boolean).join('\\n'));}}",
-      "else if(id==='btn-copy-revised'){if(payload){copyText(payload.items.map(function(x){return (x.replacementEn||x.sourceText||'')+(x.replacementZh?' / '+x.replacementZh:'');}).filter(Boolean).join('\\n'));}}",
-      "});",
-      "window.addEventListener('message',function(e){",
-      "var d=e&&e.data;",
-      "if(!d||typeof d!=='object'||d.source!=='pfh-review-editor-tab'||d.type!=='pfh-review-data')return;",
-      "render(d.payload);",
-      "});",
-      "document.addEventListener('pointerdown',function(e){",
-      "var sp=e.target&&e.target.closest?e.target.closest('.splitter'):null;",
-      "if(!sp)return;",
-      "e.preventDefault();",
-      "lockWidths();",
-      "var r=sp.getBoundingClientRect();",
-      "drag={which:sp.dataset.split,off:e.clientX-r.left,node:sp};",
-      "sp.classList.add('is-active');",
-      "document.body.classList.add('is-resizing');",
-      "if(sp.setPointerCapture&&e.pointerId!=null){try{sp.setPointerCapture(e.pointerId);}catch(_){}}",
-      "});",
-      "document.addEventListener('pointermove',function(e){",
-      "if(!drag)return;",
-      "var b=boardEl();var src=b.querySelector('.card:not(.rev)');if(!src)return;",
-      "var br=b.getBoundingClientRect();var sr=src.getBoundingClientRect();",
-      "var target=e.clientX-drag.off;",
-      "if(drag.which==='1'){applyLayout(clamp(target-br.left-2,220,1000),layout.w2);}",
-      "else{applyLayout(layout.w1,clamp(target-sr.left-2,240,1200));}",
-      "});",
-      "document.addEventListener('pointerup',endDrag);",
-      "document.addEventListener('pointercancel',endDrag);",
-      "document.addEventListener('dblclick',function(e){if(e.target&&e.target.closest&&e.target.closest('.splitter'))resetLayout();});",
-      "document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLightbox();});",
-      "window.addEventListener('resize',placeSplitters);",
-      "applyLayout(0,0);",
-      "send({type:'pfh-review-tab-ready'});",
-      "})();",
-    ].join('\n');
-    return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>图片文字对照编辑</title><style>' + css + '</style></head><body>' +
-      '<header><div><b>图片文字对照编辑</b><span id="status"></span></div><div id="meta"></div></header>' +
-      '<div id="warnings"></div>' +
-      '<main><div id="board-wrap"><div id="board" class="is-empty"><div class="empty">正在载入分析结果…</div></div>' +
-      '<div class="splitter" id="sp1" data-split="1" title="拖动调整图片列宽度，双击恢复默认"></div>' +
-      '<div class="splitter" id="sp2" data-split="2" title="拖动调整原文列宽度，双击恢复默认"></div></div></main>' +
-      '<footer><button id="btn-translate" class="primary" type="button">改写翻译为中文</button><button id="btn-add" type="button">手动添加文字</button><button id="btn-copy-all" type="button">复制全文</button><button id="btn-copy-revised" type="button">复制修改后的文案</button><button id="btn-recompose" type="button">按修改重新生成对照图</button><button id="btn-reset-layout" class="ghost" type="button">恢复默认列宽</button><span class="hint">拖动列边界可调整宽度 · 点击图片查看大图</span></footer>' +
-      '<div id="lightbox"><img id="lightbox-img" alt=""><div class="lb-tip">点击任意位置关闭</div></div>' +
-      '<script>' + js + '</scr' + 'ipt></body></html>';
+    function editorClient() {
+      let current = null;
+      const send = (data) => window.opener && window.opener.postMessage({ source: 'pfh-review-tab', ...data }, '*');
+      const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      window.addEventListener('message', (event) => {
+        if (event.source !== window.opener || !event.data || event.data.type !== 'pfh-review-data') return;
+        const p = event.data.payload;
+        current = p;
+        document.getElementById('meta').textContent = p.sku + ' · 英文输入即保存到本地';
+        document.getElementById('status').textContent = p.status || '';
+        const board = document.getElementById('board');
+        if (p.layout && p.layout.w1) board.style.setProperty('--w1', p.layout.w1 + 'px');
+        if (p.layout && p.layout.w2) board.style.setProperty('--w2', p.layout.w2 + 'px');
+        if (board.dataset.count !== String(p.items.length)) {
+          board.dataset.count = p.items.length;
+          board.innerHTML = '<aside><h2>产品对标图</h2><img id="benchmark" alt="产品对标图"><p>点击图片查看大图</p></aside><section><h2>英文文案 <small>由你编辑</small></h2><div id="english"></div></section><section class="translation"><h2>中文翻译 <small>Google 翻译</small></h2><div id="chinese"></div></section>';
+          document.getElementById('english').innerHTML = p.items.map((x) => '<div class="text-row"><label for="en-' + x.index + '">文字块 ' + (x.index + 1) + '</label><textarea id="en-' + x.index + '" data-i="' + x.index + '" aria-label="英文文字块 ' + (x.index + 1) + '"></textarea></div>').join('');
+          document.getElementById('chinese').innerHTML = p.items.map((x) => '<div class="text-row"><span>文字块 ' + (x.index + 1) + '</span><textarea readonly id="zh-' + x.index + '" aria-label="中文翻译 ' + (x.index + 1) + '" placeholder="等待翻译…"></textarea></div>').join('');
+        }
+        document.getElementById('benchmark').src = p.image;
+        p.items.forEach((x) => {
+          const en = document.getElementById('en-' + x.index);
+          if (document.activeElement !== en) en.value = x.replacementEn;
+          document.getElementById('zh-' + x.index).value = x.replacementZh;
+        });
+        document.getElementById('report').innerHTML = '<h2>侵权风险报告</h2><p class="muted">仅作图片文字风险初筛，品牌权属与实际侵权情况需人工核实。</p>' + p.items.map((x) => '<article><strong>' + (x.isRisk ? '需核查' : '暂未发现明显风险') + ' · 文字块 ' + (x.index + 1) + '</strong><blockquote>' + esc(x.sourceText) + '</blockquote><p>' + esc(x.isRisk ? x.riskReason : '当前文字未发现明确风险，仍需结合实际产品资料确认。') + '</p></article>').join('') + (p.warnings || []).map((x) => '<p>' + esc(x) + '</p>').join('');
+      });
+      document.addEventListener('input', (event) => {
+        const t = event.target;
+        if (!t.matches('textarea[data-i]')) return;
+        const index = Number(t.dataset.i);
+        current.items[index].replacementEn = t.value;
+        document.getElementById('zh-' + index).value = '';
+        send({ type: 'pfh-review-tab-input', index, field: 'replacementEn', value: t.value });
+      });
+      document.getElementById('retry').onclick = () => send({ type: 'pfh-review-tab-translate' });
+      document.getElementById('copy').onclick = () => {
+        if (current) navigator.clipboard.writeText(current.items.map((x) => x.replacementEn).join('\n')).then(() => { document.getElementById('status').textContent = '英文已复制'; }).catch(() => { document.getElementById('status').textContent = '复制失败，请选中文本复制'; });
+      };
+      document.addEventListener('click', (event) => { if (event.target.id === 'benchmark') { const dialog = document.getElementById('zoom'); dialog.querySelector('img').src = event.target.src; dialog.showModal(); } });
+      document.getElementById('zoom').onclick = () => document.getElementById('zoom').close();
+      send({ type: 'pfh-review-tab-ready' });
+    }
+    const css = `*{box-sizing:border-box}body{margin:0;background:#f5f7f8;color:#243339;font:15px/1.6 'Segoe UI','Microsoft YaHei',sans-serif}header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 32px;background:#fff;border-bottom:1px solid #dce3e5}h1{font-size:21px;margin:0}h2{font-size:16px;margin:0 0 20px}small,.muted,#meta{font-size:13px;color:#596970}small{display:block;font-weight:400}main{padding:28px 32px}#board{display:grid;grid-template-columns:var(--w1,minmax(220px,.85fr)) var(--w2,minmax(260px,1fr)) minmax(260px,1fr);gap:28px;align-items:start}section,aside{min-width:0}aside{position:sticky;top:20px}#benchmark{display:block;width:100%;max-height:65vh;object-fit:contain;background:#fff;border-radius:12px;cursor:zoom-in}aside p{font-size:12px;color:#596970}textarea{display:block;width:100%;height:150px;resize:vertical;padding:16px;border:1px solid #cbd5d9;border-radius:10px;background:#fff;font:inherit;line-height:1.7;color:#243339;caret-color:#17695f}textarea:focus-visible,button:focus-visible{outline:2px solid #17695f;outline-offset:3px}.translation textarea{background:#eaf1f0;border-color:transparent;resize:vertical}.text-row{margin-bottom:20px}.text-row label,.text-row span{display:block;margin-bottom:7px;font-size:12px;color:#596970}button{padding:9px 16px;border:1px solid #cbd5d9;border-radius:8px;background:#fff;color:#243339;cursor:pointer}button:hover{background:#edf3f2}#copy{background:#17695f;color:white;border-color:#17695f}nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#status{color:#17695f;font-size:13px}#report{margin-top:36px;padding:28px;background:#fff;border-radius:12px}article{border-top:1px solid #e1e7e9;padding:18px 0}article strong{font-size:14px}blockquote{margin:8px 0;color:#596970;white-space:pre-wrap}article p{margin:6px 0;max-width:75ch}dialog{border:0;border-radius:12px;max-width:90vw;max-height:90vh;padding:12px}dialog::backdrop{background:#14252bd9}dialog img{max-width:85vw;max-height:82vh}::selection{background:#cce5df}@media(max-width:900px){header{align-items:start;flex-direction:column}main{padding:20px}#board{grid-template-columns:1fr 1fr;gap:16px}aside{grid-column:1/-1;position:static}#benchmark{max-height:300px}}@media(max-width:560px){#board{grid-template-columns:1fr}aside{grid-column:auto}header{padding:20px}}`;
+    return '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>包装文案编辑</title><style>' + css + '</style><body><header><div><h1>包装文案编辑</h1><div id="meta"></div></div><nav><span id="status" role="status"></span><button id="retry">重新翻译</button><button id="copy">复制英文文案</button></nav></header><main><div id="board"></div><section id="report"></section></main><dialog id="zoom"><img alt="产品对标大图"></dialog><script>(' + editorClient.toString() + ')();</scr' + 'ipt></body></html>';
   }
 
   function productDevelopmentOpenReviewEditorTab() {
@@ -13669,11 +13424,12 @@
     productDevelopmentEditorTabBridgeInstalled = true;
     window.addEventListener('message', (event) => {
       const data = event && event.data;
-      if (!data || typeof data !== 'object' || data.source !== 'pfh-review-tab') return;
+      if (!data || typeof data !== 'object' || data.source !== 'pfh-review-tab' || event.source !== productDevelopmentEditorTabWindow) return;
       const result = state.productDevelopmentReview;
       const list = result && Array.isArray(result.items) ? result.items : [];
       if (data.type === 'pfh-review-tab-ready') {
         productDevelopmentPushEditorTabData();
+        list.forEach((item) => { if (!item.replacementZh) productDevelopmentTranslateReviewItem(result, item); });
         return;
       }
       if (data.type === 'pfh-review-tab-layout') {
@@ -13686,11 +13442,13 @@
         const field = String(data.field || '');
         const value = String(data.value == null ? '' : data.value);
         if (!item) return;
-        if (field === 'sourceText') item.sourceText = value.slice(0, 400);
-        else if (field === 'replacementEn') item.replacementEn = value.slice(0, 300);
-        else if (field === 'replacementZh') item.replacementZh = value.slice(0, 500);
-        else return;
-        scheduleProductDevelopmentReviewDraftSave(result);
+        if (field !== 'replacementEn') return;
+        item.replacementEn = value;
+        result.plainTextCopy = list.map((row) => row.replacementEn == null ? row.sourceText : row.replacementEn).join('\n');
+        saveProductDevelopmentReviewDraft(result);
+        state.productDevelopmentStatus = '英文已保存 · 正在翻译…';
+        productDevelopmentTranslateReviewItem(result, item);
+        productDevelopmentPushEditorTabData();
         return;
       }
       if (data.type === 'pfh-review-tab-remove') {
@@ -13717,27 +13475,7 @@
         return;
       }
       if (data.type === 'pfh-review-tab-translate') {
-        const targets = list.filter((item) => productDevelopmentCompactSemanticText(item && item.replacementEn, 300));
-        if (!targets.length || state.productDevelopmentReviewTranslateBusy) {
-          productDevelopmentPushEditorTabData();
-          return;
-        }
-        state.productDevelopmentReviewTranslateBusy = true;
-        productDevelopmentPushEditorTabData();
-        productDevelopmentTranslatePool(targets, (item) => productDevelopmentTranslateEnToZh(productDevelopmentCompactSemanticText(item.replacementEn, 300)).then((translated) => {
-          item.replacementZh = productDevelopmentCleanText(translated, 500);
-        }), 4).then(() => {
-          state.productDevelopmentReviewTranslateBusy = false;
-          saveProductDevelopmentReviewDraft(result);
-          state.productDevelopmentStatus = '已把英文改写翻译为中文，可继续手动调整';
-          productDevelopmentPushEditorTabData();
-          renderShell();
-        }).catch((error) => {
-          state.productDevelopmentReviewTranslateBusy = false;
-          saveProductDevelopmentReviewDraft(result);
-          productDevelopmentPushEditorTabData();
-          showToast('翻译失败：' + String(error && error.message || '未知错误'));
-        });
+        list.forEach((item) => productDevelopmentTranslateReviewItem(result, item));
         return;
       }
       if (data.type === 'pfh-review-tab-recompose') {
@@ -13845,6 +13583,9 @@
   }
 
   function productDevelopmentReviewCopyValue(result, mode) {
+    if (result && result.reviewMode === 'original-report') {
+      return (result.items || []).map((item) => mode === 'revised' ? String(item.replacementEn == null ? item.sourceText : item.replacementEn) : item.sourceText).join('\n');
+    }
     const context = productDevelopmentReviewCopyContext(result);
     const items = (Array.isArray(result && result.items) ? result.items : []).map((item) => ({ ...item }));
     productDevelopmentEnsureHumanSupplementLine(items, context);
@@ -13908,47 +13649,7 @@
   }
 
   async function recomposeProductDevelopmentReview() {
-    const result = state.productDevelopmentReview;
-    if (!result || !result.sourceImageDataUrl) {
-      showToast('请先完成一次图片文字分析');
-      return;
-    }
-    const items = Array.isArray(result.items) ? result.items : [];
-    if (!items.length) {
-      showToast('请先添加文字内容');
-      return;
-    }
-    const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === result.sku
-      ? state.productDevelopmentSnapshot
-      : {
-        sku: result.sku,
-        brand: productDevelopmentNormalizeBrandValue(result.brand || ''),
-        productType: result.productType || '',
-        netContent: result.netContent || '',
-        humanSupplement: result.humanSupplement === true,
-      };
-    state.productDevelopmentReviewBusy = true;
-    state.productDevelopmentError = '';
-    state.productDevelopmentStatus = '正在按人工修改重新生成对照图…';
-    renderShell();
-    try {
-      const reviewedItems = productDevelopmentReviewManualItems(items);
-      const comparison = await composeProductDevelopmentComparison(result.sourceImageDataUrl, reviewedItems, snapshot);
-      result.items = reviewedItems;
-      result.comparisonDataUrl = comparison.dataUrl;
-      result.manualEditedAt = new Date().toLocaleString();
-      saveProductDevelopmentReviewDraft(result);
-
-      state.productDevelopmentStatus = '已按人工修改重新生成对照图';
-      showToast('人工修改已应用');
-    } catch (error) {
-      state.productDevelopmentError = formatErrorMessage(error);
-      state.productDevelopmentStatus = '';
-      showToast(state.productDevelopmentError);
-    } finally {
-      state.productDevelopmentReviewBusy = false;
-      renderShell();
-    }
+    showToast('文案输入即保存，不再生成对照图片');
   }
 
   function productDevelopmentXmlEscape(value) {
@@ -15353,17 +15054,15 @@
     const previewCopyActions = Array.isArray(items) && items.length
       ? '<button type="button" data-action="product-development-review-copy-all" title="复制图片识别出的全部原文">复制全文</button><button type="button" data-action="product-development-review-copy-revised" title="复制当前修改后的中英文文案">复制修改后的文案</button>'
       : '';
-    const preview = canShowResult && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>三列对照图预览</strong></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"' + (canEditResult ? ' data-action="product-development-review-editor-open" class="pfh-product-development-preview-zoom" title="点击打开对照编辑"' : '') + ' style="display:block;width:100%;min-width:0;max-width:100%;height:auto;object-fit:contain"></div><div class="pfh-product-development-preview-actions">' + (canEditResult ? '<button type="button" data-action="product-development-review-editor-open">编辑对照文字</button>' : '') + previewCopyActions + '<button type="button" data-action="product-development-review-download">下载 PNG</button></div></section>' : '';
+    const preview = canShowResult ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>包装原文与中文风险报告</strong></div><div class="pfh-product-development-preview-actions"><button type="button" data-action="product-development-review-editor-open">打开文案编辑与翻译</button>' + previewCopyActions + '</div>' + items.map((item, index) => '<p><strong>文字块 ' + (index + 1) + '</strong> · ' + escapeHtml(item.riskTypes && item.riskTypes.length ? item.riskReason || '存在待核查风险' : '暂未发现明显风险') + '</p>').join('') + '</section>' : '';
     const list = canShowResult ? '' : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
-    const editor = canEditResult ? productDevelopmentReviewEditorHtml(result, items) : '';
+    const editor = '';
     return '<div class="pfh-product-development pfh-product-development-subview">' +
       '<header class="pfh-product-development-subview-head"><button type="button" class="pfh-upload-back" data-action="product-development-home" aria-label="返回产品开发主页">' + iconHtml('backArrow') + '</button><strong>产品图风险筛查</strong></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
+      '<section class="pfh-product-development-work-card"><div><h3>提取包装原文与风险分析</h3></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
       extractedSummary +
-      (canShowResult ? productDevelopmentProductNamingHtml(result) : '') +
-      (canEditResult ? productDevelopmentPlainTextCopyHtml(result) : '') +
       preview + list + editor + '</div>';
   }
 

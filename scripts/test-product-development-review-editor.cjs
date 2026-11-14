@@ -1,0 +1,41 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const context = vm.createContext({ state: {}, window: {}, console });
+for (const name of ['pd-task-views', 'pd-review-copywriting']) {
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/product-development', name + '.module.js'), 'utf8'), context);
+}
+const original = 'Brand*\nNET: 50ml / 1.7 fl.oz';
+const review = context.productDevelopmentValidateReview({ reviewMode: 'original-report', items: [{ sourceText: original, riskTypes: ['brand'], riskReason: '品牌需核查', replacementEn: 'AI rewrite' }] }, {});
+assert.equal(review.items[0].replacementEn, original, 'Analysis must use exact OCR, including stars and case');
+assert.equal(review.items[0].replacementZh, '');
+assert.equal(context.productDevelopmentReviewCopyValue({ reviewMode: 'original-report', items: [{ sourceText: original, replacementEn: '' }] }, 'revised'), '', 'Intentional deletion stays empty');
+const html = context.productDevelopmentEditorTabDocumentHtml();
+assert(!html.includes('compare2'));
+assert(!html.includes('btn-recompose'));
+new vm.Script(html.match(/<script>([\s\S]*)<\/script>/)[1]);
+const timers = [];
+const pending = [];
+context.window.setTimeout = (fn) => { timers.push(fn); return timers.length; };
+context.window.clearTimeout = () => {};
+context.productDevelopmentTranslateEnToZh = (text) => new Promise((resolve) => pending.push({ text, resolve }));
+context.saveProductDevelopmentReviewDraft = () => {};
+context.productDevelopmentPushEditorTabData = () => {};
+(async () => {
+  const item = { replacementEn: 'first', replacementZh: '' };
+  const result = { items: [item] };
+  context.state.productDevelopmentReview = result;
+  context.productDevelopmentTranslateReviewItem(result, item);
+  const first = timers.shift()();
+  item.replacementEn = 'second';
+  context.productDevelopmentTranslateReviewItem(result, item);
+  const second = timers.shift()();
+  pending[1].resolve('第二');
+  await second;
+  pending[0].resolve('第一');
+  await first;
+  assert.equal(item.replacementEn, 'second');
+  assert.equal(item.replacementZh, '第二', 'Late response cannot overwrite the latest translation');
+  console.log('Review editor exact-copy and translation race checks passed');
+})().catch((error) => { console.error(error); process.exitCode = 1; });

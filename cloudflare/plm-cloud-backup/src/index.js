@@ -2982,7 +2982,25 @@ async function handleProductDevelopmentReview(request, env) {
         '风险类型只能使用 banned、exaggeration、medical、brand、unsupported、other。',
       ].join('\n'),
     };
-    const preferred = await callPreferredAiText(env, options, (candidate) => sanitizeProductDevelopmentReviewCandidate(parseProductDevelopmentJson(candidate.text), brand, { netContentStandard, humanSupplement, petAudience, namingExamples, namingRule, name, productType, category, ingredients, ingredientEvidence, sourceCopywriting, attributeEvidence, claimEvidence, sourceEvidence, origin, countryOfOrigin, madeIn }));
+    const originalReport = body.reviewMode === 'original-report';
+    if (originalReport) {
+      options.system = '你是包装原文识别与侵权风险初筛助手。只逐字提取实际产品包装表面清晰可见的原文，保留大小写、拼写、数字、标点、星号和换行，同一语义块合并。忽略背景、海报和包装外文字，看不清不要猜。只生成原文与全中文风险报告，不生成改写、替换文案、翻译或产品命名，不统一净含量和数量，不添加任何文字。风险区分竞品品牌或标识、可能的医疗或夸大宣传、缺少证据的成分和认证声明；这些是待核查风险，不能把声明风险直接判定为法律侵权。riskReason、warnings 必须为简体中文，引用图片原文除外。没有明显风险时 riskTypes 为空。只返回 JSON。';
+      options.prompt = '产品资料仅用于风险初筛，不能写入原文：' + JSON.stringify({ sku, name, productType, category, ingredients, ingredientEvidence, attributeEvidence, claimEvidence }) + '\n返回 {"texts":[{"id":"1","onPackaging":true,"sourceText":"图片逐字原文","riskTypes":[],"riskReason":"中文风险说明","confidence":0.9}],"warnings":["中文提醒"]}。riskTypes 只能是 brand、medical、exaggeration、unsupported、banned、other。';
+    }
+    const preferred = await callPreferredAiText(env, options, (candidate) => {
+      const parsed = parseProductDevelopmentJson(candidate.text);
+      if (!originalReport) return sanitizeProductDevelopmentReviewCandidate(parsed, brand, { netContentStandard, humanSupplement, petAudience, namingExamples, namingRule, name, productType, category, ingredients, ingredientEvidence, sourceCopywriting, attributeEvidence, claimEvidence, sourceEvidence, origin, countryOfOrigin, madeIn });
+      if (!Array.isArray(parsed.texts)) throw new Error('图片分析缺少原文列表');
+      const items = parsed.texts.filter((item) => item && item.onPackaging === true && typeof item.sourceText === 'string' && item.sourceText.trim()).slice(0, 80).map((item, index) => {
+        const riskTypes = (Array.isArray(item.riskTypes) ? item.riskTypes : []).filter((type) => ['brand', 'medical', 'exaggeration', 'unsupported', 'banned', 'other'].includes(type));
+        const riskReason = cleanText(item.riskReason, 1500);
+        if (riskTypes.length && !/[\u3400-\u9fff]/.test(riskReason)) throw new Error('风险报告必须使用中文');
+        return { id: String(index + 1), onPackaging: true, sourceText: item.sourceText, riskTypes, riskReason, confidence: Number(item.confidence) || 0 };
+      });
+      const warnings = (Array.isArray(parsed.warnings) ? parsed.warnings : []).map((warning) => cleanText(warning, 500)).filter(Boolean);
+      if (warnings.some((warning) => !/[\u3400-\u9fff]/.test(warning))) throw new Error('识别提醒必须使用中文');
+      return { reviewMode: 'original-report', items, warnings };
+    });
     return json({
       ok: true,
       ...preferred.value,
