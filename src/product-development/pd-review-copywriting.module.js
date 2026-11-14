@@ -327,7 +327,7 @@
   function productDevelopmentEditorTabDocumentHtml() {
     function editorClient() {
       let current = null;
-      let marks = [], active = null, tool = 'pen', annotationKey = '', dirty = false, revision = 0;
+      let marks = [], active = null, tool = 'view', annotationKey = '', dirty = false, revision = 0;
       const redo = [];
       const send = (data) => window.opener && window.opener.postMessage({ source: 'pfh-review-tab', ...data }, '*');
       const persistMarks = () => {
@@ -338,14 +338,12 @@
         const canvas = document.getElementById('annotation-canvas');
         const image = document.getElementById('benchmark');
         if (!canvas || !image || !image.naturalWidth) return;
-        canvas.width = 1000;
-        canvas.height = Math.round(1000 * image.naturalHeight / image.naturalWidth);
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
         const ctx = canvas.getContext('2d');
-        const base = document.createElement('canvas');
-        base.width = canvas.width; base.height = canvas.height;
-        const source = base.getContext('2d'); source.drawImage(image, 0, 0, base.width, base.height);
         for (const mark of active ? marks.concat(active) : marks) {
-          const points = mark.points.map((p) => [p[0] * canvas.width, p[1] * canvas.height]);
+          const rect = image.getBoundingClientRect();
+          const points = mark.points.map((p) => mark.page ? [p[0] * canvas.width, p[1] - window.scrollY] : [rect.left + p[0] * rect.width, rect.top + p[1] * rect.height]);
           if (!points.length) continue;
           const [x, y] = points[0], [ex, ey] = points[points.length - 1];
           ctx.save(); ctx.strokeStyle = mark.color; ctx.fillStyle = mark.color;
@@ -354,8 +352,8 @@
             const left = Math.max(0, Math.min(x, ex)), top = Math.max(0, Math.min(y, ey));
             const right = Math.min(canvas.width, Math.max(x, ex)), bottom = Math.min(canvas.height, Math.max(y, ey));
             for (let py = top; py < bottom; py += 14) for (let px = left; px < right; px += 14) {
-              const pixel = source.getImageData(Math.floor(px), Math.floor(py), 1, 1).data;
-              ctx.fillStyle = 'rgb(' + pixel[0] + ',' + pixel[1] + ',' + pixel[2] + ')';
+              const shade = (Math.floor(px / 14) + Math.floor((py + window.scrollY) / 14)) % 2 ? 125 : 155;
+              ctx.fillStyle = 'rgb(' + shade + ',' + shade + ',' + shade + ')';
               ctx.fillRect(px, py, Math.min(14, right - px), Math.min(14, bottom - py));
             }
           } else if (mark.tool === 'text') {
@@ -381,7 +379,7 @@
       }
       function point(event) {
         const r = event.target.getBoundingClientRect();
-        return [Math.max(0, Math.min(1, (event.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (event.clientY - r.top) / r.height))];
+        return [Math.max(0, Math.min(1, (event.clientX - r.left) / r.width)), event.clientY + window.scrollY];
       }
       function finishMark() {
         if (!active) return;
@@ -393,7 +391,7 @@
         event.preventDefault();
         const p = point(event);
         if (tool === 'view') { document.getElementById('benchmark').click(); return; }
-        active = { tool, points: [p], color: document.getElementById('mark-color').value, width: Number(document.getElementById('mark-width').value) };
+        active = { page: true, tool, points: [p], color: document.getElementById('mark-color').value, width: Number(document.getElementById('mark-width').value) };
         if (tool === 'text') {
           active.text = document.getElementById('mark-text').value;
           if (!active.text.trim()) { active = null; document.getElementById('status').textContent = '请先填写标注文字，再点击图片放置'; return; }
@@ -414,11 +412,14 @@
         const button = event.target.closest('[data-mark-tool]');
         if (button) {
           tool = button.dataset.markTool;
+          document.getElementById('annotation-canvas').style.pointerEvents = tool === 'view' ? 'none' : 'auto';
           document.querySelectorAll('[data-mark-tool]').forEach((b) => b.setAttribute('aria-pressed', String(b === button)));
         }
         if (event.target.id === 'mark-undo' && marks.length) { redo.push(marks.pop()); drawMarks(); persistMarks(); }
         if (event.target.id === 'mark-redo' && redo.length) { marks.push(redo.pop()); drawMarks(); persistMarks(); }
       });
+      window.addEventListener('scroll', drawMarks, { passive: true });
+      window.addEventListener('resize', drawMarks);
       document.getElementById('save-close').onclick = () => {
         finishMark();
         if (!current || !window.opener || window.opener.closed) { document.getElementById('status').textContent = '保存失败：请保持 PLM 原页面打开'; return; }
@@ -447,7 +448,7 @@
         if (p.layout && p.layout.w2) board.style.setProperty('--w2', p.layout.w2 + 'px');
         if (board.dataset.count !== String(p.items.length)) {
           board.dataset.count = p.items.length;
-          board.innerHTML = '<aside><h2>产品对标图</h2><div class="annotation-stage"><img id="benchmark" alt="产品对标图"><canvas id="annotation-canvas" aria-label="产品图片标注画布"></canvas></div><p>选择工具后在图上绘制 · 橡皮擦仅擦除标注 · 查看工具打开大图</p></aside><section><h2>英文文案 <small>由你编辑</small></h2><div id="english"></div></section><section class="translation"><h2>中文翻译 <small>Google 翻译</small></h2><div id="chinese"></div></section>';
+          board.innerHTML = '<aside><h2>产品对标图</h2><div class="annotation-stage"><img id="benchmark" alt="产品对标图"></div><p>选择查看可编辑文字或查看大图；选择标注工具可在网页上绘制</p></aside><section><h2>英文文案 <small>由你编辑</small></h2><div id="english"></div></section><section class="translation"><h2>中文翻译 <small>Google 翻译</small></h2><div id="chinese"></div></section>';
           document.getElementById('english').innerHTML = '<textarea id="english-document" aria-label="完整英文文案" placeholder="包装原文，可直接修改"></textarea>';
           document.getElementById('chinese').innerHTML = '<textarea readonly id="chinese-document" aria-label="完整中文翻译" placeholder="等待翻译…"></textarea>';
         }
@@ -496,7 +497,7 @@
       send({ type: 'pfh-review-tab-ready' });
     }
     const css = `*{box-sizing:border-box}body{margin:0;background:#f5f7f8;color:#243339;font:15px/1.6 'Segoe UI','Microsoft YaHei',sans-serif}header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 32px;background:#fff;border-bottom:1px solid #dce3e5}h1{font-size:21px;margin:0}h2{font-size:16px;margin:0 0 20px}small,.muted,#meta{font-size:13px;color:#596970}small{display:block;font-weight:400}main{padding:28px 32px}#board{display:grid;grid-template-columns:var(--w1,minmax(220px,.85fr)) var(--w2,minmax(260px,1fr)) minmax(260px,1fr);gap:28px;align-items:start}section,aside{min-width:0}aside{position:sticky;top:20px}#benchmark{display:block;width:100%;max-height:65vh;object-fit:contain;background:#fff;border-radius:12px;cursor:zoom-in}aside p{font-size:12px;color:#596970}textarea{display:block;width:100%;height:65vh;min-height:360px;resize:vertical;padding:16px;border:1px solid #cbd5d9;border-radius:10px;background:#fff;font:inherit;line-height:1.7;color:#243339;caret-color:#17695f}textarea:focus-visible,button:focus-visible{outline:2px solid #17695f;outline-offset:3px}.translation textarea{background:#eaf1f0;border-color:transparent;resize:vertical}.text-row{margin-bottom:20px}.text-row label,.text-row span{display:block;margin-bottom:7px;font-size:12px;color:#596970}button{padding:9px 16px;border:1px solid #cbd5d9;border-radius:8px;background:#fff;color:#243339;cursor:pointer}button:hover{background:#edf3f2}#copy{background:#17695f;color:white;border-color:#17695f}nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#status{color:#17695f;font-size:13px}#report{margin-top:36px;padding:28px;background:#fff;border-radius:12px}article{border-top:1px solid #e1e7e9;padding:18px 0}article strong{font-size:14px}blockquote{margin:8px 0;color:#596970;white-space:pre-wrap}article p{margin:6px 0;max-width:75ch}dialog{border:0;border-radius:12px;max-width:90vw;max-height:90vh;padding:12px}dialog::backdrop{background:#14252bd9}dialog img{max-width:85vw;max-height:82vh}::selection{background:#cce5df}@media(max-width:900px){header{align-items:start;flex-direction:column}main{padding:20px}#board{grid-template-columns:1fr 1fr;gap:16px}aside{grid-column:1/-1;position:static}#benchmark{max-height:300px}}@media(max-width:560px){#board{grid-template-columns:1fr}aside{grid-column:auto}header{padding:20px}}`;
-    return '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>包装文案编辑</title><style>' + css + '.tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 32px;background:#fff;border-bottom:1px solid #dce3e5}.tools input{padding:10px;border:1px solid #cbd5d9;border-radius:8px;font:inherit;width:160px}.suggestion{margin:16px 0;padding:16px;background:#f5f7f8;border-radius:8px}.suggestion p{white-space:pre-wrap}.annotation-stage{position:relative;background:#fff;border-radius:12px;overflow:hidden}.annotation-stage #benchmark{max-height:none;height:auto;border-radius:0}.annotation-stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}.annotation-tools button[aria-pressed="true"]{background:#17695f;color:#fff}.annotation-tools input[type="color"]{width:44px;padding:2px;height:32px}.annotation-tools label{display:flex;gap:8px;align-items:center}</style><body><header><div><h1>包装文案编辑</h1><div id="meta"></div></div><nav><span id="status" role="status"></span><button id="save-close">保存并关闭</button><button id="retry">重新翻译</button><button id="copy">复制英文文案</button></nav></header><div class="tools"><label for="net-value">净含量换算</label><input id="net-value" placeholder="60g / 100ml"><button id="net-add">换算并添加到英文</button><span class="muted">克 → OZ · 毫升 → 美制 FL.OZ</span></div><div class="tools annotation-tools" aria-label="图片标注工具"><button data-mark-tool="view" aria-pressed="false">查看</button><button data-mark-tool="arrow" aria-pressed="false">箭头</button><button data-mark-tool="rect" aria-pressed="false">方框</button><button data-mark-tool="mosaic" aria-pressed="false">马赛克</button><button data-mark-tool="text" aria-pressed="false">文字</button><button data-mark-tool="pen" aria-pressed="true">画笔</button><button data-mark-tool="eraser" aria-pressed="false">橡皮擦</button><label>颜色 <input id="mark-color" type="color" value="#d63638"></label><label>粗细 <select id="mark-width"><option value="3">细</option><option value="6" selected>中</option><option value="10">粗</option></select></label><input id="mark-text" placeholder="输入标注文字" aria-label="标注文字"><button id="mark-undo">撤销</button><button id="mark-redo">重做</button></div><main><div id="board"></div><section id="report"></section></main><dialog id="zoom"><img alt="产品对标大图"></dialog><script>const formatNetContent = ' + productDevelopmentFormatReviewNetContent.toString() + ';(' + editorClient.toString() + ')();</scr' + 'ipt></body></html>';
+    return '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>包装文案编辑</title><style>' + css + '.tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 32px;background:#fff;border-bottom:1px solid #dce3e5}.tools input{padding:10px;border:1px solid #cbd5d9;border-radius:8px;font:inherit;width:160px}.suggestion{margin:16px 0;padding:16px;background:#f5f7f8;border-radius:8px}.suggestion p{white-space:pre-wrap}.annotation-stage{position:relative;background:#fff;border-radius:12px;overflow:hidden}.annotation-stage #benchmark{max-height:none;height:auto;border-radius:0}.annotation-stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}.annotation-tools button[aria-pressed="true"]{background:#17695f;color:#fff}.annotation-tools input[type="color"]{width:44px;padding:2px;height:32px}.annotation-tools label{display:flex;gap:8px;align-items:center}header{position:sticky;top:0;z-index:30;align-items:center}.header-tools{flex:1;min-width:0}.header-tools .tools{padding:3px 8px;border:0;gap:6px}.header-tools .tools input{padding:5px;width:120px}.header-tools button{padding:5px 9px}.header-tools .muted{display:none}#annotation-canvas{position:fixed;inset:0;width:100vw;height:100vh;z-index:20;pointer-events:none;touch-action:none;cursor:crosshair}@media(max-width:900px){header{position:relative}.header-tools .tools{padding:6px 0}}</style><body><header><div><h1>包装文案编辑</h1><div id="meta"></div></div><div class="header-tools"><div class="tools"><label for="net-value">净含量换算</label><input id="net-value" placeholder="60g / 100ml"><button id="net-add">换算并添加到英文</button><span class="muted">克 → OZ · 毫升 → 美制 FL.OZ</span></div><div class="tools annotation-tools" aria-label="图片标注工具"><button data-mark-tool="view" aria-pressed="true">查看</button><button data-mark-tool="arrow" aria-pressed="false">箭头</button><button data-mark-tool="rect" aria-pressed="false">方框</button><button data-mark-tool="mosaic" aria-pressed="false">马赛克</button><button data-mark-tool="text" aria-pressed="false">文字</button><button data-mark-tool="pen" aria-pressed="false">画笔</button><button data-mark-tool="eraser" aria-pressed="false">橡皮擦</button><label>颜色 <input id="mark-color" type="color" value="#d63638"></label><label>粗细 <select id="mark-width"><option value="3">细</option><option value="6" selected>中</option><option value="10">粗</option></select></label><input id="mark-text" placeholder="输入标注文字" aria-label="标注文字"><button id="mark-undo">撤销</button><button id="mark-redo">重做</button></div></div><nav><span id="status" role="status"></span><button id="save-close">保存并关闭</button><button id="retry">重新翻译</button><button id="copy">复制英文文案</button></nav></header><canvas id="annotation-canvas" aria-label="网页标注画布"></canvas><main><div id="board"></div><section id="report"></section></main><dialog id="zoom"><img alt="产品对标大图"></dialog><script>const formatNetContent = ' + productDevelopmentFormatReviewNetContent.toString() + ';(' + editorClient.toString() + ')();</scr' + 'ipt></body></html>';
   }
 
   function productDevelopmentOpenReviewEditorTab() {
