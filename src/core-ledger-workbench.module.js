@@ -1664,7 +1664,7 @@
     const url = String(imageUrl || '').trim();
     if (!url) return '';
     const encodedUrl = escapeHtml(url);
-    return '<div class="pfh-sku-context-search-group"><strong>' + escapeHtml(label) + '</strong><div class="pfh-sku-context-search-actions">' +
+    return '<div class="pfh-sku-context-search-group"><span class="pfh-sku-context-search-title">' + escapeHtml(label) + '</span><div class="pfh-sku-context-search-actions">' +
       '<button type="button" data-action="reverse-image-search" data-engine="1688" data-image-url="' + encodedUrl + '" title="1688 搜' + escapeHtml(label) + '">1688</button>' +
       '<button type="button" data-action="reverse-image-search" data-engine="google" data-image-url="' + encodedUrl + '" title="Google 搜' + escapeHtml(label) + '">Google</button>' +
       '<button type="button" data-action="reverse-image-search" data-engine="yandex" data-image-url="' + encodedUrl + '" title="Yandex 搜' + escapeHtml(label) + '">Yandex</button>' +
@@ -1691,8 +1691,7 @@
     menu.className = 'pfh-sku-context-menu';
     menu.setAttribute('role', 'menu');
     menu.innerHTML = searchHtml + cacheHtml +
-      '<button type="button" data-action="sku-context-barcode" data-sku="' + escapeHtml(sku) + '">生成条码</button>' +
-      '<button type="button" data-action="sku-context-delete" data-sku="' + escapeHtml(sku) + '" title="从助手列表删除该产品及其本地缓存">删除产品</button>';
+      '<button type="button" data-action="sku-context-barcode" data-sku="' + escapeHtml(sku) + '">生成条码</button>';
     panel.appendChild(menu);
     state.skuContextMenuSku = sku;
     panel.querySelectorAll('[data-action="sku-detail-more"]').forEach((button) => {
