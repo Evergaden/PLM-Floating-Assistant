@@ -444,6 +444,7 @@
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
       extractedSummary +
+      (canShowResult ? '<section class="pfh-product-development-plain-copy"><h3>当前英文文案</h3><textarea readonly rows="10" aria-label="当前英文文案" style="width:100%;white-space:pre-wrap">' + escapeHtml(productDevelopmentReviewDocument(result).replacementEn) + '</textarea></section>' : '') +
       preview + list + editor + '</div>';
   }
 

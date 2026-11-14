@@ -189,6 +189,20 @@
     return result.editorDocument;
   }
 
+  function productDevelopmentReviewSuggestions(item) {
+    const options = (Array.isArray(item.replacementOptions) ? item.replacementOptions : []).filter((option) => option && option.en).map((option) => ({ en: String(option.en), zh: String(option.zh || '') }));
+    if (!options.length && item.replacementEn && item.replacementEn !== item.sourceText) options.push({ en: item.replacementEn, zh: item.replacementZh || '' });
+    return options;
+  }
+
+  function productDevelopmentFormatReviewNetContent(value) {
+    const match = String(value).trim().match(/^(\d+(?:\.\d+)?|\.\d+)\s*(g|ml)$/i);
+    if (!match || !Number.isFinite(Number(match[1])) || Number(match[1]) <= 0) return '';
+    const amount = Number(match[1]);
+    const volume = match[2].toLowerCase() === 'ml';
+    return amount + (volume ? 'ML/ ' : 'G/ ') + (amount / (volume ? 29.5735295625 : 28.349523125)).toFixed(2) + (volume ? ' FL.OZ' : ' OZ');
+  }
+
   function productDevelopmentTranslateReviewItem(result, item) {
     const previous = productDevelopmentReviewTranslationTimers.get(item);
     if (previous) window.clearTimeout(previous);
@@ -289,6 +303,7 @@
           isRisk: risk.isRisk,
           riskLabel: risk.label,
           riskReason: risk.reason,
+          suggestions: productDevelopmentReviewSuggestions(item),
         };
       }),
       warnings,
@@ -332,7 +347,7 @@
         const en = document.getElementById('english-document');
         if (document.activeElement !== en) en.value = p.english;
         document.getElementById('chinese-document').value = p.chinese;
-        document.getElementById('report').innerHTML = '<h2>侵权风险报告</h2><p class="muted">仅作图片文字风险初筛，品牌权属与实际侵权情况需人工核实。</p>' + p.items.map((x) => '<article><strong>' + (x.isRisk ? '需核查' : '暂未发现明显风险') + ' · 文字块 ' + (x.index + 1) + '</strong><blockquote>' + esc(x.sourceText) + '</blockquote><p>' + esc(x.isRisk ? x.riskReason : '当前文字未发现明确风险，仍需结合实际产品资料确认。') + '</p></article>').join('') + (p.warnings || []).map((x) => '<p>' + esc(x) + '</p>').join('');
+        document.getElementById('report').innerHTML = '<h2>侵权风险报告</h2><p class="muted">建议仅供挑选，点击选用后才写入英文文案。</p>' + p.items.map((x) => '<article><strong>' + (x.isRisk ? '需核查' : '暂未发现明显风险') + ' · 文字块 ' + (x.index + 1) + '</strong><blockquote>' + esc(x.sourceText) + '</blockquote><p>' + esc(x.isRisk ? x.riskReason : '当前文字未发现明确风险，仍需结合实际产品资料确认。') + '</p>' + (x.suggestions || []).map((option, index) => '<div class="suggestion"><b>建议 ' + (index + 1) + '</b><p>' + esc(option.en) + '</p><p class="muted">' + esc(option.zh || '暂无中文翻译') + '</p><button data-suggestion-item="' + x.index + '" data-suggestion-option="' + index + '">选用这条英文</button></div>').join('') + (x.isRisk && !x.suggestions.length ? '<p class="muted">旧报告没有建议，请重新分析获取。</p>' : '') + '</article>').join('') + (p.warnings || []).map((x) => '<p>' + esc(x) + '</p>').join('');
       });
       document.addEventListener('input', (event) => {
         const t = event.target;
@@ -342,6 +357,25 @@
         send({ type: 'pfh-review-document-input', value: t.value });
       });
       document.getElementById('retry').onclick = () => send({ type: 'pfh-review-tab-translate' });
+      document.getElementById('net-add').onclick = () => {
+        const formatted = formatNetContent(document.getElementById('net-value').value);
+        if (!formatted) { document.getElementById('status').textContent = '请输入正数和单位，例如 60g 或 100ml'; return; }
+        const en = document.getElementById('english-document');
+        en.value += (en.value && !en.value.endsWith('\n') ? '\n' : '') + formatted;
+        en.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      document.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-suggestion-item]');
+        if (!button || !current) return;
+        const item = current.items[Number(button.dataset.suggestionItem)];
+        const option = item.suggestions[Number(button.dataset.suggestionOption)];
+        const en = document.getElementById('english-document');
+        // Select only the first exact occurrence; edited or removed text is left for manual insertion.
+        const position = en.value.indexOf(item.sourceText);
+        if (!item.sourceText || position < 0) { document.getElementById('status').textContent = '原文已修改，请复制建议后手动替换'; return; }
+        en.value = en.value.slice(0, position) + option.en + en.value.slice(position + item.sourceText.length);
+        en.dispatchEvent(new Event('input', { bubbles: true }));
+      });
       document.getElementById('copy').onclick = () => {
         if (current) navigator.clipboard.writeText(document.getElementById('english-document').value).then(() => { document.getElementById('status').textContent = '英文已复制'; }).catch(() => { document.getElementById('status').textContent = '复制失败，请选中文本复制'; });
       };
@@ -350,7 +384,7 @@
       send({ type: 'pfh-review-tab-ready' });
     }
     const css = `*{box-sizing:border-box}body{margin:0;background:#f5f7f8;color:#243339;font:15px/1.6 'Segoe UI','Microsoft YaHei',sans-serif}header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 32px;background:#fff;border-bottom:1px solid #dce3e5}h1{font-size:21px;margin:0}h2{font-size:16px;margin:0 0 20px}small,.muted,#meta{font-size:13px;color:#596970}small{display:block;font-weight:400}main{padding:28px 32px}#board{display:grid;grid-template-columns:var(--w1,minmax(220px,.85fr)) var(--w2,minmax(260px,1fr)) minmax(260px,1fr);gap:28px;align-items:start}section,aside{min-width:0}aside{position:sticky;top:20px}#benchmark{display:block;width:100%;max-height:65vh;object-fit:contain;background:#fff;border-radius:12px;cursor:zoom-in}aside p{font-size:12px;color:#596970}textarea{display:block;width:100%;height:65vh;min-height:360px;resize:vertical;padding:16px;border:1px solid #cbd5d9;border-radius:10px;background:#fff;font:inherit;line-height:1.7;color:#243339;caret-color:#17695f}textarea:focus-visible,button:focus-visible{outline:2px solid #17695f;outline-offset:3px}.translation textarea{background:#eaf1f0;border-color:transparent;resize:vertical}.text-row{margin-bottom:20px}.text-row label,.text-row span{display:block;margin-bottom:7px;font-size:12px;color:#596970}button{padding:9px 16px;border:1px solid #cbd5d9;border-radius:8px;background:#fff;color:#243339;cursor:pointer}button:hover{background:#edf3f2}#copy{background:#17695f;color:white;border-color:#17695f}nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#status{color:#17695f;font-size:13px}#report{margin-top:36px;padding:28px;background:#fff;border-radius:12px}article{border-top:1px solid #e1e7e9;padding:18px 0}article strong{font-size:14px}blockquote{margin:8px 0;color:#596970;white-space:pre-wrap}article p{margin:6px 0;max-width:75ch}dialog{border:0;border-radius:12px;max-width:90vw;max-height:90vh;padding:12px}dialog::backdrop{background:#14252bd9}dialog img{max-width:85vw;max-height:82vh}::selection{background:#cce5df}@media(max-width:900px){header{align-items:start;flex-direction:column}main{padding:20px}#board{grid-template-columns:1fr 1fr;gap:16px}aside{grid-column:1/-1;position:static}#benchmark{max-height:300px}}@media(max-width:560px){#board{grid-template-columns:1fr}aside{grid-column:auto}header{padding:20px}}`;
-    return '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>包装文案编辑</title><style>' + css + '</style><body><header><div><h1>包装文案编辑</h1><div id="meta"></div></div><nav><span id="status" role="status"></span><button id="retry">重新翻译</button><button id="copy">复制英文文案</button></nav></header><main><div id="board"></div><section id="report"></section></main><dialog id="zoom"><img alt="产品对标大图"></dialog><script>(' + editorClient.toString() + ')();</scr' + 'ipt></body></html>';
+    return '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>包装文案编辑</title><style>' + css + '.tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 32px;background:#fff;border-bottom:1px solid #dce3e5}.tools input{padding:10px;border:1px solid #cbd5d9;border-radius:8px;font:inherit;width:160px}.suggestion{margin:16px 0;padding:16px;background:#f5f7f8;border-radius:8px}.suggestion p{white-space:pre-wrap}</style><body><header><div><h1>包装文案编辑</h1><div id="meta"></div></div><nav><span id="status" role="status"></span><button id="retry">重新翻译</button><button id="copy">复制英文文案</button></nav></header><div class="tools"><label for="net-value">净含量换算</label><input id="net-value" placeholder="60g / 100ml"><button id="net-add">换算并添加到英文</button><span class="muted">克 → OZ · 毫升 → 美制 FL.OZ</span></div><main><div id="board"></div><section id="report"></section></main><dialog id="zoom"><img alt="产品对标大图"></dialog><script>const formatNetContent = ' + productDevelopmentFormatReviewNetContent.toString() + ';(' + editorClient.toString() + ')();</scr' + 'ipt></body></html>';
   }
 
   function productDevelopmentOpenReviewEditorTab() {
@@ -411,6 +445,7 @@
         saveProductDevelopmentReviewDraft(result);
         state.productDevelopmentStatus = '英文已保存 · 正在翻译…';
         productDevelopmentPushEditorTabData();
+        renderShell();
         return;
       }
       if (data.type === 'pfh-review-tab-input') {

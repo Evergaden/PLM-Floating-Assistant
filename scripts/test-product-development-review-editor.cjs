@@ -7,6 +7,13 @@ for (const name of ['pd-task-views', 'pd-review-copywriting']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/product-development', name + '.module.js'), 'utf8'), context);
 }
 const original = 'Brand*\nNET: 50ml / 1.7 fl.oz';
+assert.equal(context.productDevelopmentFormatReviewNetContent('60g'), '60G/ 2.12 OZ');
+assert.equal(context.productDevelopmentFormatReviewNetContent('100ml'), '100ML/ 3.38 FL.OZ');
+assert.equal(context.productDevelopmentFormatReviewNetContent('0g'), '');
+assert.equal(context.productDevelopmentFormatReviewNetContent('-60g'), '');
+assert.equal(context.productDevelopmentFormatReviewNetContent('60kg'), '');
+assert.equal(context.productDevelopmentFormatReviewNetContent('12abc'), '');
+assert.equal(context.productDevelopmentReviewSuggestions({ sourceText: 'Brand', replacementEn: 'OWN LOGO', replacementZh: '自有标识' })[0].en, 'OWN LOGO');
 const review = context.productDevelopmentValidateReview({ reviewMode: 'original-report', items: [{ sourceText: original, riskTypes: ['brand'], riskReason: '品牌需核查', replacementEn: 'AI rewrite' }] }, {});
 assert.equal(review.items[0].replacementEn, original, 'Analysis must use exact OCR, including stars and case');
 assert.equal(review.items[0].replacementZh, '');

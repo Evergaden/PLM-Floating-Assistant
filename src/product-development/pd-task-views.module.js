@@ -1471,7 +1471,7 @@
     if (source.reviewMode === 'original-report') {
       const items = (source.items || source.texts || []).filter((item) => item.onPackaging !== false && typeof item.sourceText === 'string' && item.sourceText.trim()).slice(0, 80).map((item, index) => ({
         ...item, id: String(item.id || index + 1), replacementEn: item.sourceText, replacementZh: '',
-        riskTypes: Array.isArray(item.riskTypes) ? item.riskTypes : [], revisionAction: '', replacementOptions: [],
+        riskTypes: Array.isArray(item.riskTypes) ? item.riskTypes : [], revisionAction: '', replacementOptions: Array.isArray(item.replacementOptions) ? item.replacementOptions : [],
       }));
       return { items, extractedTexts: items.map((item) => ({ ...item })), warnings: source.warnings || [], provider: source.provider, model: source.model, packagingBboxes: [], productNaming: {} };
     }
