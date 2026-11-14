@@ -614,7 +614,10 @@
     const previousButton = previous && previous !== activeButton.getAttribute('data-detail-view')
       ? tabs.querySelector('button[data-detail-view="' + previous + '"]')
       : null;
-    if (previousButton) {
+    const activeView = activeButton.getAttribute('data-detail-view');
+    if (tabs.pfhDetailTabActiveView === activeView && !previousButton) {
+      moveIndicator(activeButton);
+    } else if (previousButton) {
       indicator.style.setProperty('transition', 'none', 'important');
       moveIndicator(previousButton);
       window.requestAnimationFrame(() => {
@@ -630,6 +633,8 @@
       });
     }
     tabs.querySelectorAll('button[data-action="detail-view-tab"]').forEach((button) => {
+      if (button.pfhDetailTabPointerBound) return;
+      button.pfhDetailTabPointerBound = true;
       button.addEventListener('mousemove', (event) => {
         const rect = button.getBoundingClientRect();
         if (!rect.width || !rect.height) return;
@@ -637,6 +642,7 @@
         button.style.setProperty('--my', ((event.clientY - rect.top) / rect.height * 100) + '%');
       });
     });
+    tabs.pfhDetailTabActiveView = activeView;
     state.detailViewPreviousTab = '';
   }
 
@@ -1731,7 +1737,7 @@
         if (control.hasAttribute(attrs[0])) return node.tagName + ':' + attrs.map((attr) => control.getAttribute(attr) || '').join(':') + (control.getAttribute('type') === 'radio' ? ':' + control.getAttribute('value') : '');
       }
     }
-    const structural = ['pfh-list-head', 'pfh-sku-list-toolbar', 'pfh-sku-filter-toolbar', 'pfh-sku-list-content', 'pfh-sku-scroll', 'pfh-sku-waterfall-grid', 'pfh-list-pager', 'pfh-search-result-toolbar', 'pfh-sku-view-switch', 'pfh-sku-sort-menu', 'pfh-detail-scroll'];
+    const structural = ['pfh-list-head', 'pfh-sku-list-toolbar', 'pfh-sku-filter-toolbar', 'pfh-sku-list-content', 'pfh-sku-scroll', 'pfh-sku-waterfall-grid', 'pfh-list-pager', 'pfh-search-result-toolbar', 'pfh-sku-view-switch', 'pfh-sku-sort-menu', 'pfh-detail-scroll', 'pfh-detail-view-frame', 'pfh-detail-view-tabs', 'pfh-file-section', 'pfh-sku-info-section', 'pfh-graphic-section', 'pfh-infringement-section', 'pfh-note', 'pfh-loading-tip'];
     return structural.find((name) => node.classList.contains(name)) || '';
   }
 
@@ -1766,7 +1772,7 @@
     }
     for (const attr of Array.from(current.attributes)) {
       if (current === document.activeElement && attr.name === 'value') continue;
-      if (attr.name === 'style' && (current.pfhSkuViewPointerBound || current.classList.contains('pfh-sku-view-indicator'))) continue;
+      if (attr.name === 'style' && (current.pfhSkuViewPointerBound || current.pfhDetailTabPointerBound || current.classList.contains('pfh-sku-view-indicator') || current.classList.contains('pfh-detail-view-indicator'))) continue;
       if (!next.hasAttribute(attr.name)) current.removeAttribute(attr.name);
     }
     for (const attr of Array.from(next.attributes)) {
@@ -1790,6 +1796,19 @@
       if (reusable) reconcileAssistantPanelNode(node, child);
     });
     while (current.childNodes.length > children.length) current.lastChild.remove();
+  }
+
+  function updateAssistantDetailMarkup(detail, html, context) {
+    const sameContext = detail.pfhDetailRenderContext === context && detail.firstChild && detail.pfhDetailRenderRoot === detail.firstChild;
+    if (sameContext && detail.pfhDetailRenderHtml === html) return;
+    if (sameContext) {
+      const next = detail.cloneNode(false);
+      next.innerHTML = html;
+      reconcileAssistantPanelNode(detail, next);
+    } else detail.innerHTML = html;
+    detail.pfhDetailRenderContext = context;
+    detail.pfhDetailRenderRoot = detail.firstChild;
+    detail.pfhDetailRenderHtml = html;
   }
 
   function updateSkuSidebarMarkup(list, html) {

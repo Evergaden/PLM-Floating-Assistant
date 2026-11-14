@@ -190,7 +190,11 @@
     const current = note.querySelector('.pfh-api-status');
     const html = apiReadStatusHtml();
     if (current) {
-      if (html) current.outerHTML = html;
+      if (html) {
+        const next = document.createElement('template');
+        next.innerHTML = html;
+        reconcileAssistantPanelNode(current, next.content.firstElementChild);
+      }
       else current.remove();
       return;
     }
@@ -283,7 +287,9 @@
     const openingDetail = state.openingProjectDetail || statusText === L.openingDetail;
     const hasVisibleCopywriting = Boolean(state.copywritingMode && data && normalizeCopywritingRecord(data.copywriting) && normalizeCopywritingRecord(data.copywriting).fullText);
     const loading = openingDetail || state.copywritingLoading || (!hasVisibleCopywriting && (state.scanRunning || statusText === L.scanning || statusText === L.checkingMaterial));
-    detail.classList.toggle('is-loading', loading);
+    // Refreshing cached data is a background operation: the loading class dims
+    // every section, making otherwise stable pictures visibly flash.
+    detail.classList.toggle('is-loading', loading && (!data || openingDetail || state.copywritingLoading && !hasVisibleCopywriting));
     if (openingDetail) {
       const main = panel.querySelector('.pfh-main');
       if (main) main.classList.remove('is-home');
@@ -305,16 +311,16 @@
     const main = panel.querySelector('.pfh-main');
     if (main) main.classList.remove('is-home');
     if (state.copywritingMode) {
-      detail.innerHTML = [
+      updateAssistantDetailMarkup(detail, [
         '<div class="pfh-detail-scroll pfh-copywriting-scroll">',
         detailViewTabsHtml('copywriting'),
         productHeroSectionHtml(state.data, true),
         copywritingViewHtml(state.data),
         '</div>',
-      ].join('');
+      ].join(''), String(state.data.sku || '') + '|copywriting');
       return;
     }
-    detail.innerHTML = [
+    updateAssistantDetailMarkup(detail, [
       renderStatusHtml(statusText),
       '<div class="pfh-detail-view-frame pfh-sku-detail-frame">',
       detailViewTabsHtml('detail'),
@@ -343,7 +349,7 @@
       infringementSectionHtml(state.data),
       '</div></div>',
       '<div class="pfh-note"><span class="pfh-note-source">' + escapeHtml(state.data.updatedAt ? (L.updatedAt + ': ' + state.data.updatedAt) : '') + '</span>' + apiReadStatusHtml() + '<span class="pfh-note-toast" aria-live="polite"></span>' + skuDataLogTriggerHtml(state.data) + '<button type="button" data-action="refresh" title="' + escapeHtml(TOOLTIP.refresh) + '">' + iconHtml('refresh') + '</button></div>',
-    ].join('');
+    ].join(''), String(state.data.sku || '') + '|detail');
   }
 
   function productHeroSectionHtml(data, copywritingMode) {

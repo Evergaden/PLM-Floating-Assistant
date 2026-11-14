@@ -128,14 +128,14 @@
   function renderSizeImage(panel) {
     const detail = panel.querySelector('.pfh-detail');
     detail.classList.remove('is-loading');
-    detail.innerHTML = sizeImageViewHtml();
+    updateAssistantDetailMarkup(detail, sizeImageViewHtml(), String(state.selectedSku || state.data && state.data.sku || '') + '|sizeImage');
   }
 
   function renderParameterImage(panel) {
     const detail = panel.querySelector('.pfh-detail');
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     detail.classList.remove('is-loading');
-    detail.innerHTML = parameterImageFeature.viewHtml(data || {});
+    updateAssistantDetailMarkup(detail, parameterImageFeature.viewHtml(data || {}), String(data && data.sku || '') + '|parameterImage');
   }
 
   function loadMagicUploadQueue() {
