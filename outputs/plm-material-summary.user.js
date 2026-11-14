@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.78
+// @version      2.10.79
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.78';
+  const SCRIPT_VERSION = '2.10.79';
   const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }\n#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n\n/* Text-only BOM controls, full-width material groups and aligned fields. */\n#plm-floating-helper .pfh-product-development-material-planner.pfh-bom-form {\n  display: grid;\n  gap: 16px;\n  min-width: 0;\n  padding: 16px;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-bom-form > header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-bom-form > header > .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; }\n#plm-floating-helper .pfh-product-development-detail-form > .pfh-product-development-product-form-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-detail-heading { display: contents; }\n#plm-floating-helper .pfh-product-development-product-form-header .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-bom-form > header h3 { font-size: 16px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card button[data-action] {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-bom-form button.is-primary { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-bom-form button:hover:not(:disabled) { border-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form button:disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-list { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card { align-content: start; gap: 12px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header { flex-direction: row; align-items: center; min-height: 36px; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header strong { font-size: 20px; font-weight: 700; line-height: 1.4; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled { padding-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled small { margin-left: 12px; color: var(--pfh-theme-muted); font-size: 11px; font-weight: 400; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-grid,\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-grid { grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); align-items: start; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field { gap: 8px; color: var(--pfh-theme-text); font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field > span { overflow: visible; white-space: normal; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field :is(input, select) { min-height: 36px; padding: 8px 12px; font: inherit; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form :is(button, input, select):focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 2px; }\n#plm-floating-helper .pfh-bom-dimensions { display: grid; grid-column: 1 / -1; grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-bom-dimensions.is-box { grid-template-columns: var(--pfh-bom-field-columns, repeat(3, minmax(0, 1fr))); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-options { gap: 12px; padding-top: 12px; border-top-style: solid; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group { gap: 8px; font-size: 11px; color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group > div { display: flex; min-height: 36px; box-sizing: border-box; align-items: center; gap: 16px; padding: 8px 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group input { accent-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-product-binding { padding: 12px; border-radius: 8px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid { gap: 12px; margin-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid small { font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-bom-form { --pfh-bom-field-columns: minmax(0, 1fr); }\n}\n";
   const SKU_DETAIL_LAYOUT_CSS = "/* Keep SKU identity above the independently scrolling detail content. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  height: auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  padding: 12px 14px 0;\n  overflow: hidden;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {\n  flex: 0 0 auto;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 0 0;\n}\n\n#plm-floating-helper .pfh-material-card {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 16px 18px;\r\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\r\n  border-radius: 16px;\r\n  background: var(--pfh-theme-card, #fff);\r\n}\r\n#plm-floating-helper .pfh-material-card small {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key] {\r\n  display: block;\r\n  min-width: 0;\r\n  overflow-wrap: anywhere;\r\n  /* Fill the inter-row gap without moving the text or overlapping targets. */\r\n  padding: 4px 10px;\r\n  margin: -4px -10px;\r\n  cursor: pointer;\r\n  border-radius: 6px;\r\n  transition: color .15s, background .15s;\r\n}\r\n#plm-floating-helper .pfh-material-size {\r\n  color: var(--pfh-theme-text, #17213a);\r\n  font-size: 15px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-code {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:hover,\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:focus-visible,\r\n#plm-floating-helper .pfh-material-card .is-copied {\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-soft, #f4efff);\r\n  outline: none;\r\n}\r\n\n/* Keep product context in the selected SKU card while the editor owns the detail pane. */\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active) {\n  position: relative;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active)::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  z-index: 10;\n  border-radius: inherit;\n  background: color-mix(in srgb, var(--pfh-theme-page, #f8f9ff) 58%, transparent);\n  pointer-events: none;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-list-head, .pfh-sku-list-toolbar, .pfh-sku-filter-toolbar, .pfh-list-pager, .pfh-search-result-toolbar, .pfh-workspace-search-host) {\n  opacity: .5;\n}\n\n#plm-floating-helper .pfh-development-detail-jump {\n  position: absolute;\n  z-index: 80;\n  display: grid;\n  gap: 4px;\n  width: 188px;\n  max-width: calc(100% - 16px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-development-detail-jump button {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  text-align: left;\n  font: inherit;\n  font-size: 12px;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-development-detail-jump button:is(:hover, :focus-visible, .is-active) { background: var(--pfh-theme-primary-soft); color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-development-detail-jump button:focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 1px; }\n#plm-floating-helper .pfh-development-detail-jump button:disabled { opacity: .45; cursor: default; }\n";
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
@@ -518,7 +518,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.324';
+  const UI_ASSET_VERSION = '2.5.325';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -6931,7 +6931,8 @@
       provider: productDevelopmentCleanText(source.provider, 80),
       model: productDevelopmentCleanText(source.model, 120),
       plainTextCopy: productDevelopmentCleanText(source.plainTextCopy || source.approvedPlainText || source.finalCopy, 12000),
-      rawMaterialDraft: productDevelopmentRawMaterialNormalizeDraft(source.rawMaterialDraft),
+      // Retain retired draft data for compatibility; the raw-material tool is removed.
+      rawMaterialDraft: source.rawMaterialDraft && typeof source.rawMaterialDraft === 'object' ? source.rawMaterialDraft : undefined,
       productNaming: naming,
       fileName: productDevelopmentCleanText(source.fileName || productDevelopmentFileName(sku, 'infringement-comparison', 'png'), 180),
       createdAt: productDevelopmentCleanText(source.createdAt || new Date().toLocaleString(), 80),
@@ -11617,76 +11618,10 @@
     return productDevelopmentGoogleTranslate(text, 'en', 'zh-CN');
   }
 
-  const PRODUCT_DEVELOPMENT_RAW_MATERIAL_STOPWORDS = new Set([
-    'new', 'body', 'face', 'hand', 'foot', 'lip', 'hair', 'skin', 'care', 'stick', 'bottle', 'tube', 'jar',
-    'box', 'pack', 'spray', 'soap', 'balm', 'wash', 'scrub', 'serum', 'oil', 'cream', 'lotion', 'gel',
-    'mask', 'toner', 'mist', 'bar', 'roll', 'deodorant', 'shampoo', 'conditioner', 'ultra', 'pro', 'plus',
-    'daily', 'clinically', 'proven', 'original', 'classic', 'premium', 'derm', 'derma',
-  ]);
 
-  function productDevelopmentRawMaterialNormalizeItems(value) {
-    const list = Array.isArray(value) ? value : [];
-    return list.map((item) => ({
-      en: productDevelopmentCleanText(item && item.en, 500),
-      zh: productDevelopmentCleanText(item && item.zh, 500),
-    })).filter((item) => item.en || item.zh).slice(0, 40);
-  }
 
-  function productDevelopmentRawMaterialNormalizeDraft(value) {
-    const source = value && typeof value === 'object' ? value : {};
-    if (Array.isArray(source.efficacyItems) || Array.isArray(source.ingredientItems)) {
-      return {
-        efficacyItems: productDevelopmentRawMaterialNormalizeItems(source.efficacyItems),
-        ingredientItems: productDevelopmentRawMaterialNormalizeItems(source.ingredientItems),
-      };
-    }
-    const efficacy = productDevelopmentCleanText(source.efficacy, 2000);
-    const ingredients = productDevelopmentCleanText(source.ingredients, 2000);
-    return {
-      efficacyItems: efficacy ? [{ en: '', zh: efficacy }] : [],
-      ingredientItems: ingredients ? [{ en: '', zh: ingredients }] : [],
-    };
-  }
 
-  function productDevelopmentRawMaterialCandidateLines(result) {
-    const texts = [];
-    const seen = new Set();
-    const push = (value) => {
-      const text = productDevelopmentCompactSemanticText(value, 200);
-      if (!text || seen.has(text.toUpperCase())) return;
-      seen.add(text.toUpperCase());
-      texts.push(text);
-    };
-    if (result && Array.isArray(result.extractedTexts)) result.extractedTexts.forEach((item) => push(item && item.sourceText));
-    if (result && Array.isArray(result.items)) result.items.forEach((item) => push(item && item.sourceText));
-    return texts;
-  }
 
-  function productDevelopmentRawMaterialSplitLines(result) {
-    const brand = String(result && result.brand || '').trim().toLowerCase();
-    const ingredientLines = [];
-    const claimLines = [];
-    productDevelopmentRawMaterialCandidateLines(result).forEach((text) => {
-      if (/with own logo/i.test(text)) return;
-      if (brand && text.toLowerCase() === brand) return;
-      if (/^[\d\s.,%+/()°℃°-]+$/.test(text)) return;
-      if (/^\d+(\.\d+)?\s*(ml|l|g|kg|oz|fl(\.oz)?|pcs?)\b/i.test(text)) return;
-      if (/^(new|best|hot sale|for (cats|dogs|cats & dogs|men|women|kids))$/i.test(text)) return;
-      const hasLowercase = /[a-z]/.test(text);
-      const words = text.toUpperCase().split(/[\s/&'-]+/).filter(Boolean);
-      if (!hasLowercase && words.length) {
-        const meaningful = words.filter((word) => !PRODUCT_DEVELOPMENT_RAW_MATERIAL_STOPWORDS.has(word.toLowerCase()) && !/^\d+$/.test(word));
-        if (!meaningful.length) return;
-        if (text.length <= 24) {
-          ingredientLines.push(text);
-          return;
-        }
-        return;
-      }
-      if (text.length >= 6 && text.length <= 90) claimLines.push(text);
-    });
-    return { ingredientLines, claimLines };
-  }
 
   function productDevelopmentTranslatePool(requests, run, limit) {
     return new Promise((resolve, reject) => {
@@ -11717,59 +11652,9 @@
     });
   }
 
-  async function productDevelopmentPrepareRawMaterialDraft(result) {
-    if (!result) return;
-    const { ingredientLines, claimLines } = productDevelopmentRawMaterialSplitLines(result);
-    const naming = result.productNaming || {};
-    const functionSummary = productDevelopmentCleanText(naming.functionSummary, 400);
-    try {
-      const claimTranslations = claimLines.length ? await productDevelopmentTranslatePool(claimLines, productDevelopmentTranslateEnToZh, 4) : [];
-      const ingredientTranslations = ingredientLines.length ? await productDevelopmentTranslatePool(ingredientLines, productDevelopmentTranslateEnToZh, 4) : [];
-      const previous = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
-      const newEfficacyItems = [];
-      if (functionSummary) newEfficacyItems.push({ en: '', zh: functionSummary });
-      claimLines.forEach((line, index) => newEfficacyItems.push({
-        en: line,
-        zh: productDevelopmentCleanText(claimTranslations[index], 300),
-      }));
-      const newIngredientItems = ingredientLines.map((line, index) => ({
-        en: line,
-        zh: productDevelopmentCleanText(ingredientTranslations[index], 200),
-      }));
-      result.rawMaterialDraft = {
-        efficacyItems: previous.efficacyItems.length ? previous.efficacyItems : newEfficacyItems,
-        ingredientItems: previous.ingredientItems.length ? previous.ingredientItems : newIngredientItems,
-      };
-      saveProductDevelopmentReviewDraft(result);
-      renderShell();
-    } catch (error) {
-      showToast('原料需求信息翻译失败：' + String(error && error.message || '未知错误'));
-    }
-  }
 
-  function productDevelopmentRawMaterialRowHtml(group, item, index) {
-    return '<div class="pfh-product-development-raw-material-row"><div class="pfh-product-development-review-editor-columns">' +
-      '<textarea class="pfh-product-development-review-input pfh-product-development-raw-material-input is-original" data-raw-material-group="' + group + '" data-raw-material-index="' + index + '" data-raw-material-field="en" rows="2" aria-label="英文原文" placeholder="英文原文（可编辑）">' + escapeHtml(item.en) + '</textarea>' +
-      '<textarea class="pfh-product-development-review-input pfh-product-development-raw-material-input is-translation" data-raw-material-group="' + group + '" data-raw-material-index="' + index + '" data-raw-material-field="zh" rows="2" aria-label="中文翻译" placeholder="中文翻译（可编辑）">' + escapeHtml(item.zh) + '</textarea></div>' +
-      '<button type="button" class="pfh-product-development-raw-material-remove" aria-label="删除该行" data-action="product-development-raw-material-remove" data-raw-material-group="' + group + '" data-raw-material-index="' + index + '">×</button></div>';
-  }
 
-  function productDevelopmentRawMaterialGroupHtml(title, group, items) {
-    const rows = items.length
-      ? items.map((item, index) => productDevelopmentRawMaterialRowHtml(group, item, index)).join('')
-      : '<div class="pfh-product-development-result-empty">暂无识别结果，可点击「添加一行」手动填写。</div>';
-    return '<div class="pfh-product-development-raw-material-group"><div class="pfh-product-development-raw-material-group-head"><span>' + escapeHtml(title) + '</span><button type="button" data-action="product-development-raw-material-add" data-raw-material-group="' + group + '">＋ 添加一行</button></div>' + rows + '</div>';
-  }
 
-  function productDevelopmentRawMaterialHtml(result) {
-    const draft = productDevelopmentRawMaterialNormalizeDraft(result && result.rawMaterialDraft);
-    if (!draft.efficacyItems.length && !draft.ingredientItems.length) return '';
-    const busy = state.productDevelopmentRawMaterialTranslateBusy;
-    return '<section class="pfh-product-development-plain-copy pfh-product-development-raw-material"><header><div><small>RAW MATERIAL REQUEST</small><h3>原料需求</h3></div><span>是否为 NDC：留空不填</span></header>' +
-      productDevelopmentRawMaterialGroupHtml('产品功效', 'efficacy', draft.efficacyItems) +
-      productDevelopmentRawMaterialGroupHtml('开发提供的成分（原料需求表）', 'ingredients', draft.ingredientItems) +
-      '<div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-raw-material-translate"' + (busy ? ' disabled' : '') + '>' + (busy ? '正在翻译…' : '英文翻译为中文') + '</button><button type="button" data-action="product-development-raw-material-copy" data-raw-copy-field="efficacy"' + (draft.efficacyItems.length ? '' : ' disabled') + '>复制功效</button><button type="button" data-action="product-development-raw-material-copy" data-raw-copy-field="ingredients"' + (draft.ingredientItems.length ? '' : ' disabled') + '>复制成分</button></div></section>';
-  }
 
   function productDevelopmentTaskLocalMetaHtml(task, detail) {
     const source = task || {};
@@ -13433,7 +13318,6 @@
       reviewResult.plainTextCopy = productDevelopmentReviewCopyValue(reviewResult, 'revised');
       state.productDevelopmentReview = reviewResult;
       saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
-      productDevelopmentPrepareRawMaterialDraft(state.productDevelopmentReview);
       const riskCount = validated.items.filter((item) => Array.isArray(item.riskTypes) && item.riskTypes.length).length;
       state.productDevelopmentStatus = riskCount ? '已识别 ' + validated.extractedTexts.length + ' 项图片文字，生成 ' + riskCount + ' 项风险对照，请人工确认' : '已识别 ' + validated.extractedTexts.length + ' 项图片文字，未检测到风险，可下载留档并继续人工检查';
       showToast('侵权对照图已生成');
@@ -15478,7 +15362,6 @@
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
       extractedSummary +
-      (canShowResult ? productDevelopmentRawMaterialHtml(result) : '') +
       (canShowResult ? productDevelopmentProductNamingHtml(result) : '') +
       (canEditResult ? productDevelopmentPlainTextCopyHtml(result) : '') +
       preview + list + editor + '</div>';
@@ -18360,71 +18243,6 @@
       });
       return true;
     }
-    if (action === 'product-development-raw-material-copy') {
-      const result = state.productDevelopmentReview;
-      const field = String(actionTarget && actionTarget.getAttribute('data-raw-copy-field') || '').trim();
-      const draft = productDevelopmentRawMaterialNormalizeDraft(result && result.rawMaterialDraft);
-      const items = field === 'ingredients' ? draft.ingredientItems : draft.efficacyItems;
-      const value = items.map((item) => item.zh || item.en).filter(Boolean).join(field === 'ingredients' ? '、' : '，');
-      if (!value) {
-        showToast(field === 'ingredients' ? '暂无可复制的成分' : '暂无可复制的功效');
-        return true;
-      }
-      copyText(value);
-      showToast(field === 'ingredients' ? '成分已复制，可直接粘贴到原料需求表格' : '功效已复制，可直接粘贴到原料需求表格');
-      return true;
-    }
-    if (action === 'product-development-raw-material-translate') {
-      const result = state.productDevelopmentReview;
-      if (!result || state.productDevelopmentRawMaterialTranslateBusy) return true;
-      const draft = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
-      const jobs = [];
-      ['efficacyItems', 'ingredientItems'].forEach((key) => draft[key].forEach((item, index) => {
-        if (item.en) jobs.push({ key, index, en: item.en });
-      }));
-      if (!jobs.length) {
-        showToast('请先在左侧英文原文框填写内容，再点翻译');
-        return true;
-      }
-      state.productDevelopmentRawMaterialTranslateBusy = true;
-      renderShell();
-      productDevelopmentTranslatePool(jobs, (job) => productDevelopmentTranslateEnToZh(job.en), 4).then((values) => {
-        values.forEach((value, index) => {
-          const job = jobs[index];
-          const item = draft[job.key] && draft[job.key][job.index];
-          if (item) item.zh = productDevelopmentCleanText(value, 500);
-        });
-        result.rawMaterialDraft = draft;
-        state.productDevelopmentRawMaterialTranslateBusy = false;
-        saveProductDevelopmentReviewDraft(result);
-        state.productDevelopmentStatus = '已把英文原文翻译为中文，可继续手动调整';
-        renderShell();
-      }).catch((error) => {
-        state.productDevelopmentRawMaterialTranslateBusy = false;
-        saveProductDevelopmentReviewDraft(result);
-        showToast('翻译失败：' + String(error && error.message || '未知错误'));
-        renderShell();
-      });
-      return true;
-    }
-    if (action === 'product-development-raw-material-add' || action === 'product-development-raw-material-remove') {
-      const result = state.productDevelopmentReview;
-      if (!result) return true;
-      const group = String(actionTarget && actionTarget.getAttribute('data-raw-material-group') || '').trim();
-      if (group !== 'efficacy' && group !== 'ingredients') return true;
-      const draft = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
-      const list = group === 'ingredients' ? draft.ingredientItems : draft.efficacyItems;
-      if (action === 'product-development-raw-material-add') {
-        list.push({ en: '', zh: '' });
-      } else {
-        const index = Number(actionTarget && actionTarget.getAttribute('data-raw-material-index'));
-        if (Number.isInteger(index) && list[index]) list.splice(index, 1);
-      }
-      result.rawMaterialDraft = draft;
-      saveProductDevelopmentReviewDraft(result);
-      renderShell();
-      return true;
-    }
     if (action === 'product-development-review-add') {
       const result = state.productDevelopmentReview;
       if (!result) {
@@ -18842,22 +18660,6 @@
         result.plainTextCopy = productDevelopmentCleanText(target.value, 12000);
         scheduleProductDevelopmentReviewDraftSave(result);
       }
-      return true;
-    }
-    if (target.classList.contains('pfh-product-development-raw-material-input')) {
-      const result = state.productDevelopmentReview;
-      if (!result) return true;
-      const group = String(target.getAttribute('data-raw-material-group') || '').trim();
-      const field = String(target.getAttribute('data-raw-material-field') || '').trim();
-      const index = Number(target.getAttribute('data-raw-material-index'));
-      if ((group !== 'efficacy' && group !== 'ingredients') || (field !== 'en' && field !== 'zh')) return true;
-      const draft = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
-      const list = group === 'ingredients' ? draft.ingredientItems : draft.efficacyItems;
-      const item = Number.isInteger(index) ? list[index] : null;
-      if (!item) return true;
-      item[field] = String(target.value || '').slice(0, 500);
-      result.rawMaterialDraft = draft;
-      scheduleProductDevelopmentReviewDraftSave(result);
       return true;
     }
     if (!target.classList.contains('pfh-product-development-review-input')) return false;

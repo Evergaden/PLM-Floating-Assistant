@@ -607,7 +607,8 @@
       provider: productDevelopmentCleanText(source.provider, 80),
       model: productDevelopmentCleanText(source.model, 120),
       plainTextCopy: productDevelopmentCleanText(source.plainTextCopy || source.approvedPlainText || source.finalCopy, 12000),
-      rawMaterialDraft: productDevelopmentRawMaterialNormalizeDraft(source.rawMaterialDraft),
+      // Retain retired draft data for compatibility; the raw-material tool is removed.
+      rawMaterialDraft: source.rawMaterialDraft && typeof source.rawMaterialDraft === 'object' ? source.rawMaterialDraft : undefined,
       productNaming: naming,
       fileName: productDevelopmentCleanText(source.fileName || productDevelopmentFileName(sku, 'infringement-comparison', 'png'), 180),
       createdAt: productDevelopmentCleanText(source.createdAt || new Date().toLocaleString(), 80),

@@ -444,7 +444,6 @@
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
       extractedSummary +
-      (canShowResult ? productDevelopmentRawMaterialHtml(result) : '') +
       (canShowResult ? productDevelopmentProductNamingHtml(result) : '') +
       (canEditResult ? productDevelopmentPlainTextCopyHtml(result) : '') +
       preview + list + editor + '</div>';

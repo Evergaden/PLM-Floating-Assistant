@@ -2696,67 +2696,6 @@
   filter: brightness(1.03);
 }
 
-#plm-floating-helper .pfh-product-development-raw-material-group {
-  display: grid;
-  gap: 6px;
-  margin: 0 0 10px;
-}
-
-#plm-floating-helper .pfh-product-development-raw-material-group-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--pfh-theme-muted);
-  font-size: 9px;
-  font-weight: 700;
-}
-
-#plm-floating-helper .pfh-product-development-raw-material-group-head button {
-  padding: 2px 8px;
-  border: 1px solid var(--pfh-theme-border);
-  border-radius: 8px;
-  background: var(--pfh-theme-control-surface);
-  color: var(--pfh-theme-muted);
-  font-size: 9px;
-  cursor: pointer;
-  transition: border-color .2s ease, color .2s ease;
-}
-
-#plm-floating-helper .pfh-product-development-raw-material-group-head button:hover {
-  border-color: var(--pfh-theme-primary);
-  color: var(--pfh-theme-primary);
-}
-
-#plm-floating-helper .pfh-product-development-raw-material-row {
-  position: relative;
-}
-
-#plm-floating-helper .pfh-product-development-raw-material-row .pfh-product-development-review-editor-columns {
-  padding-right: 18px;
-}
-
-#plm-floating-helper .pfh-product-development-raw-material-remove {
-  position: absolute;
-  top: 2px;
-  right: 0;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--pfh-theme-muted);
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-  transition: color .2s ease;
-}
-
-#plm-floating-helper .pfh-product-development-raw-material-remove:hover {
-  color: #b42318;
-}
-
 #plm-floating-helper .pfh-product-development-detail-meta {
   display: flex;
   flex-wrap: wrap;

@@ -334,71 +334,6 @@
       });
       return true;
     }
-    if (action === 'product-development-raw-material-copy') {
-      const result = state.productDevelopmentReview;
-      const field = String(actionTarget && actionTarget.getAttribute('data-raw-copy-field') || '').trim();
-      const draft = productDevelopmentRawMaterialNormalizeDraft(result && result.rawMaterialDraft);
-      const items = field === 'ingredients' ? draft.ingredientItems : draft.efficacyItems;
-      const value = items.map((item) => item.zh || item.en).filter(Boolean).join(field === 'ingredients' ? '、' : '，');
-      if (!value) {
-        showToast(field === 'ingredients' ? '暂无可复制的成分' : '暂无可复制的功效');
-        return true;
-      }
-      copyText(value);
-      showToast(field === 'ingredients' ? '成分已复制，可直接粘贴到原料需求表格' : '功效已复制，可直接粘贴到原料需求表格');
-      return true;
-    }
-    if (action === 'product-development-raw-material-translate') {
-      const result = state.productDevelopmentReview;
-      if (!result || state.productDevelopmentRawMaterialTranslateBusy) return true;
-      const draft = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
-      const jobs = [];
-      ['efficacyItems', 'ingredientItems'].forEach((key) => draft[key].forEach((item, index) => {
-        if (item.en) jobs.push({ key, index, en: item.en });
-      }));
-      if (!jobs.length) {
-        showToast('请先在左侧英文原文框填写内容，再点翻译');
-        return true;
-      }
-      state.productDevelopmentRawMaterialTranslateBusy = true;
-      renderShell();
-      productDevelopmentTranslatePool(jobs, (job) => productDevelopmentTranslateEnToZh(job.en), 4).then((values) => {
-        values.forEach((value, index) => {
-          const job = jobs[index];
-          const item = draft[job.key] && draft[job.key][job.index];
-          if (item) item.zh = productDevelopmentCleanText(value, 500);
-        });
-        result.rawMaterialDraft = draft;
-        state.productDevelopmentRawMaterialTranslateBusy = false;
-        saveProductDevelopmentReviewDraft(result);
-        state.productDevelopmentStatus = '已把英文原文翻译为中文，可继续手动调整';
-        renderShell();
-      }).catch((error) => {
-        state.productDevelopmentRawMaterialTranslateBusy = false;
-        saveProductDevelopmentReviewDraft(result);
-        showToast('翻译失败：' + String(error && error.message || '未知错误'));
-        renderShell();
-      });
-      return true;
-    }
-    if (action === 'product-development-raw-material-add' || action === 'product-development-raw-material-remove') {
-      const result = state.productDevelopmentReview;
-      if (!result) return true;
-      const group = String(actionTarget && actionTarget.getAttribute('data-raw-material-group') || '').trim();
-      if (group !== 'efficacy' && group !== 'ingredients') return true;
-      const draft = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
-      const list = group === 'ingredients' ? draft.ingredientItems : draft.efficacyItems;
-      if (action === 'product-development-raw-material-add') {
-        list.push({ en: '', zh: '' });
-      } else {
-        const index = Number(actionTarget && actionTarget.getAttribute('data-raw-material-index'));
-        if (Number.isInteger(index) && list[index]) list.splice(index, 1);
-      }
-      result.rawMaterialDraft = draft;
-      saveProductDevelopmentReviewDraft(result);
-      renderShell();
-      return true;
-    }
     if (action === 'product-development-review-add') {
       const result = state.productDevelopmentReview;
       if (!result) {
@@ -816,22 +751,6 @@
         result.plainTextCopy = productDevelopmentCleanText(target.value, 12000);
         scheduleProductDevelopmentReviewDraftSave(result);
       }
-      return true;
-    }
-    if (target.classList.contains('pfh-product-development-raw-material-input')) {
-      const result = state.productDevelopmentReview;
-      if (!result) return true;
-      const group = String(target.getAttribute('data-raw-material-group') || '').trim();
-      const field = String(target.getAttribute('data-raw-material-field') || '').trim();
-      const index = Number(target.getAttribute('data-raw-material-index'));
-      if ((group !== 'efficacy' && group !== 'ingredients') || (field !== 'en' && field !== 'zh')) return true;
-      const draft = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
-      const list = group === 'ingredients' ? draft.ingredientItems : draft.efficacyItems;
-      const item = Number.isInteger(index) ? list[index] : null;
-      if (!item) return true;
-      item[field] = String(target.value || '').slice(0, 500);
-      result.rawMaterialDraft = draft;
-      scheduleProductDevelopmentReviewDraftSave(result);
       return true;
     }
     if (!target.classList.contains('pfh-product-development-review-input')) return false;

@@ -79,76 +79,10 @@
     return productDevelopmentGoogleTranslate(text, 'en', 'zh-CN');
   }
 
-  const PRODUCT_DEVELOPMENT_RAW_MATERIAL_STOPWORDS = new Set([
-    'new', 'body', 'face', 'hand', 'foot', 'lip', 'hair', 'skin', 'care', 'stick', 'bottle', 'tube', 'jar',
-    'box', 'pack', 'spray', 'soap', 'balm', 'wash', 'scrub', 'serum', 'oil', 'cream', 'lotion', 'gel',
-    'mask', 'toner', 'mist', 'bar', 'roll', 'deodorant', 'shampoo', 'conditioner', 'ultra', 'pro', 'plus',
-    'daily', 'clinically', 'proven', 'original', 'classic', 'premium', 'derm', 'derma',
-  ]);
 
-  function productDevelopmentRawMaterialNormalizeItems(value) {
-    const list = Array.isArray(value) ? value : [];
-    return list.map((item) => ({
-      en: productDevelopmentCleanText(item && item.en, 500),
-      zh: productDevelopmentCleanText(item && item.zh, 500),
-    })).filter((item) => item.en || item.zh).slice(0, 40);
-  }
 
-  function productDevelopmentRawMaterialNormalizeDraft(value) {
-    const source = value && typeof value === 'object' ? value : {};
-    if (Array.isArray(source.efficacyItems) || Array.isArray(source.ingredientItems)) {
-      return {
-        efficacyItems: productDevelopmentRawMaterialNormalizeItems(source.efficacyItems),
-        ingredientItems: productDevelopmentRawMaterialNormalizeItems(source.ingredientItems),
-      };
-    }
-    const efficacy = productDevelopmentCleanText(source.efficacy, 2000);
-    const ingredients = productDevelopmentCleanText(source.ingredients, 2000);
-    return {
-      efficacyItems: efficacy ? [{ en: '', zh: efficacy }] : [],
-      ingredientItems: ingredients ? [{ en: '', zh: ingredients }] : [],
-    };
-  }
 
-  function productDevelopmentRawMaterialCandidateLines(result) {
-    const texts = [];
-    const seen = new Set();
-    const push = (value) => {
-      const text = productDevelopmentCompactSemanticText(value, 200);
-      if (!text || seen.has(text.toUpperCase())) return;
-      seen.add(text.toUpperCase());
-      texts.push(text);
-    };
-    if (result && Array.isArray(result.extractedTexts)) result.extractedTexts.forEach((item) => push(item && item.sourceText));
-    if (result && Array.isArray(result.items)) result.items.forEach((item) => push(item && item.sourceText));
-    return texts;
-  }
 
-  function productDevelopmentRawMaterialSplitLines(result) {
-    const brand = String(result && result.brand || '').trim().toLowerCase();
-    const ingredientLines = [];
-    const claimLines = [];
-    productDevelopmentRawMaterialCandidateLines(result).forEach((text) => {
-      if (/with own logo/i.test(text)) return;
-      if (brand && text.toLowerCase() === brand) return;
-      if (/^[\d\s.,%+/()°℃°-]+$/.test(text)) return;
-      if (/^\d+(\.\d+)?\s*(ml|l|g|kg|oz|fl(\.oz)?|pcs?)\b/i.test(text)) return;
-      if (/^(new|best|hot sale|for (cats|dogs|cats & dogs|men|women|kids))$/i.test(text)) return;
-      const hasLowercase = /[a-z]/.test(text);
-      const words = text.toUpperCase().split(/[\s/&'-]+/).filter(Boolean);
-      if (!hasLowercase && words.length) {
-        const meaningful = words.filter((word) => !PRODUCT_DEVELOPMENT_RAW_MATERIAL_STOPWORDS.has(word.toLowerCase()) && !/^\d+$/.test(word));
-        if (!meaningful.length) return;
-        if (text.length <= 24) {
-          ingredientLines.push(text);
-          return;
-        }
-        return;
-      }
-      if (text.length >= 6 && text.length <= 90) claimLines.push(text);
-    });
-    return { ingredientLines, claimLines };
-  }
 
   function productDevelopmentTranslatePool(requests, run, limit) {
     return new Promise((resolve, reject) => {
@@ -179,59 +113,9 @@
     });
   }
 
-  async function productDevelopmentPrepareRawMaterialDraft(result) {
-    if (!result) return;
-    const { ingredientLines, claimLines } = productDevelopmentRawMaterialSplitLines(result);
-    const naming = result.productNaming || {};
-    const functionSummary = productDevelopmentCleanText(naming.functionSummary, 400);
-    try {
-      const claimTranslations = claimLines.length ? await productDevelopmentTranslatePool(claimLines, productDevelopmentTranslateEnToZh, 4) : [];
-      const ingredientTranslations = ingredientLines.length ? await productDevelopmentTranslatePool(ingredientLines, productDevelopmentTranslateEnToZh, 4) : [];
-      const previous = productDevelopmentRawMaterialNormalizeDraft(result.rawMaterialDraft);
-      const newEfficacyItems = [];
-      if (functionSummary) newEfficacyItems.push({ en: '', zh: functionSummary });
-      claimLines.forEach((line, index) => newEfficacyItems.push({
-        en: line,
-        zh: productDevelopmentCleanText(claimTranslations[index], 300),
-      }));
-      const newIngredientItems = ingredientLines.map((line, index) => ({
-        en: line,
-        zh: productDevelopmentCleanText(ingredientTranslations[index], 200),
-      }));
-      result.rawMaterialDraft = {
-        efficacyItems: previous.efficacyItems.length ? previous.efficacyItems : newEfficacyItems,
-        ingredientItems: previous.ingredientItems.length ? previous.ingredientItems : newIngredientItems,
-      };
-      saveProductDevelopmentReviewDraft(result);
-      renderShell();
-    } catch (error) {
-      showToast('原料需求信息翻译失败：' + String(error && error.message || '未知错误'));
-    }
-  }
 
-  function productDevelopmentRawMaterialRowHtml(group, item, index) {
-    return '<div class="pfh-product-development-raw-material-row"><div class="pfh-product-development-review-editor-columns">' +
-      '<textarea class="pfh-product-development-review-input pfh-product-development-raw-material-input is-original" data-raw-material-group="' + group + '" data-raw-material-index="' + index + '" data-raw-material-field="en" rows="2" aria-label="英文原文" placeholder="英文原文（可编辑）">' + escapeHtml(item.en) + '</textarea>' +
-      '<textarea class="pfh-product-development-review-input pfh-product-development-raw-material-input is-translation" data-raw-material-group="' + group + '" data-raw-material-index="' + index + '" data-raw-material-field="zh" rows="2" aria-label="中文翻译" placeholder="中文翻译（可编辑）">' + escapeHtml(item.zh) + '</textarea></div>' +
-      '<button type="button" class="pfh-product-development-raw-material-remove" aria-label="删除该行" data-action="product-development-raw-material-remove" data-raw-material-group="' + group + '" data-raw-material-index="' + index + '">×</button></div>';
-  }
 
-  function productDevelopmentRawMaterialGroupHtml(title, group, items) {
-    const rows = items.length
-      ? items.map((item, index) => productDevelopmentRawMaterialRowHtml(group, item, index)).join('')
-      : '<div class="pfh-product-development-result-empty">暂无识别结果，可点击「添加一行」手动填写。</div>';
-    return '<div class="pfh-product-development-raw-material-group"><div class="pfh-product-development-raw-material-group-head"><span>' + escapeHtml(title) + '</span><button type="button" data-action="product-development-raw-material-add" data-raw-material-group="' + group + '">＋ 添加一行</button></div>' + rows + '</div>';
-  }
 
-  function productDevelopmentRawMaterialHtml(result) {
-    const draft = productDevelopmentRawMaterialNormalizeDraft(result && result.rawMaterialDraft);
-    if (!draft.efficacyItems.length && !draft.ingredientItems.length) return '';
-    const busy = state.productDevelopmentRawMaterialTranslateBusy;
-    return '<section class="pfh-product-development-plain-copy pfh-product-development-raw-material"><header><div><small>RAW MATERIAL REQUEST</small><h3>原料需求</h3></div><span>是否为 NDC：留空不填</span></header>' +
-      productDevelopmentRawMaterialGroupHtml('产品功效', 'efficacy', draft.efficacyItems) +
-      productDevelopmentRawMaterialGroupHtml('开发提供的成分（原料需求表）', 'ingredients', draft.ingredientItems) +
-      '<div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-raw-material-translate"' + (busy ? ' disabled' : '') + '>' + (busy ? '正在翻译…' : '英文翻译为中文') + '</button><button type="button" data-action="product-development-raw-material-copy" data-raw-copy-field="efficacy"' + (draft.efficacyItems.length ? '' : ' disabled') + '>复制功效</button><button type="button" data-action="product-development-raw-material-copy" data-raw-copy-field="ingredients"' + (draft.ingredientItems.length ? '' : ' disabled') + '>复制成分</button></div></section>';
-  }
 
   function productDevelopmentTaskLocalMetaHtml(task, detail) {
     const source = task || {};
