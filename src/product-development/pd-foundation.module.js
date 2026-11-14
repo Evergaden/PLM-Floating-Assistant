@@ -598,6 +598,7 @@
       netContent: productDevelopmentCleanText(source.netContent, 120).toUpperCase(),
       humanSupplement: source.humanSupplement === true,
       reviewMode: source.reviewMode || '',
+      annotations: Array.isArray(source.annotations) ? source.annotations : [],
       editorDocument: source.editorDocument && typeof source.editorDocument.replacementEn === 'string' ? {
         replacementEn: source.editorDocument.replacementEn,
         replacementZh: String(source.editorDocument.replacementZh || ''),
