@@ -179,6 +179,16 @@
   let productDevelopmentEditorTabBridgeInstalled = false;
   const productDevelopmentReviewTranslationTimers = new WeakMap();
 
+  function productDevelopmentReviewDocument(result) {
+    if (!result.editorDocument || typeof result.editorDocument.replacementEn !== 'string') {
+      result.editorDocument = {
+        replacementEn: (result.items || []).map((item) => String(item.sourceText || '')).join('\n'),
+        replacementZh: '',
+      };
+    }
+    return result.editorDocument;
+  }
+
   function productDevelopmentTranslateReviewItem(result, item) {
     const previous = productDevelopmentReviewTranslationTimers.get(item);
     if (previous) window.clearTimeout(previous);
@@ -186,7 +196,7 @@
     item.replacementZh = '';
     productDevelopmentReviewTranslationTimers.set(item, window.setTimeout(async () => {
       try {
-        const translated = english.trim() ? await productDevelopmentTranslateEnToZh(english) : '';
+        const translated = english.trim() ? await productDevelopmentTranslateReviewText(english) : '';
         if (item.replacementEn !== english || state.productDevelopmentReview !== result) return;
         item.replacementZh = translated;
         saveProductDevelopmentReviewDraft(result);
@@ -197,6 +207,25 @@
       }
       productDevelopmentPushEditorTabData();
     }, 600));
+  }
+
+  async function productDevelopmentTranslateReviewText(text) {
+    const chunks = [];
+    let remaining = text;
+    while (remaining.length > 350) {
+      const prefix = remaining.slice(0, 350);
+      const boundary = Math.max(prefix.lastIndexOf('\n'), prefix.lastIndexOf(' '));
+      let end = boundary > 175 ? boundary + 1 : 350;
+      if (/[\uD800-\uDBFF]/.test(remaining[end - 1])) end--;
+      chunks.push(remaining.slice(0, end));
+      remaining = remaining.slice(end);
+    }
+    if (remaining) chunks.push(remaining);
+    const translated = [];
+    for (const chunk of chunks) {
+      translated.push(chunk.trim() ? await productDevelopmentTranslateEnToZh(chunk) : '');
+    }
+    return translated.join('\n');
   }
 
   function productDevelopmentEditorTabRiskInfo(item) {
@@ -238,12 +267,15 @@
 
   function productDevelopmentEditorTabPayload() {
     const result = state.productDevelopmentReview;
+    const draft = result ? productDevelopmentReviewDocument(result) : { replacementEn: '', replacementZh: '' };
     const list = Array.isArray(result && result.items) ? result.items : [];
     const warnings = result && Array.isArray(result.warnings)
       ? result.warnings.map((item) => productDevelopmentCompactSemanticText(item, 240)).filter(Boolean).slice(0, 8)
       : [];
     return {
       sku: (result && result.sku) || '',
+      english: draft.replacementEn,
+      chinese: draft.replacementZh,
       image: (result && result.sourceImageDataUrl) || '',
       comparison: (result && result.comparisonDataUrl) || '',
       status: state.productDevelopmentStatus || '',
@@ -293,34 +325,31 @@
         if (board.dataset.count !== String(p.items.length)) {
           board.dataset.count = p.items.length;
           board.innerHTML = '<aside><h2>产品对标图</h2><img id="benchmark" alt="产品对标图"><p>点击图片查看大图</p></aside><section><h2>英文文案 <small>由你编辑</small></h2><div id="english"></div></section><section class="translation"><h2>中文翻译 <small>Google 翻译</small></h2><div id="chinese"></div></section>';
-          document.getElementById('english').innerHTML = p.items.map((x) => '<div class="text-row"><label for="en-' + x.index + '">文字块 ' + (x.index + 1) + '</label><textarea id="en-' + x.index + '" data-i="' + x.index + '" aria-label="英文文字块 ' + (x.index + 1) + '"></textarea></div>').join('');
-          document.getElementById('chinese').innerHTML = p.items.map((x) => '<div class="text-row"><span>文字块 ' + (x.index + 1) + '</span><textarea readonly id="zh-' + x.index + '" aria-label="中文翻译 ' + (x.index + 1) + '" placeholder="等待翻译…"></textarea></div>').join('');
+          document.getElementById('english').innerHTML = '<textarea id="english-document" aria-label="完整英文文案" placeholder="包装原文，可直接修改"></textarea>';
+          document.getElementById('chinese').innerHTML = '<textarea readonly id="chinese-document" aria-label="完整中文翻译" placeholder="等待翻译…"></textarea>';
         }
         document.getElementById('benchmark').src = p.image;
-        p.items.forEach((x) => {
-          const en = document.getElementById('en-' + x.index);
-          if (document.activeElement !== en) en.value = x.replacementEn;
-          document.getElementById('zh-' + x.index).value = x.replacementZh;
-        });
+        const en = document.getElementById('english-document');
+        if (document.activeElement !== en) en.value = p.english;
+        document.getElementById('chinese-document').value = p.chinese;
         document.getElementById('report').innerHTML = '<h2>侵权风险报告</h2><p class="muted">仅作图片文字风险初筛，品牌权属与实际侵权情况需人工核实。</p>' + p.items.map((x) => '<article><strong>' + (x.isRisk ? '需核查' : '暂未发现明显风险') + ' · 文字块 ' + (x.index + 1) + '</strong><blockquote>' + esc(x.sourceText) + '</blockquote><p>' + esc(x.isRisk ? x.riskReason : '当前文字未发现明确风险，仍需结合实际产品资料确认。') + '</p></article>').join('') + (p.warnings || []).map((x) => '<p>' + esc(x) + '</p>').join('');
       });
       document.addEventListener('input', (event) => {
         const t = event.target;
-        if (!t.matches('textarea[data-i]')) return;
-        const index = Number(t.dataset.i);
-        current.items[index].replacementEn = t.value;
-        document.getElementById('zh-' + index).value = '';
-        send({ type: 'pfh-review-tab-input', index, field: 'replacementEn', value: t.value });
+        if (t.id !== 'english-document') return;
+        current.english = t.value;
+        document.getElementById('chinese-document').value = '';
+        send({ type: 'pfh-review-document-input', value: t.value });
       });
       document.getElementById('retry').onclick = () => send({ type: 'pfh-review-tab-translate' });
       document.getElementById('copy').onclick = () => {
-        if (current) navigator.clipboard.writeText(current.items.map((x) => x.replacementEn).join('\n')).then(() => { document.getElementById('status').textContent = '英文已复制'; }).catch(() => { document.getElementById('status').textContent = '复制失败，请选中文本复制'; });
+        if (current) navigator.clipboard.writeText(document.getElementById('english-document').value).then(() => { document.getElementById('status').textContent = '英文已复制'; }).catch(() => { document.getElementById('status').textContent = '复制失败，请选中文本复制'; });
       };
       document.addEventListener('click', (event) => { if (event.target.id === 'benchmark') { const dialog = document.getElementById('zoom'); dialog.querySelector('img').src = event.target.src; dialog.showModal(); } });
       document.getElementById('zoom').onclick = () => document.getElementById('zoom').close();
       send({ type: 'pfh-review-tab-ready' });
     }
-    const css = `*{box-sizing:border-box}body{margin:0;background:#f5f7f8;color:#243339;font:15px/1.6 'Segoe UI','Microsoft YaHei',sans-serif}header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 32px;background:#fff;border-bottom:1px solid #dce3e5}h1{font-size:21px;margin:0}h2{font-size:16px;margin:0 0 20px}small,.muted,#meta{font-size:13px;color:#596970}small{display:block;font-weight:400}main{padding:28px 32px}#board{display:grid;grid-template-columns:var(--w1,minmax(220px,.85fr)) var(--w2,minmax(260px,1fr)) minmax(260px,1fr);gap:28px;align-items:start}section,aside{min-width:0}aside{position:sticky;top:20px}#benchmark{display:block;width:100%;max-height:65vh;object-fit:contain;background:#fff;border-radius:12px;cursor:zoom-in}aside p{font-size:12px;color:#596970}textarea{display:block;width:100%;height:150px;resize:vertical;padding:16px;border:1px solid #cbd5d9;border-radius:10px;background:#fff;font:inherit;line-height:1.7;color:#243339;caret-color:#17695f}textarea:focus-visible,button:focus-visible{outline:2px solid #17695f;outline-offset:3px}.translation textarea{background:#eaf1f0;border-color:transparent;resize:vertical}.text-row{margin-bottom:20px}.text-row label,.text-row span{display:block;margin-bottom:7px;font-size:12px;color:#596970}button{padding:9px 16px;border:1px solid #cbd5d9;border-radius:8px;background:#fff;color:#243339;cursor:pointer}button:hover{background:#edf3f2}#copy{background:#17695f;color:white;border-color:#17695f}nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#status{color:#17695f;font-size:13px}#report{margin-top:36px;padding:28px;background:#fff;border-radius:12px}article{border-top:1px solid #e1e7e9;padding:18px 0}article strong{font-size:14px}blockquote{margin:8px 0;color:#596970;white-space:pre-wrap}article p{margin:6px 0;max-width:75ch}dialog{border:0;border-radius:12px;max-width:90vw;max-height:90vh;padding:12px}dialog::backdrop{background:#14252bd9}dialog img{max-width:85vw;max-height:82vh}::selection{background:#cce5df}@media(max-width:900px){header{align-items:start;flex-direction:column}main{padding:20px}#board{grid-template-columns:1fr 1fr;gap:16px}aside{grid-column:1/-1;position:static}#benchmark{max-height:300px}}@media(max-width:560px){#board{grid-template-columns:1fr}aside{grid-column:auto}header{padding:20px}}`;
+    const css = `*{box-sizing:border-box}body{margin:0;background:#f5f7f8;color:#243339;font:15px/1.6 'Segoe UI','Microsoft YaHei',sans-serif}header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 32px;background:#fff;border-bottom:1px solid #dce3e5}h1{font-size:21px;margin:0}h2{font-size:16px;margin:0 0 20px}small,.muted,#meta{font-size:13px;color:#596970}small{display:block;font-weight:400}main{padding:28px 32px}#board{display:grid;grid-template-columns:var(--w1,minmax(220px,.85fr)) var(--w2,minmax(260px,1fr)) minmax(260px,1fr);gap:28px;align-items:start}section,aside{min-width:0}aside{position:sticky;top:20px}#benchmark{display:block;width:100%;max-height:65vh;object-fit:contain;background:#fff;border-radius:12px;cursor:zoom-in}aside p{font-size:12px;color:#596970}textarea{display:block;width:100%;height:65vh;min-height:360px;resize:vertical;padding:16px;border:1px solid #cbd5d9;border-radius:10px;background:#fff;font:inherit;line-height:1.7;color:#243339;caret-color:#17695f}textarea:focus-visible,button:focus-visible{outline:2px solid #17695f;outline-offset:3px}.translation textarea{background:#eaf1f0;border-color:transparent;resize:vertical}.text-row{margin-bottom:20px}.text-row label,.text-row span{display:block;margin-bottom:7px;font-size:12px;color:#596970}button{padding:9px 16px;border:1px solid #cbd5d9;border-radius:8px;background:#fff;color:#243339;cursor:pointer}button:hover{background:#edf3f2}#copy{background:#17695f;color:white;border-color:#17695f}nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#status{color:#17695f;font-size:13px}#report{margin-top:36px;padding:28px;background:#fff;border-radius:12px}article{border-top:1px solid #e1e7e9;padding:18px 0}article strong{font-size:14px}blockquote{margin:8px 0;color:#596970;white-space:pre-wrap}article p{margin:6px 0;max-width:75ch}dialog{border:0;border-radius:12px;max-width:90vw;max-height:90vh;padding:12px}dialog::backdrop{background:#14252bd9}dialog img{max-width:85vw;max-height:82vh}::selection{background:#cce5df}@media(max-width:900px){header{align-items:start;flex-direction:column}main{padding:20px}#board{grid-template-columns:1fr 1fr;gap:16px}aside{grid-column:1/-1;position:static}#benchmark{max-height:300px}}@media(max-width:560px){#board{grid-template-columns:1fr}aside{grid-column:auto}header{padding:20px}}`;
     return '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>包装文案编辑</title><style>' + css + '</style><body><header><div><h1>包装文案编辑</h1><div id="meta"></div></div><nav><span id="status" role="status"></span><button id="retry">重新翻译</button><button id="copy">复制英文文案</button></nav></header><main><div id="board"></div><section id="report"></section></main><dialog id="zoom"><img alt="产品对标大图"></dialog><script>(' + editorClient.toString() + ')();</scr' + 'ipt></body></html>';
   }
 
@@ -363,7 +392,10 @@
       const list = result && Array.isArray(result.items) ? result.items : [];
       if (data.type === 'pfh-review-tab-ready') {
         productDevelopmentPushEditorTabData();
-        list.forEach((item) => { if (!item.replacementZh) productDevelopmentTranslateReviewItem(result, item); });
+        if (result) {
+          const draft = productDevelopmentReviewDocument(result);
+          if (!draft.replacementZh) productDevelopmentTranslateReviewItem(result, draft);
+        }
         return;
       }
       if (data.type === 'pfh-review-tab-layout') {
@@ -371,6 +403,16 @@
         return;
       }
       if (!result) return;
+      if (data.type === 'pfh-review-document-input') {
+        const draft = productDevelopmentReviewDocument(result);
+        draft.replacementEn = String(data.value == null ? '' : data.value);
+        result.plainTextCopy = draft.replacementEn;
+        productDevelopmentTranslateReviewItem(result, draft);
+        saveProductDevelopmentReviewDraft(result);
+        state.productDevelopmentStatus = '英文已保存 · 正在翻译…';
+        productDevelopmentPushEditorTabData();
+        return;
+      }
       if (data.type === 'pfh-review-tab-input') {
         const item = list[Number(data.index)];
         const field = String(data.field || '');
@@ -409,7 +451,7 @@
         return;
       }
       if (data.type === 'pfh-review-tab-translate') {
-        list.forEach((item) => productDevelopmentTranslateReviewItem(result, item));
+        productDevelopmentTranslateReviewItem(result, productDevelopmentReviewDocument(result));
         return;
       }
       if (data.type === 'pfh-review-tab-recompose') {
@@ -517,6 +559,7 @@
   }
 
   function productDevelopmentReviewCopyValue(result, mode) {
+    if (mode === 'revised' && result && result.editorDocument) return result.editorDocument.replacementEn;
     if (result && result.reviewMode === 'original-report') {
       return (result.items || []).map((item) => mode === 'revised' ? String(item.replacementEn == null ? item.sourceText : item.replacementEn) : item.sourceText).join('\n');
     }

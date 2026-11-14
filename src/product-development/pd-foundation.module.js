@@ -598,6 +598,10 @@
       netContent: productDevelopmentCleanText(source.netContent, 120).toUpperCase(),
       humanSupplement: source.humanSupplement === true,
       reviewMode: source.reviewMode || '',
+      editorDocument: source.editorDocument && typeof source.editorDocument.replacementEn === 'string' ? {
+        replacementEn: source.editorDocument.replacementEn,
+        replacementZh: String(source.editorDocument.replacementZh || ''),
+      } : undefined,
       sourceImageDataUrl: dataUrl(source.sourceImageDataUrl, 2600000),
       sourceImageName: productDevelopmentCleanText(source.sourceImageName || source.benchmarkImageName, 180),
       comparisonDataUrl: dataUrl(source.comparisonDataUrl, 2600000),
