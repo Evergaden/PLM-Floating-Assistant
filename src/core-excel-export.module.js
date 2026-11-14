@@ -947,20 +947,11 @@
   }
 
   async function generateExcelFromCurrent() {
+    if (state.excelGenerating) return;
     let generationToastToken = 0;
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) {
       showToast(L.excelNeedData);
-      return;
-    }
-    try {
-      await ensureExcelJsLoaded();
-    } catch (error) {
-      showToast(formatErrorMessage(error) || L.excelNeedLibrary);
-      return;
-    }
-    if (!await ensureExcelTemplateLoaded()) {
-      showToast('Excel \u6a21\u677f\u5c1a\u672a\u7f13\u5b58\uff0c\u8bf7\u8054\u7f51\u540e\u91cd\u8bd5');
       return;
     }
     syncExcelInputs();
@@ -993,13 +984,15 @@
       renderShell();
     }
     try {
-      const Excel = await ensureExcelJsLoaded();
+      state.excelGenerating = true;
       const packQty = normalizePackQty(getLocalPackQty(excelData));
       state.excelPackQty = packQty;
       if (!packQty) {
         addLog('warn', 'Excel 缺少装箱数，继续生成', excelData.sku + ' | 装箱数单元格留空');
       }
       const fileName = sanitizeExcelFileName(buildExcelFileName(excelData, extra));
+      generationToastToken = showToast(state.settings.excelDownloadMode === 'direct' ? L.excelGenerating : '正在打开表格保存位置…', { tone: 'info' });
+      // Open the picker within the click gesture, before library/template I/O.
       const saveTarget = await chooseExcelSaveTarget(fileName);
       if (!saveTarget) {
         state.excelStatus = L.excelSaveCanceled;
@@ -1007,7 +1000,10 @@
         showToast(L.excelSaveCanceled);
         return;
       }
+      dismissToast(generationToastToken);
       generationToastToken = showToast(L.excelGenerating, { tone: 'info' });
+      const Excel = await ensureExcelJsLoaded();
+      if (!await ensureExcelTemplateLoaded()) throw new Error('Excel 模板尚未缓存，请联网后重试');
       const workbook = await loadCloudExcelTemplateWorkbook(Excel);
       const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
       state.excelStatus = L.excelImageLoading;
@@ -1087,6 +1083,7 @@
       renderShell();
       showToast(state.excelStatus);
     } finally {
+      state.excelGenerating = false;
       dismissToast(generationToastToken);
     }
   }
