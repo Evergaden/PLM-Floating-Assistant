@@ -1780,7 +1780,11 @@
         const lineEnd = { x: end.x + nx * offset, y: end.y + ny * offset };
         const textCenter = { x: middle.x + nx * (offset + textGap) + tx * tangentShift, y: middle.y + ny * (offset + textGap) + ty * tangentShift };
         const box = dimensionLayoutBox(start, end, labelWidth, textAngle, textCenter, lineStart, lineEnd);
-        const overlap = dimensionOverlapArea(box.textBox, box.lineBox) + options.avoidBoxes.reduce((total, other) => total + dimensionOverlapArea(box.textBox, other) + dimensionOverlapArea(box.lineBox, other), 0);
+        // Parallel text is already separated from its own line by textGap.
+        // Its axis-aligned bounding box grows when even slightly rotated and
+        // can otherwise report a false overlap with the line itself.
+        const ownOverlap = Math.abs(Math.sin(textAngle - angle)) < 1e-8 ? 0 : dimensionOverlapArea(box.textBox, box.lineBox);
+        const overlap = ownOverlap + options.avoidBoxes.reduce((total, other) => total + dimensionOverlapArea(box.textBox, other) + dimensionOverlapArea(box.lineBox, other), 0);
         const bounds = options.bounds;
         const outside = bounds
           ? Math.max(0, bounds.left - box.left) + Math.max(0, bounds.top - box.top) + Math.max(0, box.right - bounds.right) + Math.max(0, box.bottom - bounds.bottom)

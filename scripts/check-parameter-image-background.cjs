@@ -33,6 +33,11 @@ assert.equal(sandbox.dimensionOverlapArea(diagonalStroke, parallelStroke), 0, 'O
 const clearPlacement = sandbox.chooseDimensionPlacement(ctx, { x: 600, y: 1200 }, { x: 800, y: 1200 }, 4, -1, { avoidBoxes: [{ left: 900, top: 400, right: 1050, bottom: 1100 }], bounds: { left: 30, top: 30, right: 1570, bottom: 1530 } });
 assert.equal(clearPlacement.lineOffset, 36, 'Unobstructed dimension retains its standard offset');
 assert.equal(clearPlacement.tangentShift, 0, 'Unobstructed label remains centered above its line');
+for (const slope of [-10, -5, -2, 2, 5, 10]) {
+  const almostHorizontal = sandbox.chooseDimensionPlacement(ctx, { x: 550, y: 1300 }, { x: 840, y: 1300 + slope }, 4, 1, { avoidBoxes: [], bounds: { left: 30, top: 30, right: 1570, bottom: 1530 } });
+  assert.equal(almostHorizontal.lineOffset, 36, 'Slightly tilted line retains its original position');
+  assert.equal(almostHorizontal.tangentShift, 0, 'Slightly tilted label must not avoid its own line');
+}
 const geometry = sandbox.editorDimensionGeometry(ctx, { x: 400, y: 100 }, { x: 400, y: 1100 }, 13.2, 1, {}, 1);
 assert.equal(geometry.angle, -Math.PI / 2, 'left height text faces the product');
 const obstacles = [{ left: 400, top: 200, right: 700, bottom: 1000 }, { left: 720, top: 200, right: 1100, bottom: 1040 }];
