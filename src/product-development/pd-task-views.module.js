@@ -374,6 +374,13 @@
 
   async function loadProductDevelopmentTasks(options) {
     const opts = options || {};
+    if (typeof isWestmonthLoginPage === 'function' && isWestmonthLoginPage()) {
+      const cached = loadProductDevelopmentTaskCache();
+      const rows = Array.isArray(state.productDevelopmentTasks) && state.productDevelopmentTasks.length ? state.productDevelopmentTasks : cached.rows;
+      state.productDevelopmentTasks = Array.isArray(rows) ? rows : [];
+      state.productDevelopmentTaskError = state.productDevelopmentTasks.length ? '缓存模式：显示上次保存的任务，数据可能不是最新' : '本机没有已保存的开发任务缓存';
+      return state.productDevelopmentTasks;
+    }
     if (state.productDevelopmentTaskRequestPromise) return state.productDevelopmentTaskRequestPromise;
     const now = Date.now();
     if (!opts.force && state.productDevelopmentTasksLoadedAt && now - state.productDevelopmentTasksLoadedAt < PRODUCT_DEVELOPMENT_TASK_SYNC_COOLDOWN_MS && Array.isArray(state.productDevelopmentTasks) && state.productDevelopmentTasks.length) return state.productDevelopmentTasks;

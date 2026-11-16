@@ -1455,6 +1455,7 @@
   }
 
   async function fetchPlmJson(url, options) {
+    if (typeof isWestmonthLoginPage === 'function' && isWestmonthLoginPage()) throw new Error('缓存模式：PLM 未登录，无法刷新数据');
     try { return await fetchPlmJsonRequest(url, options); }
     catch (error) {
       reportDiagnosticRequest(error, url, 'plm-api', 'GET');
@@ -1552,6 +1553,7 @@
   }
 
   async function fetchPlmApiJson(url, body, options) {
+    if (typeof isWestmonthLoginPage === 'function' && isWestmonthLoginPage()) throw new Error('缓存模式：PLM 未登录，无法写入数据');
     try { return await fetchPlmApiJsonRequest(url, body, options); }
     catch (error) {
       reportDiagnosticRequest(error, url, 'plm-api', 'POST');

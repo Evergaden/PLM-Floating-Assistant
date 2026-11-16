@@ -1,4 +1,10 @@
   function handlePanelClick(event) {
+    const offlineTarget = event.target && event.target.closest && event.target.closest('[data-action]');
+    const offlineAction = offlineTarget && offlineTarget.getAttribute('data-action') || '';
+    if (typeof isWestmonthLoginPage === 'function' && isWestmonthLoginPage() && (/^(?:upload|magic-upload|scan|refresh|sku-color-scan)/.test(offlineAction) || /^product-development-(?:product-fill-page[12]|product-save-plm|bom-fill-plm|bom-save-plm|tasks-refresh|context-refresh)/.test(offlineAction))) {
+      showToast('当前为缓存模式，请在 PLM 恢复并登录后操作');
+      return;
+    }
     if (handleLucianFilterAction(event, ensurePanel())) return;
     const skuContextMenu = event.target && event.target.closest && event.target.closest('.pfh-sku-context-menu');
     const skuDetailMore = event.target && event.target.closest && event.target.closest('[data-action="sku-detail-more"]');

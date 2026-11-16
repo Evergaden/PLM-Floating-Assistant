@@ -561,6 +561,12 @@
     const cachedDetail = inMemoryDetail && typeof inMemoryDetail === 'object' && !inMemoryDetail.error
       ? inMemoryDetail
       : cacheEntry && cacheEntry.detail;
+    if (typeof isWestmonthLoginPage === 'function' && isWestmonthLoginPage()) {
+      if (!cachedDetail) return null;
+      const current = state.productDevelopmentTaskDetailData && state.productDevelopmentTaskDetailData[sku];
+      const next = current || normalizeData({ ...productDevelopmentTaskSeedData(task), sku });
+      return productDevelopmentApplyReadonlyDetailState(task, cachedDetail, next);
+    }
     const cacheAge = cacheEntry && cacheEntry.cachedAt ? Date.now() - cacheEntry.cachedAt : Infinity;
     const hasFreshDetailCache = Boolean(
       cachedDetail &&

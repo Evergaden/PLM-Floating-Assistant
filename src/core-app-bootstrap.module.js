@@ -598,6 +598,18 @@
 
   if (isWestmonthLoginPage()) {
     autoClickWestmonthLogin();
+    injectStyle();
+    const offlinePanel = ensurePanel();
+    const offlineBanner = document.createElement('div');
+    offlineBanner.textContent = '缓存模式 · 登录页无法读取或写入 PLM，数据可能不是最新';
+    offlineBanner.setAttribute('role', 'status');
+    offlineBanner.style.cssText = 'padding:8px 14px;background:#fff3d8;color:#71460b;font-size:12px;text-align:center;';
+    const offlineBody = offlinePanel.querySelector('.pfh-full');
+    if (offlineBody) offlineBody.prepend(offlineBanner);
+    document.addEventListener('keydown', handleShortcutKeydown, true);
+    ensureLauncher();
+    renderShell('缓存模式：显示本机已保存的数据');
+    window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
     return;
   }
 
