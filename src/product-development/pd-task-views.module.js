@@ -283,7 +283,9 @@
     detail.classList.remove('is-loading');
     updateAssistantDetailMarkup(detail, '<div class="pfh-detail-view-frame pfh-cw-task-frame">' + detailViewTabsHtml(tab.id) + '<div class="pfh-detail-scroll pfh-cw-task-content">' + body + '</div></div>', sku + '|' + tab.id);
     productDevelopmentMountReviewEditorOverlay(panel);
-    if (!state.productDevelopmentTaskFormData[sku] && detail.pfhDesignDevelopmentSku !== sku) {
+    // Use the same cache-age and refresh policy as the original workspace.
+    // Cached data is already visible above while stale data refreshes.
+    if (detail.pfhDesignDevelopmentSku !== sku) {
       detail.pfhDesignDevelopmentSku = sku;
       hydrateProductDevelopmentTaskDetail(task).then(() => {
         if (state.view === 'detail' && state.settings.designDevelopmentTabs === true && state.designDevelopmentTab && state.selectedSku === sku) renderShell();

@@ -545,7 +545,9 @@
     state.productDevelopmentTaskFormData[sku] = readOnlyDetail;
     productDevelopmentRecordMaterialsFromBom(sku, readOnlyDetail.bomRows);
     if (state.productDevelopmentTaskSelectedSku === sku && state.selectedSku === sku) {
-      if (next) state.data = next;
+      // The integrated editor shares the task state, but its parent is the
+      // design workspace and owns a different current-product snapshot.
+      if (next && state.view === 'productDevelopmentTasks') state.data = next;
       state.selectedSku = sku;
     }
     return next || state.productDevelopmentTaskDetailData[sku] || null;
