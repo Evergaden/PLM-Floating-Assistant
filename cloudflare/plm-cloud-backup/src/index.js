@@ -3231,6 +3231,7 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
     en: cleanText(item && item.en, 600),
     cn: cleanText(item && item.cn, 600),
   })).filter((item) => item.en && item.cn).slice(0, 6);
+  if (options && options.requireDirections && !directions.length) throw new Error('directions must contain at least one bilingual step');
   return { efficacy, advantages, sellingPoints, ingredientFunctions, productNameTranslations, directions };
 }
 
@@ -4023,6 +4024,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   const templateVersion = cleanText(body.templateVersion, 80);
   const templateId = cleanText(body.templateId, 80);
   const copywritingOptions = { copywritingCategory: body.copywritingCategory === 'regular' || /^regular(?:-|$)/.test(templateId) ? 'regular' : 'food' };
+  copywritingOptions.requireDirections = copywritingOptions.copywritingCategory === 'regular';
   const templateLabel = cleanText(body.templateLabel, 120);
   const ingredientTemplateId = cleanText(body.ingredientTemplateId, 80);
   const ingredientTemplateLabel = cleanText(body.ingredientTemplateLabel, 120);
@@ -4056,7 +4058,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   };
   const commonSystem = [
     '你是美国电商宠物/营养产品的双语包装文案草稿助手。',
-    '当模板 id 为 regular-ndc 或 regular-non-ndc 时，sections 还须包含 directions 数组，每项为 {"en":"","cn":""}，按步骤逐条对应中英文。只根据 sourceCopywriting.usage 或 sourcePlainTextCopy 中明确提供的使用方法整理和翻译，不得从功效推断步骤、用量、频次或适用部位；没有用法依据时返回空数组。用法独立于 A-D，不套用 A-D 的禁用用法词规则。referenceUrl 仅为原样导出线索，不抓取、不虚构或声称已验证链接内容。',
+    '当模板 id 为 regular-ndc 或 regular-non-ndc 时，sections 必须包含至少一条非空双语 directions，每项为 {"en":"","cn":""}，按步骤逐条对应中英文。有 sourceCopywriting.usage 或 sourcePlainTextCopy 的明确用法时，优先据此整理和翻译；没有时根据当前产品的明确剂型和用途写合理、简洁的基础用法草稿，不得编造数值、频次、部位、配件或无法确认的留存、冲洗步骤。用法独立于 A-D，不套用 A-D 的禁用用法词规则。referenceUrl 仅为原样导出线索，不抓取、不虚构或声称已验证链接内容。',
     '本任务只使用提交的产品资料、成分、sourcePlainTextCopy 和已有卖点，不读取、不分析也不要求产品效果图。',
     '如果存在 sourcePlainTextCopy，它是侵权图修改后的纯文字文案版本；先用它理解产品名称、定位、用途和卖点，再把这些事实改写成 A-D。没有它时才使用其他已提交资料。',
     '必须使用符合跨境电商平台合规宣传的客观、克制、可验证表达：可以说明成分、配方特点、产品属性、使用场景和日常营养支持，但不能承诺结果或暗示预防、治疗、诊断、替代药物。',
@@ -4076,9 +4078,9 @@ async function handleProductDevelopmentCopywriting(request, env) {
   const categorySystem = copywritingOptions.copywritingCategory === 'regular'
     ? [
       '当前为常规非食品产品，必须按输入的真实产品类型写作；含镁等成分也不能据此推断为营养补充剂。不要使用服用、食用、膳食、营养补充、内服补镁等定位，不要沿用食品示例。daily use / 日常使用属于一般场景描述，可使用；但次数、数量、具体用量只放在有输入依据的独立 directions 字段。不得虚构饮食属性、生产质量背书或认证。',
-      '以下是历史通过稿总结的用法写作经验，只用于组织当前产品已有的用法资料，不能作为该 SKU 的事实证据：先确认实际剂型和用途，再按准备、使用动作、留存或去除的顺序整理，中英文步骤一一对应；称本品 / this product，使用部位仅来自当前产品资料。',
+      '以下是历史通过稿总结的用法写作经验，不能作为该 SKU 的事实证据：先依据当前产品资料确认实际剂型和用途，再按准备、使用动作及有依据的留存或去除步骤生成，中英文一一对应；称本品 / this product，具体使用部位仅来自当前产品资料。',
       '根据有依据的真实使用方式区分留存、冲洗、擦除和揭除：留存类可按已给的清洁、涂抹、吸收步骤整理；洗去型写清已提供的去除方式；贴敷型写清已提供的贴敷与揭除步骤；喷雾按资料整理摇匀、喷洒或冲洗方式。绝不能把留存型套话套到洗去型、贴敷、吸入或足浴产品。',
-      '仅在明确提供时写停留时间、用量、喷洒距离、频次、温度、具体身体部位、冲洗与否、使用工具或特殊步骤；无法确定时不要猜测，也不要照抄历史样例数值。没有用法依据时 directions 返回空数组。',
+      '仅在明确提供时写具体停留时间、剂量、喷洒距离、频次、温度、具体身体部位、冲洗与否、使用工具或特殊步骤；无法确定时不要猜测，也不要照抄历史样例数值。没有明确用法时仍需根据产品类型写基础操作，无法确定操作细节时使用“按产品标签说明使用 / Follow the product label directions”作为补充，不得返回空数组。',
       '以实际用途区分同剂型：脱毛膏、喷雾、慕斯不可互相套用；口腔用凝胶、义齿粘合凝胶、皮肤用凝胶各依真实用途；棒类先确认包装与是否冲洗；仅明确为滚珠头时写滚动涂抹。名称中出现撕拉、身体、眼部等词不能单独证明具体用法或适用部位。',
       '配件只依据当前 SKU 已确认资料，独立随货配件和产品一体结构分别处理；不要根据某个通过稿推断随货配件或填入 INCLUDING。用法与生成的产品描述保持一致，不得写资料未确认的牙托、刷子、刮板等。',
       '产品优势和卖点不写具体净含量、容量或件数；只有当前产品明确支持时，才可使用不带具体数字的大容量或便携描述。历史样例中的品牌、产品、剂量、材质、保质期、警告语和模板选择均不是当前产品事实，不得照抄或自动推断。',
@@ -4109,7 +4111,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
       '当前选择的文案模板：' + (templateLabel || '未指定') + '（' + (templateId || '未指定') + '，版本 ' + (templateVersion || '未指定') + '）',
       '当前确认的成分表模板：' + (ingredientTemplateLabel || '未指定') + '（' + (ingredientTemplateId || '未指定') + (ingredientTemplateSheetName ? '，工作表 ' + ingredientTemplateSheetName : '') + '）',
       'confirmedIngredientTable=' + (confirmedIngredientTable ? 'true' : 'false'),
-      '常规模板在下列 sections 中另加 directions 字段，例如 [{"en":"原始用法的英文步骤","cn":"对应中文步骤"}]；没有用法依据时为 []。',
+      '常规模板在下列 sections 中另加 directions 字段，至少一条双语步骤，例如 [{"en":"英文步骤","cn":"对应中文步骤"}]。',
       '严格返回完整 JSON，不要 Markdown、代码围栏或解释：',
       '{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}],"productNameTranslations":["","","","","","","","","","","","","","","","","","","","","","",""]}}',
       '再次检查：A=4、B=4、C=15、D=输入成分总数、productNameTranslations 恰好 24 项；C 的前 4 条有双语标题，后 11 条标题字段为空；每一项 en 和 cn 都必须是非空字符串；不要输出星号、品牌词、禁词或空行。',
@@ -4171,7 +4173,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
         error = combined;
       }
     }
-    const canRepair = /off-topic ethics|restricted term|含限制词|asterisk|blank line|星号|空行|exceeds length|超出长度|dosage|frequency|serving|supply|dietary-attribute|quality-process|服用|用量|频次|供应|素食|非转基因|无麸质|质量控制|产品一致性|D ingredient \d|does not match PLM/i.test(String(error && error.message || ''));
+    const canRepair = /directions must contain|off-topic ethics|restricted term|含限制词|asterisk|blank line|星号|空行|exceeds length|超出长度|dosage|frequency|serving|supply|dietary-attribute|quality-process|服用|用量|频次|供应|素食|非转基因|无麸质|质量控制|产品一致性|D ingredient \d|does not match PLM/i.test(String(error && error.message || ''));
     const candidate = error && Array.isArray(error.aiCandidates) ? error.aiCandidates[0] : null;
     if (canRepair && candidate && candidate.text) {
       try {

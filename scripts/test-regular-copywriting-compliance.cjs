@@ -34,6 +34,7 @@ const sections = {
   advantages: Array.from({ length: 4 }, () => ({ ...pair })),
   sellingPoints: Array.from({ length: 15 }, (_, index) => ({ ...pair, titleEn: index < 4 ? 'Simple Care Routine' : '', titleCn: index < 4 ? '日常护理' : '' })),
   ingredientFunctions: [{ ...pair, ingredientEn: 'MAGNESIUM CHLORIDE', ingredientCn: '氯化镁' }],
+  directions: [{ en: 'Apply the product to the skin.', cn: '将本品涂抹于肌肤。' }],
 };
 const ingredients = [{ en: 'MAGNESIUM CHLORIDE', cn: '氯化镁' }];
 assert.equal(worker.normalizeProductDevelopmentCopywritingCandidate({ sections }, ingredients, '', options).sellingPoints.length, 15);
@@ -56,7 +57,10 @@ worker.callPreferredAiText = async (_, config, validate) => {
   assert(config.system.includes('围绕产品本身发挥'));
   assert(config.system.includes('历史通过稿总结的用法写作经验'));
   assert(config.system.includes('不能作为该 SKU 的事实证据'));
-  assert(config.system.includes('没有用法依据时 directions 返回空数组'));
+  assert(config.system.includes('没有明确用法时仍需根据产品类型写基础操作'));
+  const missing = structuredClone(sections);
+  missing.directions = [];
+  assert.throws(() => validate({ text: JSON.stringify({ sections: missing }) }), /directions must contain/);
   const candidate = { text: JSON.stringify({ sections }), provider: 'test', model: 'test' };
   return { result: candidate, value: validate(candidate) };
 };
@@ -68,5 +72,6 @@ worker.callPreferredAiText = async (_, config, validate) => {
   const body = await response.json();
   assert.equal(response.status, 200, JSON.stringify(body));
   assert.equal(body.ok, true);
+  assert.equal(body.sections.directions[0].cn, '将本品涂抹于肌肤。');
   console.log('Regular copywriting: frontend/Worker parity, daily-use false positives, strict claims, category routing and neutral repairs passed');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
