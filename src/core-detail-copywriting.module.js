@@ -1305,7 +1305,7 @@
     const unit = match[2].toUpperCase();
     if (!Number.isFinite(amount)) return { text, warning: '净含量单位无法换算' };
     const imperial = unit === 'G' ? amount / 28.349523125 : amount / 29.5735295625;
-    return { text: trimNumber(amount) + unit + '/ ' + imperial.toFixed(2) + (unit === 'G' ? ' OZ' : ' FL OZ'), warning: '' };
+    return { text: trimNumber(amount) + unit + '/ ' + imperial.toFixed(2) + (unit === 'G' ? ' OZ' : ' FL.OZ'), warning: '' };
   }
 
   async function hashCopywritingBuffer(arrayBuffer) {

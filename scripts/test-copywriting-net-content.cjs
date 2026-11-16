@@ -1,0 +1,14 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync(require('node:path').join(__dirname, '../src/core-detail-copywriting.module.js'), 'utf8');
+const start = source.indexOf('  function formatCopywritingNetContent(');
+const end = source.indexOf('\n  async function ', start);
+assert(start >= 0 && end > start);
+const ctx = vm.createContext({ cleanCopywritingLine: (value) => String(value || '').trim(), trimNumber: (value) => String(value), L: { unknown: '未知' } });
+vm.runInContext(source.slice(start, end), ctx);
+assert.equal(ctx.formatCopywritingNetContent('80ml').text, '80ML/ 2.71 FL.OZ');
+assert.equal(ctx.formatCopywritingNetContent('60g').text, '60G/ 2.12 OZ');
+assert.equal(ctx.formatCopywritingNetContent('60capsules').text, '60CAPSULES');
+assert.equal(ctx.formatCopywritingNetContent('unknown').text, 'unknown');
+console.log('Design copy net content: fluid-ounce punctuation and gram conversion passed');
