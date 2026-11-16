@@ -18,6 +18,10 @@
 }
 
 /* Generic theme controls stay below component-owned segmented buttons and indicators. */
+#plm-floating-helper[data-pfh-theme] :where(small,em,.pfh-list-note,.pfh-note,.pfh-title-meta,.pfh-about-note,.pfh-empty,.pfh-setting-row>span,.pfh-loading-tip) {
+  color: var(--pfh-theme-muted);
+}
+
 #plm-floating-helper[data-pfh-theme] :where(button) {
   border-color: var(--pfh-theme-border);
   background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));

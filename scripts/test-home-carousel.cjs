@@ -44,8 +44,10 @@ const detailCard = featureContext.homeFeatureEntryHtml(detail, 'pfh-home-entry-p
 assert.match(detailCard, /data-action="open-first-detail"/);
 assert.match(detailCard, /class="pfh-home-entry-detail-cta">进入详情/);
 assert.doesNotMatch(detailCard, /pfh-home-entry-icon/, 'Details card does not show an icon');
-assert.match(detailCard, /<span class="pfh-home-entry-description">查看任务<\/span>/);
-assert.match(detailCard, /<span class="pfh-home-entry-meta">1301 个本地产品档案<\/span>/);
+assert.match(detailCard, /<small class="pfh-home-entry-description">查看任务<\/small>/);
+assert.match(detailCard, /<em class="pfh-home-entry-meta">1301 个本地产品档案<\/em>/);
+const legacyCss = fs.readFileSync(require('path').join(__dirname, '../cloudflare/plm-cloud-backup/ui-src/legacy.css'), 'utf8');
+assert.doesNotMatch(legacyCss, /:where\(small,em,[^}]+color:[^}]+!important/, 'Global text fallback must not override component colors');
 assert.equal((detailCard.match(/<button/g) || []).length, 1, 'The call to action is part of the card button');
 assert.doesNotMatch(featureContext.homeFeatureEntryHtml(detail, 'pfh-home-entry-edit', { editing: true }), /进入详情/);
 console.log('PASS: actual spring animations, carousel indicator and keyboard navigation');

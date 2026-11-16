@@ -7,8 +7,8 @@
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 248286,
-      "maxImportant": 1669,
+      "maxBytes": 248080,
+      "maxImportant": 1668,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast",
@@ -217,7 +217,7 @@
     { "path": "modules/lucian-preview.css", "mode": "module" }
   ],
   "budgets": {
-    "important": 1669,
+    "important": 1668,
     "supersededImportantDeclarations": 0,
     "duplicateSelectors": 450,
     "conflictingSelectors": 417
