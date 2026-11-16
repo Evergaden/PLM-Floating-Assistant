@@ -13,6 +13,8 @@ function extract(source, name) {
 }
 const { document } = parseHTML('<main id="plm"></main><aside id="assistant"><label>成本价<input placeholder="请输入成本价"></label></aside>');
 const context = vm.createContext({ document, PANEL_ID: 'assistant', URL,
+  state: { productDevelopmentOneShotInput: null },
+  productDevelopmentOneShotLoadDraft: () => ({}),
   window: { location: { origin: 'https://plm.westmonth.com' } },
   productDevelopmentDomVisible: (element) => !element.closest('[hidden]'),
   productDevelopmentPrefillText: (value) => String(value ?? '').trim(),
@@ -24,7 +26,7 @@ const context = vm.createContext({ document, PANEL_ID: 'assistant', URL,
   formatErrorMessage: (error) => error.message,
 });
 const dom = read('product-development/pd-dom');
-for (const name of ['productDevelopmentDomText', 'productDevelopmentDomAvailableValues', 'productDevelopmentDomValueMatches', 'productDevelopmentDomResolveField', 'productDevelopmentFillPlmPage2']) vm.runInContext(extract(dom, name), context);
+for (const name of ['productDevelopmentDomText', 'productDevelopmentDomAvailableValues', 'productDevelopmentDomValueMatches', 'productDevelopmentDomResolveField', 'productDevelopmentDomFillEnglishIngredients', 'productDevelopmentFillPlmPage2']) vm.runInContext(extract(dom, name), context);
 context.productDevelopmentDomSelectedText = (element) => element.getAttribute('data-selected');
 const selectFixture = document.createElement('input');
 selectFixture.setAttribute('data-selected', '大号');
@@ -110,6 +112,30 @@ context.productDevelopmentDomNativeSetter = () => { throw new Error('Numbers mus
   assert.equal(context.productDevelopmentDomResolveField(page1Fields[0]), null, 'Multiple visible language controls remain ambiguous');
   duplicateName.setAttribute('hidden', '');
   assert.equal(context.productDevelopmentDomResolveField(page1Fields[0]), chinese, 'Ignore hidden duplicate form controls');
+  plm.innerHTML = '<div role="tablist"><div role="tab" aria-selected="true">中文-简体</div><div role="tab" aria-selected="false">英语(美国)</div></div>' +
+    '<div class="ant-form-item"><label for="form_item_2_attr_group_205_0_attr_language_config_json_0_value"><span id="202">成分占比</span></label><textarea id="form_item_2_attr_group_205_0_attr_language_config_json_0_value"></textarea></div>' +
+    '<div class="ant-form-item" hidden><label for="form_item_2_attr_group_205_0_attr_language_config_json_1_value"><span id="202">INGREDIENTS(成分占比)</span></label><textarea id="form_item_2_attr_group_205_0_attr_language_config_json_1_value"></textarea></div>';
+  const tabs = plm.querySelectorAll('[role="tab"]');
+  const fields = plm.querySelectorAll('.ant-form-item');
+  tabs.forEach((tab, index) => tab.addEventListener('click', () => {
+    tabs.forEach((item, i) => item.setAttribute('aria-selected', String(i === index)));
+    fields.forEach((item, i) => i === index ? item.removeAttribute('hidden') : item.setAttribute('hidden', ''));
+  }));
+  context.productDevelopmentDomWait = async () => {};
+  context.PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS = [];
+  context.state.productDevelopmentOneShotInput = { sku: 'SKU1', regularIngredientsEn: 'AQUA 84.77\n1,2-HEXANEDIOL 0.5' };
+  result = await context.productDevelopmentFillPlmPage2({}, 'SKU1');
+  assert.equal(result.warnings.length, 0);
+  assert.equal(fields[1].querySelector('textarea').value, 'AQUA 84.77\n1,2-HEXANEDIOL 0.5', 'Preserve raw ingredient percentages and commas');
+  assert.equal(fields[0].querySelector('textarea').value, '', 'Never overwrite Chinese ingredients');
+  assert.equal(tabs[0].getAttribute('aria-selected'), 'true', 'Restore original language');
+  context.productDevelopmentOneShotLoadDraft = () => ({ regularIngredientsEn: '' });
+  result = await context.productDevelopmentFillPlmPage2({}, 'SKU2');
+  assert(result.warnings.some(warning => warning.includes('暂无可填写')), 'Do not reuse another SKU ingredients');
+  fields[1].remove();
+  result = await context.productDevelopmentFillPlmPage2({}, 'SKU1');
+  assert(result.warnings.some(warning => warning.includes('英文成分占比')));
+  assert.equal(tabs[0].getAttribute('aria-selected'), 'true', 'Restore language after a missing field');
   for (const [file, name] of [['product-development/pd-task-sync', 'productDevelopmentTaskImageUrl'], ['core-ledger-workbench', 'getLedgerThumbnailUrl'], ['core-ledger-workbench', 'productThumbHtml']]) vm.runInContext(extract(read(file), name), context);
   const source = 'https://oss-pro.plm.westmonth.cn/working.png';
   const image = context.productDevelopmentTaskImageUrl({ benchmarkImageUrl: source }, { skuImageUrl: 'https://test/stale.png' });

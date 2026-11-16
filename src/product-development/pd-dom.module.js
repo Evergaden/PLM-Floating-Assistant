@@ -758,7 +758,32 @@
     return { warnings };
   }
 
-  async function productDevelopmentFillPlmPage2(detail) {
+  async function productDevelopmentDomFillEnglishIngredients(value) {
+    const panel = typeof PANEL_ID === 'string' ? document.getElementById(PANEL_ID) : null;
+    const tabs = Array.from(document.querySelectorAll('[role="tab"]')).filter((tab) => !(panel && panel.contains(tab)) && productDevelopmentDomVisible(tab));
+    const english = tabs.filter((tab) => productDevelopmentDomText(tab.textContent) === '英语(美国)');
+    if (english.length !== 1) throw new Error('未找到唯一的英语(美国)语言标签');
+    const tabList = english[0].closest('[role="tablist"]');
+    const previous = tabList && tabList.querySelector('[role="tab"][aria-selected="true"]');
+    if (!previous) throw new Error('无法确认当前语言标签');
+    try {
+      if (previous !== english[0]) {
+        english[0].click();
+        await productDevelopmentDomWait(180);
+      }
+      if (english[0].getAttribute('aria-selected') !== 'true') throw new Error('无法切换到英语(美国)');
+      const element = productDevelopmentDomResolveField({ key: 'ingredientsEn', attrId: 202, label: 'INGREDIENTS(成分占比)', type: 'textarea' });
+      if (!element || !/_attr_language_config_json_1_value$/.test(element.id)) throw new Error('未找到英文成分占比控件');
+      if (!productDevelopmentDomValueMatches(element, value, {})) productDevelopmentDomNativeSetter(element, value);
+    } finally {
+      if (previous !== english[0]) {
+        previous.click();
+        await productDevelopmentDomWait(180);
+      }
+    }
+  }
+
+  async function productDevelopmentFillPlmPage2(detail, sku) {
     if (detail && detail.projectId) {
       detail.bomRows = await productDevelopmentReadBomRows(detail.projectId);
       delete detail.productDetailBomPriceSignature;
@@ -766,8 +791,13 @@
     }
     const values = productDevelopmentDomAvailableValues(PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS, (definition) => productDevelopmentPrefillProductFieldValue(detail, definition));
     const procurementValues = productDevelopmentDomAvailableValues(PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS, (definition) => productDevelopmentProcurementFieldValue(detail, definition.key));
+    const currentSku = String(sku || '').trim().toUpperCase();
+    const currentInput = state.productDevelopmentOneShotInput;
+    const draft = currentSku && currentInput && String(currentInput.sku || '').trim().toUpperCase() === currentSku
+      ? currentInput : currentSku ? productDevelopmentOneShotLoadDraft(currentSku) : null;
+    const ingredients = draft ? [draft.regularIngredientsEn, draft.regularIngredientsInactiveEn].map((text) => String(text || '').trim()).filter(Boolean).join('\n') : '';
     const warnings = [];
-    if (!values.length && !procurementValues.length) return { warnings: ['悬浮助手页面2暂无可填写的数据'] };
+    if (!values.length && !procurementValues.length && !ingredients) return { warnings: ['悬浮助手页面2暂无可填写的数据'] };
     for (const item of values) {
       const definition = item.definition;
       const element = productDevelopmentDomResolveField(definition);
@@ -817,6 +847,13 @@
         }
       }
     }
+    if (ingredients) {
+      try {
+        await productDevelopmentDomFillEnglishIngredients(ingredients);
+      } catch (error) {
+        warnings.push('英文成分占比：' + formatErrorMessage(error));
+      }
+    }
     return { warnings };
   }
 
@@ -834,7 +871,7 @@
     state.productDevelopmentError = '';
     renderShell();
     const runner = normalizedPage === 'page1' ? productDevelopmentFillPlmPage1 : productDevelopmentFillPlmPage2;
-    Promise.resolve().then(() => runner(detail)).then((result) => {
+    Promise.resolve().then(() => runner(detail, normalizedSku)).then((result) => {
       const baseMessage = normalizedPage === 'page1'
         ? '页面1已检查并更新不同字段，请确认后在 PLM 点击下一步'
         : '页面2已检查并更新不同字段，请核对后在 PLM 保存';
