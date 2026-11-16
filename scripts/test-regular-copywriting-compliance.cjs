@@ -54,6 +54,9 @@ worker.callPreferredAiText = async (_, config, validate) => {
   assert.equal(JSON.parse(config.prompt.split('\n')[0]).copywritingCategory, 'regular');
   assert(config.system.includes('当前为常规非食品产品'));
   assert(config.system.includes('围绕产品本身发挥'));
+  assert(config.system.includes('历史通过稿总结的用法写作经验'));
+  assert(config.system.includes('不能作为该 SKU 的事实证据'));
+  assert(config.system.includes('没有用法依据时 directions 返回空数组'));
   const candidate = { text: JSON.stringify({ sections }), provider: 'test', model: 'test' };
   return { result: candidate, value: validate(candidate) };
 };
