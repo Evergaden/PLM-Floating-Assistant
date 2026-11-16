@@ -1688,6 +1688,7 @@
         top: Math.min(lineStart.y, lineEnd.y) - 9,
         right: Math.max(lineStart.x, lineEnd.x) + 9,
         bottom: Math.max(lineStart.y, lineEnd.y) + 9,
+        segment: { x1: lineStart.x, y1: lineStart.y, x2: lineEnd.x, y2: lineEnd.y },
       };
       return {
         textBox, lineBox,
@@ -1701,6 +1702,42 @@
     function dimensionOverlapArea(left, right) {
       const width = Math.max(0, Math.min(left.right, right.right) - Math.max(left.left, right.left));
       const height = Math.max(0, Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top));
+      if (!width || !height) return 0;
+      if (left.segment && right.segment) {
+        const a = left.segment, b = right.segment;
+        const cross = (x1, y1, x2, y2, x3, y3) => (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1);
+        const ab1 = cross(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1);
+        const ab2 = cross(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2);
+        const ba1 = cross(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1);
+        const ba2 = cross(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2);
+        const distance = (x, y, line) => {
+          const dx = line.x2 - line.x1, dy = line.y2 - line.y1;
+          const t = Math.max(0, Math.min(1, ((x - line.x1) * dx + (y - line.y1) * dy) / (dx * dx + dy * dy || 1)));
+          return Math.hypot(x - line.x1 - t * dx, y - line.y1 - t * dy);
+        };
+        const crosses = ab1 * ab2 <= 0 && ba1 * ba2 <= 0 && (ab1 || ab2 || ba1 || ba2);
+        const near = Math.min(distance(a.x1, a.y1, b), distance(a.x2, a.y2, b), distance(b.x1, b.y1, a), distance(b.x2, b.y2, a)) <= 18;
+        return crosses || near ? width * height : 0;
+      }
+      // A diagonal line occupies a narrow stroke, not its entire bounding box.
+      // Clip the actual segment against the other rectangle to avoid false hits.
+      if (left.segment || right.segment) {
+        const segment = (left.segment || right.segment);
+        const rect = left.segment ? right : left;
+        const dx = segment.x2 - segment.x1, dy = segment.y2 - segment.y1;
+        let lo = 0, hi = 1;
+        const edge = (p, q) => {
+          if (!p) return q >= 0;
+          const t = q / p;
+          if (p < 0) lo = Math.max(lo, t);
+          else hi = Math.min(hi, t);
+          return lo <= hi;
+        };
+        const padding = 9;
+        if (!edge(-dx, segment.x1 - (rect.left - padding)) || !edge(dx, rect.right + padding - segment.x1)
+          || !edge(-dy, segment.y1 - (rect.top - padding)) || !edge(dy, rect.bottom + padding - segment.y1)) return 0;
+        return width * height;
+      }
       return width * height;
     }
 

@@ -25,6 +25,14 @@ assert.equal(pixels[(5 * 20 + 5) * 4 + 3], 255, 'low contrast carton edge is ret
 for (const name of ['a.jpg', 'a.JPEG', 'a.webp', 'a.png']) assert(sandbox.isParameterPngFile({ name }));
 assert(!sandbox.isParameterPngFile({ name: 'a.svg', type: 'image/svg+xml' }));
 const ctx = { save() {}, restore() {}, measureText: () => ({ width: 280 }) };
+const diagonalStroke = sandbox.dimensionLayoutBox({ x: 0, y: 0 }, { x: 100, y: 100 }, 10, 0, { x: 500, y: 500 }, { x: 0, y: 0 }, { x: 100, y: 100 }).lineBox;
+assert.equal(sandbox.dimensionOverlapArea(diagonalStroke, { left: 5, top: 75, right: 20, bottom: 90 }), 0, 'Empty corners of a diagonal line bounding box must not trigger avoidance');
+assert(sandbox.dimensionOverlapArea(diagonalStroke, { left: 45, top: 45, right: 55, bottom: 55 }) > 0, 'A real line crossing remains an obstacle');
+const parallelStroke = sandbox.dimensionLayoutBox({ x: 0, y: 0 }, { x: 40, y: 40 }, 10, 0, { x: 500, y: 500 }, { x: 0, y: 60 }, { x: 40, y: 100 }).lineBox;
+assert.equal(sandbox.dimensionOverlapArea(diagonalStroke, parallelStroke), 0, 'Overlapping line bounding boxes must not displace parallel, separated lines');
+const clearPlacement = sandbox.chooseDimensionPlacement(ctx, { x: 600, y: 1200 }, { x: 800, y: 1200 }, 4, -1, { avoidBoxes: [{ left: 900, top: 400, right: 1050, bottom: 1100 }], bounds: { left: 30, top: 30, right: 1570, bottom: 1530 } });
+assert.equal(clearPlacement.lineOffset, 36, 'Unobstructed dimension retains its standard offset');
+assert.equal(clearPlacement.tangentShift, 0, 'Unobstructed label remains centered above its line');
 const geometry = sandbox.editorDimensionGeometry(ctx, { x: 400, y: 100 }, { x: 400, y: 1100 }, 13.2, 1, {}, 1);
 assert.equal(geometry.angle, -Math.PI / 2, 'left height text faces the product');
 const obstacles = [{ left: 400, top: 200, right: 700, bottom: 1000 }, { left: 720, top: 200, right: 1100, bottom: 1040 }];
