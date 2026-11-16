@@ -123,12 +123,12 @@
 #plm-floating-helper .pfh-home-feature-page {
   min-width: 100%;
   flex: 0 0 100%;
-  padding: 10px 12px;
+  padding: 0;
   box-sizing: border-box;
 }
 
 #plm-floating-helper .pfh-home-feature-page-product {
-  padding-bottom: 11px;
+  padding-bottom: 0;
 }
 
 @keyframes pfh-home-feature-slide-to-product {
