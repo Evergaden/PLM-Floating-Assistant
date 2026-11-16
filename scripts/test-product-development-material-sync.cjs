@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { parseHTML } = require(process.env.PLM_DOM_MODULE || '../tmp/sku-render-check/node_modules/linkedom');
 const root = path.resolve(__dirname, '..');
 const read = (name) => fs.readFileSync(path.join(root, 'src/product-development', name + '.module.js'), 'utf8');
 const defaults = {
@@ -86,13 +87,9 @@ context.getProductDevelopmentTaskBySku = () => ({});
 context.productDevelopmentSyncReworkOuterDimensions = () => {};
 let scheduled = 0;
 context.scheduleProductDevelopmentReadonlyDetailCache = () => { scheduled++; };
-const inputs = ['materialName', 'specification', 'length', 'width', 'height', 'price'].map((field) => ({
-  value: String(normalized[field] || ''),
-  classList: { contains: (name) => name === 'pfh-product-development-material-input' },
-  getAttribute: (key) => ({ 'data-material-field': field, 'data-material-sku': 'SKU1', 'data-material-kind': 'box' })[key] || '',
-  closest: () => ({ querySelector: () => null }),
-}));
-context.document = { querySelectorAll: () => inputs };
+const { document } = parseHTML('<article data-material-card="box">' + ['materialName', 'specification', 'length', 'width', 'height', 'price'].map((field) => '<label class="pfh-product-development-material-field"><input class="pfh-product-development-material-input" data-material-sku="SKU1" data-material-kind="box" data-material-field="' + field + '" value="' + normalized[field] + '"><small data-material-error="' + field + '" hidden></small></label>').join('') + '</article>');
+const inputs = Array.from(document.querySelectorAll('input'));
+context.document = document;
 const specificationInput = inputs[1];
 specificationInput.value = '50ml/盒，7.25x5x12cm，白卡';
 assert.equal(context.productDevelopmentHandleMaterialField(specificationInput), true);
@@ -102,4 +99,34 @@ inputs[4].value = '12.333';
 context.productDevelopmentHandleMaterialField(inputs[4]);
 assert.equal(specificationInput.value, '50ml/盒，7.25x5x12.333cm，白卡', 'Dimension input immediately updates specification');
 assert.equal(scheduled, 2);
+let currentSpecification = '80ml/盒';
+context.productDevelopmentPrefillProductFieldValue = () => currentSpecification;
+context.productDevelopmentProductFieldCollections = () => [];
+context.productDevelopmentSaveBomLocally = () => {};
+specificationInput.value = '4x4x13.5cm，白卡';
+context.productDevelopmentHandleMaterialField(specificationInput, 'change');
+assert.equal(specificationInput.value, '80ml/盒，4x4x13.5cm，白卡', 'Manual dimensions-only legacy specs receive the current product prefix on commit');
+assert.equal(detail.materialDrafts.box.packSpec, '80ml/盒');
+assert.equal(specificationInput.getAttribute('aria-invalid'), 'false');
+currentSpecification = '100ml/盒';
+context.productDevelopmentEnsureMaterialDrafts(detail, {});
+context.productDevelopmentSyncMaterialDraftDom('SKU1', 'box', detail.materialDrafts.box);
+assert.equal(specificationInput.value, '100ml/盒，4x4x13.5cm，白卡', 'Changed product specification replaces the prefix without duplicates or lost remarks');
+const labelDraft = context.productDevelopmentNormalizeMaterialDraft({ specification: '50ml/盒，10x6cm（玻璃加粘）', specificationSource: 'manual' }, 'label', detail, {});
+assert.equal(labelDraft.specification, '100ml/盒，10x6cm（玻璃加粘）', 'Labels share the current product prefix and retain their own size and remarks');
+inputs[4].value = '';
+context.productDevelopmentHandleMaterialField(inputs[4]);
+assert(inputs[4].closest('label').classList.contains('is-invalid'));
+assert.equal(inputs[4].getAttribute('aria-invalid'), 'true');
+assert(specificationInput.closest('label').classList.contains('is-invalid'));
+assert.equal(inputs[4].closest('label').querySelector('small').hidden, false);
+inputs[4].value = '13.5';
+context.productDevelopmentHandleMaterialField(inputs[4]);
+assert.equal(inputs[4].getAttribute('aria-invalid'), 'false');
+assert.equal(specificationInput.getAttribute('aria-invalid'), 'false');
+assert.equal(inputs[4].closest('label').querySelector('small').hidden, true);
+const issues = context.productDevelopmentMaterialDraftIssues('box', { materialName: '', specification: '4x4x13.5cm', length: 4, width: 4, height: 13.5, price: '' });
+assert(issues.materialName && issues.specification && issues.price, 'Nonempty but invalid specs are incomplete too');
+const rendered = context.productDevelopmentMaterialInputHtml('SKU1', 'box', 'materialName', '物料名称', '', { required: true });
+assert(rendered.includes('is-invalid') && rendered.includes('aria-invalid="true"'));
 console.log('Material dimensions, specification round trips, reference remarks, legacy supplement defaults and readonly BOM checks passed');

@@ -161,6 +161,17 @@
     const card = elements[0] && elements[0].closest('[data-material-card]');
     const priceLabel = card && card.querySelector('[data-material-price-label]');
     if (priceLabel) priceLabel.textContent = draft.price ? '采购价：' + draft.price + ' 元' : (pricePlaceholder ? '采购价：' + pricePlaceholder : '采购价');
+    const errors = productDevelopmentMaterialDraftIssues(kind, draft);
+    elements.forEach((element) => {
+      const field = element.getAttribute('data-material-field');
+      const error = errors[field] || '';
+      element.setAttribute('aria-invalid', String(Boolean(error)));
+      const label = element.closest('.pfh-product-development-material-field');
+      if (!label) return;
+      label.classList.toggle('is-invalid', Boolean(error));
+      const hint = label.querySelector('[data-material-error]');
+      if (hint) { hint.textContent = error; hint.hidden = !error; }
+    });
   }
 
   function productDevelopmentHandleMaterialField(target, eventType) {
@@ -200,7 +211,7 @@
     detail.bomPlmSaveMessage = '';
     detail.cacheSource = 'local-cache';
     scheduleProductDevelopmentReadonlyDetailCache(sku, detail);
-    productDevelopmentSyncMaterialDraftDom(sku, kind, draft, target);
+    productDevelopmentSyncMaterialDraftDom(sku, kind, draft, eventType === 'change' && field === 'specification' ? null : target);
     if (eventType === 'change') productDevelopmentSaveBomLocally(sku, target.closest && target.closest('.pfh-bom-form'));
     return true;
   }

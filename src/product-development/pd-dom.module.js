@@ -1328,7 +1328,9 @@
     const type = config.type || 'text';
     const readonly = config.readonly ? ' readonly' : '';
     const inputValue = value === null || value === undefined ? '' : String(value);
-    return '<label class="pfh-product-development-material-field' + (config.wide ? ' is-wide' : '') + (config.readonly ? ' is-readonly' : '') + '"><span>' + escapeHtml(label) + '</span><input type="' + escapeHtml(type) + '" inputmode="decimal" class="pfh-product-development-material-input" data-material-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-field="' + escapeHtml(field) + '" value="' + escapeHtml(inputValue) + '"' + readonly + (config.placeholder ? ' placeholder="' + escapeHtml(config.placeholder) + '"' : '') + '></label>';
+    const draft = typeof state !== 'undefined' && state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku]?.materialDrafts?.[kind];
+    const error = (draft ? productDevelopmentMaterialDraftIssues(kind, draft)[field] : '') || (config.required && (!inputValue.trim() || type === 'number' && !(Number(inputValue) > 0)) ? '请补全' + label : '');
+    return '<label class="pfh-product-development-material-field' + (config.wide ? ' is-wide' : '') + (config.readonly ? ' is-readonly' : '') + (error ? ' is-invalid' : '') + '"><span>' + escapeHtml(label) + '</span><input type="' + escapeHtml(type) + '" inputmode="decimal" class="pfh-product-development-material-input" data-material-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-field="' + escapeHtml(field) + '" aria-invalid="' + Boolean(error) + '" value="' + escapeHtml(inputValue) + '"' + readonly + (config.placeholder ? ' placeholder="' + escapeHtml(config.placeholder) + '"' : '') + '><small class="pfh-bom-field-error" data-material-error="' + escapeHtml(field) + '"' + (error ? '' : ' hidden') + '>' + escapeHtml(error) + '</small></label>';
   }
 
   function productDevelopmentMaterialSelectHtml(sku, kind, field, label, value, options) {

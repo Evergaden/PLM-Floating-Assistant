@@ -195,6 +195,10 @@
       const instruction = rows.find((row) => productDevelopmentMaterialRowKind(row) === 'instruction');
       return productDevelopmentCleanText(instruction && instruction.specification || PRODUCT_DEVELOPMENT_MATERIAL_DEFAULTS.instruction.defaultSpecification, 160);
     }
+    if (detail && typeof productDevelopmentPrefillProductFieldValue === 'function' && typeof productDevelopmentProductFieldCollections === 'function') {
+      const current = productDevelopmentPrefillProductFieldValue(detail, { key: 'specification', attrId: 119 });
+      if (productDevelopmentCleanText(current, 160)) return productDevelopmentCleanText(current, 160);
+    }
     const finishedProduct = rows.find((row) => row && row.type === '成品' && row.specification);
     if (finishedProduct) return productDevelopmentCleanText(finishedProduct.specification, 160);
     const specification = Array.isArray(detail && detail.requiredFields)
@@ -284,7 +288,7 @@
     const hasExisting = Boolean(existing);
     const dimensions = productDevelopmentMaterialDimensions(existing && existing.specification);
     const baseName = productDevelopmentMaterialBaseName(task, detail);
-    const packSpec = productDevelopmentCleanText(raw.packSpec || productDevelopmentMaterialPackSpec(detail, kind) || defaults.defaultSpecification, 160);
+    const packSpec = productDevelopmentCleanText(productDevelopmentMaterialPackSpec(detail, kind) || raw.packSpec || defaults.defaultSpecification, 160);
     const hasName = Object.prototype.hasOwnProperty.call(raw, 'materialName');
     const hasSpecification = Object.prototype.hasOwnProperty.call(raw, 'specification');
     const nameSource = String(raw.nameSource || (hasName ? 'manual' : existing && existing.name ? 'plm' : 'generated'));
@@ -351,6 +355,7 @@
       if (draft.specificationSource !== 'manual') productDevelopmentSyncMaterialDimensions(kind, draft, 'length', detail);
       else if (dimensionKeys.every((key) => specificationDimensions[key])) productDevelopmentSyncMaterialDimensions(kind, draft, 'specification', detail);
     }
+    productDevelopmentSyncMaterialPackSpecification(kind, draft, detail);
     const calculatedPrice = productDevelopmentCalculateMaterialPrice(kind, draft);
     if (calculatedPrice !== '') draft.price = calculatedPrice;
     return draft;
@@ -408,6 +413,36 @@
       if (kind !== 'instruction' && draft.specification) productDevelopmentSyncMaterialDimensions(kind, draft, 'length', detail);
       else draft.specification = productDevelopmentMaterialDefaultSpecification(kind, draft);
     }
+    productDevelopmentSyncMaterialPackSpecification(kind, draft, detail);
+  }
+
+  function productDevelopmentSyncMaterialPackSpecification(kind, draft, detail) {
+    if (!draft || !['box', 'label'].includes(kind)) return;
+    const prefix = /^\s*\d+(?:\.\d+)?\s*(?:ml|kg|g|l|粒|片|个|袋|支|capsules?|tablets?|gummies|pcs?)\s*\/\s*[^\s，,;；]+/i;
+    const current = String(productDevelopmentMaterialPackSpec(detail, kind) || '').match(prefix);
+    if (!current) return;
+    const packSpec = current[0].trim();
+    draft.packSpec = packSpec;
+    const body = String(draft.specification || '').replace(prefix, '').replace(/^[\s，,;；]+/, '');
+    draft.specification = [packSpec, body].filter(Boolean).join('，');
+  }
+
+  function productDevelopmentMaterialDraftIssues(kind, draft) {
+    const errors = {};
+    if (!productDevelopmentCleanText(draft && draft.materialName, 240)) errors.materialName = '请填写物料名称';
+    const specification = String(draft && draft.specification || '').trim();
+    if (!specification) errors.specification = '请补全规格型号';
+    if (kind !== 'instruction') {
+      if (!/^\d+(?:\.\d+)?\s*(?:ml|kg|g|l|粒|片|个|袋|支|capsules?|tablets?|gummies|pcs?)\s*\//i.test(specification)) errors.specification = '规格需以当前产品规格开头，如 80ml/盒';
+      if (draft && draft.packSpec && !specification.startsWith(draft.packSpec + '，')) errors.specification = '请补全当前产品规格及物料尺寸';
+      const parsed = productDevelopmentMaterialDimensions(specification);
+      ['length', 'width'].concat(kind === 'box' ? ['height'] : []).forEach((field) => {
+        if (productDevelopmentMaterialNumber(draft && draft[field]) === null) errors[field] = '请填写大于 0 的尺寸';
+        if (!parsed[field] || Number(parsed[field]) !== Number(draft && draft[field])) errors.specification = '规格中的尺寸需完整并与长宽高一致';
+      });
+    }
+    if (productDevelopmentMaterialNumber(draft && draft.price) === null) errors.price = '请补全尺寸以计算采购价';
+    return errors;
   }
 
   function productDevelopmentApiNumber(value, fallback) {
@@ -445,6 +480,7 @@
     const missing = [];
     if (!productDevelopmentCleanText(draft && draft.materialName, 240)) missing.push(title + '物料名称');
     if (!productDevelopmentCleanText(draft && draft.specification, 240)) missing.push(title + '规格型号');
+    else if (productDevelopmentMaterialDraftIssues(kind, draft).specification) missing.push(title + '规格型号不符合规则');
     if (kind !== 'instruction') {
       ['length', 'width'].concat(kind === 'box' ? ['height'] : []).forEach((field) => {
         if (productDevelopmentMaterialNumber(draft && draft[field]) === null) missing.push(title + field);

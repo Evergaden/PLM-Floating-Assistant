@@ -1,4 +1,11 @@
 /* Text-only BOM controls, full-width material groups and aligned fields. */
+#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field.is-invalid input {
+  border-color: #d92d20;
+  background: color-mix(in srgb, var(--pfh-theme-control-surface) 94%, #d92d20);
+}
+#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field.is-invalid > span,
+#plm-floating-helper .pfh-bom-form .pfh-bom-field-error { color: #b42318; }
+#plm-floating-helper .pfh-bom-form .pfh-bom-field-error { font-size: 11px; font-weight: 400; line-height: 1.5; }
 #plm-floating-helper .pfh-product-development-material-planner.pfh-bom-form {
   display: grid;
   gap: 16px;
