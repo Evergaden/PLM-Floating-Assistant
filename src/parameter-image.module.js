@@ -1733,7 +1733,7 @@
           else hi = Math.min(hi, t);
           return lo <= hi;
         };
-        const padding = 9;
+        const padding = rect.strokePadding == null ? 9 : rect.strokePadding;
         if (!edge(-dx, segment.x1 - (rect.left - padding)) || !edge(dx, rect.right + padding - segment.x1)
           || !edge(-dy, segment.y1 - (rect.top - padding)) || !edge(dy, rect.bottom + padding - segment.y1)) return 0;
         return width * height;
@@ -1783,7 +1783,11 @@
         // Parallel text is already separated from its own line by textGap.
         // Its axis-aligned bounding box grows when even slightly rotated and
         // can otherwise report a false overlap with the line itself.
-        const ownOverlap = Math.abs(Math.sin(textAngle - angle)) < 1e-8 ? 0 : dimensionOverlapArea(box.textBox, box.lineBox);
+        // The outer text box includes layout clearance. Use the actual text
+        // area for self-collision so a short sloped line does not push its
+        // horizontal label sideways when there is visible space between them.
+        const ownText = { left: box.textBox.left + 10, top: box.textBox.top + 10, right: box.textBox.right - 10, bottom: box.textBox.bottom - 10, strokePadding: 3 };
+        const ownOverlap = Math.abs(Math.sin(textAngle - angle)) < 1e-8 ? 0 : dimensionOverlapArea(ownText, box.lineBox);
         const overlap = ownOverlap + options.avoidBoxes.reduce((total, other) => total + dimensionOverlapArea(box.textBox, other) + dimensionOverlapArea(box.lineBox, other), 0);
         const bounds = options.bounds;
         const outside = bounds
@@ -1966,7 +1970,9 @@
       // established upper placement when a visible carton side is present.
       const productWidthBelow = !session.showSide;
       const dimensionLayout = {
-        avoidBoxes: [box, product].filter(Boolean).map((rect) => ({ left: rect.left - 10, top: rect.top - 10, right: rect.right + 10, bottom: rect.bottom + 10 })),
+        // Text boxes already carry clearance. Extra inflation around the
+        // product rectangle makes empty space above a sloped carton look solid.
+        avoidBoxes: [box, product].filter(Boolean).map((rect) => ({ ...rect, strokePadding: 3 })),
         bounds: { left: Number(area.clipLeft) || 30, top: 30, right: 1570, bottom: 1530 },
       };
       const manualBox = completeManualPath(session, 'box') ? session.manualPoints.box.slice(0, requiredManualPoints('box')) : null;

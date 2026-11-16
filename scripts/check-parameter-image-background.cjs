@@ -33,6 +33,12 @@ assert.equal(sandbox.dimensionOverlapArea(diagonalStroke, parallelStroke), 0, 'O
 const clearPlacement = sandbox.chooseDimensionPlacement(ctx, { x: 600, y: 1200 }, { x: 800, y: 1200 }, 4, -1, { avoidBoxes: [{ left: 900, top: 400, right: 1050, bottom: 1100 }], bounds: { left: 30, top: 30, right: 1570, bottom: 1530 } });
 assert.equal(clearPlacement.lineOffset, 36, 'Unobstructed dimension retains its standard offset');
 assert.equal(clearPlacement.tangentShift, 0, 'Unobstructed label remains centered above its line');
+const cartonBounds = { left: 470, top: 230, right: 842, bottom: 1305, strokePadding: 3 };
+const topDepth = sandbox.chooseDimensionPlacement(ctx, { x: 470, y: 255 }, { x: 550, y: 230 }, 4, -1, { avoidBoxes: [cartonBounds], bounds: { left: 30, top: 30, right: 1570, bottom: 1530 } });
+assert.equal(topDepth.lineOffset, 36, 'Short top depth line stays close to the carton when the bounding-box corner is empty');
+assert.equal(topDepth.tangentShift, 0, 'Short top depth label stays centered when it clears its line');
+assert.equal(topDepth.textAngle, 0, 'Short top depth label stays horizontal');
+assert(sandbox.dimensionOverlapArea(diagonalStroke, { left: 45, top: 45, right: 55, bottom: 55, strokePadding: 3 }) > 0, 'Product collision still detects a real crossing');
 for (const slope of [-10, -5, -2, 2, 5, 10]) {
   const almostHorizontal = sandbox.chooseDimensionPlacement(ctx, { x: 550, y: 1300 }, { x: 840, y: 1300 + slope }, 4, 1, { avoidBoxes: [], bounds: { left: 30, top: 30, right: 1570, bottom: 1530 } });
   assert.equal(almostHorizontal.lineOffset, 36, 'Slightly tilted line retains its original position');
