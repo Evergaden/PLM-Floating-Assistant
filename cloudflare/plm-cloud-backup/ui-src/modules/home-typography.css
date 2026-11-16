@@ -28,7 +28,11 @@
   font-weight: var(--pfh-home-weight-title);
 }
 #plm-floating-helper[data-view="home"] .pfh-home-entry-copy strong {
-  font-weight: var(--pfh-home-weight-heading);
+  font-weight: 400;
+}
+#plm-floating-helper[data-view="home"] .pfh-home-entry-copy .pfh-home-entry-description,
+#plm-floating-helper[data-view="home"] .pfh-home-entry-detail-cta {
+  font-weight: 300;
 }
 #plm-floating-helper[data-view="home"] .pfh-home-chart-tooltip span,
 #plm-floating-helper[data-view="home"] .pfh-home-panel-title > span,

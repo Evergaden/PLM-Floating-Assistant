@@ -42,9 +42,18 @@ function assertFontWeightPolicy(css, label) {
         throw new Error(`Font weight policy requires explicit 400 or 700 tiers in ${label}: ${declaration.toString()}`);
       }
       const numericWeights = Array.from(declaration.value.matchAll(/(?:^|[\s,(])([1-9]\d{2})(?=$|[\s,)])/g), (match) => Number(match[1]));
-      const invalidWeight = numericWeights.find((weight) => weight !== 400 && weight !== 700);
+      // The home cards intentionally use a light weight for descriptions and the detail CTA.
+      const homeLightSelectors = new Set([
+        '#plm-floating-helper[data-view="home"] .pfh-home-entry-copy .pfh-home-entry-description',
+        '#plm-floating-helper[data-view="home"] .pfh-home-entry-detail-cta',
+      ]);
+      const isHomeCardLight = label.endsWith(path.join('modules', 'home-typography.css'))
+        && declaration.value.trim() === '300'
+        && declaration.parent.type === 'rule'
+        && declaration.parent.selectors.every((selector) => homeLightSelectors.has(selector.trim()));
+      const invalidWeight = numericWeights.find((weight) => weight !== 400 && weight !== 700 && !(weight === 300 && isHomeCardLight));
       if (invalidWeight) {
-        throw new Error(`Font weight policy allows only 400 and 700 in ${label}: ${declaration.toString()}`);
+        throw new Error(`Font weight policy allows 400 and 700, plus 300 for home card descriptions and CTA, in ${label}: ${declaration.toString()}`);
       }
     }
     if (declaration.prop === 'font' && /(?:^|\s)(?:(?!400\b)[1-9]\d{2}|bold|bolder)(?=\s)/.test(declaration.value)) {
