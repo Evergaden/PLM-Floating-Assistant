@@ -1029,8 +1029,8 @@
       }
       return;
     }
-    if (action === 'ledger-view-design' || action === 'ledger-view-finalized' || action === 'ledger-view-trash') {
-      const nextLedgerView = action === 'ledger-view-trash' ? 'trash' : (action === 'ledger-view-finalized' ? 'finalized' : 'design');
+    if (action === 'ledger-view-design' || action === 'ledger-view-finalized' || action === 'ledger-view-trash' || action === 'ledger-view-canvas') {
+      const nextLedgerView = action === 'ledger-view-trash' ? 'trash' : (action === 'ledger-view-finalized' ? 'finalized' : (action === 'ledger-view-canvas' ? 'canvas' : 'design'));
       state.ledgerView = nextLedgerView;
       const renderToken = (Number(state.ledgerTabRenderToken) || 0) + 1;
       state.ledgerTabRenderToken = renderToken;
@@ -1043,6 +1043,10 @@
       } else {
         window.setTimeout(repaintLedgerContent, 32);
       }
+      return;
+    }
+    if (action === 'canvas-add-node' || action === 'canvas-delete-node' || action === 'canvas-refresh' || action === 'canvas-reset-zoom' || action === 'canvas-reset-layout') {
+      handleLedgerCanvasPanelAction(action, actionTarget);
       return;
     }
     if (action === 'ledger-prev-day') {

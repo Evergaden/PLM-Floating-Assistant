@@ -25,9 +25,9 @@ export const STATIC_ASSET_MANIFEST = {
       "sha256": "37d251b096d2ae7c0a8e9173db147664f4f25834bd70518a9e52c33d39640bb4"
     },
     "uiStyles": {
-      "path": "v15/ui-2.5.334.css",
-      "bytes": 816582,
-      "sha256": "f398bc6da444fd49fdbc479ed93deaa4ba8b2d4a9525fad18eaac200d52385a2"
+      "path": "v15/ui-2.5.335.css",
+      "bytes": 816497,
+      "sha256": "2501370429bc7888af8b7230292cd924455d7e7ea0006341f656f503f306db1b"
     },
     "uiStyleVersions": {
       "2.5.108": {
@@ -879,6 +879,11 @@ export const STATIC_ASSET_MANIFEST = {
         "path": "v15/ui-2.5.334.css",
         "bytes": 816582,
         "sha256": "f398bc6da444fd49fdbc479ed93deaa4ba8b2d4a9525fad18eaac200d52385a2"
+      },
+      "2.5.335": {
+        "path": "v15/ui-2.5.335.css",
+        "bytes": 816497,
+        "sha256": "2501370429bc7888af8b7230292cd924455d7e7ea0006341f656f503f306db1b"
       }
     }
   }

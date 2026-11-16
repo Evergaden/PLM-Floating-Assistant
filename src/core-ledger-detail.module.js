@@ -28,6 +28,7 @@
     detail.classList.remove('is-loading');
     detail.innerHTML = ledgerViewHtml(records);
     setupLedgerTabFusion(detail);
+    if (state.ledgerView === 'canvas') setupLedgerCanvas(detail.querySelector('.pfh-canvas-root'));
   }
 
   function renderLedgerTabContent(panel) {
@@ -45,18 +46,18 @@
     template.innerHTML = ledgerViewContentHtml(records);
     const nextContent = Array.from(template.content.childNodes);
     if (!nextContent.length) return false;
-    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
+    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : (state.ledgerView === 'canvas' ? 'canvas' : 'design'));
     const month = getCurrentLedgerMonth();
     const currentDetailScroll = detail.querySelector('.pfh-detail-scroll');
     if (currentDetailScroll) currentDetailScroll.setAttribute('data-scroll-context', ['ledger', mode, month].join('|'));
     const currentHeroNote = page.querySelector('[data-ledger-hero-note]');
     if (currentHeroNote) currentHeroNote.textContent = mode === 'trash'
       ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。'
-      : (mode === 'finalized' ? '默认只显示图包未完成；选中多个产品后，点击纸盒、标签或图包会同步选中产品，图包完成后自动收纳。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。');
+      : (mode === 'finalized' ? '默认只显示图包未完成；选中多个产品后，点击纸盒、标签或图包会同步选中产品，图包完成后自动收纳。' : (mode === 'canvas' ? '画布汇总今日出图与定稿：拖动卡片与视口，手动备注只保存在本地。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。'));
     const currentRecordCount = page.querySelector('[data-ledger-record-count]');
-    if (currentRecordCount) currentRecordCount.textContent = records.length + ' 条 / ' + month;
+    if (currentRecordCount) currentRecordCount.textContent = mode === 'canvas' ? ledgerCanvasRecordCountLabel(month) : records.length + ' 条 / ' + month;
     tabs.setAttribute('data-active-tab', mode);
-    const nextActiveAction = mode === 'trash' ? 'ledger-view-trash' : (mode === 'finalized' ? 'ledger-view-finalized' : 'ledger-view-design');
+    const nextActiveAction = mode === 'trash' ? 'ledger-view-trash' : (mode === 'finalized' ? 'ledger-view-finalized' : (mode === 'canvas' ? 'ledger-view-canvas' : 'ledger-view-design'));
     tabs.querySelectorAll('button[data-action^="ledger-view-"]').forEach((button) => {
       const active = button.getAttribute('data-action') === nextActiveAction;
       button.classList.toggle('active', active);
@@ -67,12 +68,19 @@
       trashEntry.classList.toggle('is-active', mode === 'trash');
       trashEntry.setAttribute('aria-current', mode === 'trash' ? 'page' : 'false');
     }
-    if (contentAnchor.classList.contains('pfh-ledger-content-anchor')) {
-      while (contentAnchor.firstChild) contentAnchor.removeChild(contentAnchor.firstChild);
-      nextContent.forEach((node) => contentAnchor.appendChild(node));
+    if (mode === 'canvas' && page.querySelector('.pfh-canvas-root')) {
+      // Canvas is live: refresh the existing root in place (or defer while a
+      // pointer session runs) instead of tearing down dragged nodes.
+      refreshLedgerCanvasData(page.querySelector('.pfh-canvas-root'));
     } else {
-      while (contentAnchor.nextElementSibling) contentAnchor.nextElementSibling.remove();
-      nextContent.forEach((node) => page.appendChild(node));
+      if (contentAnchor.classList.contains('pfh-ledger-content-anchor')) {
+        while (contentAnchor.firstChild) contentAnchor.removeChild(contentAnchor.firstChild);
+        nextContent.forEach((node) => contentAnchor.appendChild(node));
+      } else {
+        while (contentAnchor.nextElementSibling) contentAnchor.nextElementSibling.remove();
+        nextContent.forEach((node) => page.appendChild(node));
+      }
+      if (mode === 'canvas') setupLedgerCanvas(page.querySelector('.pfh-canvas-root'));
     }
     const indicator = tabs.querySelector('.pfh-ledger-tab-indicator');
     const activeButton = tabs.querySelector('button.is-active,button.active');
@@ -116,7 +124,7 @@
         buttons.forEach((item) => item.classList.remove('active', 'is-active'));
         button.classList.add('active', 'is-active');
         const action = button.getAttribute('data-action') || '';
-        tabs.setAttribute('data-active-tab', action === 'ledger-view-finalized' ? 'finalized' : (action === 'ledger-view-trash' ? 'trash' : 'design'));
+        tabs.setAttribute('data-active-tab', action === 'ledger-view-finalized' ? 'finalized' : (action === 'ledger-view-trash' ? 'trash' : (action === 'ledger-view-canvas' ? 'canvas' : 'design')));
         moveIndicator(button);
       });
     });

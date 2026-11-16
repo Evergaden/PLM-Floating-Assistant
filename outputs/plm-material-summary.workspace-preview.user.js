@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      3.0.8
+// @version      3.0.9
 // @description  [布局验证版] Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '3.0.8';
+  const SCRIPT_VERSION = '3.0.9';
   const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }\n#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n\n/* Text-only BOM controls, full-width material groups and aligned fields. */\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field.is-invalid input {\n  border-color: #d92d20;\n  background: color-mix(in srgb, var(--pfh-theme-control-surface) 94%, #d92d20);\n}\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field.is-invalid > span,\n#plm-floating-helper .pfh-bom-form .pfh-bom-field-error { color: #b42318; }\n#plm-floating-helper .pfh-bom-form .pfh-bom-field-error { font-size: 11px; font-weight: 400; line-height: 1.5; }\n#plm-floating-helper .pfh-product-development-material-planner.pfh-bom-form {\n  display: grid;\n  gap: 16px;\n  min-width: 0;\n  padding: 16px;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-bom-form > header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-bom-form > header > .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; }\n#plm-floating-helper .pfh-product-development-detail-form > .pfh-product-development-product-form-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-detail-heading { display: contents; }\n#plm-floating-helper .pfh-product-development-product-form-header .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-bom-form > header h3 { font-size: 16px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card button[data-action] {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-bom-form button.is-primary { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-bom-form button:hover:not(:disabled) { border-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form button:disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-list { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card { align-content: start; gap: 12px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header { flex-direction: row; align-items: center; min-height: 36px; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header strong { font-size: 20px; font-weight: 700; line-height: 1.4; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled { padding-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled small { margin-left: 12px; color: var(--pfh-theme-muted); font-size: 11px; font-weight: 400; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-grid,\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-grid { grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); align-items: start; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field { gap: 8px; color: var(--pfh-theme-text); font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field > span { overflow: visible; white-space: normal; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field :is(input, select) { min-height: 36px; padding: 8px 12px; font: inherit; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form :is(button, input, select):focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 2px; }\n#plm-floating-helper .pfh-bom-dimensions { display: grid; grid-column: 1 / -1; grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-bom-dimensions.is-box { grid-template-columns: var(--pfh-bom-field-columns, repeat(3, minmax(0, 1fr))); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-options { gap: 12px; padding-top: 12px; border-top-style: solid; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group { gap: 8px; font-size: 11px; color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group > div { display: flex; min-height: 36px; box-sizing: border-box; align-items: center; gap: 16px; padding: 8px 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group input { accent-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-product-binding { padding: 12px; border-radius: 8px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid { gap: 12px; margin-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid small { font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-bom-form { --pfh-bom-field-columns: minmax(0, 1fr); }\n}\n";
   const SKU_DETAIL_LAYOUT_CSS = "/* Detail view navigation owns its layout, indicator motion, and interaction states. */\r\n#plm-floating-helper .pfh-detail-view-frame {\r\n  display: flex;\r\n  flex-direction: column;\r\n  height: 100%;\r\n  min-width: 0;\r\n  min-height: 0;\r\n  box-sizing: border-box;\r\n  padding: 12px;\r\n  overflow: hidden;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-frame > :is(.pfh-size-image-scroll, .pfh-parameter-scroll) {\r\n  flex: 1 1 auto;\r\n  height: auto;\r\n  min-width: 0;\r\n  min-height: 0;\r\n  box-sizing: border-box;\r\n  overflow-x: hidden;\r\n  overflow-y: auto;\r\n  padding: 0 6px 12px 0;\r\n}\r\n\r\n@container (max-width: 540px) {\r\n  #plm-floating-helper .pfh-detail-view-frame {\r\n    padding: 9px;\r\n  }\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs {\r\n  position: sticky;\r\n  top: 0;\r\n  z-index: 20;\r\n  isolation: isolate;\r\n  display: grid;\r\n  flex: 0 0 42px;\r\n  grid-template-columns: repeat(4, minmax(0, 1fr));\r\n  grid-auto-rows: 34px;\r\n  gap: 0;\r\n  box-sizing: border-box;\r\n  width: 100%;\r\n  height: 42px;\r\n  min-height: 42px;\r\n  max-height: 42px;\r\n  align-self: stretch;\r\n  margin: 0 0 12px;\r\n  padding: 3px;\r\n  overflow: hidden;\r\n  border: 1px solid var(--pfh-theme-border);\r\n  border-radius: 13px;\r\n  background: var(--pfh-theme-surface);\r\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86), 0 7px 18px var(--pfh-theme-shadow-soft);\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-indicator {\r\n  position: absolute;\r\n  z-index: 0;\r\n  top: 3px;\r\n  left: 3px;\r\n  width: calc((100% - 6px) / 4);\r\n  height: 34px;\r\n  max-height: 34px;\r\n  border: 0;\r\n  border-radius: 10px;\r\n  background: linear-gradient(135deg, var(--pfh-theme-primary), var(--pfh-theme-primary-hover));\r\n  box-shadow: 0 7px 16px var(--pfh-theme-shadow-soft);\r\n  pointer-events: none;\r\n  will-change: left, width;\r\n  transition: left .6s cubic-bezier(.25, 1.2, .35, 1), width .6s cubic-bezier(.25, 1.2, .35, 1);\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button {\r\n  position: relative;\r\n  z-index: 1;\r\n  display: flex;\r\n  min-width: 0;\r\n  height: 34px;\r\n  min-height: 34px;\r\n  max-height: 34px;\r\n  align-items: center;\r\n  justify-content: center;\r\n  margin: 0;\r\n  padding: 0 8px;\r\n  border: 0;\r\n  border-radius: 10px;\r\n  background: transparent;\r\n  color: var(--pfh-theme-muted);\r\n  font: inherit;\r\n  font-size: 12px;\r\n  font-weight: 400;\r\n  line-height: 1;\r\n  cursor: pointer;\r\n  transition: color .28s ease;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button.is-active {\r\n  background: transparent;\r\n  box-shadow: none;\r\n  color: #fff;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button::after {\r\n  content: \"\";\r\n  position: absolute;\r\n  inset: 0;\r\n  border-radius: 10px;\r\n  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .18) 0%, transparent 65%);\r\n  opacity: 0;\r\n  pointer-events: none;\r\n  transition: opacity .25s;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button:hover::after {\r\n  opacity: 1;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button.is-active::after {\r\n  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .28) 0%, transparent 65%);\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button:disabled,\r\n#plm-floating-helper .pfh-detail-view-tabs button.is-access-locked {\r\n  cursor: not-allowed;\r\n  opacity: .48;\r\n}\r\n\r\n/* Integrated design/development navigation keeps the selected tool compact. */\r\n#plm-floating-helper .pfh-design-development-tabs {\r\n  display: flex;\r\n  overflow-x: auto;\r\n  scrollbar-width: none;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button {\r\n  flex: 1 0 auto;\r\n  padding: 0 9px;\r\n  white-space: nowrap;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button.is-active {\r\n  flex: 0 0 34px;\r\n  padding: 0;\r\n  color: var(--pfh-theme-primary);\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-tab-icon,\r\n#plm-floating-helper .pfh-design-development-tabs button.is-active .pfh-detail-tab-label {\r\n  display: none;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button.is-active .pfh-detail-tab-icon {\r\n  display: inline-flex;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs .pfh-detail-tab-icon .pfh-icon {\r\n  display: inline-flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  width: 18px;\r\n  min-width: 18px;\r\n  height: 18px;\r\n  min-height: 18px;\r\n  margin: 0;\r\n  padding: 0;\r\n  border: 0;\r\n  border-radius: 0;\r\n  background: transparent;\r\n  box-shadow: none;\r\n  color: inherit;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button.is-development,\r\n#plm-floating-helper .pfh-design-development-tabs button.is-development.is-active {\r\n  color: #1b8d6c;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs .pfh-detail-view-indicator,\r\n#plm-floating-helper .pfh-design-development-tabs button.is-active::after {\r\n  display: none;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button:focus-visible {\r\n  outline: 2px solid var(--pfh-theme-primary);\r\n  outline-offset: -2px;\r\n}\r\n\r\n@media (prefers-reduced-motion: reduce) {\r\n  #plm-floating-helper .pfh-detail-view-tabs button,\r\n  #plm-floating-helper .pfh-detail-view-indicator {\r\n    transition: none;\r\n  }\r\n}\r\n\n/* Keep SKU identity above the independently scrolling detail content. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  height: auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  padding: 12px 14px 0;\n  overflow: hidden;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {\n  flex: 0 0 auto;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 0 0;\n}\n\n#plm-floating-helper .pfh-material-card {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 16px 18px;\r\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\r\n  border-radius: 16px;\r\n  background: var(--pfh-theme-card, #fff);\r\n}\r\n#plm-floating-helper .pfh-material-card small {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key] {\r\n  display: block;\r\n  min-width: 0;\r\n  overflow-wrap: anywhere;\r\n  /* Fill the inter-row gap without moving the text or overlapping targets. */\r\n  padding: 4px 10px;\r\n  margin: -4px -10px;\r\n  cursor: pointer;\r\n  border-radius: 6px;\r\n  transition: color .15s, background .15s;\r\n}\r\n#plm-floating-helper .pfh-material-size {\r\n  color: var(--pfh-theme-text, #17213a);\r\n  font-size: 15px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-code {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:hover,\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:focus-visible,\r\n#plm-floating-helper .pfh-material-card .is-copied {\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-soft, #f4efff);\r\n  outline: none;\r\n}\r\n\n/* Keep product context in the selected SKU card while the editor owns the detail pane. */\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active) {\n  position: relative;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active)::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  z-index: 10;\n  border-radius: inherit;\n  background: color-mix(in srgb, var(--pfh-theme-page, #f8f9ff) 58%, transparent);\n  pointer-events: none;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-list-head, .pfh-sku-list-toolbar, .pfh-sku-filter-toolbar, .pfh-list-pager, .pfh-search-result-toolbar, .pfh-workspace-search-host) {\n  opacity: .5;\n}\n\n#plm-floating-helper .pfh-development-detail-jump {\n  position: absolute;\n  z-index: 80;\n  display: grid;\n  gap: 4px;\n  width: 188px;\n  max-width: calc(100% - 16px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-development-detail-jump button {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  text-align: left;\n  font: inherit;\n  font-size: 12px;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-development-detail-jump button:is(:hover, :focus-visible, .is-active) { background: var(--pfh-theme-primary-soft); color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-development-detail-jump button:focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 1px; }\n#plm-floating-helper .pfh-development-detail-jump button:disabled { opacity: .45; cursor: default; }\n";
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
@@ -518,7 +518,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.334';
+  const UI_ASSET_VERSION = '2.5.335';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '14';
@@ -18940,6 +18940,978 @@
     return true;
   }
   // </product-development-module>
+  // <core-ledger-canvas-module>
+
+  // Ledger canvas: a read-only stage map of today's ledger records. Ledger data
+  // only flows in; every interaction (node drag, pan, zoom, manual note nodes,
+  // links) writes exclusively to the local canvas layout key below, never to
+  // the daily ledger. The canvas root is created per render and destroyed with
+  // the tab content, so all listeners live on the root or its children only.
+
+  const LEDGER_CANVAS_LAYOUT_KEY = 'plm-floating-helper:ledger-canvas-layout:v1';
+  const LEDGER_CANVAS_STYLE_ID = 'plm-floating-helper-ledger-canvas-style';
+  const LEDGER_CANVAS_SCALE_MIN = 0.4;
+  const LEDGER_CANVAS_SCALE_MAX = 2;
+  const LEDGER_CANVAS_MAX_POSITIONS = 500;
+  const LEDGER_CANVAS_MAX_MANUAL_NODES = 100;
+  const LEDGER_CANVAS_MAX_TASK_NODES = 200;
+  const LEDGER_CANVAS_MAX_MANUAL_LINKS = 32;
+  const LEDGER_CANVAS_LANE_X = [40, 360, 680];
+  const LEDGER_CANVAS_NODE_WIDTH = 216;
+  const LEDGER_CANVAS_TASK_TOP = 96;
+  const LEDGER_CANVAS_TASK_PITCH = 112;
+  const LEDGER_CANVAS_WORLD_MIN_HEIGHT = 1240;
+  const LEDGER_CANVAS_WORLD_MAX_HEIGHT = 6400;
+  const LEDGER_CANVAS_SAVE_DEBOUNCE_MS = 400;
+  const LEDGER_CANVAS_DELETE_ARM_MS = 2600;
+  const LEDGER_CANVAS_NODE_HEIGHTS = { lane: 44, task: 112, note: 172, step: 60 };
+
+  const LEDGER_CANVAS_CSS = [
+    '#plm-floating-helper .pfh-canvas-root{position:relative;display:flex;flex-direction:column;flex:1 1 auto;min-height:0;box-sizing:border-box;padding:0 2px 4px;}',
+    '#plm-floating-helper .pfh-canvas-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:6px;flex:0 0 auto;padding:6px 8px;border:1px solid var(--pfh-theme-border,#ddd6ef);border-radius:12px;background:var(--pfh-theme-surface,#fff);}',
+    '#plm-floating-helper .pfh-canvas-toolbar strong{font-size:12px;color:var(--pfh-theme-text,#1f2937);margin-right:2px;}',
+    '#plm-floating-helper .pfh-canvas-toolbar button{min-height:28px;padding:0 10px;border:1px solid var(--pfh-theme-border,#ddd6ef);border-radius:8px;background:var(--pfh-theme-control-surface,#f7f8fc);color:var(--pfh-theme-text,#1f2937);font:inherit;font-size:11px;line-height:1;cursor:pointer;transition:border-color .18s ease,background .18s ease,color .18s ease;}',
+    '#plm-floating-helper .pfh-canvas-toolbar button:hover{border-color:var(--pfh-theme-primary,#7c3aed);color:var(--pfh-theme-primary,#7c3aed);background:var(--pfh-theme-primary-soft,#f3efff);}',
+    '#plm-floating-helper .pfh-canvas-hint{font-size:10px;line-height:1.4;color:var(--pfh-theme-muted,#64748b);}',
+    '#plm-floating-helper .pfh-canvas-link-hint{margin-left:auto;font-size:10px;line-height:1.4;color:var(--pfh-theme-primary,#7c3aed);}',
+    '#plm-floating-helper .pfh-canvas-viewport{position:relative;flex:1 1 auto;min-height:0;margin-top:6px;overflow:hidden;border:1px solid var(--pfh-theme-border,#ddd6ef);border-radius:12px;background:linear-gradient(135deg,var(--pfh-theme-surface,#fff),var(--pfh-theme-surface-alt,#f7f8fc));box-shadow:inset 0 1px 0 rgba(255,255,255,.86);transform-origin:0 0;touch-action:none;cursor:grab;}',
+    '#plm-floating-helper .pfh-canvas-viewport.is-panning{cursor:grabbing;}',
+    '#plm-floating-helper .pfh-canvas-edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;}',
+    '#plm-floating-helper .pfh-canvas-nodes{position:absolute;left:0;top:0;pointer-events:none;}',
+    '#plm-floating-helper .pfh-canvas-node{position:absolute;pointer-events:auto;display:flex;flex-direction:column;box-sizing:border-box;width:216px;padding:8px 10px;border:1px solid var(--pfh-theme-border,#ddd6ef);border-radius:12px;background:var(--pfh-theme-surface,#fff);color:var(--pfh-theme-text,#1f2937);box-shadow:0 6px 16px var(--pfh-theme-shadow-soft,rgba(91,62,180,.10));font-size:11px;line-height:1.45;}',
+    '#plm-floating-helper .pfh-canvas-node.is-lane{flex-direction:row;align-items:center;justify-content:space-between;min-height:44px;padding:6px 12px;border-radius:999px;font-size:12px;}',
+    '#plm-floating-helper .pfh-canvas-node.is-lane .pfh-canvas-lane-title{font-weight:700;}',
+    '#plm-floating-helper .pfh-canvas-node.is-lane .pfh-canvas-lane-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:var(--pfh-theme-primary-soft,#f3efff);color:var(--pfh-theme-primary,#7c3aed);font-variant-numeric:tabular-nums;}',
+    '#plm-floating-helper .pfh-canvas-node.is-lane.is-stage-pending{border-color:var(--pfh-theme-border-strong,#b7a6f4);}',
+    '#plm-floating-helper .pfh-canvas-node.is-lane.is-stage-generated{border-color:var(--pfh-theme-primary,#7c3aed);background:linear-gradient(135deg,var(--pfh-theme-primary-soft,#f3efff),var(--pfh-theme-surface,#fff));}',
+    '#plm-floating-helper .pfh-canvas-node.is-lane.is-stage-finalized{border-color:var(--pfh-theme-secondary,#60a878);background:linear-gradient(135deg,var(--pfh-theme-secondary-soft,#eefaf1),var(--pfh-theme-surface,#fff));}',
+    '#plm-floating-helper .pfh-canvas-node.is-task{cursor:grab;}',
+    '#plm-floating-helper .pfh-canvas-node.is-stage-pending{border-left:3px solid var(--pfh-theme-border-strong,#b7a6f4);}',
+    '#plm-floating-helper .pfh-canvas-node.is-stage-generated{border-left:3px solid var(--pfh-theme-primary,#7c3aed);background:linear-gradient(135deg,var(--pfh-theme-primary-soft,#f3efff),var(--pfh-theme-surface,#fff));}',
+    '#plm-floating-helper .pfh-canvas-node.is-stage-finalized{border-left:3px solid var(--pfh-theme-secondary,#60a878);background:linear-gradient(135deg,var(--pfh-theme-surface,#fff),var(--pfh-theme-secondary-soft,#eefaf1));}',
+    '#plm-floating-helper .pfh-canvas-node.is-dragging{box-shadow:0 14px 34px var(--pfh-theme-shadow-soft,rgba(91,62,180,.22));opacity:.92;}',
+    '#plm-floating-helper .pfh-canvas-node-head{display:flex;align-items:center;gap:6px;min-height:20px;cursor:grab;}',
+    '#plm-floating-helper .pfh-canvas-node-head b{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;}',
+    '#plm-floating-helper .pfh-canvas-node-sku{align-self:flex-start;max-width:130px;margin-top:4px;padding:0 7px;overflow:hidden;border:1px solid var(--pfh-theme-border,#ddd6ef);border-radius:999px;background:var(--pfh-theme-control-surface,#f7f8fc);color:var(--pfh-theme-primary,#7c3aed);font:inherit;font-size:10px;line-height:19px;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}',
+    '#plm-floating-helper .pfh-canvas-node-badges{display:flex;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-top:5px;}',
+    '#plm-floating-helper .pfh-canvas-node-badges-list{display:flex;flex-wrap:wrap;gap:4px;min-width:0;}',
+    '#plm-floating-helper .pfh-canvas-node-badges-list span{max-width:120px;overflow:hidden;padding:1px 7px;border:1px solid var(--pfh-theme-border,#ddd6ef);border-radius:999px;background:var(--pfh-theme-surface-alt,#f7f8fc);color:var(--pfh-theme-muted,#64748b);font-size:9px;line-height:1.5;text-overflow:ellipsis;white-space:nowrap;}',
+    '#plm-floating-helper .pfh-canvas-node-stage{flex:0 0 auto;padding:1px 7px;border-radius:999px;background:var(--pfh-theme-surface-alt,#f7f8fc);color:var(--pfh-theme-text,#1f2937);font-weight:700;}',
+    '#plm-floating-helper .pfh-canvas-node.is-manual .pfh-canvas-note-title,',
+    '#plm-floating-helper .pfh-canvas-node.is-manual .pfh-canvas-note-text{width:100%;min-width:0;box-sizing:border-box;padding:4px 8px;border:1px solid var(--pfh-theme-border,#ddd6ef);border-radius:8px;background:var(--pfh-theme-control-surface,#f7f8fc);color:var(--pfh-theme-text,#1f2937);font:inherit;font-size:11px;line-height:1.5;}',
+    '#plm-floating-helper .pfh-canvas-node.is-manual .pfh-canvas-note-text{margin-top:5px;min-height:64px;resize:none;}',
+    '#plm-floating-helper .pfh-canvas-node.is-manual.is-note{min-height:172px;}',
+    '#plm-floating-helper .pfh-canvas-node.is-manual.is-step{min-height:60px;}',
+    '#plm-floating-helper .pfh-canvas-node-delete{flex:0 0 auto;display:grid;place-items:center;width:22px;height:22px;padding:0;border:1px solid var(--pfh-theme-border,#ddd6ef);border-radius:7px;background:var(--pfh-theme-surface,#fff);color:var(--pfh-theme-muted,#64748b);font:inherit;font-size:12px;line-height:1;cursor:pointer;}',
+    '#plm-floating-helper .pfh-canvas-node-delete:hover{border-color:#d98c8c;color:#b34a5d;}',
+    '#plm-floating-helper .pfh-canvas-node-delete.is-armed{border-color:#d98c8c;background:#fff2f4;color:#b34a5d;font-size:10px;}',
+    '#plm-floating-helper .pfh-canvas-link-handle{position:absolute;right:10px;bottom:-9px;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--pfh-theme-primary,#7c3aed);background:var(--pfh-theme-surface,#fff);color:var(--pfh-theme-primary,#7c3aed);font-size:9px;line-height:1;cursor:crosshair;}',
+    '#plm-floating-helper .pfh-canvas-link-handle:hover{background:var(--pfh-theme-primary-soft,#f3efff);}',
+    '#plm-floating-helper .pfh-canvas-edge{fill:none;stroke:var(--pfh-theme-border-strong,#b7a6f4);stroke-width:1.6;}',
+    '#plm-floating-helper .pfh-canvas-edge.is-dashed{stroke-dasharray:5 4;stroke:var(--pfh-theme-muted,#8a94ae);}',
+    '#plm-floating-helper .pfh-canvas-edge-preview{fill:none;stroke:var(--pfh-theme-primary,#7c3aed);stroke-width:1.6;stroke-dasharray:6 4;}',
+    '#plm-floating-helper .pfh-canvas-root.is-link-mode .pfh-canvas-node{cursor:crosshair;}',
+    '@media (prefers-reduced-motion: reduce) {',
+    '  #plm-floating-helper .pfh-canvas-node,',
+    '  #plm-floating-helper .pfh-canvas-toolbar button { transition: none; }',
+    '}',
+  ].join('\n');
+
+  function ensureLedgerCanvasStyles() {
+    if (document.getElementById(LEDGER_CANVAS_STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = LEDGER_CANVAS_STYLE_ID;
+    style.textContent = LEDGER_CANVAS_CSS;
+    document.documentElement.appendChild(style);
+  }
+
+  function ledgerCanvasRuntimeState() {
+    return { session: null, pendingRefresh: false, layout: null, saveTimer: 0, deleteArm: null, linkMode: null };
+  }
+
+  function ledgerCanvasClampScale(value) {
+    const scale = Number(value);
+    if (!Number.isFinite(scale) || scale <= 0) return 1;
+    return Math.min(LEDGER_CANVAS_SCALE_MAX, Math.max(LEDGER_CANVAS_SCALE_MIN, scale));
+  }
+
+  function ledgerCanvasDefaultLayout() {
+    return { version: 1, updatedAtMs: 0, viewport: { x: 0, y: 0, scale: 1 }, positions: {}, manualNodes: [] };
+  }
+
+  function ledgerCanvasNormalizeManualNode(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    // Unknown fields pass through so older saves keep round-tripping.
+    const node = { ...source };
+    node.id = String(source.id || '').slice(0, 80);
+    node.kind = source.kind === 'step' ? 'step' : 'note';
+    node.title = String(source.title || '').slice(0, 40);
+    node.note = String(source.note || '').slice(0, 240);
+    node.x = Number.isFinite(Number(source.x)) ? Number(source.x) : null;
+    node.y = Number.isFinite(Number(source.y)) ? Number(source.y) : null;
+    node.createdAtMs = Number(source.createdAtMs) || 0;
+    node.links = Array.isArray(source.links)
+      ? Array.from(new Set(source.links.map((link) => String(link || '').slice(0, 120)).filter(Boolean))).slice(0, LEDGER_CANVAS_MAX_MANUAL_LINKS)
+      : [];
+    return node;
+  }
+
+  function ledgerCanvasNormalizeLayout(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const layout = { ...source };
+    layout.version = 1;
+    layout.updatedAtMs = Number(source.updatedAtMs) || 0;
+    const viewport = source.viewport && typeof source.viewport === 'object' ? source.viewport : {};
+    layout.viewport = { x: Number(viewport.x) || 0, y: Number(viewport.y) || 0, scale: ledgerCanvasClampScale(viewport.scale) };
+    const positions = {};
+    if (source.positions && typeof source.positions === 'object' && !Array.isArray(source.positions)) {
+      Object.keys(source.positions).slice(0, LEDGER_CANVAS_MAX_POSITIONS).forEach((id) => {
+        const point = source.positions[id];
+        if (!point || typeof point !== 'object') return;
+        const x = Number(point.x);
+        const y = Number(point.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        positions[String(id).slice(0, 120)] = { x, y };
+      });
+    }
+    layout.positions = positions;
+    layout.manualNodes = (Array.isArray(source.manualNodes) ? source.manualNodes : [])
+      .map(ledgerCanvasNormalizeManualNode)
+      .filter((node) => node.id)
+      .slice(0, LEDGER_CANVAS_MAX_MANUAL_NODES);
+    return layout;
+  }
+
+  function loadLedgerCanvasLayout() {
+    try {
+      const saved = typeof GM_getValue === 'function'
+        ? GM_getValue(LEDGER_CANVAS_LAYOUT_KEY, null)
+        : JSON.parse(localStorage.getItem(LEDGER_CANVAS_LAYOUT_KEY) || 'null');
+      return ledgerCanvasNormalizeLayout(saved || ledgerCanvasDefaultLayout());
+    } catch (error) {
+      return ledgerCanvasDefaultLayout();
+    }
+  }
+
+  function saveLedgerCanvasLayout(layout, validNodeIds) {
+    const normalized = ledgerCanvasNormalizeLayout(layout || {});
+    if (validNodeIds) {
+      const keep = validNodeIds instanceof Set ? validNodeIds : new Set(Array.isArray(validNodeIds) ? validNodeIds : []);
+      Object.keys(normalized.positions).forEach((id) => {
+        if (!keep.has(id)) delete normalized.positions[id];
+      });
+    }
+    normalized.updatedAtMs = Date.now();
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(LEDGER_CANVAS_LAYOUT_KEY, normalized);
+      else localStorage.setItem(LEDGER_CANVAS_LAYOUT_KEY, JSON.stringify(normalized));
+    } catch (error) {
+      // Layout persistence is optional; the canvas keeps working in memory.
+    }
+    return normalized;
+  }
+
+  // ---- Pure model helpers (self-contained so node:vm checks can drive them) ----
+
+  function ledgerCanvasParseTimeMs(value) {
+    const number = Number(value);
+    if (Number.isFinite(number) && number > 0) return number;
+    const parsed = Date.parse(String(value || ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function ledgerCanvasTaskId(record) {
+    const text = String(record && record.date || '').trim();
+    const match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    const date = match ? [match[1], match[2].padStart(2, '0'), match[3].padStart(2, '0')].join('-') : text.slice(0, 10);
+    return 'task:' + date + '::' + String(record && record.sku || '').slice(0, 80);
+  }
+
+  function ledgerCanvasRecordStage(record) {
+    if (!record) return 'pending';
+    if (Boolean(record.finalizedAt) || record.status === '作废') return 'finalized';
+    if (Boolean(record.imageGeneratedAt)) return 'generated';
+    return 'pending';
+  }
+
+  function ledgerCanvasStageLabel(stage) {
+    return stage === 'finalized' ? '已定稿' : (stage === 'generated' ? '已出图' : '待出图');
+  }
+
+  function ledgerCanvasNodeHeight(kind) {
+    return LEDGER_CANVAS_NODE_HEIGHTS[kind] || 112;
+  }
+
+  function buildLedgerCanvasModel(records, layout) {
+    const normalizedLayout = ledgerCanvasNormalizeLayout(layout || {});
+    const source = Array.isArray(records) ? records : [];
+    const lanes = [
+      { id: 'lane-pending', stage: 'pending', title: '待出图', x: LEDGER_CANVAS_LANE_X[0], y: 0, count: 0 },
+      { id: 'lane-generated', stage: 'generated', title: '已出图', x: LEDGER_CANVAS_LANE_X[1], y: 0, count: 0 },
+      { id: 'lane-finalized', stage: 'finalized', title: '已定稿', x: LEDGER_CANVAS_LANE_X[2], y: 0, count: 0 },
+    ];
+    const edges = [
+      { from: 'lane-pending', to: 'lane-generated' },
+      { from: 'lane-generated', to: 'lane-finalized' },
+    ];
+    const buckets = { pending: [], generated: [], finalized: [] };
+    const seenIds = new Set();
+    source.forEach((record) => {
+      if (!record || !record.sku) return;
+      const id = ledgerCanvasTaskId(record);
+      if (seenIds.has(id)) return;
+      seenIds.add(id);
+      const stage = ledgerCanvasRecordStage(record);
+      const timeMs = stage === 'finalized'
+        ? (Number(record.finalizedAtMs) || ledgerCanvasParseTimeMs(record.finalizedAt) || Number(record.updatedAtMs) || ledgerCanvasParseTimeMs(record.createdAt))
+        : (stage === 'generated'
+          ? (Number(record.imageGeneratedAtMs) || ledgerCanvasParseTimeMs(record.imageGeneratedAt) || ledgerCanvasParseTimeMs(record.createdAt))
+          : (Number(record.designAssignedAtMs) || ledgerCanvasParseTimeMs(record.designAssignedAt) || Number(record.createdAtMs) || ledgerCanvasParseTimeMs(record.createdAt)));
+      buckets[stage].push({ record, timeMs });
+    });
+    Object.keys(buckets).forEach((stage) => {
+      buckets[stage].sort((a, b) => (a.timeMs - b.timeMs) || String(a.record.sku).localeCompare(String(b.record.sku)));
+      lanes.find((lane) => lane.stage === stage).count = buckets[stage].length;
+    });
+    const nodes = [];
+    const offsets = { pending: 0, generated: 0, finalized: 0 };
+    let truncatedCount = 0;
+    ['pending', 'generated', 'finalized'].forEach((stage) => {
+      const laneX = LEDGER_CANVAS_LANE_X[stage === 'pending' ? 0 : (stage === 'generated' ? 1 : 2)];
+      buckets[stage].forEach((entry) => {
+        if (nodes.length >= LEDGER_CANVAS_MAX_TASK_NODES) {
+          truncatedCount += 1;
+          return;
+        }
+        const record = entry.record;
+        const id = ledgerCanvasTaskId(record);
+        const override = normalizedLayout.positions[id];
+        nodes.push({
+          id,
+          kind: 'task',
+          stage,
+          manual: false,
+          x: override ? override.x : laneX,
+          y: override ? override.y : LEDGER_CANVAS_TASK_TOP + offsets[stage] * LEDGER_CANVAS_TASK_PITCH,
+          title: [record.brand, record.name].filter(Boolean).join(' ') || record.sku,
+          sub: record.sku,
+          badges: [record.designType, record.artPriority].filter(Boolean).slice(0, 3),
+        });
+        offsets[stage] += 1;
+        if (stage === 'pending') edges.push({ from: id, to: 'lane-generated' });
+        else if (stage === 'generated') edges.push({ from: id, to: 'lane-finalized' });
+        else edges.push({ from: 'lane-finalized', to: id });
+      });
+    });
+    // Manual note/step nodes: entries without a saved position stack near the
+    // first lane, staggered so several unplaced nodes never fully overlap.
+    let stackIndex = 0;
+    const manualIds = new Set();
+    normalizedLayout.manualNodes.forEach((manual) => {
+      if (manualIds.has(manual.id)) return;
+      manualIds.add(manual.id);
+      const placed = Number.isFinite(manual.x) && Number.isFinite(manual.y);
+      nodes.push({
+        id: manual.id,
+        kind: manual.kind,
+        stage: 'manual',
+        manual: true,
+        title: manual.title,
+        note: manual.note,
+        links: manual.links,
+        x: placed ? manual.x : 240 + stackIndex * 24,
+        y: placed ? manual.y : 240 + stackIndex * 24,
+      });
+      if (!placed) stackIndex += 1;
+    });
+    const nodeIds = new Set(Array.from(manualIds).concat(nodes.filter((node) => node.kind === 'task').map((node) => node.id)));
+    normalizedLayout.manualNodes.forEach((manual) => {
+      (manual.links || []).forEach((target) => {
+        if (target === manual.id || !nodeIds.has(target)) return;
+        edges.push({ from: manual.id, to: target, dashed: true });
+      });
+    });
+    const maxY = nodes.reduce((max, node) => Math.max(max, (Number(node.y) || 0) + ledgerCanvasNodeHeight(node.kind)), LEDGER_CANVAS_TASK_TOP + LEDGER_CANVAS_TASK_PITCH);
+    const world = {
+      width: LEDGER_CANVAS_LANE_X[2] + LEDGER_CANVAS_NODE_WIDTH + 48,
+      height: Math.min(LEDGER_CANVAS_WORLD_MAX_HEIGHT, Math.max(LEDGER_CANVAS_WORLD_MIN_HEIGHT, maxY + 96)),
+    };
+    return { lanes, nodes, edges, truncatedCount, world };
+  }
+
+  // ---- Data intake (read-only) ----
+
+  function collectLedgerCanvasRecords() {
+    const today = getTodayKey();
+    const month = getCurrentLedgerMonth();
+    const combined = [];
+    const seen = new Set();
+    const push = (record, dateKey) => {
+      if (!record) return;
+      if (normalizeLedgerDate(dateKey) !== today) return;
+      const key = ledgerCanvasTaskId(record);
+      if (seen.has(key)) return;
+      seen.add(key);
+      combined.push(record);
+    };
+    getLedgerRecordsForMonth('design', month).forEach((record) => push(record, getLedgerDesignDate(record)));
+    getLedgerRecordsForMonth('finalized', month).forEach((record) => push(record, getLedgerFinalizedDate(record)));
+    return combined;
+  }
+
+  function ledgerCanvasRecordCountLabel(month) {
+    return collectLedgerCanvasRecords().length + ' 条 / ' + month;
+  }
+
+  function ledgerCanvasCurrentModel() {
+    state.ledgerCanvas = state.ledgerCanvas || ledgerCanvasRuntimeState();
+    if (!state.ledgerCanvas.layout) state.ledgerCanvas.layout = loadLedgerCanvasLayout();
+    return buildLedgerCanvasModel(collectLedgerCanvasRecords(), state.ledgerCanvas.layout);
+  }
+
+  // ---- Rendering ----
+
+  function ledgerCanvasEdgePath(x1, y1, x2, y2) {
+    const bend = Math.max(28, Math.min(90, Math.abs(y2 - y1) / 2));
+    const round = (value) => Math.round(value * 10) / 10;
+    return 'M ' + round(x1) + ' ' + round(y1) + ' C ' + round(x1) + ' ' + round(y1 + bend) + ', ' + round(x2) + ' ' + round(y2 - bend) + ', ' + round(x2) + ' ' + round(y2);
+  }
+
+  function ledgerCanvasAnchorFor(node, end) {
+    const kind = node.kind === 'task' ? 'task' : (node.manual ? node.kind : 'lane');
+    return {
+      x: (Number(node.x) || 0) + LEDGER_CANVAS_NODE_WIDTH / 2,
+      y: (Number(node.y) || 0) + (end === 'bottom' ? ledgerCanvasNodeHeight(kind) : 0),
+    };
+  }
+
+  function ledgerCanvasEdgePathsHtml(model) {
+    const byId = new Map();
+    model.lanes.forEach((lane) => byId.set(lane.id, { id: lane.id, kind: 'lane', x: lane.x, y: lane.y, manual: false }));
+    model.nodes.forEach((node) => byId.set(node.id, node));
+    return model.edges.map((edge) => {
+      const from = byId.get(edge.from);
+      const to = byId.get(edge.to);
+      if (!from || !to) return '';
+      const start = ledgerCanvasAnchorFor(from, 'bottom');
+      const end = ledgerCanvasAnchorFor(to, 'top');
+      return '<path class="pfh-canvas-edge' + (edge.dashed ? ' is-dashed' : '') + '" d="' + ledgerCanvasEdgePath(start.x, start.y, end.x, end.y) + '"/>';
+    }).join('');
+  }
+
+  function ledgerCanvasLaneHtml(lane) {
+    return '<div class="pfh-canvas-node is-lane is-stage-' + lane.stage + '" data-canvas-node-id="' + escapeHtml(lane.id) + '" data-canvas-kind="lane" data-canvas-lane="' + escapeHtml(lane.stage) + '" style="left:' + lane.x + 'px;top:' + lane.y + 'px;">'
+      + '<span class="pfh-canvas-lane-title">' + escapeHtml(lane.title) + '</span>'
+      + '<span class="pfh-canvas-lane-count" data-canvas-lane-count="' + lane.stage + '">' + escapeHtml(String(lane.count)) + '</span>'
+      + '</div>';
+  }
+
+  function ledgerCanvasTaskNodeHtml(node) {
+    return '<div class="pfh-canvas-node is-task is-stage-' + node.stage + '" data-canvas-node-id="' + escapeHtml(node.id) + '" data-canvas-kind="task" data-canvas-draggable="1" style="left:' + node.x + 'px;top:' + node.y + 'px;">'
+      + '<div class="pfh-canvas-node-head"><b title="' + escapeHtml(node.title) + '">' + escapeHtml(node.title) + '</b></div>'
+      + '<button type="button" class="pfh-canvas-node-sku" data-action="ledger-open-sku" data-sku="' + escapeHtml(node.sub) + '" title="打开 SKU 详情">' + escapeHtml(node.sub) + '</button>'
+      + '<div class="pfh-canvas-node-badges"><span class="pfh-canvas-node-badges-list" data-canvas-node-badges>' + node.badges.map((badge) => '<span>' + escapeHtml(badge) + '</span>').join('') + '</span><span class="pfh-canvas-node-stage" data-canvas-node-stage>' + ledgerCanvasStageLabel(node.stage) + '</span></div>'
+      + '</div>';
+  }
+
+  function ledgerCanvasManualNodeHtml(node) {
+    const isNote = node.kind === 'note';
+    return '<div class="pfh-canvas-node is-manual is-' + node.kind + '" data-canvas-node-id="' + escapeHtml(node.id) + '" data-canvas-kind="' + node.kind + '" data-canvas-draggable="1" data-canvas-manual="1" style="left:' + node.x + 'px;top:' + node.y + 'px;">'
+      + '<div class="pfh-canvas-node-head">'
+        + '<input type="text" class="pfh-canvas-note-title" data-canvas-note-title maxlength="40" value="' + escapeHtml(node.title) + '" placeholder="备注标题" aria-label="备注标题">'
+        + '<button type="button" class="pfh-canvas-node-delete" data-action="canvas-delete-node" title="删除节点">✕</button>'
+      + '</div>'
+      + (isNote ? '<textarea class="pfh-canvas-note-text" data-canvas-note-text maxlength="240" rows="3" placeholder="写点备注（240 字内）" aria-label="备注内容">' + escapeHtml(node.note) + '</textarea>' : '')
+      + '<span class="pfh-canvas-link-handle" data-canvas-link-handle title="拖到其他节点连线">●</span>'
+      + '</div>';
+  }
+
+  function ledgerCanvasNodeHtml(node) {
+    if (node.kind === 'task') return ledgerCanvasTaskNodeHtml(node);
+    return ledgerCanvasManualNodeHtml(node);
+  }
+
+  function ledgerCanvasViewHtml() {
+    ensureLedgerCanvasStyles();
+    const model = ledgerCanvasCurrentModel();
+    return '<div class="pfh-canvas-root" data-canvas-root="1">'
+      + '<div class="pfh-canvas-toolbar">'
+        + '<strong>今日画布</strong>'
+        + '<button type="button" data-action="canvas-add-node">加节点</button>'
+        + '<button type="button" data-action="canvas-refresh">刷新</button>'
+        + '<button type="button" data-action="canvas-reset-zoom">缩放复位</button>'
+        + '<button type="button" data-action="canvas-reset-layout">布局复位</button>'
+        + '<span class="pfh-canvas-hint" data-canvas-hint>' + (model.truncatedCount ? '另有 ' + model.truncatedCount + ' 条未展示' : '') + '</span>'
+        + '<span class="pfh-canvas-link-hint" data-canvas-link-hint hidden>连线中：点击目标节点完成连线，点空白处取消</span>'
+      + '</div>'
+      + '<div class="pfh-canvas-viewport">'
+        + '<svg class="pfh-canvas-edges" width="' + model.world.width + '" height="' + model.world.height + '" viewBox="0 0 ' + model.world.width + ' ' + model.world.height + '" aria-hidden="true" focusable="false">' + ledgerCanvasEdgePathsHtml(model) + '</svg>'
+        + '<div class="pfh-canvas-nodes" style="width:' + model.world.width + 'px;height:' + model.world.height + 'px;">'
+          + model.lanes.map(ledgerCanvasLaneHtml).join('')
+          + model.nodes.map(ledgerCanvasNodeHtml).join('')
+        + '</div>'
+      + '</div>'
+      + '</div>';
+  }
+
+  // ---- In-place refresh (id-aligned; never destroys the root or listeners) ----
+
+  function ledgerCanvasCreateNodeElement(node) {
+    const host = document.createElement('div');
+    host.innerHTML = ledgerCanvasNodeHtml(node);
+    return host.firstChild;
+  }
+
+  function ledgerCanvasUpdateNodeElement(el, node) {
+    el.classList.toggle('is-stage-pending', node.stage === 'pending');
+    el.classList.toggle('is-stage-generated', node.stage === 'generated');
+    el.classList.toggle('is-stage-finalized', node.stage === 'finalized');
+    el.classList.toggle('is-manual', Boolean(node.manual));
+    el.style.left = node.x + 'px';
+    el.style.top = node.y + 'px';
+    if (node.kind !== 'task') return;
+    const head = el.querySelector('.pfh-canvas-node-head b');
+    if (head) {
+      head.textContent = node.title;
+      head.setAttribute('title', node.title);
+    }
+    const sku = el.querySelector('[data-action="ledger-open-sku"]');
+    if (sku) {
+      sku.textContent = node.sub;
+      sku.setAttribute('data-sku', node.sub);
+    }
+    const badges = el.querySelector('[data-canvas-node-badges]');
+    if (badges) badges.innerHTML = node.badges.map((badge) => '<span>' + escapeHtml(badge) + '</span>').join('');
+    const stageLabel = el.querySelector('[data-canvas-node-stage]');
+    if (stageLabel) stageLabel.textContent = ledgerCanvasStageLabel(node.stage);
+  }
+
+  function refreshLedgerCanvasData(root) {
+    if (!root || !root.isConnected) return false;
+    const runtime = state.ledgerCanvas = state.ledgerCanvas || ledgerCanvasRuntimeState();
+    // A pointer session is in flight: defer the rebuild to the pointerup
+    // handler so an in-progress drag/pan/zoom is never torn down.
+    if (runtime.session) {
+      runtime.pendingRefresh = true;
+      return true;
+    }
+    if (!runtime.layout) runtime.layout = loadLedgerCanvasLayout();
+    const nodesLayer = root.querySelector('.pfh-canvas-nodes');
+    const edgesSvg = root.querySelector('.pfh-canvas-edges');
+    if (!nodesLayer || !edgesSvg) return false;
+    const model = buildLedgerCanvasModel(collectLedgerCanvasRecords(), runtime.layout);
+    model.lanes.forEach((lane) => {
+      const laneEl = nodesLayer.querySelector('[data-canvas-lane="' + lane.stage + '"]');
+      if (!laneEl) return;
+      const count = laneEl.querySelector('[data-canvas-lane-count]');
+      if (count) count.textContent = String(lane.count);
+    });
+    const existing = new Map();
+    nodesLayer.querySelectorAll('[data-canvas-node-id]').forEach((el) => {
+      if (el.getAttribute('data-canvas-kind') === 'lane') return;
+      existing.set(el.getAttribute('data-canvas-node-id'), el);
+    });
+    const keepIds = new Set();
+    model.nodes.forEach((node) => {
+      keepIds.add(node.id);
+      const el = existing.get(node.id);
+      if (el) ledgerCanvasUpdateNodeElement(el, node);
+      else nodesLayer.appendChild(ledgerCanvasCreateNodeElement(node));
+    });
+    existing.forEach((el, id) => {
+      if (!keepIds.has(id)) el.remove();
+    });
+    edgesSvg.innerHTML = ledgerCanvasEdgePathsHtml(model);
+    edgesSvg.setAttribute('width', String(model.world.width));
+    edgesSvg.setAttribute('height', String(model.world.height));
+    edgesSvg.setAttribute('viewBox', '0 0 ' + model.world.width + ' ' + model.world.height);
+    const hint = root.querySelector('[data-canvas-hint]');
+    if (hint) hint.textContent = model.truncatedCount ? '另有 ' + model.truncatedCount + ' 条未展示' : '';
+    return true;
+  }
+
+  // ---- Viewport transform helpers ----
+
+  function applyLedgerCanvasViewportTransform(viewport, viewportState) {
+    if (!viewport) return;
+    const scale = ledgerCanvasClampScale(viewportState && viewportState.scale);
+    const x = Math.round(Number(viewportState && viewportState.x) || 0);
+    const y = Math.round(Number(viewportState && viewportState.y) || 0);
+    viewport.style.transform = 'translate(' + x + 'px, ' + y + 'px) scale(' + scale + ')';
+  }
+
+  function ledgerCanvasViewportOrigin(root) {
+    const viewport = root.querySelector('.pfh-canvas-viewport');
+    const rect = root.getBoundingClientRect();
+    return {
+      x: rect.left + (viewport ? viewport.offsetLeft : 0),
+      y: rect.top + (viewport ? viewport.offsetTop : 0),
+    };
+  }
+
+  function ledgerCanvasClientToWorld(root, clientX, clientY) {
+    const runtime = state.ledgerCanvas;
+    const vp = runtime && runtime.layout ? runtime.layout.viewport : { x: 0, y: 0, scale: 1 };
+    const scale = ledgerCanvasClampScale(vp.scale);
+    const origin = ledgerCanvasViewportOrigin(root);
+    return { x: (clientX - origin.x - vp.x) / scale, y: (clientY - origin.y - vp.y) / scale };
+  }
+
+  function ledgerCanvasViewportCenterWorld(root) {
+    const viewport = root.querySelector('.pfh-canvas-viewport');
+    const runtime = state.ledgerCanvas;
+    const vp = runtime && runtime.layout ? runtime.layout.viewport : { x: 0, y: 0, scale: 1 };
+    const scale = ledgerCanvasClampScale(vp.scale);
+    const width = viewport ? viewport.offsetWidth : 600;
+    const height = viewport ? viewport.offsetHeight : 420;
+    return {
+      x: Math.max(0, Math.round((width / 2 - vp.x) / scale - LEDGER_CANVAS_NODE_WIDTH / 2)),
+      y: Math.max(0, Math.round((height / 2 - vp.y) / scale - 60)),
+    };
+  }
+
+  function ledgerCanvasNodeAnchorById(root, id, end) {
+    const el = root.querySelector('[data-canvas-node-id="' + cssEscape(id) + '"]');
+    if (!el) return { x: 0, y: 0 };
+    const kind = el.getAttribute('data-canvas-kind') || 'task';
+    return {
+      x: (Number.parseFloat(el.style.left) || 0) + LEDGER_CANVAS_NODE_WIDTH / 2,
+      y: (Number.parseFloat(el.style.top) || 0) + (end === 'bottom' ? ledgerCanvasNodeHeight(kind) : 0),
+    };
+  }
+
+  // ---- Persistence ----
+
+  function persistLedgerCanvasLayout(root) {
+    const runtime = state.ledgerCanvas;
+    if (!runtime || !runtime.layout) return;
+    // Prune stale positions only against a live root; a save after the canvas
+    // closed must never wipe the dragged positions it can no longer verify.
+    let validNodeIds = null;
+    if (root && root.isConnected) {
+      validNodeIds = new Set();
+      root.querySelectorAll('[data-canvas-draggable]').forEach((el) => {
+        if (el.getAttribute('data-canvas-manual') !== '1') validNodeIds.add(el.getAttribute('data-canvas-node-id'));
+      });
+    }
+    runtime.layout = saveLedgerCanvasLayout(runtime.layout, validNodeIds);
+  }
+
+  function scheduleLedgerCanvasLayoutSave() {
+    const runtime = state.ledgerCanvas;
+    if (!runtime) return;
+    if (runtime.saveTimer) window.clearTimeout(runtime.saveTimer);
+    runtime.saveTimer = window.setTimeout(() => {
+      runtime.saveTimer = 0;
+      const root = document.querySelector('.pfh-canvas-root');
+      persistLedgerCanvasLayout(root && root.isConnected ? root : null);
+    }, LEDGER_CANVAS_SAVE_DEBOUNCE_MS);
+  }
+
+  // Manual nodes saved without coordinates (corrupt or hand-edited storage)
+  // land at the viewport center, staggered so several never fully overlap.
+  function placeUnplacedLedgerCanvasManualNodes(root) {
+    const runtime = state.ledgerCanvas;
+    if (!runtime || !runtime.layout) return;
+    const pending = runtime.layout.manualNodes.filter((node) => node.x == null || node.y == null);
+    if (!pending.length) return;
+    const center = ledgerCanvasViewportCenterWorld(root);
+    pending.forEach((node, index) => {
+      node.x = center.x + index * 24;
+      node.y = center.y + index * 24;
+    });
+    persistLedgerCanvasLayout(root);
+    refreshLedgerCanvasData(root);
+  }
+
+  // ---- Pointer sessions (bound to the canvas root only) ----
+
+  function handleLedgerCanvasPointerDown(event) {
+    const root = event.currentTarget;
+    if (!root || !root.isConnected || event.button !== 0) return;
+    const runtime = state.ledgerCanvas = state.ledgerCanvas || ledgerCanvasRuntimeState();
+    if (!runtime.layout) runtime.layout = loadLedgerCanvasLayout();
+    if (runtime.session) return;
+    const target = event.target;
+    if (!target || typeof target.closest !== 'function') return;
+    if (runtime.linkMode) {
+      const modeNode = target.closest('[data-canvas-node-id]');
+      const fromId = runtime.linkMode.fromId;
+      runtime.linkMode = null;
+      updateLedgerCanvasLinkModeHint(root);
+      if (modeNode && modeNode.getAttribute('data-canvas-node-id') !== fromId) {
+        toggleLedgerCanvasManualLink(root, fromId, modeNode.getAttribute('data-canvas-node-id'));
+      }
+      return;
+    }
+    if (target.closest('button, input, textarea, select, [data-canvas-no-drag]')) return;
+    const nodeEl = target.closest('[data-canvas-node-id]');
+    const handle = target.closest('[data-canvas-link-handle]');
+    if (handle && nodeEl && nodeEl.getAttribute('data-canvas-manual') === '1') {
+      runtime.session = {
+        type: 'link',
+        pointerId: event.pointerId,
+        root,
+        fromId: nodeEl.getAttribute('data-canvas-node-id'),
+      };
+      event.preventDefault();
+      try { root.setPointerCapture(event.pointerId); } catch (_) {}
+      return;
+    }
+    const viewport = target.closest('.pfh-canvas-viewport');
+    if (!viewport) return;
+    if (nodeEl && nodeEl.getAttribute('data-canvas-draggable') === '1') {
+      runtime.session = {
+        type: 'drag',
+        pointerId: event.pointerId,
+        root,
+        id: nodeEl.getAttribute('data-canvas-node-id'),
+        nodeEl,
+        manual: nodeEl.getAttribute('data-canvas-manual') === '1',
+        startX: event.clientX,
+        startY: event.clientY,
+        origX: Number.parseFloat(nodeEl.style.left) || 0,
+        origY: Number.parseFloat(nodeEl.style.top) || 0,
+        x: Number.parseFloat(nodeEl.style.left) || 0,
+        y: Number.parseFloat(nodeEl.style.top) || 0,
+        moved: false,
+      };
+      nodeEl.classList.add('is-dragging');
+      event.preventDefault();
+      try { root.setPointerCapture(event.pointerId); } catch (_) {}
+      return;
+    }
+    if (nodeEl) return;
+    const vp = runtime.layout.viewport;
+    runtime.session = {
+      type: 'pan',
+      pointerId: event.pointerId,
+      root,
+      viewport,
+      startX: event.clientX,
+      startY: event.clientY,
+      origVx: Number(vp.x) || 0,
+      origVy: Number(vp.y) || 0,
+      moved: false,
+    };
+    viewport.classList.add('is-panning');
+    try { root.setPointerCapture(event.pointerId); } catch (_) {}
+  }
+
+  function handleLedgerCanvasPointerMove(event) {
+    const runtime = state.ledgerCanvas;
+    const session = runtime && runtime.session;
+    if (!session || event.pointerId !== session.pointerId) return;
+    const dx = event.clientX - session.startX;
+    const dy = event.clientY - session.startY;
+    if (session.type === 'drag') {
+      if (!session.moved) {
+        if (Math.abs(dx) + Math.abs(dy) <= 3) return;
+        session.moved = true;
+      }
+      // Node left/top live in the pre-scale world space, so the screen-space
+      // pointer delta must be divided by the viewport scale.
+      const dragScale = ledgerCanvasClampScale(runtime.layout && runtime.layout.viewport ? runtime.layout.viewport.scale : 1);
+      session.x = Math.max(0, session.origX + dx / dragScale);
+      session.y = Math.max(0, session.origY + dy / dragScale);
+      session.nodeEl.style.left = Math.round(session.x) + 'px';
+      session.nodeEl.style.top = Math.round(session.y) + 'px';
+      event.preventDefault();
+      return;
+    }
+    if (session.type === 'pan') {
+      if (!session.moved) {
+        if (Math.abs(dx) + Math.abs(dy) <= 3) return;
+        session.moved = true;
+      }
+      const layout = runtime.layout;
+      layout.viewport.x = session.origVx + dx;
+      layout.viewport.y = session.origVy + dy;
+      applyLedgerCanvasViewportTransform(session.viewport, layout.viewport);
+      event.preventDefault();
+      return;
+    }
+    if (session.type === 'link') {
+      const from = ledgerCanvasNodeAnchorById(session.root, session.fromId, 'bottom');
+      const world = ledgerCanvasClientToWorld(session.root, event.clientX, event.clientY);
+      const svg = session.root.querySelector('.pfh-canvas-edges');
+      if (svg) {
+        let path = svg.querySelector('.pfh-canvas-edge-preview');
+        if (!path) {
+          path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('class', 'pfh-canvas-edge-preview');
+          svg.appendChild(path);
+        }
+        path.setAttribute('d', ledgerCanvasEdgePath(from.x, from.y, world.x, world.y));
+      }
+      event.preventDefault();
+    }
+  }
+
+  function clearLedgerCanvasLinkPreview(root) {
+    const path = root && root.querySelector('.pfh-canvas-edge-preview');
+    if (path) path.remove();
+  }
+
+  function updateLedgerCanvasLinkModeHint(root) {
+    const runtime = state.ledgerCanvas;
+    const hint = root && root.querySelector('[data-canvas-link-hint]');
+    if (hint) hint.hidden = !(runtime && runtime.linkMode);
+    if (root) root.classList.toggle('is-link-mode', Boolean(runtime && runtime.linkMode));
+  }
+
+  function handleLedgerCanvasPointerEnd(event) {
+    const runtime = state.ledgerCanvas;
+    const session = runtime && runtime.session;
+    if (!session) return;
+    if (event && event.pointerId !== undefined && event.pointerId !== session.pointerId) return;
+    runtime.session = null;
+    const root = session.root;
+    if (session.type === 'drag') {
+      try { root.releasePointerCapture(session.pointerId); } catch (_) {}
+      session.nodeEl.classList.remove('is-dragging');
+      if (session.moved) {
+        if (session.manual) {
+          const manual = runtime.layout.manualNodes.find((node) => node.id === session.id);
+          if (manual) {
+            manual.x = Math.round(session.x);
+            manual.y = Math.round(session.y);
+          }
+        } else {
+          runtime.layout.positions[session.id] = { x: Math.round(session.x), y: Math.round(session.y) };
+        }
+        persistLedgerCanvasLayout(root);
+      }
+    } else if (session.type === 'pan') {
+      try { root.releasePointerCapture(session.pointerId); } catch (_) {}
+      if (session.viewport) session.viewport.classList.remove('is-panning');
+      if (session.moved) scheduleLedgerCanvasLayoutSave();
+    } else if (session.type === 'link') {
+      try { root.releasePointerCapture(session.pointerId); } catch (_) {}
+      clearLedgerCanvasLinkPreview(root);
+      if (Number.isFinite(event && event.clientX)) {
+        const hit = document.elementFromPoint(event.clientX, event.clientY);
+        const hitEl = hit && typeof hit.closest === 'function' ? hit.closest('[data-canvas-node-id]') : null;
+        const hitId = hitEl ? hitEl.getAttribute('data-canvas-node-id') : '';
+        if (hitId && hitId !== session.fromId) {
+          toggleLedgerCanvasManualLink(root, session.fromId, hitId);
+        } else if (!hitId) {
+          runtime.linkMode = { fromId: session.fromId, at: Date.now() };
+          updateLedgerCanvasLinkModeHint(root);
+          showToast('未命中节点，已进入连线模式：点击目标节点完成连线，点空白处取消');
+        }
+      }
+    }
+    if (runtime.pendingRefresh) {
+      runtime.pendingRefresh = false;
+      refreshLedgerCanvasData(root);
+    }
+  }
+
+  function handleLedgerCanvasWheel(event) {
+    const viewport = event.currentTarget && event.currentTarget.querySelector('.pfh-canvas-viewport');
+    if (!viewport) return;
+    const runtime = state.ledgerCanvas = state.ledgerCanvas || ledgerCanvasRuntimeState();
+    if (!runtime.layout) runtime.layout = loadLedgerCanvasLayout();
+    event.preventDefault();
+    const scale = ledgerCanvasClampScale(runtime.layout.viewport.scale);
+    const nextScale = ledgerCanvasClampScale(scale * (event.deltaY < 0 ? 1.12 : 1 / 1.12));
+    if (nextScale === scale) return;
+    const origin = ledgerCanvasViewportOrigin(event.currentTarget);
+    const localX = event.clientX - origin.x;
+    const localY = event.clientY - origin.y;
+    const worldX = (localX - runtime.layout.viewport.x) / scale;
+    const worldY = (localY - runtime.layout.viewport.y) / scale;
+    runtime.layout.viewport.scale = nextScale;
+    runtime.layout.viewport.x = localX - worldX * nextScale;
+    runtime.layout.viewport.y = localY - worldY * nextScale;
+    applyLedgerCanvasViewportTransform(viewport, runtime.layout.viewport);
+    scheduleLedgerCanvasLayoutSave();
+  }
+
+  // ---- Manual node edits (inline input/textarea, saved on change + blur) ----
+
+  function ledgerCanvasCommitManualEdit(el) {
+    if (!el || typeof el.closest !== 'function') return;
+    const root = el.closest('.pfh-canvas-root');
+    if (!root || !root.isConnected) return;
+    const runtime = state.ledgerCanvas;
+    if (!runtime || !runtime.layout) return;
+    const nodeEl = el.closest('[data-canvas-node-id]');
+    if (!nodeEl) return;
+    const manual = runtime.layout.manualNodes.find((node) => node.id === nodeEl.getAttribute('data-canvas-node-id'));
+    if (!manual) return;
+    if (el.hasAttribute('data-canvas-note-title')) manual.title = String(el.value || '').slice(0, 40);
+    if (el.hasAttribute('data-canvas-note-text')) manual.note = String(el.value || '').slice(0, 240);
+    persistLedgerCanvasLayout(root);
+  }
+
+  function handleLedgerCanvasFocusOut(event) {
+    ledgerCanvasCommitManualEdit(event.target);
+  }
+
+  function handleLedgerCanvasChange(event) {
+    ledgerCanvasCommitManualEdit(event.target);
+  }
+
+  // ---- Manual links + toolbar actions ----
+
+  function toggleLedgerCanvasManualLink(root, fromId, toId) {
+    const runtime = state.ledgerCanvas;
+    if (!runtime || !runtime.layout) return;
+    const manual = runtime.layout.manualNodes.find((node) => node.id === fromId);
+    if (!manual || fromId === toId) return;
+    manual.links = manual.links || [];
+    if (manual.links.includes(toId)) {
+      manual.links = manual.links.filter((link) => link !== toId);
+      showToast('已取消连线');
+    } else {
+      if (manual.links.length >= LEDGER_CANVAS_MAX_MANUAL_LINKS) {
+        showToast('单个节点连线已达上限 ' + LEDGER_CANVAS_MAX_MANUAL_LINKS + ' 条');
+        return;
+      }
+      manual.links.push(toId);
+      showToast('已连线');
+    }
+    persistLedgerCanvasLayout(root);
+    refreshLedgerCanvasData(root);
+  }
+
+  function addLedgerCanvasManualNode(root) {
+    const runtime = state.ledgerCanvas = state.ledgerCanvas || ledgerCanvasRuntimeState();
+    if (!runtime.layout) runtime.layout = loadLedgerCanvasLayout();
+    if (runtime.layout.manualNodes.length >= LEDGER_CANVAS_MAX_MANUAL_NODES) {
+      showToast('手动节点已达上限 ' + LEDGER_CANVAS_MAX_MANUAL_NODES + ' 个');
+      return;
+    }
+    const id = 'manual:' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+    const center = ledgerCanvasViewportCenterWorld(root);
+    const offset = (runtime.layout.manualNodes.length % 12) * 24;
+    runtime.layout.manualNodes.push({ id, kind: 'note', title: '', note: '', x: center.x + offset, y: center.y + offset, createdAtMs: Date.now(), links: [] });
+    persistLedgerCanvasLayout(root);
+    refreshLedgerCanvasData(root);
+    const input = root.querySelector('[data-canvas-node-id="' + cssEscape(id) + '"] [data-canvas-note-title]');
+    if (input) {
+      input.focus();
+      if (typeof input.select === 'function') input.select();
+    }
+  }
+
+  function deleteLedgerCanvasNode(root, actionTarget) {
+    const runtime = state.ledgerCanvas;
+    if (!runtime || !runtime.layout) return;
+    const nodeEl = actionTarget && typeof actionTarget.closest === 'function' ? actionTarget.closest('[data-canvas-node-id]') : null;
+    if (!nodeEl) return;
+    const id = nodeEl.getAttribute('data-canvas-node-id');
+    const button = typeof actionTarget.closest === 'function' ? actionTarget.closest('button.pfh-canvas-node-delete') : null;
+    if (!runtime.deleteArm || runtime.deleteArm.id !== id || Date.now() - runtime.deleteArm.at > LEDGER_CANVAS_DELETE_ARM_MS) {
+      runtime.deleteArm = { id, at: Date.now() };
+      if (button) {
+        button.classList.add('is-armed');
+        button.textContent = '确认';
+        button.title = '再次点击删除';
+      }
+      window.setTimeout(() => {
+        if (runtime.deleteArm && runtime.deleteArm.id === id && Date.now() - runtime.deleteArm.at >= LEDGER_CANVAS_DELETE_ARM_MS - 100) {
+          runtime.deleteArm = null;
+          if (button && button.isConnected) {
+            button.classList.remove('is-armed');
+            button.textContent = '✕';
+            button.title = '删除节点';
+          }
+        }
+      }, LEDGER_CANVAS_DELETE_ARM_MS + 100);
+      return;
+    }
+    runtime.deleteArm = null;
+    if (!runtime.layout.manualNodes.some((node) => node.id === id)) return;
+    runtime.layout.manualNodes = runtime.layout.manualNodes.filter((node) => node.id !== id);
+    runtime.layout.manualNodes.forEach((node) => {
+      node.links = (node.links || []).filter((link) => link !== id);
+    });
+    persistLedgerCanvasLayout(root);
+    refreshLedgerCanvasData(root);
+    showToast('已删除手动节点');
+  }
+
+  function resetLedgerCanvasZoom(root) {
+    const runtime = state.ledgerCanvas;
+    if (!runtime || !runtime.layout) return;
+    runtime.layout.viewport = { x: 0, y: 0, scale: 1 };
+    applyLedgerCanvasViewportTransform(root.querySelector('.pfh-canvas-viewport'), runtime.layout.viewport);
+    persistLedgerCanvasLayout(root);
+  }
+
+  function resetLedgerCanvasLayout(root) {
+    const runtime = state.ledgerCanvas;
+    if (!runtime || !runtime.layout) return;
+    runtime.layout.positions = {};
+    runtime.layout.viewport = { x: 0, y: 0, scale: 1 };
+    applyLedgerCanvasViewportTransform(root.querySelector('.pfh-canvas-viewport'), runtime.layout.viewport);
+    persistLedgerCanvasLayout(root);
+    refreshLedgerCanvasData(root);
+    showToast('画布布局已复位');
+  }
+
+  function handleLedgerCanvasPanelAction(action, actionTarget) {
+    const root = actionTarget && typeof actionTarget.closest === 'function' ? actionTarget.closest('.pfh-canvas-root') : null;
+    if (!root || !root.isConnected) return;
+    const runtime = state.ledgerCanvas = state.ledgerCanvas || ledgerCanvasRuntimeState();
+    if (!runtime.layout) runtime.layout = loadLedgerCanvasLayout();
+    if (action === 'canvas-add-node') {
+      addLedgerCanvasManualNode(root);
+      return;
+    }
+    if (action === 'canvas-delete-node') {
+      deleteLedgerCanvasNode(root, actionTarget);
+      return;
+    }
+    if (action === 'canvas-refresh') {
+      if (runtime.session) {
+        runtime.pendingRefresh = true;
+      } else {
+        runtime.pendingRefresh = false;
+        refreshLedgerCanvasData(root);
+      }
+      return;
+    }
+    if (action === 'canvas-reset-zoom') {
+      resetLedgerCanvasZoom(root);
+      return;
+    }
+    if (action === 'canvas-reset-layout') {
+      resetLedgerCanvasLayout(root);
+    }
+  }
+
+  // ---- Setup: bind once per canvas root; listeners die with the root ----
+
+  function setupLedgerCanvas(root) {
+    if (!root || !root.isConnected) return;
+    ensureLedgerCanvasStyles();
+    const runtime = state.ledgerCanvas = state.ledgerCanvas || ledgerCanvasRuntimeState();
+    // A session from a previous root never survives a content swap.
+    runtime.session = null;
+    runtime.pendingRefresh = false;
+    runtime.deleteArm = null;
+    runtime.linkMode = null;
+    if (!runtime.layout) runtime.layout = loadLedgerCanvasLayout();
+    if (root.getAttribute('data-canvas-setup') === '1') return;
+    root.setAttribute('data-canvas-setup', '1');
+    const viewport = root.querySelector('.pfh-canvas-viewport');
+    if (!viewport) return;
+    applyLedgerCanvasViewportTransform(viewport, runtime.layout.viewport);
+    placeUnplacedLedgerCanvasManualNodes(root);
+    root.addEventListener('pointerdown', handleLedgerCanvasPointerDown);
+    root.addEventListener('pointermove', handleLedgerCanvasPointerMove);
+    root.addEventListener('pointerup', handleLedgerCanvasPointerEnd);
+    root.addEventListener('pointercancel', handleLedgerCanvasPointerEnd);
+    root.addEventListener('lostpointercapture', handleLedgerCanvasPointerEnd);
+    root.addEventListener('wheel', handleLedgerCanvasWheel, { passive: false });
+    root.addEventListener('focusout', handleLedgerCanvasFocusOut);
+    root.addEventListener('change', handleLedgerCanvasChange);
+  }
+  // </core-ledger-canvas-module>
   // <core-app-main-module>
   const CM_TO_INCH = 1 / 2.54;
   const NORMAL_DELTA_CM = 0.2;
@@ -29799,6 +30771,7 @@
     detail.classList.remove('is-loading');
     detail.innerHTML = ledgerViewHtml(records);
     setupLedgerTabFusion(detail);
+    if (state.ledgerView === 'canvas') setupLedgerCanvas(detail.querySelector('.pfh-canvas-root'));
   }
 
   function renderLedgerTabContent(panel) {
@@ -29816,18 +30789,18 @@
     template.innerHTML = ledgerViewContentHtml(records);
     const nextContent = Array.from(template.content.childNodes);
     if (!nextContent.length) return false;
-    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
+    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : (state.ledgerView === 'canvas' ? 'canvas' : 'design'));
     const month = getCurrentLedgerMonth();
     const currentDetailScroll = detail.querySelector('.pfh-detail-scroll');
     if (currentDetailScroll) currentDetailScroll.setAttribute('data-scroll-context', ['ledger', mode, month].join('|'));
     const currentHeroNote = page.querySelector('[data-ledger-hero-note]');
     if (currentHeroNote) currentHeroNote.textContent = mode === 'trash'
       ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。'
-      : (mode === 'finalized' ? '默认只显示图包未完成；选中多个产品后，点击纸盒、标签或图包会同步选中产品，图包完成后自动收纳。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。');
+      : (mode === 'finalized' ? '默认只显示图包未完成；选中多个产品后，点击纸盒、标签或图包会同步选中产品，图包完成后自动收纳。' : (mode === 'canvas' ? '画布汇总今日出图与定稿：拖动卡片与视口，手动备注只保存在本地。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。'));
     const currentRecordCount = page.querySelector('[data-ledger-record-count]');
-    if (currentRecordCount) currentRecordCount.textContent = records.length + ' 条 / ' + month;
+    if (currentRecordCount) currentRecordCount.textContent = mode === 'canvas' ? ledgerCanvasRecordCountLabel(month) : records.length + ' 条 / ' + month;
     tabs.setAttribute('data-active-tab', mode);
-    const nextActiveAction = mode === 'trash' ? 'ledger-view-trash' : (mode === 'finalized' ? 'ledger-view-finalized' : 'ledger-view-design');
+    const nextActiveAction = mode === 'trash' ? 'ledger-view-trash' : (mode === 'finalized' ? 'ledger-view-finalized' : (mode === 'canvas' ? 'ledger-view-canvas' : 'ledger-view-design'));
     tabs.querySelectorAll('button[data-action^="ledger-view-"]').forEach((button) => {
       const active = button.getAttribute('data-action') === nextActiveAction;
       button.classList.toggle('active', active);
@@ -29838,12 +30811,19 @@
       trashEntry.classList.toggle('is-active', mode === 'trash');
       trashEntry.setAttribute('aria-current', mode === 'trash' ? 'page' : 'false');
     }
-    if (contentAnchor.classList.contains('pfh-ledger-content-anchor')) {
-      while (contentAnchor.firstChild) contentAnchor.removeChild(contentAnchor.firstChild);
-      nextContent.forEach((node) => contentAnchor.appendChild(node));
+    if (mode === 'canvas' && page.querySelector('.pfh-canvas-root')) {
+      // Canvas is live: refresh the existing root in place (or defer while a
+      // pointer session runs) instead of tearing down dragged nodes.
+      refreshLedgerCanvasData(page.querySelector('.pfh-canvas-root'));
     } else {
-      while (contentAnchor.nextElementSibling) contentAnchor.nextElementSibling.remove();
-      nextContent.forEach((node) => page.appendChild(node));
+      if (contentAnchor.classList.contains('pfh-ledger-content-anchor')) {
+        while (contentAnchor.firstChild) contentAnchor.removeChild(contentAnchor.firstChild);
+        nextContent.forEach((node) => contentAnchor.appendChild(node));
+      } else {
+        while (contentAnchor.nextElementSibling) contentAnchor.nextElementSibling.remove();
+        nextContent.forEach((node) => page.appendChild(node));
+      }
+      if (mode === 'canvas') setupLedgerCanvas(page.querySelector('.pfh-canvas-root'));
     }
     const indicator = tabs.querySelector('.pfh-ledger-tab-indicator');
     const activeButton = tabs.querySelector('button.is-active,button.active');
@@ -29887,7 +30867,7 @@
         buttons.forEach((item) => item.classList.remove('active', 'is-active'));
         button.classList.add('active', 'is-active');
         const action = button.getAttribute('data-action') || '';
-        tabs.setAttribute('data-active-tab', action === 'ledger-view-finalized' ? 'finalized' : (action === 'ledger-view-trash' ? 'trash' : 'design'));
+        tabs.setAttribute('data-active-tab', action === 'ledger-view-finalized' ? 'finalized' : (action === 'ledger-view-trash' ? 'trash' : (action === 'ledger-view-canvas' ? 'canvas' : 'design')));
         moveIndicator(button);
       });
     });
@@ -35554,6 +36534,7 @@ self.onmessage = async function(event) {
   }
 
   function ledgerViewContentHtml(records) {
+    if (state.ledgerView === 'canvas') return ledgerCanvasViewHtml();
     const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
     const filteredRecords = filterLedgerWorkbenchRecords(records, mode);
     const groups = groupLedgerRecordsByDate(filteredRecords, mode === 'trash' ? 'design' : mode);
@@ -35603,15 +36584,16 @@ self.onmessage = async function(event) {
       style.textContent = LEDGER_WORKSPACE_CSS;
       document.documentElement.appendChild(style);
     }
-    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
+    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : (state.ledgerView === 'canvas' ? 'canvas' : 'design'));
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page pfh-ledger-unified">' +
-      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : (mode === 'finalized' ? '默认只显示图包未完成；选中多个产品后，点击纸盒、标签或图包会同步选中产品，图包完成后自动收纳。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。')) + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell">' +
+      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : (mode === 'finalized' ? '默认只显示图包未完成；选中多个产品后，点击纸盒、标签或图包会同步选中产品，图包完成后自动收纳。' : (mode === 'canvas' ? '画布汇总今日出图与定稿：拖动卡片与视口，手动备注只保存在本地。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。'))) + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(mode === 'canvas' ? ledgerCanvasRecordCountLabel(month) : records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell">' +
            '<div class="pfh-ledger-tabs-main"><div class="pfh-ledger-tabs" data-active-tab="' + mode + '">' +
              '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
              '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + '" data-action="ledger-view-design">待定稿</button>' +
              '<button type="button" class="' + (mode === 'finalized' ? 'is-active active' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
+             '<button type="button" class="' + (mode === 'canvas' ? 'is-active active' : '') + '" data-action="ledger-view-canvas">画布</button>' +
            '</div></div>' +
            '<button type="button" class="pfh-ledger-trash-entry' + (mode === 'trash' ? ' is-active' : '') + '" data-action="ledger-view-trash" aria-label="垃圾篓" title="垃圾篓" aria-current="' + (mode === 'trash' ? 'page' : 'false') + '">' + iconHtml('trash') + '</button>' +
          '</div></div></div>' +
@@ -35685,6 +36667,11 @@ self.onmessage = async function(event) {
   }
 
   function refreshLedgerCard(record) {
+    // Canvas view shows a frozen snapshot; per-card repaints would rebuild the
+    // dragged layout, so background record updates wait for an explicit refresh.
+    // Narrow to the ledger view: a stale ledgerView must not swallow the
+    // renderShell() fallback that other views rely on.
+    if (state.view === 'ledger' && state.ledgerView === 'canvas') return;
     if (!record || state.view !== 'ledger') {
       renderShell();
       return;
@@ -39686,8 +40673,8 @@ self.onmessage = async function(event) {
       }
       return;
     }
-    if (action === 'ledger-view-design' || action === 'ledger-view-finalized' || action === 'ledger-view-trash') {
-      const nextLedgerView = action === 'ledger-view-trash' ? 'trash' : (action === 'ledger-view-finalized' ? 'finalized' : 'design');
+    if (action === 'ledger-view-design' || action === 'ledger-view-finalized' || action === 'ledger-view-trash' || action === 'ledger-view-canvas') {
+      const nextLedgerView = action === 'ledger-view-trash' ? 'trash' : (action === 'ledger-view-finalized' ? 'finalized' : (action === 'ledger-view-canvas' ? 'canvas' : 'design'));
       state.ledgerView = nextLedgerView;
       const renderToken = (Number(state.ledgerTabRenderToken) || 0) + 1;
       state.ledgerTabRenderToken = renderToken;
@@ -39700,6 +40687,10 @@ self.onmessage = async function(event) {
       } else {
         window.setTimeout(repaintLedgerContent, 32);
       }
+      return;
+    }
+    if (action === 'canvas-add-node' || action === 'canvas-delete-node' || action === 'canvas-refresh' || action === 'canvas-reset-zoom' || action === 'canvas-reset-layout') {
+      handleLedgerCanvasPanelAction(action, actionTarget);
       return;
     }
     if (action === 'ledger-prev-day') {

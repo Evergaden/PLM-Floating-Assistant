@@ -61,6 +61,11 @@ const modules = [
   },
   { name: 'magic-upload-actions', file: path.join(root, 'src', 'magic-upload-actions.module.js') },
   {
+    name: 'core-ledger-canvas',
+    file: path.join(root, 'src', 'core-ledger-canvas.module.js'),
+    requiredSourceMarkers: ['LEDGER_CANVAS_LAYOUT_KEY', 'buildLedgerCanvasModel', 'ledgerCanvasViewHtml', 'setupLedgerCanvas', 'refreshLedgerCanvasData'],
+  },
+  {
     name: 'core-app-main',
     files: [
       path.join(root, 'src', 'core-app-bootstrap.module.js'),
