@@ -39,13 +39,13 @@ assert.doesNotMatch(source, /data-action="home-chart-period"/, 'Period switch is
 const featureCode = source.slice(source.indexOf('  function homeFeatureEntryHtml('), source.indexOf('  function normalizeProductDevelopmentFeatureGroups('));
 const featureContext = { escapeHtml: String, iconHtml: () => '' };
 vm.createContext(featureContext); vm.runInContext(featureCode, featureContext);
-const detail = { id: 'detail', title: '我的详情', description: '查看任务', meta: '1301 个本地产品档案', action: 'open-first-detail', icon: 'folder' };
+const detail = { id: 'detail', title: '我的详情', description: '查看任务\n继续处理', action: 'open-first-detail', icon: 'folder' };
 const detailCard = featureContext.homeFeatureEntryHtml(detail, 'pfh-home-entry-primary');
 assert.match(detailCard, /data-action="open-first-detail"/);
 assert.match(detailCard, /class="pfh-home-entry-detail-cta">进入详情/);
 assert.doesNotMatch(detailCard, /pfh-home-entry-icon/, 'Details card does not show an icon');
-assert.match(detailCard, /<small class="pfh-home-entry-description">查看任务<\/small>/);
-assert.match(detailCard, /<em class="pfh-home-entry-meta">1301 个本地产品档案<\/em>/);
+assert.match(detailCard, /<small class="pfh-home-entry-description">查看任务\n继续处理<\/small>/);
+assert.doesNotMatch(source, /entry\.meta = state\.index\.length/, 'Details card omits the local archive count');
 const legacyCss = fs.readFileSync(require('path').join(__dirname, '../cloudflare/plm-cloud-backup/ui-src/legacy.css'), 'utf8');
 assert.doesNotMatch(legacyCss, /:where\(small,em,[^}]+color:[^}]+!important/, 'Global text fallback must not override component colors');
 assert.equal((detailCard.match(/<button/g) || []).length, 1, 'The call to action is part of the card button');

@@ -92,14 +92,14 @@
   }
 
   const HOME_FEATURE_DEFINITIONS = Object.freeze([
-    Object.freeze({ id: 'detail', action: 'open-first-detail', icon: 'folder', title: '我的详情', description: '点击后先检查新的设计分配，自动加入本地列表和今日工作台。' }),
-    Object.freeze({ id: 'batchExcel', action: 'home-batch-excel', icon: 'batchExcel', title: '批量生成 Excel', description: '多个 SKU 自动补全并成表' }),
-    Object.freeze({ id: 'upload', action: 'upload-toggle', icon: 'upload', title: '批量提审上传', description: '队列上传并记录状态' }),
-    Object.freeze({ id: 'magicUpload', action: 'home-magic-upload', icon: 'upload', title: '魔法上传', description: 'ZIP 自动识别并上传' }),
-    Object.freeze({ id: 'parameterImage', action: 'home-parameter-image', icon: 'image', title: '生成参数图', description: '尺寸图与英文参数图' }),
-    Object.freeze({ id: 'ledger', action: 'ledger-open', icon: 'taskPlan', title: '今日工作台', description: '记录定稿和流程' }),
-    Object.freeze({ id: 'tools', action: 'home-tools', icon: 'tools', title: '小工具', description: '换算、编码与批量文案补全' }),
-    Object.freeze({ id: 'feedback', action: 'home-feedback', icon: 'messageCircle', title: '提交反馈', description: '建议与问题反馈' }),
+    Object.freeze({ id: 'detail', action: 'open-first-detail', icon: 'folder', title: '我的详情', description: '查看我的产品资料与任务，\n自动检查并加入新的设计分配。' }),
+    Object.freeze({ id: 'batchExcel', action: 'home-batch-excel', icon: 'batchExcel', title: '批量生成 Excel', description: '输入多个 SKU 补全产品资料，\n按需分别下载或合并成表。' }),
+    Object.freeze({ id: 'upload', action: 'upload-toggle', icon: 'upload', title: '批量提审上传', description: '批量添加文件并提交上传，\n在队列中查看每项处理状态。' }),
+    Object.freeze({ id: 'magicUpload', action: 'home-magic-upload', icon: 'upload', title: '魔法上传', description: '自动识别图包中的商品编码，\n批量上传文件并跟踪进度。' }),
+    Object.freeze({ id: 'parameterImage', action: 'home-parameter-image', icon: 'image', title: '生成参数图', description: '整理产品尺寸与相关参数，\n生成尺寸图和英文参数图。' }),
+    Object.freeze({ id: 'ledger', action: 'ledger-open', icon: 'taskPlan', title: '今日工作台', description: '集中查看设计分配与定稿，\n跟进纸盒、标签和图包进度。' }),
+    Object.freeze({ id: 'tools', action: 'home-tools', icon: 'tools', title: '小工具', description: '常用换算和编码整理，\n支持批量补全玩具文案。' }),
+    Object.freeze({ id: 'feedback', action: 'home-feedback', icon: 'messageCircle', title: '提交反馈', description: '记录使用中遇到的问题，\n也欢迎分享你的改进建议。' }),
   ]);
   const DEFAULT_HOME_FEATURE_GROUPS = Object.freeze({
     common: Object.freeze(['detail', 'batchExcel', 'upload', 'magicUpload', 'parameterImage']),

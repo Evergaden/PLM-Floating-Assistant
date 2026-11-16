@@ -2100,7 +2100,6 @@
     const parameterImageLocked = !state.parameterImageAccessEnabled;
     return HOME_FEATURE_DEFINITIONS.map((definition) => {
       const entry = { ...definition };
-      if (entry.id === 'detail') entry.meta = state.index.length + ' 个本地产品档案';
       if (entry.id === 'magicUpload') {
         entry.description = magicLocked
           ? (state.magicUploadAccessLoading ? '正在准备功能' : '该功能暂未开放')

@@ -23,10 +23,12 @@
 
 /* Product names, task identities and key metric values retain emphasis. */
 #plm-floating-helper[data-view="home"] .pfh-home-metric > div strong,
-#plm-floating-helper[data-view="home"] .pfh-home-entry-copy strong,
 #plm-floating-helper[data-view="home"] .pfh-home-chart-tooltip strong,
 #plm-floating-helper[data-view="home"] .pfh-home-metric > footer b {
   font-weight: var(--pfh-home-weight-title);
+}
+#plm-floating-helper[data-view="home"] .pfh-home-entry-copy strong {
+  font-weight: var(--pfh-home-weight-heading);
 }
 #plm-floating-helper[data-view="home"] .pfh-home-chart-tooltip span,
 #plm-floating-helper[data-view="home"] .pfh-home-panel-title > span,

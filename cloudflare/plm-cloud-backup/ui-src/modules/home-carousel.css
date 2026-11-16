@@ -480,9 +480,9 @@
   margin-top:4px;
   overflow:hidden;
   color:var(--pfh-theme-muted);
-  font-size:14px;
+  font-size:13px;
   line-height:1.45;
-  white-space:nowrap;
+  white-space:pre-line;
   text-overflow:ellipsis;
 }
 #plm-floating-helper .pfh-home-entry-arrow{
@@ -542,11 +542,11 @@
   font-size:16px;
 }
 #plm-floating-helper .pfh-home-entry-primary .pfh-home-entry-copy .pfh-home-entry-description{
-  color:#fff;
-  font-size:14px;
+  color:rgba(255,255,255,.9);
+  font-size:13px;
   line-height:1.45;
   text-shadow:none;
-  white-space:normal;
+  white-space:pre-line;
 }
 #plm-floating-helper .pfh-home-entry-primary .pfh-home-entry-arrow{
   position:absolute;
@@ -584,7 +584,7 @@
   background:var(--pfh-theme-surface);
 }
 #plm-floating-helper .pfh-home-entry-quick .pfh-home-entry-copy .pfh-home-entry-description{
-  white-space:normal;
+  white-space:pre-line;
   line-height:1.5;
   margin-top:7px;
 }

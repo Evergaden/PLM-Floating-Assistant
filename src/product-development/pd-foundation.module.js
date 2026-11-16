@@ -159,13 +159,13 @@
     Object.freeze({ pattern: /\bGUMM(?:Y|IES)\b/i, en: 'GUMMIES', zh: '粒软糖' }),
   ]);
   const PRODUCT_DEVELOPMENT_FEATURES = Object.freeze([
-    Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder' }),
-    Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取全部图片文字，生成中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
-    Object.freeze({ id: 'copywriting', title: '文案 DOCX', subtitle: '选择开发产品，生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
-    Object.freeze({ id: 'ingredientFacts', title: '制作成分表', subtitle: '按需加载云端人类或宠物模板摘要，编辑后导出 PDF', action: 'product-development-ingredient-open', icon: 'batchExcel' }),
-    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '全包价格计算国内三档价格', action: 'product-development-pricing-open', icon: 'calculator' }),
-    Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '出单数量、手工贴标和返工 100 件规则', action: '', icon: 'box' }),
-    Object.freeze({ id: 'materials', title: '包材库', subtitle: 'BOM 用过的包材自动归档，图片化浏览', action: 'product-development-materials-view', icon: 'box' }),
+    Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '查看分配给我的开发产品，\n继续处理图片、文案和资料。', action: 'product-development-tasks-open', icon: 'folder' }),
+    Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取产品图片中的文字，\n生成中英文修改对照图。', action: 'product-development-review-open', icon: 'image' }),
+    Object.freeze({ id: 'copywriting', title: '文案 DOCX', subtitle: '选择开发产品并整理资料，\n生成可编辑的双语文案文件。', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
+    Object.freeze({ id: 'ingredientFacts', title: '制作成分表', subtitle: '加载人类或宠物成分表模板，\n编辑内容后导出 PDF 文件。', action: 'product-development-ingredient-open', icon: 'batchExcel' }),
+    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '输入产品全包价格，\n计算并查看国内三档价格。', action: 'product-development-pricing-open', icon: 'calculator' }),
+    Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '查看出单数量与备货规则，\n了解手工贴标和返工标准。', action: '', icon: 'box' }),
+    Object.freeze({ id: 'materials', title: '包材库', subtitle: '浏览 BOM 中使用过的包材，\n按图片查看已归档的资料。', action: 'product-development-materials-view', icon: 'box' }),
   ]);
 
   // These are style examples from the supplied product-material workbook. They
