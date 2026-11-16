@@ -159,7 +159,7 @@
       if (state.assignedDesignTaskSyncPromise) return;
       syncAssignedDesignTasksFromApi({ deferRender: true }).then((syncResult) => {
         if (syncResult && syncResult.skipped) {
-          showToast(syncResult.catalogRunning ? '全部产品正在分批采集，可在首页查看进度' : '五分钟内已查询过，暂不重复请求');
+          showToast(syncResult.catalogRunning ? '全部产品正在分批采集，可在产品列表查看进度' : '五分钟内已查询过，暂不重复请求');
           return;
         }
         if (state.view === 'detail' && !state.selectedSku && state.index[0] && state.index[0].sku) {

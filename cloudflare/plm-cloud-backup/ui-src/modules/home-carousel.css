@@ -430,6 +430,7 @@
 #plm-floating-helper .pfh-home-feature-layout{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-auto-rows:1fr;
   gap:8px;
 }
 #plm-floating-helper[data-pfh-theme] .pfh-home-entry{
@@ -470,14 +471,17 @@
 #plm-floating-helper .pfh-home-entry-copy strong{
   overflow:hidden;
   color:var(--pfh-theme-text);
-  font-size:12px;
+  font-size:14px;
+  line-height:1.35;
   white-space:nowrap;
   text-overflow:ellipsis;
 }
 #plm-floating-helper .pfh-home-entry-copy small{
-  margin-top:3px;
+  margin-top:4px;
   overflow:hidden;
-  font-size:9px;
+  color:var(--pfh-theme-muted);
+  font-size:12px;
+  line-height:1.45;
   white-space:nowrap;
   text-overflow:ellipsis;
 }
@@ -535,14 +539,13 @@
 }
 #plm-floating-helper .pfh-home-entry-primary .pfh-home-entry-copy strong{
   color:#fff;
-  font-size:17px;
+  font-size:14px;
 }
 #plm-floating-helper .pfh-home-entry-primary .pfh-home-entry-copy small{
-  max-width:190px;
-  margin-top:5px;
-  font-size:10px;
-  line-height:1.55;
-  text-shadow:0 1px 2px rgba(20,55,73,.18);
+  color:#fff;
+  font-size:12px;
+  line-height:1.45;
+  text-shadow:none;
   white-space:normal;
 }
 #plm-floating-helper .pfh-home-entry-primary .pfh-home-entry-arrow{
@@ -552,18 +555,23 @@
   color:#fff;
 }
 #plm-floating-helper[data-pfh-theme] .pfh-home-entry-meta{
-  position:absolute;
-  right:13px;
-  bottom:13px;
+  position:static;
+  order:-1;
+  align-self:flex-end;
   z-index:1;
   padding:5px 8px;
-  color:#fff;
-  background:rgba(24,62,82,.2);
-  border:1px solid rgba(255,255,255,.34);
+  color:var(--pfh-theme-text);
+  background:var(--pfh-theme-primary-soft);
+  border:1px solid var(--pfh-theme-border-strong);
   border-radius:999px;
-  font-size:9px;
+  font-size:11px;
   font-style:normal;
-  text-shadow:0 1px 2px rgba(18,54,74,.24);
+  text-shadow:none;
+}
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry-primary .pfh-home-entry-meta{
+  color:#fff;
+  background:rgba(0,0,0,.22);
+  border-color:rgba(255,255,255,.5);
 }
 #plm-floating-helper .pfh-home-quick-grid{
   display:contents;
@@ -597,7 +605,7 @@
 #plm-floating-helper .pfh-home-entry-secondary .pfh-home-entry-copy small,
 #plm-floating-helper .pfh-home-entry-secondary .pfh-home-entry-arrow{display:none;}
 #plm-floating-helper .pfh-home-entry-secondary .pfh-home-entry-copy{flex:0 1 auto;}
-#plm-floating-helper .pfh-home-entry-secondary .pfh-home-entry-copy strong{font-size:10px;}
+#plm-floating-helper .pfh-home-entry-secondary .pfh-home-entry-copy strong{font-size:12px;}
 #plm-floating-helper .pfh-home-feature-empty{
   min-height:151px;
   display:grid;

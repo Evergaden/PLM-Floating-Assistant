@@ -374,7 +374,7 @@
     });
     update('同步中…');
     refreshHomeCollectionCard();
-    showToast('开始分批采集全部产品，可在首页查看进度或暂停');
+    showToast('开始分批采集全部产品，可在产品列表查看进度或暂停');
     const currentUser = String(findCurrentPlmUserName() || '').replace(/\s+/g, '').toLowerCase();
     try {
       if (state.assignedDesignTaskSyncPromise) {

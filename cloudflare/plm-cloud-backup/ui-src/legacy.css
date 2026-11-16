@@ -5587,14 +5587,6 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
   #plm-floating-helper .pfh-edition-badge small{display:none;}
 }
 
-/* Keep the archive count in the same top-right position for every theme. */
-#plm-floating-helper[data-pfh-theme] .pfh-home-entry-primary .pfh-home-entry-meta{
-  top:18px!important;
-  right:48px!important;
-  bottom:auto!important;
-  padding:4px 8px!important;
-}
-
 @keyframes pfhMagicHistoryUp{
   0%{opacity:.35;transform:translateY(36px) scale(.985)}
   68%{opacity:1;transform:translateY(-3px) scale(1.002)}
@@ -5657,21 +5649,6 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
 #plm-floating-helper .pfh-home-metric>footer b{
   font-size:14px!important;
 }
-#plm-floating-helper .pfh-home-entry-copy strong{
-  line-height:1.35!important;
-}
-#plm-floating-helper .pfh-home-entry-copy small{
-  margin-top:4px!important;
-  color:var(--pfh-theme-muted)!important;
-}
-#plm-floating-helper .pfh-home-entry-primary .pfh-home-entry-copy small{
-  color:rgba(255,255,255,.84)!important;
-  text-shadow:none!important;
-}
-#plm-floating-helper[data-pfh-theme] .pfh-home-entry-primary .pfh-home-entry-meta{
-  font-size:8px!important;
-  text-shadow:none!important;
-}
 
 /* Stronger hierarchy pass: larger readable support text and less competing chrome. */
 #plm-floating-helper .pfh-home-welcome p{
@@ -5696,15 +5673,6 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
 #plm-floating-helper .pfh-home-metric>footer small{
   font-size:10px!important;
 }
-#plm-floating-helper .pfh-home-entry-copy small{
-  font-size:10.5px!important;
-  line-height:1.45!important;
-}
-#plm-floating-helper .pfh-home-entry-primary .pfh-home-entry-copy small{
-  max-width:220px!important;
-  font-size:11px!important;
-  line-height:1.55!important;
-}
 
 /* Refined home typography: hierarchy through size and spacing, not heavy weight. */
 #plm-floating-helper .pfh-home-welcome h2{
@@ -5722,15 +5690,6 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
 }
 #plm-floating-helper .pfh-home-metric>div strong{
   font-size:44px!important;
-}
-#plm-floating-helper .pfh-home-entry-copy strong{
-  font-size:12.5px!important;
-}
-#plm-floating-helper .pfh-home-entry-primary .pfh-home-entry-copy strong{
-  font-size:18px!important;
-}
-#plm-floating-helper .pfh-home-entry-secondary .pfh-home-entry-copy strong{
-  font-size:11px!important;
 }
 
 

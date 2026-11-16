@@ -2129,7 +2129,7 @@
       : ' type="button" data-action="' + escapeHtml(entry.action) + '"';
     const editHandle = editing ? '<span class="pfh-home-entry-drag-handle" aria-hidden="true">⋮⋮</span>' : '';
     return '<' + tag + ' class="pfh-home-entry ' + (className || '') + (disabled || entry.accessLocked ? ' is-disabled' : '') + (editing ? ' is-editing-card' : '') + '"' + attrs + (disabled && !editing ? ' disabled aria-disabled="true"' : '') + '>' +
-      '<span class="pfh-home-entry-icon">' + iconHtml(entry.icon) + '</span>' +
+      (entry.id === 'detail' ? '' : '<span class="pfh-home-entry-icon">' + iconHtml(entry.icon) + '</span>') +
       '<span class="pfh-home-entry-copy"><strong>' + escapeHtml(entry.title) + '</strong><small>' + escapeHtml(entry.description) + '</small></span>' +
       (!editing && entry.id === 'detail' ? '<span class="pfh-home-entry-detail-cta">进入详情</span>' : '') +
       (entry.badge ? '<i class="pfh-home-entry-badge">' + escapeHtml(entry.badge) + '</i>' : '') +
@@ -2341,6 +2341,11 @@
   }
 
   function refreshHomeCollectionCard() {
+    document.querySelectorAll('#' + PANEL_ID + ' [data-catalog-pause]').forEach(button => {
+      button.hidden = !state.catalogSyncRunning;
+      button.disabled = state.catalogCollection && state.catalogCollection.phase === 'saving';
+      button.textContent = state.catalogSyncPaused ? '继续采集' : '暂停采集';
+    });
     const card = document.querySelector('#' + PANEL_ID + ' .pfh-home-collection');
     if (!card) return;
     const template = document.createElement('template'); template.innerHTML = homeCollectionCardHtml();
@@ -2425,7 +2430,6 @@
     const carouselModules = [
       { id: 'trend', label: state.settings.pixelRoomEnabled === true ? '窗边日常' : '新任务趋势', html: state.settings.pixelRoomEnabled === true ? pixelRoomCardHtml() : homeTrendCardHtml(stats, chart, period, chartSummary) },
       { id: 'todo', label: '待办项', html: homeTodoCardHtml() },
-      { id: 'collection', label: '采集详情', html: homeCollectionCardHtml() },
     ];
     const carouselSlides = carouselModules.map((module) => '<div class="pfh-home-carousel-slide" data-module-id="' + module.id + '" data-module-label="' + escapeHtml(module.label) + '">' + module.html + '</div>').join('');
     const status = statusText || greeting.subtitle || '常用功能与今日进度集中在这里';

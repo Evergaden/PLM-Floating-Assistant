@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.329",
+  "version": "2.5.330",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 249605,
-      "maxImportant": 1688,
+      "maxBytes": 248286,
+      "maxImportant": 1669,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast",
@@ -217,9 +217,9 @@
     { "path": "modules/lucian-preview.css", "mode": "module" }
   ],
   "budgets": {
-    "important": 1688,
+    "important": 1669,
     "supersededImportantDeclarations": 0,
-    "duplicateSelectors": 455,
-    "conflictingSelectors": 422
+    "duplicateSelectors": 450,
+    "conflictingSelectors": 417
   }
 }
