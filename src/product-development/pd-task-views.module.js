@@ -267,6 +267,13 @@
       restoreProductDevelopmentReviewDraft(sku);
     }
     const task = state.productDevelopmentSelectedTask;
+    // The integrated view bypasses selectProductDevelopmentTask(), which normally
+    // hydrates the form from persistent cache before the first render.
+    if (!state.productDevelopmentTaskFormData) state.productDevelopmentTaskFormData = Object.create(null);
+    if (!state.productDevelopmentTaskFormData[sku]) {
+      const cachedDetail = productDevelopmentReadonlyDetailForTask(task);
+      if (cachedDetail) state.productDevelopmentTaskFormData[sku] = cachedDetail;
+    }
     state.productDevelopmentTaskView = tab.view;
     const detail = panel.querySelector('.pfh-detail');
     const feature = productDevelopmentFeatureForView(tab.view);
@@ -276,7 +283,7 @@
     detail.classList.remove('is-loading');
     updateAssistantDetailMarkup(detail, '<div class="pfh-detail-view-frame pfh-cw-task-frame">' + detailViewTabsHtml(tab.id) + '<div class="pfh-detail-scroll pfh-cw-task-content">' + body + '</div></div>', sku + '|' + tab.id);
     productDevelopmentMountReviewEditorOverlay(panel);
-    if (detail.pfhDesignDevelopmentSku !== sku) {
+    if (!state.productDevelopmentTaskFormData[sku] && detail.pfhDesignDevelopmentSku !== sku) {
       detail.pfhDesignDevelopmentSku = sku;
       hydrateProductDevelopmentTaskDetail(task).then(() => {
         if (state.view === 'detail' && state.settings.designDevelopmentTabs === true && state.designDevelopmentTab && state.selectedSku === sku) renderShell();

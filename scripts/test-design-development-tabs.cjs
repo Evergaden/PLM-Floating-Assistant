@@ -20,6 +20,7 @@ const ctx = vm.createContext({
   parameterImageFeature: { loadRules() {} }, openCopywritingFromCurrent() {},
   saveProductDevelopmentReviewDraft: () => {}, restoreProductDevelopmentReviewDraft: () => {},
   getProductDevelopmentTaskBySku: () => null,
+  productDevelopmentReadonlyDetailForTask: (task) => task.sku === 'CACHED' ? { sku: 'CACHED', bomRows: [{ name: '纸盒' }] } : null,
   productDevelopmentTaskActionsHtml: (task) => '<section data-task="' + task.sku + '">Development detail</section>',
   productDevelopmentTaskEmbeddedViewHtml: (view) => '<section data-editor="' + view + '"></section>',
   updateAssistantDetailMarkup: (detail, html) => { detail.innerHTML = html; },
@@ -63,6 +64,11 @@ ctx.renderDesignDevelopmentDetail(panel);
 assert.equal(state.productDevelopmentSelectedTask.sku, 'B', 'Changing design SKU rebinds the development editor');
 assert.equal(state.productDevelopmentBenchmarkImageDataUrl, '', 'Benchmark uploads must not leak across SKUs');
 assert.equal(pending.length, 2);
+state.selectedSku = 'CACHED'; state.data = { sku: 'CACHED' };
+ctx.renderDesignDevelopmentDetail(panel);
+assert.equal(state.productDevelopmentTaskFormData.CACHED.bomRows[0].name, '纸盒', 'Render cached form immediately');
+assert.equal(pending.length, 2, 'Cached SKU must not trigger a repeated PLM read');
+state.selectedSku = 'B'; state.data = { sku: 'B' };
 ctx.productDevelopmentApplyReadonlyDetailState({ sku: 'A' }, { bomRows: [] }, { sku: 'A' });
 assert.equal(state.selectedSku, 'B', 'Late hydration must not reselect an old SKU');
 assert.equal(state.data.sku, 'B');
