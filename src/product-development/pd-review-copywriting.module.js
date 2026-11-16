@@ -328,6 +328,8 @@
     function editorClient() {
       let current = null;
       let marks = [], active = null, tool = 'view', annotationKey = '', dirty = false, revision = 0;
+      document.getElementById('mark-undo').title = '撤销标注（Ctrl/⌘ + Z）';
+      document.getElementById('mark-redo').title = '重做标注（Ctrl/⌘ + Shift + Z，或 Ctrl/⌘ + Y）';
       const redo = [], history = [];
       let selected = -1, drag = null;
       function checkpoint() { history.push(JSON.stringify(marks)); if (history.length > 100) history.shift(); redo.length = 0; }
@@ -359,19 +361,22 @@
         const canvas = document.getElementById('annotation-canvas');
         const image = document.getElementById('benchmark');
         if (!canvas || !image || !image.naturalWidth) return;
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        const width = window.innerWidth, height = window.innerHeight;
+        const scale = Math.max(1, window.devicePixelRatio || 1);
+        canvas.width = Math.round(width * scale);
+        canvas.height = Math.round(height * scale);
         const ctx = canvas.getContext('2d');
+        ctx.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
         for (const mark of active ? marks.concat(active) : marks) {
           const rect = image.getBoundingClientRect();
-          const points = mark.points.map((p) => mark.page ? [p[0] * canvas.width, p[1] - window.scrollY] : [rect.left + p[0] * rect.width, rect.top + p[1] * rect.height]);
+          const points = mark.points.map((p) => mark.page ? [p[0] * width, p[1] - window.scrollY] : [rect.left + p[0] * rect.width, rect.top + p[1] * rect.height]);
           if (!points.length) continue;
           const [x, y] = points[0], [ex, ey] = points[points.length - 1];
           ctx.save(); ctx.strokeStyle = mark.color; ctx.fillStyle = mark.color;
           ctx.lineWidth = mark.width; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
           if (mark.tool === 'mosaic') {
             const left = Math.max(0, Math.min(x, ex)), top = Math.max(0, Math.min(y, ey));
-            const right = Math.min(canvas.width, Math.max(x, ex)), bottom = Math.min(canvas.height, Math.max(y, ey));
+            const right = Math.min(width, Math.max(x, ex)), bottom = Math.min(height, Math.max(y, ey));
             for (let py = top; py < bottom; py += 14) for (let px = left; px < right; px += 14) {
               const shade = (Math.floor(px / 14) + Math.floor((py + window.scrollY) / 14)) % 2 ? 125 : 155;
               ctx.fillStyle = 'rgb(' + shade + ',' + shade + ',' + shade + ')';
@@ -462,7 +467,17 @@
         editText(event.clientX, event.clientY, marks[index].text, (text) => { checkpoint(); marks[index].text = text; drawMarks(); persistMarks(); });
       });
       document.addEventListener('keydown', (event) => {
-        if (tool !== 'select' || selected < 0 || event.target.matches('input,textarea,select')) return;
+        if (event.isComposing || event.target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])')) return;
+        if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+          const key = event.key.toLowerCase();
+          if (key === 'z' || key === 'y') {
+            event.preventDefault();
+            document.getElementById(key === 'y' || event.shiftKey ? 'mark-redo' : 'mark-undo').click();
+            return;
+          }
+        }
+        if (event.key === 'Escape' && active) { active = null; drawMarks(); return; }
+        if (tool !== 'select' || selected < 0) return;
         if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); checkpoint(); marks.splice(selected, 1); selected = -1; drawMarks(); persistMarks(); }
       });
       document.addEventListener('pointercancel', () => { active = null; drawMarks(); });
