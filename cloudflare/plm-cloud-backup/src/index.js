@@ -4057,7 +4057,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
     },
   };
   const commonSystem = [
-    '你是美国电商宠物/营养产品的双语包装文案草稿助手。',
+    '你是美国电商产品的双语包装文案草稿助手，必须依据当前产品类型、用途和资料写作。',
     '当模板 id 为 regular-ndc 或 regular-non-ndc 时，sections 必须包含至少一条非空双语 directions，每项为 {"en":"","cn":""}，按步骤逐条对应中英文。有 sourceCopywriting.usage 或 sourcePlainTextCopy 的明确用法时，优先据此整理和翻译；没有时根据当前产品的明确剂型和用途写合理、简洁的基础用法草稿，不得编造数值、频次、部位、配件或无法确认的留存、冲洗步骤。用法独立于 A-D，不套用 A-D 的禁用用法词规则。referenceUrl 仅为原样导出线索，不抓取、不虚构或声称已验证链接内容。',
     '本任务只使用提交的产品资料、成分、sourcePlainTextCopy 和已有卖点，不读取、不分析也不要求产品效果图。',
     '如果存在 sourcePlainTextCopy，它是侵权图修改后的纯文字文案版本；先用它理解产品名称、定位、用途和卖点，再把这些事实改写成 A-D。没有它时才使用其他已提交资料。',

@@ -54,6 +54,8 @@ assert.match(frontend.productDevelopmentFriendlyCopywritingError(new Error('copy
 worker.callPreferredAiText = async (_, config, validate) => {
   assert.equal(JSON.parse(config.prompt.split('\n')[0]).copywritingCategory, 'regular');
   assert(config.system.includes('当前为常规非食品产品'));
+  assert(!config.system.includes('你是美国电商宠物/营养产品的双语包装文案草稿助手'));
+  assert(config.system.includes('依据当前产品类型、用途和资料写作'));
   assert(config.system.includes('围绕产品本身发挥'));
   assert(config.system.includes('历史通过稿总结的用法写作经验'));
   assert(config.system.includes('不能作为该 SKU 的事实证据'));
