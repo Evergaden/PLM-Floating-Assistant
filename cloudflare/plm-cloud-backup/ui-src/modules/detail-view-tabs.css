@@ -140,6 +140,7 @@
 #plm-floating-helper .pfh-design-development-tabs button.is-active {
   flex: 0 0 34px;
   padding: 0;
+  color: var(--pfh-theme-primary);
 }
 
 #plm-floating-helper .pfh-detail-tab-icon,
@@ -151,16 +152,31 @@
   display: inline-flex;
 }
 
-#plm-floating-helper .pfh-design-development-tabs button.is-development {
+#plm-floating-helper .pfh-design-development-tabs .pfh-detail-tab-icon .pfh-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+}
+
+#plm-floating-helper .pfh-design-development-tabs button.is-development,
+#plm-floating-helper .pfh-design-development-tabs button.is-development.is-active {
   color: #1b8d6c;
 }
 
-#plm-floating-helper .pfh-design-development-tabs button.is-development.is-active {
-  color: #fff;
-}
-
-#plm-floating-helper .pfh-design-development-tabs[data-active-view^="development-"] .pfh-detail-view-indicator {
-  background: #1b8d6c;
+#plm-floating-helper .pfh-design-development-tabs .pfh-detail-view-indicator,
+#plm-floating-helper .pfh-design-development-tabs button.is-active::after {
+  display: none;
 }
 
 #plm-floating-helper .pfh-design-development-tabs button:focus-visible {
