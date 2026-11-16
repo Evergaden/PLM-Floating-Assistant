@@ -683,6 +683,19 @@
       && !element.disabled && (!element.readOnly || definition.control) && !(panel && panel.contains(element)) && productDevelopmentDomVisible(element);
     const normalize = (value) => productDevelopmentDomText(value).replace(/[\s*＊:：]/g, '').replace(/（/g, '(').replace(/）/g, ')');
     const wanted = normalize(definition.label);
+    // Page 1 uses language-specific IDs, but its rendered labels are generic
+    // "商品名称" / "PRODUCT NAME", not the assistant's bilingual field labels.
+    const nameId = { productNameCn: 'product_name0', productNameEn: 'product_name1' }[definition.key];
+    if (nameId && definition.domId === nameId) {
+      const candidates = Array.from(document.querySelectorAll('input[id="' + nameId + '"]')).filter(usable);
+      if (candidates.length > 1) return null;
+      if (candidates.length === 1) {
+        const candidate = candidates[0];
+        const label = candidate.closest('.ant-form-item')?.querySelector('label');
+        const expected = definition.key === 'productNameCn' ? '商品名称' : 'PRODUCT NAME';
+        if (!label || [label.textContent, label.firstElementChild && label.firstElementChild.textContent].some((value) => [wanted, normalize(expected)].includes(normalize(value)))) return candidate;
+      }
+    }
     const labels = Array.from(document.querySelectorAll('label')).filter((label) => !(panel && panel.contains(label)));
     const fromLabels = (matches) => Array.from(new Set(matches.flatMap((label) => {
       const linked = document.getElementById(label.getAttribute('for'));
