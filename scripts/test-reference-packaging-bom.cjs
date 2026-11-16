@@ -105,8 +105,14 @@ const detail = { sku: 'SKU1', projectId: '12', productMainId: '999', productDeve
   assert.deepEqual(Array.from(ready.drafts, ([kind]) => kind), ['box']);
   let filled = [];
   context.productDevelopmentBomDomFillEditor = async (target,kind) => { filled.push(kind); };
+  context.productDevelopmentMaterialExistingRow = () => ({ name: 'stale cached row' });
+  const liveBox = document.createElement('div');
+  liveBox.className = 'cardBox'; liveBox.textContent = '完整纸盒 包材/纸盒'; drawer.appendChild(liveBox);
+  await context.productDevelopmentFillBomDrawer('SKU1');
+  assert.deepEqual(filled, [], 'An actual visible box is not duplicated');
+  liveBox.remove();
   const partial = await context.productDevelopmentFillBomDrawer('SKU1');
-  assert.deepEqual(filled,['box'],'An incomplete label cannot block the complete box');
+  assert.deepEqual(filled,['box'],'An old cached row must not prevent adding a box missing from the live drawer');
   assert(partial.skipped.some((item) => item.includes('标签规格型号')));
   context.productDevelopmentMaterialDraftPayload = () => ({code:'BOX'});
   const save = context.fetchPlmApiJson;

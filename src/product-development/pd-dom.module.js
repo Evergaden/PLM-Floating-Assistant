@@ -277,7 +277,7 @@
   function productDevelopmentDomSelectionMatches(input, target) {
     const current = productDevelopmentDomText(productDevelopmentDomSelectedText(input));
     const wanted = productDevelopmentDomText(target);
-    return Boolean(current && wanted && (current === wanted || current.includes(wanted)));
+    return Boolean(current && wanted && current === wanted);
   }
 
   function productDevelopmentDomCascaderSegments(input, target) {
@@ -640,7 +640,8 @@
     const added = [];
     for (const [kind, draft] of drafts) {
       const title = productDevelopmentBomDomKindLabel(kind);
-      if (productDevelopmentMaterialExistingRow(detail, kind) || productDevelopmentBomDomCardMatches(drawer, kind, draft)) {
+      // The cached BOM may still include rows deleted in the open drawer.
+      if (productDevelopmentBomDomCardMatches(drawer, kind, draft)) {
         skipped.push(title);
         continue;
       }
@@ -675,6 +676,20 @@
 
   function productDevelopmentDomAvailableValues(definitions, valueReader) {
     return definitions.map((definition) => ({ definition, value: valueReader(definition) })).filter((item) => productDevelopmentPrefillText(item.value));
+  }
+
+  function productDevelopmentDomValueMatches(element, value, definition) {
+    if (definition.control) {
+      const actual = productDevelopmentDomText(productDevelopmentDomSelectedText(element));
+      const expected = productDevelopmentDomText(value);
+      return Boolean(actual && expected && actual === expected);
+    }
+    const actual = String(element.value == null ? '' : element.value);
+    const expected = String(value == null ? '' : value);
+    if (definition.type === 'number' || definition.key === 'materialPrice') {
+      return Boolean(actual.trim() && expected.trim() && Number.isFinite(Number(actual)) && Number.isFinite(Number(expected)) && Number(actual) === Number(expected));
+    }
+    return actual === expected;
   }
 
   function productDevelopmentDomResolveField(definition) {
@@ -733,6 +748,7 @@
       }
       const value = productDevelopmentPrefillText(item.value, 800);
       try {
+        if (productDevelopmentDomValueMatches(element, value, definition)) continue;
         if (definition.control) await productDevelopmentDomSelectOption(element, value, definition.control);
         else productDevelopmentDomNativeSetter(element, value);
       } catch (error) {
@@ -761,6 +777,7 @@
       }
       const value = productDevelopmentPrefillText(item.value, definition.type === 'textarea' ? 12000 : 800);
       try {
+        if (productDevelopmentDomValueMatches(element, value, definition)) continue;
         if (definition.control) await productDevelopmentDomSelectOption(element, value, definition.control);
         else if (definition.type === 'number') await productDevelopmentDomCommitNumber(element, value, definition.label);
         else productDevelopmentDomNativeSetter(element, value);
@@ -790,6 +807,7 @@
           }
           const value = productDevelopmentPrefillText(item.value, 800);
           try {
+            if (productDevelopmentDomValueMatches(element, value, definition)) continue;
             if (definition.control) await productDevelopmentDomSelectOption(element, value, definition.control);
             else if (definition.key === 'materialPrice') await productDevelopmentDomCommitNumber(element, value);
             else productDevelopmentDomNativeSetter(element, value);
@@ -818,8 +836,8 @@
     const runner = normalizedPage === 'page1' ? productDevelopmentFillPlmPage1 : productDevelopmentFillPlmPage2;
     Promise.resolve().then(() => runner(detail)).then((result) => {
       const baseMessage = normalizedPage === 'page1'
-        ? '页面1已填写，请确认后在 PLM 点击下一步'
-        : '页面2已填写，请核对后在 PLM 保存';
+        ? '页面1已检查并更新不同字段，请确认后在 PLM 点击下一步'
+        : '页面2已检查并更新不同字段，请核对后在 PLM 保存';
       const warnings = result && Array.isArray(result.warnings) ? result.warnings : [];
       state.productDevelopmentStatus = warnings.length ? (normalizedPage === 'page1' ? '页面1' : '页面2') + '部分字段未填入：' + warnings.join('；') : baseMessage;
       showToast(state.productDevelopmentStatus);

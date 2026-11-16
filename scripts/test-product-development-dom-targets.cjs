@@ -24,7 +24,12 @@ const context = vm.createContext({ document, PANEL_ID: 'assistant', URL,
   formatErrorMessage: (error) => error.message,
 });
 const dom = read('product-development/pd-dom');
-for (const name of ['productDevelopmentDomText', 'productDevelopmentDomAvailableValues', 'productDevelopmentDomResolveField', 'productDevelopmentFillPlmPage2']) vm.runInContext(extract(dom, name), context);
+for (const name of ['productDevelopmentDomText', 'productDevelopmentDomAvailableValues', 'productDevelopmentDomValueMatches', 'productDevelopmentDomResolveField', 'productDevelopmentFillPlmPage2']) vm.runInContext(extract(dom, name), context);
+context.productDevelopmentDomSelectedText = (element) => element.getAttribute('data-selected');
+const selectFixture = document.createElement('input');
+selectFixture.setAttribute('data-selected', '大号');
+assert.equal(context.productDevelopmentDomValueMatches(selectFixture, '大', { control: 'select' }), false, 'A substring is not an identical selection');
+assert.equal(context.productDevelopmentDomValueMatches(selectFixture, '大号', { control: 'select' }), true);
 const definitions = [
   { key: 'costPrice', attrId: 153, label: '成本价', domId: 'old-cost', type: 'number' },
   { key: 'firstPrice', attrId: 154, label: '国内一档价格', domId: 'old-first', type: 'number' },
@@ -44,6 +49,11 @@ context.productDevelopmentDomNativeSetter = () => { throw new Error('Numbers mus
   let result = await context.productDevelopmentFillPlmPage2(detail);
   assert.equal(result.warnings.length, 0);
   assert.deepEqual(commits.map(item => item.id), ids);
+  commits.length = 0;
+  document.getElementById(ids[0]).value = '4.00';
+  detail.secondPrice = 9;
+  await context.productDevelopmentFillPlmPage2(detail);
+  assert.deepEqual(commits.map(item => item.id), [ids[2]], 'Only changed numeric field is committed; equivalent number is untouched');
   assert.equal(document.getElementById('old-packing').value, '', 'An old positional ID must not overwrite another field');
   // Future group movement still follows the attribute label and its current for target.
   const cost = document.getElementById(ids[0]);
@@ -76,7 +86,8 @@ context.productDevelopmentDomNativeSetter = () => { throw new Error('Numbers mus
   context.PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS = page1Fields;
   context.productDevelopmentPage1FieldValue = (detail, key) => detail[key];
   context.waitFor = async (fn) => fn();
-  context.productDevelopmentDomNativeSetter = (input, value) => { input.value = value; };
+  let textWrites = 0;
+  context.productDevelopmentDomNativeSetter = (input, value) => { input.value = value; textWrites++; };
   for (const name of ['productDevelopmentDomEnsureEnglishLanguage', 'productDevelopmentFillPlmPage1']) vm.runInContext(extract(dom, name), context);
   const page1 = { productNameCn: '海藻身体油', productNameEn: 'Seaweed Body Oil' };
   result = await context.productDevelopmentFillPlmPage1(page1);
@@ -85,6 +96,10 @@ context.productDevelopmentDomNativeSetter = () => { throw new Error('Numbers mus
   assert.equal(document.getElementById('product_name1').value, page1.productNameEn);
   assert.equal(languageClicks, 1, 'Enable missing English once');
   await context.productDevelopmentFillPlmPage1(page1);
+  assert.equal(textWrites, 2, 'Unchanged name fields do not fire a second write');
+  page1.productNameEn = 'Updated Body Oil';
+  await context.productDevelopmentFillPlmPage1(page1);
+  assert.equal(textWrites, 3, 'Only the changed name is written');
   assert.equal(languageClicks, 1, 'Do not toggle off an already enabled English form');
   const chinese = document.getElementById('product_name0');
   chinese.closest('.ant-form-item').querySelector('span').textContent = '成本价';
