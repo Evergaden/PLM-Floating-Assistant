@@ -39,11 +39,13 @@ assert.doesNotMatch(source, /data-action="home-chart-period"/, 'Period switch is
 const featureCode = source.slice(source.indexOf('  function homeFeatureEntryHtml('), source.indexOf('  function normalizeProductDevelopmentFeatureGroups('));
 const featureContext = { escapeHtml: String, iconHtml: () => '' };
 vm.createContext(featureContext); vm.runInContext(featureCode, featureContext);
-const detail = { id: 'detail', title: '我的详情', description: '', action: 'open-first-detail', icon: 'folder' };
+const detail = { id: 'detail', title: '我的详情', description: '查看任务', meta: '1301 个本地产品档案', action: 'open-first-detail', icon: 'folder' };
 const detailCard = featureContext.homeFeatureEntryHtml(detail, 'pfh-home-entry-primary');
 assert.match(detailCard, /data-action="open-first-detail"/);
 assert.match(detailCard, /class="pfh-home-entry-detail-cta">进入详情/);
 assert.doesNotMatch(detailCard, /pfh-home-entry-icon/, 'Details card does not show an icon');
+assert.match(detailCard, /<span class="pfh-home-entry-description">查看任务<\/span>/);
+assert.match(detailCard, /<span class="pfh-home-entry-meta">1301 个本地产品档案<\/span>/);
 assert.equal((detailCard.match(/<button/g) || []).length, 1, 'The call to action is part of the card button');
 assert.doesNotMatch(featureContext.homeFeatureEntryHtml(detail, 'pfh-home-entry-edit', { editing: true }), /进入详情/);
 console.log('PASS: actual spring animations, carousel indicator and keyboard navigation');

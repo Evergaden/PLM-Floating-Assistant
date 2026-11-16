@@ -2130,10 +2130,10 @@
     const editHandle = editing ? '<span class="pfh-home-entry-drag-handle" aria-hidden="true">⋮⋮</span>' : '';
     return '<' + tag + ' class="pfh-home-entry ' + (className || '') + (disabled || entry.accessLocked ? ' is-disabled' : '') + (editing ? ' is-editing-card' : '') + '"' + attrs + (disabled && !editing ? ' disabled aria-disabled="true"' : '') + '>' +
       (entry.id === 'detail' ? '' : '<span class="pfh-home-entry-icon">' + iconHtml(entry.icon) + '</span>') +
-      '<span class="pfh-home-entry-copy"><strong>' + escapeHtml(entry.title) + '</strong><small>' + escapeHtml(entry.description) + '</small></span>' +
+      '<span class="pfh-home-entry-copy"><strong>' + escapeHtml(entry.title) + '</strong><span class="pfh-home-entry-description">' + escapeHtml(entry.description) + '</span></span>' +
       (!editing && entry.id === 'detail' ? '<span class="pfh-home-entry-detail-cta">进入详情</span>' : '') +
       (entry.badge ? '<i class="pfh-home-entry-badge">' + escapeHtml(entry.badge) + '</i>' : '') +
-      (entry.meta ? '<em class="pfh-home-entry-meta">' + escapeHtml(entry.meta) + '</em>' : '') +
+      (entry.meta ? '<span class="pfh-home-entry-meta">' + escapeHtml(entry.meta) + '</span>' : '') +
       editHandle +
       '</' + tag + '>';
   }
