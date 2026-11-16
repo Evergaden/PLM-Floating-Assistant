@@ -37,6 +37,11 @@ const sections = {
 };
 const ingredients = [{ en: 'MAGNESIUM CHLORIDE', cn: '氯化镁' }];
 assert.equal(worker.normalizeProductDevelopmentCopywritingCandidate({ sections }, ingredients, '', options).sellingPoints.length, 15);
+for (const sentence of ['爱护动物人士寻求纯净选择，这款植物基油符合这些理念。', '消费者关注道德标准，这款配方开发过程中未进行动物实验。', 'Animal lovers seek an ethical choice.', 'The formula is not tested on animals.']) {
+  const offTopic = structuredClone(sections);
+  offTopic.sellingPoints[14] = { en: 'Suitable for daily use.', cn: sentence };
+  assert.throws(() => worker.normalizeProductDevelopmentCopywritingCandidate({ sections: offTopic }, ingredients, '', options), /off-topic ethics/, sentence);
+}
 assert.throws(() => worker.normalizeProductDevelopmentCopywritingCandidate({ sections }, ingredients, ''), /dosage/);
 const bad = structuredClone(sections);
 bad.advantages[0] = { en: 'Use twice a day.', cn: '每日两次。' };
@@ -48,6 +53,7 @@ assert.match(frontend.productDevelopmentFriendlyCopywritingError(new Error('copy
 worker.callPreferredAiText = async (_, config, validate) => {
   assert.equal(JSON.parse(config.prompt.split('\n')[0]).copywritingCategory, 'regular');
   assert(config.system.includes('当前为常规非食品产品'));
+  assert(config.system.includes('围绕产品本身发挥'));
   const candidate = { text: JSON.stringify({ sections }), provider: 'test', model: 'test' };
   return { result: candidate, value: validate(candidate) };
 };

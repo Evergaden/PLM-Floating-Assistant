@@ -3113,6 +3113,10 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
     cn: productDevelopmentRewriteGeneratedCopyText(item && item.cn, brand),
   });
   const rejectCopywritingRestriction = (item, label) => {
+    const text = [item && item.en, item && item.cn, item && item.titleEn, item && item.titleCn].filter(Boolean).join(' ');
+    if (/(?:爱护动物|爱动物|动物爱好者|关爱动物人士|动物保护人士|道德标准|伦理标准|动物实验|动物测试|动物试验|animal\s+(?:lovers?|testing|tests?|experiments?)|(?:ethical|ethics|moral)\s+(?:standards?|values?|choices?|principles?)|not\s+tested\s+on\s+animals|no\s+animal\s+testing)/i.test(text)) {
+      throw new Error('copywriting ' + label + ' contains off-topic ethics or animal-testing claim; focus on supported product attributes');
+    }
     const rule = productDevelopmentFindCopywritingRestriction([item && item.en, item && item.cn, item && item.titleEn, item && item.titleCn].filter(Boolean).join(' '), options);
     if (rule) throw new Error('copywriting ' + label + ' contains ' + rule.label);
     return item;
@@ -4057,6 +4061,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
     '如果存在 sourcePlainTextCopy，它是侵权图修改后的纯文字文案版本；先用它理解产品名称、定位、用途和卖点，再把这些事实改写成 A-D。没有它时才使用其他已提交资料。',
     '必须使用符合跨境电商平台合规宣传的客观、克制、可验证表达：可以说明成分、配方特点、产品属性、使用场景和日常营养支持，但不能承诺结果或暗示预防、治疗、诊断、替代药物。',
     '只能围绕输入的成分、产品类型和 PLM 卖点写，不能虚构其他成分、配比、认证、实验、疾病、治疗或数字。',
+    'A-D 每条围绕产品本身发挥：结合已提供的配方、剂型、质地、用途和可验证特点，写清产品带来的使用体验或作用；不要虚构事实。不要用“爱护动物人士”“消费者关注道德标准”等人群价值观凑卖点，也不要写未进行动物实验、动物测试或类似伦理背书。素材不足时从已知产品特点和日常使用体验的不同角度表达，不添加无依据的宣称。',
     '不要写品牌名称。最终输出不得逐字出现以下限制词，大小写不敏感，也不要在输出中复述这份清单：' + PRODUCT_DEVELOPMENT_BANNED_TERMS.join('、') + '。遇到这些表达时，改写为基于输入事实的中性日常支持表达。食品类文案主要描述身体日常状态和生活感受，例如 daily vitality、steady energy、feels refreshed、ready for the day，以及“精神饱满、日常活力、精力充沛、状态轻松”；禁止用检测、实验室、第三方、认证、验证或证明来背书。',
     '每一个返回条目都必须同时有非空的 en 和 cn；en 只能写英文，cn 只能写中文。若输入只有一种语言，先忠实翻译后再返回，绝不能返回 null、空字符串或只写一种语言。',
     '英文使用流畅、简短的欧美电商表达，不要添加标题、解释或星号，只返回一个 JSON 对象。',
@@ -4158,7 +4163,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
         error = combined;
       }
     }
-    const canRepair = /restricted term|含限制词|asterisk|blank line|星号|空行|exceeds length|超出长度|dosage|frequency|serving|supply|dietary-attribute|quality-process|服用|用量|频次|供应|素食|非转基因|无麸质|质量控制|产品一致性|D ingredient \d|does not match PLM/i.test(String(error && error.message || ''));
+    const canRepair = /off-topic ethics|restricted term|含限制词|asterisk|blank line|星号|空行|exceeds length|超出长度|dosage|frequency|serving|supply|dietary-attribute|quality-process|服用|用量|频次|供应|素食|非转基因|无麸质|质量控制|产品一致性|D ingredient \d|does not match PLM/i.test(String(error && error.message || ''));
     const candidate = error && Array.isArray(error.aiCandidates) ? error.aiCandidates[0] : null;
     if (canRepair && candidate && candidate.text) {
       try {
