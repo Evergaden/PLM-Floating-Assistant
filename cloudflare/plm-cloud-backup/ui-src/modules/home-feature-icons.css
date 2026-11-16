@@ -5,8 +5,8 @@
   height: var(--pfh-home-icon-size, 36px);
   display: grid;
   place-items: center;
-  color: var(--pfh-home-icon-color, var(--pfh-theme-primary-hover));
-  background: var(--pfh-home-icon-background, var(--pfh-theme-primary-soft));
+  color: var(--pfh-home-icon-color, #5b50e9);
+  background: var(--pfh-home-icon-background, color-mix(in srgb,#5b50e9 12%,var(--pfh-theme-surface)));
   border-radius: 10px;
 }
 #plm-floating-helper[data-pfh-theme] .pfh-home-entry-primary .pfh-home-entry-icon {

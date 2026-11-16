@@ -759,11 +759,6 @@
       openFirstCachedDetail();
       return;
     }
-    if (action === 'home-chart-period') {
-      state.homeChartPeriod = Number(actionTarget.getAttribute('data-period')) === 30 ? 30 : 7;
-      renderShell();
-      return;
-    }
     if (action === 'home-todo-add') {
       const text = String(state.homeTodoDraft || '').trim().slice(0, 120);
       if (!text) return;

@@ -374,7 +374,6 @@
     manualSkuAddWorkerRunning: false,
     manualSkuAddCurrentSku: '',
     manualSkuAddStatus: '',
-    homeChartPeriod: 7,
     homeFeatureEditMode: false,
     cloudRecoveryPromptVisible: false,
     cloudRecoveryChecking: false,

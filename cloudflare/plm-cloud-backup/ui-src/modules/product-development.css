@@ -188,6 +188,10 @@
   background: linear-gradient(135deg, var(--pfh-theme-primary), var(--pfh-theme-primary-hover));
 }
 
+#plm-floating-helper .pfh-home-welcome .pfh-work-mode-switch button.is-active {
+  background: #5b50e9;
+}
+
 #plm-floating-helper .pfh-product-development {
   display: flex;
   min-height: 0;
