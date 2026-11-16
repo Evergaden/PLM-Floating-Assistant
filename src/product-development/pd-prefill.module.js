@@ -28,6 +28,7 @@
   }
 
   function productDevelopmentPrefillProductFieldValue(detail, definition) {
+    if (definition && definition.key === 'specification') productDevelopmentSyncSpecificationFromCopy(detail);
     if (definition && ['firstPrice', 'secondPrice', 'thirdPrice'].includes(definition.key)) productDevelopmentSyncCostTierPrices(detail);
     if (definition && definition.key === 'procurementPrice') productDevelopmentSyncProcurementPrice(detail);
     if (definition && ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume', 'standardPackingQuantity'].includes(definition.key)) {
@@ -45,6 +46,38 @@
     if (!field) return '';
     if (productDevelopmentPrefillText(field.displayValue)) return field.displayValue;
     return field.value === undefined ? '' : field.value;
+  }
+
+  function productDevelopmentSyncSpecificationFromCopy(detail) {
+    if (!detail || !detail.sku) return;
+    const sku = String(detail.sku).trim().toUpperCase();
+    const review = typeof state !== 'undefined' && state.productDevelopmentReview && state.productDevelopmentReview.sku === sku
+      ? state.productDevelopmentReview
+      : typeof getProductDevelopmentReviewDraft === 'function' ? getProductDevelopmentReviewDraft(sku) : null;
+    if (!review || String(review.sku || '').toUpperCase() !== sku) return;
+    const text = review.editorDocument && typeof review.editorDocument.replacementEn === 'string'
+      ? review.editorDocument.replacementEn
+      : review.plainTextCopy || review.approvedPlainText || review.finalCopy || (review.items || []).map((item) => item.replacementEn || item.sourceText || '').join('\n');
+    const lines = String(text || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const amount = '(\\d+(?:\\.\\d+)?)\\s*(ml|kg|g|l|capsules?|tablets?|gummies|pcs?)\\b';
+    const marked = lines.flatMap((line, index) => /\bnet\s*(?:content|contents|wt\.?|weight)\b|净含量/i.test(line) ? [line + ' ' + (lines[index + 1] || '')] : []);
+    const candidates = marked.length ? marked : lines.filter((line) => new RegExp('^(?:NET\\s*(?:WT\\.?|CONTENTS?)\\s*[:：]?\\s*)?' + amount, 'i').test(line));
+    const matches = candidates.map((line) => line.match(new RegExp('(?:^|[^a-z0-9.])' + amount, 'i'))).filter(Boolean).filter((match) => Number(match[1]) > 0);
+    const contents = Array.from(new Set(matches.map((match) => Number(match[1]) + ({ l: 'L', capsules: '粒', capsule: '粒', tablets: '片', tablet: '片', gummies: '粒', pc: '个', pcs: '个' }[match[2].toLowerCase()] || match[2].toLowerCase()))));
+    const fields = productDevelopmentProductFieldCollections(detail);
+    const definition = { attrId: 119 };
+    const previous = productDevelopmentPrefillLocalAttrValue(detail, definition);
+    // A cleared/ambiguous source must not silently retain a previously derived value.
+    const derivedBefore = detail.productDetailLocalValues && detail.productDetailLocalValues['119@1']?.source === '当前英文文案';
+    if (contents.length !== 1 && !derivedBefore) return;
+    const field = fields.find((item) => item.key === 'specification' || Number(item.attrId) === 119);
+    const old = String(previous !== undefined ? previous : field && (field.displayValue || field.value) || '');
+    const box = detail.materialDrafts && detail.materialDrafts.box;
+    const hasBox = box && box.enabled !== false || (detail.bomRows || []).some((row) => /纸盒/.test(String(row.name || '') + ' ' + String(row.category || '')));
+    const unit = hasBox ? '盒' : (old.match(/\/\s*(盒|瓶|袋|支|罐|包|套|个)/) || [])[1];
+    const specification = contents.length === 1 ? contents[0] + (unit ? '/' + unit : '') : '';
+    productDevelopmentRememberLocalProductField(detail, definition, specification, specification, '当前英文文案');
+    fields.filter((item) => item.key === 'specification' || Number(item.attrId) === 119).forEach((item) => { item.value = specification; item.displayValue = specification; item.source = '当前英文文案'; });
   }
 
   function productDevelopmentSyncCostTierPrices(detail, scope) {
@@ -245,6 +278,7 @@
     if (!detail || typeof detail !== 'object') return detail;
     productDevelopmentSyncReworkOuterDimensions(detail);
     productDevelopmentRefreshDerivedDimensions(detail);
+    productDevelopmentSyncSpecificationFromCopy(detail);
     const localValues = detail.productDetailLocalValues && typeof detail.productDetailLocalValues === 'object'
       ? detail.productDetailLocalValues
       : {};
