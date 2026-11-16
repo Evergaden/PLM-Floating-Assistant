@@ -1123,6 +1123,7 @@
   }
 
   function getProductDevelopmentCurrentSku() {
+    if (state && state.workMode !== 'product-development' && state.settings.designDevelopmentTabs === true && state.designDevelopmentTab) return String(state.selectedSku || state.data && state.data.sku || '').trim().toUpperCase();
     const taskCandidates = [
       state && state.productDevelopmentSelectedTask && state.productDevelopmentSelectedTask.sku,
       state && state.productDevelopmentTaskSelectedSku,

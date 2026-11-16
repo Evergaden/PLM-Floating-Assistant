@@ -572,14 +572,25 @@
     { id: 'sizeImage', label: '尺寸图' },
   ]);
 
+  const DESIGN_DEVELOPMENT_TABS = Object.freeze([
+    { id: 'development-detail', label: '开发详情', icon: 'taskPlan', view: 'detail' },
+    { id: 'development-review', label: '侵权图', icon: 'image', view: 'review' },
+    { id: 'development-copywriting', label: '编辑文案', icon: 'edit', view: 'copywriting' },
+  ]);
+
+  function designDetailTabs() {
+    return state.settings.designDevelopmentTabs === true ? DETAIL_VIEW_TABS.concat(DESIGN_DEVELOPMENT_TABS) : DETAIL_VIEW_TABS;
+  }
+
   function normalizeDetailViewTab(value) {
     const tab = String(value || '');
-    return DETAIL_VIEW_TABS.some((item) => item.id === tab) ? tab : 'detail';
+    return designDetailTabs().some((item) => item.id === tab) ? tab : 'detail';
   }
 
   function getCurrentDetailViewTab() {
     if (state.view === 'parameterImage') return 'parameterImage';
     if (state.view === 'sizeImage') return 'sizeImage';
+    if (state.view === 'detail' && state.settings.designDevelopmentTabs === true && DESIGN_DEVELOPMENT_TABS.some((tab) => tab.id === state.designDevelopmentTab)) return state.designDevelopmentTab;
     return state.copywritingMode ? 'copywriting' : 'detail';
   }
 
@@ -589,13 +600,16 @@
     const sizeImageTitle = state.sizeImageAccessLoading ? '正在准备功能' : '该功能暂未开放，敬请期待';
     const parameterImageDisabled = !state.parameterImageAccessEnabled;
     const parameterImageTitle = state.parameterImageAccessLoading ? '正在准备功能' : '该功能暂未开放，敬请期待';
-    const buttons = DETAIL_VIEW_TABS.map((tab) => {
+    const integrated = state.settings.designDevelopmentTabs === true;
+    const buttons = designDetailTabs().map((tab) => {
       const selected = tab.id === active;
+      const locked = tab.view && productDevelopmentFeatureForView(tab.view) && !productDevelopmentHasAccess(productDevelopmentFeatureForView(tab.view));
       const disabled = (tab.id === 'sizeImage' && sizeImageDisabled) || (tab.id === 'parameterImage' && parameterImageDisabled);
       const title = tab.id === 'parameterImage' ? parameterImageTitle : sizeImageTitle;
-      return '<button type="button" role="tab" data-action="detail-view-tab" data-detail-view="' + tab.id + '" class="' + (selected ? 'is-active' : '') + '" aria-selected="' + String(selected) + '"' + (disabled ? ' disabled aria-disabled="true" title="' + escapeHtml(title) + '"' : '') + '>' + escapeHtml(tab.label) + '</button>';
+      const icon = tab.icon || ({ detail: 'folder', copywriting: 'batchExcel', parameterImage: 'image', sizeImage: 'tools' })[tab.id];
+      return '<button type="button" role="tab" data-action="detail-view-tab" data-detail-view="' + tab.id + '" class="' + (selected ? 'is-active' : '') + (tab.view ? ' is-development' : '') + (locked ? ' is-access-locked' : '') + '" aria-label="' + escapeHtml(tab.label) + '" aria-selected="' + String(selected) + '" title="' + escapeHtml(disabled ? title : tab.label) + '"' + (disabled ? ' disabled aria-disabled="true"' : locked ? ' aria-disabled="true"' : '') + '>' + (integrated ? '<span class="pfh-detail-tab-icon" aria-hidden="true">' + iconHtml(icon) + '</span><span class="pfh-detail-tab-label">' + escapeHtml(tab.label) + '</span>' : escapeHtml(tab.label)) + '</button>';
     }).join('');
-    return '<nav class="pfh-detail-view-tabs" data-active-view="' + escapeHtml(active) + '" role="tablist" aria-label="SKU详情视图"><span class="pfh-detail-view-indicator" aria-hidden="true"></span>' + buttons + '</nav>';
+    return '<nav class="pfh-detail-view-tabs' + (integrated ? ' pfh-design-development-tabs' : '') + '" data-active-view="' + escapeHtml(active) + '" role="tablist" aria-label="SKU详情视图"><span class="pfh-detail-view-indicator" aria-hidden="true"></span>' + buttons + '</nav>';
   }
 
   function setupDetailViewTabs(panel) {
@@ -610,7 +624,7 @@
       indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
     };
     const previousValue = String(state.detailViewPreviousTab || '');
-    const previous = DETAIL_VIEW_TABS.some((item) => item.id === previousValue) ? previousValue : '';
+    const previous = designDetailTabs().some((item) => item.id === previousValue) ? previousValue : '';
     const previousButton = previous && previous !== activeButton.getAttribute('data-detail-view')
       ? tabs.querySelector('button[data-detail-view="' + previous + '"]')
       : null;
@@ -672,7 +686,8 @@
   function workspaceLayoutSettingsHtml() {
     const enabled = isWorkspaceLayoutEnabled();
     return settingsCardHtml('界面布局', enabled ? '新版三栏' : '经典视图',
-      '<div class="pfh-pixel-room-toggle"><label><input type="checkbox" role="switch" class="pfh-workspace-layout-enabled" aria-checked="' + enabled + '"' + (enabled ? ' checked' : '') + '><span>使用新版三栏视图</span></label></div><div class="pfh-about-note">关闭后使用经典布局；切换立即生效。两种视图分别记住手动调整的窗口大小。</div>');
+      '<div class="pfh-pixel-room-toggle"><label><input type="checkbox" role="switch" class="pfh-workspace-layout-enabled" aria-checked="' + enabled + '"' + (enabled ? ' checked' : '') + '><span>使用新版三栏视图</span></label></div><div class="pfh-about-note">关闭后使用经典布局；切换立即生效。两种视图分别记住手动调整的窗口大小。</div>' +
+      '<div class="pfh-pixel-room-toggle"><label><input type="checkbox" role="switch" class="pfh-design-development-enabled" aria-checked="' + (state.settings.designDevelopmentTabs === true) + '"' + (state.settings.designDevelopmentTabs === true ? ' checked' : '') + '><span>在设计顶部集成开发功能</span></label></div><div class="pfh-about-note">显示当前 SKU 的开发详情、侵权图和编辑文案；开发按钮使用品绿，选中项缩为图标，其他项显示文字。</div>');
   }
 
   function restoreWorkspaceClassicShell(panel) {

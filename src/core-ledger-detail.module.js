@@ -310,6 +310,7 @@
     state.data = normalizeData(data);
     const main = panel.querySelector('.pfh-main');
     if (main) main.classList.remove('is-home');
+    if (state.settings.designDevelopmentTabs === true && renderDesignDevelopmentDetail(panel, statusText)) return;
     if (state.copywritingMode) {
       updateAssistantDetailMarkup(detail, [
         '<div class="pfh-detail-scroll pfh-copywriting-scroll">',

@@ -389,6 +389,7 @@
     skuCacheEditorSku: '',
     copywritingMode: false,
     detailViewPreviousTab: '',
+    designDevelopmentTab: '',
     copywritingView: 'file',
     infringementImageViewer: null,
     infringementHistoryOpen: false,

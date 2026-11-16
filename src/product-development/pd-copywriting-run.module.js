@@ -486,7 +486,8 @@
   }
 
   function productDevelopmentWarmIngredientTemplates() {
-    const isVisible = () => state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting';
+    const isVisible = () => state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting'
+      || state.view === 'detail' && state.settings.designDevelopmentTabs === true && state.designDevelopmentTab === 'development-copywriting';
     ensureProductDevelopmentIngredientTemplatesLoaded().then(() => {
       if (isVisible()) renderShell();
     }).catch((error) => {

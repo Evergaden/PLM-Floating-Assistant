@@ -435,7 +435,8 @@
     if (!target || !target.classList) return false;
     if (target.getAttribute('data-product-development-one-shot-editor-field') || target.getAttribute('data-product-development-one-shot-row-index')) {
       window.setTimeout(() => {
-        if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting') renderShell();
+        if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting'
+          || state.view === 'detail' && state.settings.designDevelopmentTabs === true && state.designDevelopmentTab === 'development-copywriting') renderShell();
       }, 0);
       return true;
     }

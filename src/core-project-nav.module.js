@@ -34,7 +34,9 @@
       state.selectedSku = target.sku;
       state.data = data ? normalizeData(data) : null;
       state.detailViewPreviousTab = previousView !== requestedView ? previousView : '';
-      state.view = requestedView === 'copywriting' ? 'detail' : requestedView;
+      const developmentView = requestedView.startsWith('development-');
+      state.designDevelopmentTab = developmentView ? requestedView : '';
+      state.view = requestedView === 'copywriting' || developmentView ? 'detail' : requestedView;
       state.copywritingMode = requestedView === 'copywriting';
       resetExcelState();
       if (requestedView === 'parameterImage') parameterImageFeature.loadRules();

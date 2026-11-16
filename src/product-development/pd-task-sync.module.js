@@ -544,7 +544,7 @@
     if (next) state.productDevelopmentTaskDetailData[sku] = next;
     state.productDevelopmentTaskFormData[sku] = readOnlyDetail;
     productDevelopmentRecordMaterialsFromBom(sku, readOnlyDetail.bomRows);
-    if (state.productDevelopmentTaskSelectedSku === sku) {
+    if (state.productDevelopmentTaskSelectedSku === sku && state.selectedSku === sku) {
       if (next) state.data = next;
       state.selectedSku = sku;
     }

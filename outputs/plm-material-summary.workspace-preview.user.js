@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.10.92
+// @version      2.10.93
 // @description  [布局验证版] Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,9 +38,9 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.10.92';
+  const SCRIPT_VERSION = '2.10.93';
   const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }\n#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n\n/* Text-only BOM controls, full-width material groups and aligned fields. */\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field.is-invalid input {\n  border-color: #d92d20;\n  background: color-mix(in srgb, var(--pfh-theme-control-surface) 94%, #d92d20);\n}\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field.is-invalid > span,\n#plm-floating-helper .pfh-bom-form .pfh-bom-field-error { color: #b42318; }\n#plm-floating-helper .pfh-bom-form .pfh-bom-field-error { font-size: 11px; font-weight: 400; line-height: 1.5; }\n#plm-floating-helper .pfh-product-development-material-planner.pfh-bom-form {\n  display: grid;\n  gap: 16px;\n  min-width: 0;\n  padding: 16px;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-bom-form > header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-bom-form > header > .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; }\n#plm-floating-helper .pfh-product-development-detail-form > .pfh-product-development-product-form-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-detail-heading { display: contents; }\n#plm-floating-helper .pfh-product-development-product-form-header .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-bom-form > header h3 { font-size: 16px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card button[data-action] {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-bom-form button.is-primary { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-bom-form button:hover:not(:disabled) { border-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form button:disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-list { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card { align-content: start; gap: 12px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header { flex-direction: row; align-items: center; min-height: 36px; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header strong { font-size: 20px; font-weight: 700; line-height: 1.4; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled { padding-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled small { margin-left: 12px; color: var(--pfh-theme-muted); font-size: 11px; font-weight: 400; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-grid,\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-grid { grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); align-items: start; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field { gap: 8px; color: var(--pfh-theme-text); font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field > span { overflow: visible; white-space: normal; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field :is(input, select) { min-height: 36px; padding: 8px 12px; font: inherit; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form :is(button, input, select):focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 2px; }\n#plm-floating-helper .pfh-bom-dimensions { display: grid; grid-column: 1 / -1; grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-bom-dimensions.is-box { grid-template-columns: var(--pfh-bom-field-columns, repeat(3, minmax(0, 1fr))); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-options { gap: 12px; padding-top: 12px; border-top-style: solid; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group { gap: 8px; font-size: 11px; color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group > div { display: flex; min-height: 36px; box-sizing: border-box; align-items: center; gap: 16px; padding: 8px 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group input { accent-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-product-binding { padding: 12px; border-radius: 8px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid { gap: 12px; margin-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid small { font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-bom-form { --pfh-bom-field-columns: minmax(0, 1fr); }\n}\n";
-  const SKU_DETAIL_LAYOUT_CSS = "/* Keep SKU identity above the independently scrolling detail content. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  height: auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  padding: 12px 14px 0;\n  overflow: hidden;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {\n  flex: 0 0 auto;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 0 0;\n}\n\n#plm-floating-helper .pfh-material-card {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 16px 18px;\r\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\r\n  border-radius: 16px;\r\n  background: var(--pfh-theme-card, #fff);\r\n}\r\n#plm-floating-helper .pfh-material-card small {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key] {\r\n  display: block;\r\n  min-width: 0;\r\n  overflow-wrap: anywhere;\r\n  /* Fill the inter-row gap without moving the text or overlapping targets. */\r\n  padding: 4px 10px;\r\n  margin: -4px -10px;\r\n  cursor: pointer;\r\n  border-radius: 6px;\r\n  transition: color .15s, background .15s;\r\n}\r\n#plm-floating-helper .pfh-material-size {\r\n  color: var(--pfh-theme-text, #17213a);\r\n  font-size: 15px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-code {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:hover,\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:focus-visible,\r\n#plm-floating-helper .pfh-material-card .is-copied {\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-soft, #f4efff);\r\n  outline: none;\r\n}\r\n\n/* Keep product context in the selected SKU card while the editor owns the detail pane. */\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active) {\n  position: relative;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active)::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  z-index: 10;\n  border-radius: inherit;\n  background: color-mix(in srgb, var(--pfh-theme-page, #f8f9ff) 58%, transparent);\n  pointer-events: none;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-list-head, .pfh-sku-list-toolbar, .pfh-sku-filter-toolbar, .pfh-list-pager, .pfh-search-result-toolbar, .pfh-workspace-search-host) {\n  opacity: .5;\n}\n\n#plm-floating-helper .pfh-development-detail-jump {\n  position: absolute;\n  z-index: 80;\n  display: grid;\n  gap: 4px;\n  width: 188px;\n  max-width: calc(100% - 16px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-development-detail-jump button {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  text-align: left;\n  font: inherit;\n  font-size: 12px;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-development-detail-jump button:is(:hover, :focus-visible, .is-active) { background: var(--pfh-theme-primary-soft); color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-development-detail-jump button:focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 1px; }\n#plm-floating-helper .pfh-development-detail-jump button:disabled { opacity: .45; cursor: default; }\n";
+  const SKU_DETAIL_LAYOUT_CSS = "/* Detail view navigation owns its layout, indicator motion, and interaction states. */\r\n#plm-floating-helper .pfh-detail-view-frame {\r\n  display: flex;\r\n  flex-direction: column;\r\n  height: 100%;\r\n  min-width: 0;\r\n  min-height: 0;\r\n  box-sizing: border-box;\r\n  padding: 12px;\r\n  overflow: hidden;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-frame > :is(.pfh-size-image-scroll, .pfh-parameter-scroll) {\r\n  flex: 1 1 auto;\r\n  height: auto;\r\n  min-width: 0;\r\n  min-height: 0;\r\n  box-sizing: border-box;\r\n  overflow-x: hidden;\r\n  overflow-y: auto;\r\n  padding: 0 6px 12px 0;\r\n}\r\n\r\n@container (max-width: 540px) {\r\n  #plm-floating-helper .pfh-detail-view-frame {\r\n    padding: 9px;\r\n  }\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs {\r\n  position: sticky;\r\n  top: 0;\r\n  z-index: 20;\r\n  isolation: isolate;\r\n  display: grid;\r\n  flex: 0 0 42px;\r\n  grid-template-columns: repeat(4, minmax(0, 1fr));\r\n  grid-auto-rows: 34px;\r\n  gap: 0;\r\n  box-sizing: border-box;\r\n  width: 100%;\r\n  height: 42px;\r\n  min-height: 42px;\r\n  max-height: 42px;\r\n  align-self: stretch;\r\n  margin: 0 0 12px;\r\n  padding: 3px;\r\n  overflow: hidden;\r\n  border: 1px solid var(--pfh-theme-border);\r\n  border-radius: 13px;\r\n  background: var(--pfh-theme-surface);\r\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86), 0 7px 18px var(--pfh-theme-shadow-soft);\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-indicator {\r\n  position: absolute;\r\n  z-index: 0;\r\n  top: 3px;\r\n  left: 3px;\r\n  width: calc((100% - 6px) / 4);\r\n  height: 34px;\r\n  max-height: 34px;\r\n  border: 0;\r\n  border-radius: 10px;\r\n  background: linear-gradient(135deg, var(--pfh-theme-primary), var(--pfh-theme-primary-hover));\r\n  box-shadow: 0 7px 16px var(--pfh-theme-shadow-soft);\r\n  pointer-events: none;\r\n  will-change: left, width;\r\n  transition: left .6s cubic-bezier(.25, 1.2, .35, 1), width .6s cubic-bezier(.25, 1.2, .35, 1);\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button {\r\n  position: relative;\r\n  z-index: 1;\r\n  display: flex;\r\n  min-width: 0;\r\n  height: 34px;\r\n  min-height: 34px;\r\n  max-height: 34px;\r\n  align-items: center;\r\n  justify-content: center;\r\n  margin: 0;\r\n  padding: 0 8px;\r\n  border: 0;\r\n  border-radius: 10px;\r\n  background: transparent;\r\n  color: var(--pfh-theme-muted);\r\n  font: inherit;\r\n  font-size: 12px;\r\n  font-weight: 400;\r\n  line-height: 1;\r\n  cursor: pointer;\r\n  transition: color .28s ease;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button.is-active {\r\n  background: transparent;\r\n  box-shadow: none;\r\n  color: #fff;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button::after {\r\n  content: \"\";\r\n  position: absolute;\r\n  inset: 0;\r\n  border-radius: 10px;\r\n  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .18) 0%, transparent 65%);\r\n  opacity: 0;\r\n  pointer-events: none;\r\n  transition: opacity .25s;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button:hover::after {\r\n  opacity: 1;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button.is-active::after {\r\n  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .28) 0%, transparent 65%);\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button:disabled,\r\n#plm-floating-helper .pfh-detail-view-tabs button.is-access-locked {\r\n  cursor: not-allowed;\r\n  opacity: .48;\r\n}\r\n\r\n/* Integrated design/development navigation keeps the selected tool compact. */\r\n#plm-floating-helper .pfh-design-development-tabs {\r\n  display: flex;\r\n  overflow-x: auto;\r\n  scrollbar-width: none;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button {\r\n  flex: 1 0 auto;\r\n  padding: 0 9px;\r\n  white-space: nowrap;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button.is-active {\r\n  flex: 0 0 34px;\r\n  padding: 0;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-tab-icon,\r\n#plm-floating-helper .pfh-design-development-tabs button.is-active .pfh-detail-tab-label {\r\n  display: none;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button.is-active .pfh-detail-tab-icon {\r\n  display: inline-flex;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button.is-development {\r\n  color: #1b8d6c;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button.is-development.is-active {\r\n  color: #fff;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs[data-active-view^=\"development-\"] .pfh-detail-view-indicator {\r\n  background: #1b8d6c;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button:focus-visible {\r\n  outline: 2px solid var(--pfh-theme-primary);\r\n  outline-offset: -2px;\r\n}\r\n\r\n@media (prefers-reduced-motion: reduce) {\r\n  #plm-floating-helper .pfh-detail-view-tabs button,\r\n  #plm-floating-helper .pfh-detail-view-indicator {\r\n    transition: none;\r\n  }\r\n}\r\n\n/* Keep SKU identity above the independently scrolling detail content. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  height: auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  padding: 12px 14px 0;\n  overflow: hidden;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {\n  flex: 0 0 auto;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 0 0;\n}\n\n#plm-floating-helper .pfh-material-card {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 16px 18px;\r\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\r\n  border-radius: 16px;\r\n  background: var(--pfh-theme-card, #fff);\r\n}\r\n#plm-floating-helper .pfh-material-card small {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key] {\r\n  display: block;\r\n  min-width: 0;\r\n  overflow-wrap: anywhere;\r\n  /* Fill the inter-row gap without moving the text or overlapping targets. */\r\n  padding: 4px 10px;\r\n  margin: -4px -10px;\r\n  cursor: pointer;\r\n  border-radius: 6px;\r\n  transition: color .15s, background .15s;\r\n}\r\n#plm-floating-helper .pfh-material-size {\r\n  color: var(--pfh-theme-text, #17213a);\r\n  font-size: 15px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-code {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:hover,\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:focus-visible,\r\n#plm-floating-helper .pfh-material-card .is-copied {\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-soft, #f4efff);\r\n  outline: none;\r\n}\r\n\n/* Keep product context in the selected SKU card while the editor owns the detail pane. */\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active) {\n  position: relative;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active)::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  z-index: 10;\n  border-radius: inherit;\n  background: color-mix(in srgb, var(--pfh-theme-page, #f8f9ff) 58%, transparent);\n  pointer-events: none;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-list-head, .pfh-sku-list-toolbar, .pfh-sku-filter-toolbar, .pfh-list-pager, .pfh-search-result-toolbar, .pfh-workspace-search-host) {\n  opacity: .5;\n}\n\n#plm-floating-helper .pfh-development-detail-jump {\n  position: absolute;\n  z-index: 80;\n  display: grid;\n  gap: 4px;\n  width: 188px;\n  max-width: calc(100% - 16px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-development-detail-jump button {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  text-align: left;\n  font: inherit;\n  font-size: 12px;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-development-detail-jump button:is(:hover, :focus-visible, .is-active) { background: var(--pfh-theme-primary-soft); color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-development-detail-jump button:focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 1px; }\n#plm-floating-helper .pfh-development-detail-jump button:disabled { opacity: .45; cursor: default; }\n";
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
   // Browser-profile disk cache. Blobs never enter SKU storage or cloud backups.
@@ -7447,6 +7447,7 @@
   }
 
   function getProductDevelopmentCurrentSku() {
+    if (state && state.workMode !== 'product-development' && state.settings.designDevelopmentTabs === true && state.designDevelopmentTab) return String(state.selectedSku || state.data && state.data.sku || '').trim().toUpperCase();
     const taskCandidates = [
       state && state.productDevelopmentSelectedTask && state.productDevelopmentSelectedTask.sku,
       state && state.productDevelopmentTaskSelectedSku,
@@ -8158,7 +8159,7 @@
     if (next) state.productDevelopmentTaskDetailData[sku] = next;
     state.productDevelopmentTaskFormData[sku] = readOnlyDetail;
     productDevelopmentRecordMaterialsFromBom(sku, readOnlyDetail.bomRows);
-    if (state.productDevelopmentTaskSelectedSku === sku) {
+    if (state.productDevelopmentTaskSelectedSku === sku && state.selectedSku === sku) {
       if (next) state.data = next;
       state.selectedSku = sku;
     }
@@ -11874,6 +11875,51 @@
     return root.outerHTML;
   }
 
+  function renderDesignDevelopmentDetail(panel, statusText) {
+    const tab = DESIGN_DEVELOPMENT_TABS.find((item) => item.id === state.designDevelopmentTab);
+    if (!tab || state.view !== 'detail' || state.workMode === 'product-development') return false;
+    const data = state.data;
+    if (!data || !data.sku) return false;
+    const sku = String(data.sku).trim().toUpperCase();
+    // Keep the design SKU list and work mode; only share the development editor session.
+    if (state.productDevelopmentTaskSelectedSku !== sku || !state.productDevelopmentSelectedTask) {
+      const task = getProductDevelopmentTaskBySku(sku) || { ...data, sku, projectId: data.projectId || data.projectRowId || '' };
+      if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+      state.productDevelopmentSelectedTask = task;
+      state.productDevelopmentTaskSelectedSku = sku;
+      state.productDevelopmentSnapshot = null;
+      state.productDevelopmentBenchmarkImageDataUrl = '';
+      state.productDevelopmentBenchmarkImageName = '';
+      state.productDevelopmentReview = null;
+      state.productDevelopmentReviewEditorOpen = false;
+      state.productDevelopmentCopywriting = null;
+      state.productDevelopmentError = '';
+      state.productDevelopmentStatus = '';
+      restoreProductDevelopmentReviewDraft(sku);
+    }
+    const task = state.productDevelopmentSelectedTask;
+    state.productDevelopmentTaskView = tab.view;
+    const detail = panel.querySelector('.pfh-detail');
+    const feature = productDevelopmentFeatureForView(tab.view);
+    const body = feature && !productDevelopmentHasAccess(feature)
+      ? '<div class="pfh-empty">前面的区域，以后再来探索吧</div>'
+      : tab.view === 'detail' ? productDevelopmentTaskActionsHtml(task) : productDevelopmentTaskEmbeddedViewHtml(tab.view, statusText);
+    detail.classList.remove('is-loading');
+    updateAssistantDetailMarkup(detail, '<div class="pfh-detail-view-frame pfh-cw-task-frame">' + detailViewTabsHtml(tab.id) + '<div class="pfh-detail-scroll pfh-cw-task-content">' + body + '</div></div>', sku + '|' + tab.id);
+    productDevelopmentMountReviewEditorOverlay(panel);
+    if (detail.pfhDesignDevelopmentSku !== sku) {
+      detail.pfhDesignDevelopmentSku = sku;
+      hydrateProductDevelopmentTaskDetail(task).then(() => {
+        if (state.view === 'detail' && state.settings.designDevelopmentTabs === true && state.designDevelopmentTab && state.selectedSku === sku) renderShell();
+      }).catch((error) => {
+        if (state.selectedSku !== sku) return;
+        state.productDevelopmentError = formatErrorMessage(error);
+        if (state.view === 'detail' && state.designDevelopmentTab) renderShell();
+      });
+    }
+    return true;
+  }
+
   function renderProductDevelopmentTaskDetail(panel, statusText, task) {
     const detail = panel && panel.querySelector('.pfh-detail');
     if (!detail) return;
@@ -15492,7 +15538,8 @@
   }
 
   function productDevelopmentWarmIngredientTemplates() {
-    const isVisible = () => state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting';
+    const isVisible = () => state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting'
+      || state.view === 'detail' && state.settings.designDevelopmentTabs === true && state.designDevelopmentTab === 'development-copywriting';
     ensureProductDevelopmentIngredientTemplatesLoaded().then(() => {
       if (isVisible()) renderShell();
     }).catch((error) => {
@@ -18431,7 +18478,8 @@
     if (!target || !target.classList) return false;
     if (target.getAttribute('data-product-development-one-shot-editor-field') || target.getAttribute('data-product-development-one-shot-row-index')) {
       window.setTimeout(() => {
-        if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting') renderShell();
+        if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskView === 'copywriting'
+          || state.view === 'detail' && state.settings.designDevelopmentTabs === true && state.designDevelopmentTab === 'development-copywriting') renderShell();
       }, 0);
       return true;
     }
@@ -19158,6 +19206,7 @@
     skuCacheEditorSku: '',
     copywritingMode: false,
     detailViewPreviousTab: '',
+    designDevelopmentTab: '',
     copywritingView: 'file',
     infringementImageViewer: null,
     infringementHistoryOpen: false,
@@ -24530,14 +24579,25 @@
     { id: 'sizeImage', label: '尺寸图' },
   ]);
 
+  const DESIGN_DEVELOPMENT_TABS = Object.freeze([
+    { id: 'development-detail', label: '开发详情', icon: 'taskPlan', view: 'detail' },
+    { id: 'development-review', label: '侵权图', icon: 'image', view: 'review' },
+    { id: 'development-copywriting', label: '编辑文案', icon: 'edit', view: 'copywriting' },
+  ]);
+
+  function designDetailTabs() {
+    return state.settings.designDevelopmentTabs === true ? DETAIL_VIEW_TABS.concat(DESIGN_DEVELOPMENT_TABS) : DETAIL_VIEW_TABS;
+  }
+
   function normalizeDetailViewTab(value) {
     const tab = String(value || '');
-    return DETAIL_VIEW_TABS.some((item) => item.id === tab) ? tab : 'detail';
+    return designDetailTabs().some((item) => item.id === tab) ? tab : 'detail';
   }
 
   function getCurrentDetailViewTab() {
     if (state.view === 'parameterImage') return 'parameterImage';
     if (state.view === 'sizeImage') return 'sizeImage';
+    if (state.view === 'detail' && state.settings.designDevelopmentTabs === true && DESIGN_DEVELOPMENT_TABS.some((tab) => tab.id === state.designDevelopmentTab)) return state.designDevelopmentTab;
     return state.copywritingMode ? 'copywriting' : 'detail';
   }
 
@@ -24547,13 +24607,16 @@
     const sizeImageTitle = state.sizeImageAccessLoading ? '正在准备功能' : '该功能暂未开放，敬请期待';
     const parameterImageDisabled = !state.parameterImageAccessEnabled;
     const parameterImageTitle = state.parameterImageAccessLoading ? '正在准备功能' : '该功能暂未开放，敬请期待';
-    const buttons = DETAIL_VIEW_TABS.map((tab) => {
+    const integrated = state.settings.designDevelopmentTabs === true;
+    const buttons = designDetailTabs().map((tab) => {
       const selected = tab.id === active;
+      const locked = tab.view && productDevelopmentFeatureForView(tab.view) && !productDevelopmentHasAccess(productDevelopmentFeatureForView(tab.view));
       const disabled = (tab.id === 'sizeImage' && sizeImageDisabled) || (tab.id === 'parameterImage' && parameterImageDisabled);
       const title = tab.id === 'parameterImage' ? parameterImageTitle : sizeImageTitle;
-      return '<button type="button" role="tab" data-action="detail-view-tab" data-detail-view="' + tab.id + '" class="' + (selected ? 'is-active' : '') + '" aria-selected="' + String(selected) + '"' + (disabled ? ' disabled aria-disabled="true" title="' + escapeHtml(title) + '"' : '') + '>' + escapeHtml(tab.label) + '</button>';
+      const icon = tab.icon || ({ detail: 'folder', copywriting: 'batchExcel', parameterImage: 'image', sizeImage: 'tools' })[tab.id];
+      return '<button type="button" role="tab" data-action="detail-view-tab" data-detail-view="' + tab.id + '" class="' + (selected ? 'is-active' : '') + (tab.view ? ' is-development' : '') + (locked ? ' is-access-locked' : '') + '" aria-label="' + escapeHtml(tab.label) + '" aria-selected="' + String(selected) + '" title="' + escapeHtml(disabled ? title : tab.label) + '"' + (disabled ? ' disabled aria-disabled="true"' : locked ? ' aria-disabled="true"' : '') + '>' + (integrated ? '<span class="pfh-detail-tab-icon" aria-hidden="true">' + iconHtml(icon) + '</span><span class="pfh-detail-tab-label">' + escapeHtml(tab.label) + '</span>' : escapeHtml(tab.label)) + '</button>';
     }).join('');
-    return '<nav class="pfh-detail-view-tabs" data-active-view="' + escapeHtml(active) + '" role="tablist" aria-label="SKU详情视图"><span class="pfh-detail-view-indicator" aria-hidden="true"></span>' + buttons + '</nav>';
+    return '<nav class="pfh-detail-view-tabs' + (integrated ? ' pfh-design-development-tabs' : '') + '" data-active-view="' + escapeHtml(active) + '" role="tablist" aria-label="SKU详情视图"><span class="pfh-detail-view-indicator" aria-hidden="true"></span>' + buttons + '</nav>';
   }
 
   function setupDetailViewTabs(panel) {
@@ -24568,7 +24631,7 @@
       indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
     };
     const previousValue = String(state.detailViewPreviousTab || '');
-    const previous = DETAIL_VIEW_TABS.some((item) => item.id === previousValue) ? previousValue : '';
+    const previous = designDetailTabs().some((item) => item.id === previousValue) ? previousValue : '';
     const previousButton = previous && previous !== activeButton.getAttribute('data-detail-view')
       ? tabs.querySelector('button[data-detail-view="' + previous + '"]')
       : null;
@@ -24630,7 +24693,8 @@
   function workspaceLayoutSettingsHtml() {
     const enabled = isWorkspaceLayoutEnabled();
     return settingsCardHtml('界面布局', enabled ? '新版三栏' : '经典视图',
-      '<div class="pfh-pixel-room-toggle"><label><input type="checkbox" role="switch" class="pfh-workspace-layout-enabled" aria-checked="' + enabled + '"' + (enabled ? ' checked' : '') + '><span>使用新版三栏视图</span></label></div><div class="pfh-about-note">关闭后使用经典布局；切换立即生效。两种视图分别记住手动调整的窗口大小。</div>');
+      '<div class="pfh-pixel-room-toggle"><label><input type="checkbox" role="switch" class="pfh-workspace-layout-enabled" aria-checked="' + enabled + '"' + (enabled ? ' checked' : '') + '><span>使用新版三栏视图</span></label></div><div class="pfh-about-note">关闭后使用经典布局；切换立即生效。两种视图分别记住手动调整的窗口大小。</div>' +
+      '<div class="pfh-pixel-room-toggle"><label><input type="checkbox" role="switch" class="pfh-design-development-enabled" aria-checked="' + (state.settings.designDevelopmentTabs === true) + '"' + (state.settings.designDevelopmentTabs === true ? ' checked' : '') + '><span>在设计顶部集成开发功能</span></label></div><div class="pfh-about-note">显示当前 SKU 的开发详情、侵权图和编辑文案；开发按钮使用品绿，选中项缩为图标，其他项显示文字。</div>');
   }
 
   function restoreWorkspaceClassicShell(panel) {
@@ -29878,6 +29942,7 @@
     state.data = normalizeData(data);
     const main = panel.querySelector('.pfh-main');
     if (main) main.classList.remove('is-home');
+    if (state.settings.designDevelopmentTabs === true && renderDesignDevelopmentDetail(panel, statusText)) return;
     if (state.copywritingMode) {
       updateAssistantDetailMarkup(detail, [
         '<div class="pfh-detail-scroll pfh-copywriting-scroll">',
@@ -36870,6 +36935,12 @@ self.onmessage = async function(event) {
       return;
     }
     if (target === current) return;
+    const developmentTab = DESIGN_DEVELOPMENT_TABS.find((tab) => tab.id === target);
+    const developmentFeature = developmentTab && productDevelopmentFeatureForView(developmentTab.view);
+    if (developmentFeature && !productDevelopmentHasAccess(developmentFeature)) {
+      showProductDevelopmentPermissionDialog();
+      return;
+    }
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) {
       showToast('请先从左侧选择 SKU');
@@ -36878,6 +36949,17 @@ self.onmessage = async function(event) {
     state.detailViewPreviousTab = current;
     state.selectedSku = data.sku;
     state.data = data;
+    if (state.designDevelopmentTab && !developmentTab) {
+      if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+      state.productDevelopmentReviewEditorOpen = false;
+    }
+    state.designDevelopmentTab = developmentTab ? target : '';
+    if (developmentTab) {
+      state.view = 'detail';
+      state.copywritingMode = false;
+      expandPanel();
+      return;
+    }
     if (target === 'copywriting') {
       state.view = 'detail';
       state.copywritingMode = false;
@@ -40508,6 +40590,15 @@ self.onmessage = async function(event) {
   }
 
   function handlePanelChange(event) {
+    if (event.target?.classList?.contains('pfh-design-development-enabled')) {
+      if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+      state.productDevelopmentReviewEditorOpen = false;
+      state.settings.designDevelopmentTabs = event.target.checked === true;
+      state.designDevelopmentTab = '';
+      saveSettings(state.settings);
+      renderShell();
+      return;
+    }
     if (event.target?.classList?.contains('pfh-workspace-layout-enabled')) {
       setWorkspaceLayoutEnabled(event.target.checked === true);
       return;
@@ -43570,7 +43661,9 @@ self.onmessage = async function(event) {
       state.selectedSku = target.sku;
       state.data = data ? normalizeData(data) : null;
       state.detailViewPreviousTab = previousView !== requestedView ? previousView : '';
-      state.view = requestedView === 'copywriting' ? 'detail' : requestedView;
+      const developmentView = requestedView.startsWith('development-');
+      state.designDevelopmentTab = developmentView ? requestedView : '';
+      state.view = requestedView === 'copywriting' || developmentView ? 'detail' : requestedView;
       state.copywritingMode = requestedView === 'copywriting';
       resetExcelState();
       if (requestedView === 'parameterImage') parameterImageFeature.loadRules();
@@ -53463,6 +53556,7 @@ self.onmessage = async function(event) {
       settings.themeSkinVersion = THEME_SKIN_VERSION;
       settings.theme = normalizeThemeId(settings.theme);
       settings.copywritingCollapsed = settings.copywritingCollapsed === true;
+      settings.designDevelopmentTabs = settings.designDevelopmentTabs === true;
       settings.shortcutBindings = normalizeShortcutBindings(settings.shortcutBindings);
       settings.shortcutEnabled = settings.shortcutEnabled === true;
       settings.pixelRoomEnabled = settings.pixelRoomEnabled === true;

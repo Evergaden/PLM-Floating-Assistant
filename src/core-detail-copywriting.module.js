@@ -238,6 +238,12 @@
       return;
     }
     if (target === current) return;
+    const developmentTab = DESIGN_DEVELOPMENT_TABS.find((tab) => tab.id === target);
+    const developmentFeature = developmentTab && productDevelopmentFeatureForView(developmentTab.view);
+    if (developmentFeature && !productDevelopmentHasAccess(developmentFeature)) {
+      showProductDevelopmentPermissionDialog();
+      return;
+    }
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) {
       showToast('请先从左侧选择 SKU');
@@ -246,6 +252,17 @@
     state.detailViewPreviousTab = current;
     state.selectedSku = data.sku;
     state.data = data;
+    if (state.designDevelopmentTab && !developmentTab) {
+      if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+      state.productDevelopmentReviewEditorOpen = false;
+    }
+    state.designDevelopmentTab = developmentTab ? target : '';
+    if (developmentTab) {
+      state.view = 'detail';
+      state.copywritingMode = false;
+      expandPanel();
+      return;
+    }
     if (target === 'copywriting') {
       state.view = 'detail';
       state.copywritingMode = false;

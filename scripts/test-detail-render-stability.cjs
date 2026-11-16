@@ -29,6 +29,7 @@ const ctx = vm.createContext({ document, state, PANEL_ID: 'panel',
 for (const name of ['materialDimensionUnitAlertHtml', 'skuDataChangeAlertHtml', 'accessoryCardsHtml', 'toyCopywritingButtonHtml', 'toyCopywritingFeedbackHtml', 'infringementSectionHtml', 'skuDataLogTriggerHtml']) ctx[name] = () => '';
 vm.runInContext(extract(read('core-panel-views'), '  function skuSidebarNodeKey(', '  function updateSkuSidebarMarkup('), ctx);
 vm.runInContext(extract(read('core-panel-views'), '  function setupDetailViewTabs(', '  function isWorkspaceLayoutEnabled('), ctx);
+vm.runInContext(extract(read('core-panel-views'), '  function designDetailTabs(', '  function normalizeDetailViewTab('), ctx);
 vm.runInContext(extract(read('core-ledger-workbench'), '  function productThumbHtml(', '  function formatSkuDetailPriority('), ctx);
 vm.runInContext(extract(read('core-ledger-detail'), '  function renderLoadingDetail(', '  function productHeroSectionHtml('), ctx);
 ctx.productHeroSectionHtml = (data) => '<section class="pfh-file-section">' + ctx.productThumbHtml(data) + '<h3>' + data.name + '</h3></section>';

@@ -2076,6 +2076,15 @@
   }
 
   function handlePanelChange(event) {
+    if (event.target?.classList?.contains('pfh-design-development-enabled')) {
+      if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+      state.productDevelopmentReviewEditorOpen = false;
+      state.settings.designDevelopmentTabs = event.target.checked === true;
+      state.designDevelopmentTab = '';
+      saveSettings(state.settings);
+      renderShell();
+      return;
+    }
     if (event.target?.classList?.contains('pfh-workspace-layout-enabled')) {
       setWorkspaceLayoutEnabled(event.target.checked === true);
       return;

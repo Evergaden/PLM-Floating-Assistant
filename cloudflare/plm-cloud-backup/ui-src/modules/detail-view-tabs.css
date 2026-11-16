@@ -124,6 +124,50 @@
   opacity: .48;
 }
 
+/* Integrated design/development navigation keeps the selected tool compact. */
+#plm-floating-helper .pfh-design-development-tabs {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+#plm-floating-helper .pfh-design-development-tabs button {
+  flex: 1 0 auto;
+  padding: 0 9px;
+  white-space: nowrap;
+}
+
+#plm-floating-helper .pfh-design-development-tabs button.is-active {
+  flex: 0 0 34px;
+  padding: 0;
+}
+
+#plm-floating-helper .pfh-detail-tab-icon,
+#plm-floating-helper .pfh-design-development-tabs button.is-active .pfh-detail-tab-label {
+  display: none;
+}
+
+#plm-floating-helper .pfh-design-development-tabs button.is-active .pfh-detail-tab-icon {
+  display: inline-flex;
+}
+
+#plm-floating-helper .pfh-design-development-tabs button.is-development {
+  color: #1b8d6c;
+}
+
+#plm-floating-helper .pfh-design-development-tabs button.is-development.is-active {
+  color: #fff;
+}
+
+#plm-floating-helper .pfh-design-development-tabs[data-active-view^="development-"] .pfh-detail-view-indicator {
+  background: #1b8d6c;
+}
+
+#plm-floating-helper .pfh-design-development-tabs button:focus-visible {
+  outline: 2px solid var(--pfh-theme-primary);
+  outline-offset: -2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   #plm-floating-helper .pfh-detail-view-tabs button,
   #plm-floating-helper .pfh-detail-view-indicator {

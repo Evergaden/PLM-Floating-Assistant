@@ -49,6 +49,7 @@
       settings.themeSkinVersion = THEME_SKIN_VERSION;
       settings.theme = normalizeThemeId(settings.theme);
       settings.copywritingCollapsed = settings.copywritingCollapsed === true;
+      settings.designDevelopmentTabs = settings.designDevelopmentTabs === true;
       settings.shortcutBindings = normalizeShortcutBindings(settings.shortcutBindings);
       settings.shortcutEnabled = settings.shortcutEnabled === true;
       settings.pixelRoomEnabled = settings.pixelRoomEnabled === true;

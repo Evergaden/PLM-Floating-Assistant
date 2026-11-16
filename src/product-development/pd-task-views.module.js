@@ -244,6 +244,51 @@
     return root.outerHTML;
   }
 
+  function renderDesignDevelopmentDetail(panel, statusText) {
+    const tab = DESIGN_DEVELOPMENT_TABS.find((item) => item.id === state.designDevelopmentTab);
+    if (!tab || state.view !== 'detail' || state.workMode === 'product-development') return false;
+    const data = state.data;
+    if (!data || !data.sku) return false;
+    const sku = String(data.sku).trim().toUpperCase();
+    // Keep the design SKU list and work mode; only share the development editor session.
+    if (state.productDevelopmentTaskSelectedSku !== sku || !state.productDevelopmentSelectedTask) {
+      const task = getProductDevelopmentTaskBySku(sku) || { ...data, sku, projectId: data.projectId || data.projectRowId || '' };
+      if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+      state.productDevelopmentSelectedTask = task;
+      state.productDevelopmentTaskSelectedSku = sku;
+      state.productDevelopmentSnapshot = null;
+      state.productDevelopmentBenchmarkImageDataUrl = '';
+      state.productDevelopmentBenchmarkImageName = '';
+      state.productDevelopmentReview = null;
+      state.productDevelopmentReviewEditorOpen = false;
+      state.productDevelopmentCopywriting = null;
+      state.productDevelopmentError = '';
+      state.productDevelopmentStatus = '';
+      restoreProductDevelopmentReviewDraft(sku);
+    }
+    const task = state.productDevelopmentSelectedTask;
+    state.productDevelopmentTaskView = tab.view;
+    const detail = panel.querySelector('.pfh-detail');
+    const feature = productDevelopmentFeatureForView(tab.view);
+    const body = feature && !productDevelopmentHasAccess(feature)
+      ? '<div class="pfh-empty">前面的区域，以后再来探索吧</div>'
+      : tab.view === 'detail' ? productDevelopmentTaskActionsHtml(task) : productDevelopmentTaskEmbeddedViewHtml(tab.view, statusText);
+    detail.classList.remove('is-loading');
+    updateAssistantDetailMarkup(detail, '<div class="pfh-detail-view-frame pfh-cw-task-frame">' + detailViewTabsHtml(tab.id) + '<div class="pfh-detail-scroll pfh-cw-task-content">' + body + '</div></div>', sku + '|' + tab.id);
+    productDevelopmentMountReviewEditorOverlay(panel);
+    if (detail.pfhDesignDevelopmentSku !== sku) {
+      detail.pfhDesignDevelopmentSku = sku;
+      hydrateProductDevelopmentTaskDetail(task).then(() => {
+        if (state.view === 'detail' && state.settings.designDevelopmentTabs === true && state.designDevelopmentTab && state.selectedSku === sku) renderShell();
+      }).catch((error) => {
+        if (state.selectedSku !== sku) return;
+        state.productDevelopmentError = formatErrorMessage(error);
+        if (state.view === 'detail' && state.designDevelopmentTab) renderShell();
+      });
+    }
+    return true;
+  }
+
   function renderProductDevelopmentTaskDetail(panel, statusText, task) {
     const detail = panel && panel.querySelector('.pfh-detail');
     if (!detail) return;
