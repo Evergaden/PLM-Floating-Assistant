@@ -26,6 +26,8 @@ for (const option of document.querySelectorAll('.ant-select-item-option')) optio
 context.ensureCreateProjectTemplateButtons();
 context.ensureCreateProjectTemplateButtons();
 assert.equal(drawer.querySelectorAll('[data-pfh-project-template] button').length, 2, 'Only one pair of buttons is injected');
+assert(drawer.querySelector('[data-pfh-project-template] style').textContent.includes('color:#7134e8!important'), 'Buttons have a readable independent color');
+assert(drawer.querySelector('[data-pfh-project-template] .is-primary'), 'Quick fill uses the primary button style');
 assert.equal(context.createProjectTemplateSave(drawer), 1);
 const saved = JSON.parse(Object.values(storage)[0]);
 assert.equal(saved.selects.form_item_design_type, '无logo');

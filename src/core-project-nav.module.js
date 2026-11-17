@@ -93,10 +93,17 @@
     const toolbar = document.createElement('div');
     toolbar.dataset.pfhProjectTemplate = 'true';
     toolbar.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin:0 0 16px';
+    const style = document.createElement('style');
+    style.textContent = '[data-pfh-project-template] .pfh-project-template-button{height:36px!important;padding:0 15px!important;border:1px solid #b99bff!important;border-radius:10px!important;background:#fff!important;color:#7134e8!important;font-family:inherit!important;font-size:14px!important;font-weight:500!important;line-height:1.2!important;cursor:pointer!important;box-shadow:none!important;transition:background .18s,color .18s,border-color .18s!important}' +
+      '[data-pfh-project-template] .pfh-project-template-button:hover{background:#f4efff!important;border-color:#7938ee!important}' +
+      '[data-pfh-project-template] .pfh-project-template-button.is-primary{background:#7735ed!important;border-color:#7735ed!important;color:#fff!important}' +
+      '[data-pfh-project-template] .pfh-project-template-button.is-primary:hover{background:#6422d2!important;border-color:#6422d2!important}' +
+      '[data-pfh-project-template] .pfh-project-template-button:focus-visible{outline:3px solid #d8c7ff!important;outline-offset:2px!important}';
+    toolbar.appendChild(style);
     for (const [action, label] of [['save', '保存模板'], ['fill', '快捷填入']]) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'ant-btn ant-btn-default';
+      button.className = 'pfh-project-template-button' + (action === 'fill' ? ' is-primary' : '');
       button.textContent = label;
       button.addEventListener('click', async () => {
         if (toolbar.dataset.busy) return;

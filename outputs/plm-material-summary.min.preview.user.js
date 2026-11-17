@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      3.0.12
+// @version      3.0.13
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "3.0.12";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "3.0.13";
     function r() {
         return r.promise || (r.promise = new Promise((e, t) => {
             const n = indexedDB.open("plm-floating-helper-image-cache-v1", 1);
@@ -31682,9 +31682,13 @@
         if (!t || !n || !r || "创建项目" !== du(n.textContent) || r.querySelector("[data-pfh-project-template]")) return;
         const a = document.createElement("div");
         a.dataset.pfhProjectTemplate = "true", a.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin:0 0 16px";
+        const i = document.createElement("style");
+        i.textContent = "[data-pfh-project-template] .pfh-project-template-button{height:36px!important;padding:0 15px!important;border:1px solid #b99bff!important;border-radius:10px!important;background:#fff!important;color:#7134e8!important;font-family:inherit!important;font-size:14px!important;font-weight:500!important;line-height:1.2!important;cursor:pointer!important;box-shadow:none!important;transition:background .18s,color .18s,border-color .18s!important}[data-pfh-project-template] .pfh-project-template-button:hover{background:#f4efff!important;border-color:#7938ee!important}[data-pfh-project-template] .pfh-project-template-button.is-primary{background:#7735ed!important;border-color:#7735ed!important;color:#fff!important}[data-pfh-project-template] .pfh-project-template-button.is-primary:hover{background:#6422d2!important;border-color:#6422d2!important}[data-pfh-project-template] .pfh-project-template-button:focus-visible{outline:3px solid #d8c7ff!important;outline-offset:2px!important}",
+        a.appendChild(i);
         for (const [e, n] of [ [ "save", "保存模板" ], [ "fill", "快捷填入" ] ]) {
             const r = document.createElement("button");
-            r.type = "button", r.className = "ant-btn ant-btn-default", r.textContent = n, r.addEventListener("click", async () => {
+            r.type = "button", r.className = "pfh-project-template-button" + ("fill" === e ? " is-primary" : ""),
+            r.textContent = n, r.addEventListener("click", async () => {
                 if (!a.dataset.busy) {
                     a.dataset.busy = "1";
                     try {
