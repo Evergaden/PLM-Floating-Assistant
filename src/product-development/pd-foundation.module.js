@@ -64,6 +64,7 @@
     productLine: '',
     regularNdcKind: '',
     packagingKind: '',
+    productFacts: '',
     regularIngredientsEn: '',
     regularIngredientsInactiveEn: '',
     regularIngredientsCn: '',

@@ -397,9 +397,10 @@
         referenceUrl,
         ingredients: heroPairs,
         copywritingCategory: 'regular',
+        sourceCopywriting: input.productFacts ? { ...snapshot.sourceCopywriting, usage: { en: '', cn: '' } } : snapshot.sourceCopywriting,
         labeling: {
-          directionsEn: snapshot.sourceCopywriting && snapshot.sourceCopywriting.usage && snapshot.sourceCopywriting.usage.en || '',
-          directionsCn: snapshot.sourceCopywriting && snapshot.sourceCopywriting.usage && snapshot.sourceCopywriting.usage.cn || '',
+          directionsEn: input.productFacts ? '' : snapshot.sourceCopywriting && snapshot.sourceCopywriting.usage && snapshot.sourceCopywriting.usage.en || '',
+          directionsCn: input.productFacts ? '' : snapshot.sourceCopywriting && snapshot.sourceCopywriting.usage && snapshot.sourceCopywriting.usage.cn || '',
         },
       };
       const response = await withCopywritingTimeout(cloudRequest('/ai-image/product-development-copywriting', {
@@ -407,7 +408,8 @@
         timeoutMs: 600000,
         body: {
           sku: snapshot.sku,
-          imageDataUrl: copywritingImage ? copywritingImage.dataUrl : '',
+          ...(copywritingImage ? { imageDataUrl: copywritingImage.dataUrl } : {}),
+          productFacts: input.productFacts || '',
           name: snapshot.name,
           englishName: regularSnapshot.englishName || snapshot.englishName || '',
           referenceUrl,
@@ -424,7 +426,7 @@
             policy: '常规产品（非食品）：输入 ingredients 已预先筛好 3-4 条最有卖点的成分，D 成分功能必须按输入顺序逐条覆盖全部输入成分，每条英文 10-15 个单词，突出该成分卖点。',
           },
           sourcePlainTextCopy: snapshot.sourcePlainTextCopy || productDevelopmentOneShotPlainTextCopy(sku, snapshot),
-          sourceCopywriting: snapshot.sourceCopywriting,
+          sourceCopywriting: regularSnapshot.sourceCopywriting,
           templateVersion: copywritingTemplate.version,
           templateId: copywritingTemplate.id,
           templateLabel: copywritingTemplate.label,

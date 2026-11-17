@@ -4043,6 +4043,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
     englishName,
     copywritingCategory: copywritingOptions.copywritingCategory,
     productType: cleanText(body.productType, 180),
+    productFacts: cleanText(body.productFacts, 240),
     referenceUrl: cleanText(body.referenceUrl, 1200),
     netContent: cleanText(body.netContent, 120),
     brand,
@@ -4060,6 +4061,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   };
   const commonSystem = [
     '你是美国电商产品的双语包装文案草稿助手，必须依据当前产品类型、用途和资料写作。',
+    'productFacts 是用户明确填写的当前产品形态与使用方式，优先于旧文案和推测。依据它写用法并检查所有段落；与其相冲突的包装、质地、数量和操作不得出现。没有提供的细节不要推断。',
     '当模板 id 为 regular-ndc 或 regular-non-ndc 时，sections 必须包含至少一条非空双语 directions，每项为 {"en":"","cn":""}，按步骤逐条对应中英文。有 sourceCopywriting.usage 或 sourcePlainTextCopy 的明确用法时，优先据此整理和翻译；没有时根据当前产品的明确剂型和用途写合理、简洁的基础用法草稿，不得编造数值、频次、部位、配件或无法确认的留存、冲洗步骤。用法独立于 A-D，不套用 A-D 的禁用用法词规则。referenceUrl 仅为原样导出线索，不抓取、不虚构或声称已验证链接内容。',
     copywritingImage ? '先仔细观察当前产品效果图，识别实物形态和容器；将可见事实与用户确认的用法结合，包装容器与内容物必须分开描述，不得把颗粒、软珠写成软管或膏霜。图片不能证明不可见成分、包装数量或使用动作；信息不清楚时不要猜测。图文冲突时不得沿用不符的旧描述。' : '本任务使用提交的产品资料、成分、sourcePlainTextCopy 和已有卖点；没有效果图时不得猜测产品形态和包装。',
     '如果存在 sourcePlainTextCopy，它是侵权图修改后的纯文字文案版本；先用它理解产品名称、定位、用途和卖点，再把这些事实改写成 A-D。没有它时才使用其他已提交资料。',
