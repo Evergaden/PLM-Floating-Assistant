@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      3.0.13
+// @version      3.0.14
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "3.0.13";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "3.0.14";
     function r() {
         return r.promise || (r.promise = new Promise((e, t) => {
             const n = indexedDB.open("plm-floating-helper-image-cache-v1", 1);
@@ -31623,30 +31623,35 @@
     }
     async function OM(e, t) {
         if (Pu(e, t)) return;
-        if (!await Mu(e)) throw new Error("下拉未能展开");
-        const n = e.getAttribute("aria-controls"), r = n && document.getElementById(n), a = r && r.closest(".ant-select-dropdown");
-        if (!a || !pu(a)) throw new Error("未找到当前下拉列表");
-        const i = a.querySelector(".rc-virtual-list-holder");
-        i && (i.scrollTop = 0, i.dispatchEvent(new Event("scroll", {
+        if (!Eu(e) && !await Mu(e)) throw new Error("下拉未能展开");
+        const n = e.getAttribute("aria-controls"), r = await xD(() => {
+            if (!n) return null;
+            const e = Array.from(document.querySelectorAll(".ant-select-dropdown:not(.ant-select-dropdown-hidden)")).filter(e => pu(e) && Array.from(e.querySelectorAll('[role="listbox"][id]')).some(e => e.id === n));
+            return 1 === e.length ? e[0] : null;
+        }, 4e3, 80);
+        if (!r) throw new Error("未找到当前下拉列表");
+        if (!await xD(() => Array.from(r.querySelectorAll(".ant-select-item-option")).some(pu), 4e3, 80)) throw new Error("下拉选项加载超时");
+        const a = r.querySelector(".rc-virtual-list-holder");
+        a && (a.scrollTop = 0, a.dispatchEvent(new Event("scroll", {
             bubbles: !0
         })), await uu(100));
-        let o = null;
+        let i = null;
         for (let e = 0; e < 100; e += 1) {
-            const e = Array.from(a.querySelectorAll(".ant-select-item-option")).filter(e => pu(e) && !e.classList.contains("ant-select-item-option-disabled") && bu(e) === du(t));
+            const e = Array.from(r.querySelectorAll(".ant-select-item-option")).filter(e => pu(e) && !e.classList.contains("ant-select-item-option-disabled") && bu(e) === du(t));
             if (1 === e.length) {
-                o = e[0];
+                i = e[0];
                 break;
             }
             if (e.length > 1) throw new Error("下拉选项不唯一");
-            if (!i || i.scrollTop + i.clientHeight >= i.scrollHeight - 1) break;
-            const n = i.scrollTop;
-            if (i.scrollTop = Math.min(i.scrollHeight - i.clientHeight, n + Math.max(80, .7 * i.clientHeight)),
-            i.dispatchEvent(new Event("scroll", {
+            if (!a || a.scrollTop + a.clientHeight >= a.scrollHeight - 1) break;
+            const n = a.scrollTop;
+            if (a.scrollTop = Math.min(a.scrollHeight - a.clientHeight, n + Math.max(80, .7 * a.clientHeight)),
+            a.dispatchEvent(new Event("scroll", {
                 bubbles: !0
-            })), await uu(100), i.scrollTop === n) break;
+            })), await uu(100), a.scrollTop === n) break;
         }
-        if (!o) throw new Error("找不到已保存的选项");
-        if (o.click(), !await xD(() => Pu(e, t), 3e3, 80)) throw new Error("PLM 未确认选项");
+        if (!i) throw new Error("找不到已保存的选项");
+        if (i.click(), !await xD(() => Pu(e, t), 3e3, 80)) throw new Error("PLM 未确认选项");
     }
     async function qM(e) {
         const t = function n() {

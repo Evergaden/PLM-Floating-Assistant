@@ -37,11 +37,17 @@
 
   async function createProjectTemplateSelect(input, wanted) {
     if (productDevelopmentDomSelectionMatches(input, wanted)) return;
-    if (!(await productDevelopmentDomOpenDropdown(input))) throw new Error('下拉未能展开');
+    if (!productDevelopmentDomDropdownOpen(input) && !(await productDevelopmentDomOpenDropdown(input))) throw new Error('下拉未能展开');
     const listId = input.getAttribute('aria-controls');
-    const list = listId && document.getElementById(listId);
-    const dropdown = list && list.closest('.ant-select-dropdown');
-    if (!dropdown || !productDevelopmentDomVisible(dropdown)) throw new Error('未找到当前下拉列表');
+    const dropdown = await waitFor(() => {
+      if (!listId) return null;
+      const matches = Array.from(document.querySelectorAll('.ant-select-dropdown:not(.ant-select-dropdown-hidden)'))
+        .filter((item) => productDevelopmentDomVisible(item) && Array.from(item.querySelectorAll('[role="listbox"][id]')).some((list) => list.id === listId));
+      return matches.length === 1 ? matches[0] : null;
+    }, 4000, 80);
+    if (!dropdown) throw new Error('未找到当前下拉列表');
+    const ready = await waitFor(() => Array.from(dropdown.querySelectorAll('.ant-select-item-option')).some(productDevelopmentDomVisible), 4000, 80);
+    if (!ready) throw new Error('下拉选项加载超时');
     const holder = dropdown.querySelector('.rc-virtual-list-holder');
     if (holder) { holder.scrollTop = 0; holder.dispatchEvent(new Event('scroll', { bubbles: true })); await productDevelopmentDomWait(100); }
     let found = null;
