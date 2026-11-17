@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      3.0.17
+// @version      3.0.18
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "3.0.17";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "3.0.18";
     function r() {
         return r.promise || (r.promise = new Promise((e, t) => {
             const n = indexedDB.open("plm-floating-helper-image-cache-v1", 1);
@@ -9293,16 +9293,40 @@
         return "";
     }
     function Im(e) {
-        const t = uf.productDevelopmentSnapshot && uf.productDevelopmentSnapshot.sku === e ? uf.productDevelopmentSnapshot : null, n = uf.productDevelopmentOneShotResult && uf.productDevelopmentOneShotResult.sku === e ? uf.productDevelopmentOneShotResult : null, r = uf.productDevelopmentSelectedTask && "object" == typeof uf.productDevelopmentSelectedTask ? uf.productDevelopmentSelectedTask : {}, a = Ad(t && t.name || r.name || r.productName || "当前选中产品", 220), i = ig(), o = ym(), s = Ad(i.productType || t && t.productType || "生成时按当前 SKU 读取", 180), l = function c(e) {
+        const t = uf.productDevelopmentSnapshot && uf.productDevelopmentSnapshot.sku === e ? uf.productDevelopmentSnapshot : null, n = uf.productDevelopmentOneShotResult && uf.productDevelopmentOneShotResult.sku === e ? uf.productDevelopmentOneShotResult : null, r = uf.productDevelopmentSelectedTask && "object" == typeof uf.productDevelopmentSelectedTask ? uf.productDevelopmentSelectedTask : {}, a = Ad(t && t.name || r.name || r.productName || "当前选中产品", 220), i = uf.productDevelopmentTaskMeta && uf.productDevelopmentTaskMeta[e] || {}, o = uf.productDevelopmentReview && String(uf.productDevelopmentReview.sku || "").toUpperCase() === String(e || "").toUpperCase() ? uf.productDevelopmentReview : null, s = function l(e) {
+            const t = String(e || "").toLowerCase();
+            return t.trim() ? /去角质|去死皮|磨砂|exfoliat|\bscrub\b|祛痘|去痘|抗痘|粉刺|痤疮|\bacne\b|\bblemish\b|淡斑|祛斑|色斑|hyperpigmentation|dark\s*spots?|皮赘|skin\s*tags?|止痛|镇痛|疼痛|pain\s*relief|\banalgesic\b|关节护理|关节舒缓|关节贴|肌肉关节|joint\s*(?:pain|relief|care|wellness)|muscle\s*(?:and\s*joint\s*)?pain|抗橘皮|橘皮组织|cellulite/i.test(t) ? {
+                label: "建议做 NDC",
+                reason: "审核员明确要求或确认的功效"
+            } : /抗酸|\bantacid\b|肺部呼吸|肺部护理|lung\s*care|lungcare|瘀青|淤青|bruise|静脉曲张|varicose\s*veins?|神经舒缓|nerve\s*(?:cream|relief|care)|止吐|anti[\s-]*nausea|茯苓.*(?:贴|patch)|poria.*patch|男士增强|男性增强|men'?s?\s+enhancement/i.test(t) ? {
+                label: "建议做 NDC",
+                reason: "同类产品曾通过 NDC 模板"
+            } : /驱鼠|灭鼠|rodent|mouse\s*repellent|园艺|garden\s*(?:pest|repellent)/i.test(t) ? {
+                label: "NDC 不适用",
+                reason: "户外园艺类需使用对应模板"
+            } : /镁霜|magnesium|脱毛|hair\s*remov|生发|hair\s*(?:growth|regrowth)|紧致|提拉|firming|tighten|眼霜|eye\s*cream|头皮|scalp|柿子皂|persimmon\s*soap|防晒|sunscreen/i.test(t) ? {
+                label: "NDC 待确认",
+                reason: "同类产品审核结果不一致，请核对已通过稿"
+            } : /香水|香氛|香薰|perfume|fragrance|aromatherapy|牙膏|牙贴|口腔护理|toothpaste|teeth\s*whitening|dental|唇彩|粉底|foundation\s*(?:stick|cream|makeup)|护发定型|身体乳|身体油|沐浴露|body\s*(?:lotion|oil|wash|moisturizer)|宠物|\bpet\b/i.test(t) ? {
+                label: "建议非 NDC",
+                reason: "同类普通护理产品使用美妆或个护模板"
+            } : {
+                label: "NDC 待确认",
+                reason: "现有信息不足以判断，请核对功效和审核通过稿"
+            } : {
+                label: "NDC 待确认",
+                reason: "缺少产品名称或功效信息"
+            };
+        }([ a, i.productNameCn, i.productNameEn, t && t.englishName, t && t.sourcePlainTextCopy, r.productNameEn, o && o.plainTextCopy ].filter(Boolean).join("\n")), c = ig(), u = ym(), d = Ad(c.productType || t && t.productType || "生成时按当前 SKU 读取", 180), p = function m(e) {
             return Ig("human").concat(Ig("pet")).map(t => '<option value="' + Bz(t.id) + '"' + (t.id === (e && e.id) ? " selected" : "") + ">" + Bz(t.label || t.fileName || t.id) + "</option>").join("") || '<option value="">正在加载云端模板…</option>';
-        }(o), u = function d(e) {
+        }(u), g = function f(e) {
             const t = String(uf.productDevelopmentIngredientSheetName || "").trim(), n = bm(e);
             return '<option value=""' + (n.some(e => String(e.name || "") === t) ? "" : " selected") + ">自动匹配参考工作表</option>" + n.map(e => {
                 const n = String(e.name || "").trim();
                 return '<option value="' + Bz(n) + '"' + (n === t ? " selected" : "") + ">" + Bz(n) + "</option>";
             }).join("");
-        }(o), p = "regular" === Bm(), m = uf.productDevelopmentOneShotInput && "object" == typeof uf.productDevelopmentOneShotInput ? uf.productDevelopmentOneShotInput : {}, g = String(m.productLine || "").trim(), f = zm(jm()), h = Rm(), y = '<label class="pfh-product-development-material-field"><span>产品线</span><select class="pfh-product-development-one-shot-product-line-input" aria-label="选择产品线"><option value="auto"' + (g ? "" : " selected") + ">自动匹配：" + ("regular" === f ? "常规产品（非食品）" : "食品") + '</option><option value="food"' + ("food" === g ? " selected" : "") + '>食品（膳食补充）</option><option value="regular"' + ("regular" === g ? " selected" : "") + ">常规产品（非食品）</option></select></label>", b = p ? '<label class="pfh-product-development-material-field"><span>NDC 类型</span><select class="pfh-product-development-one-shot-ndc-input" aria-label="选择 NDC 类型"><option value="non-ndc"' + ("non-ndc" === h ? " selected" : "") + '>非 NDC（美妆/个护）</option><option value="ndc"' + ("ndc" === h ? " selected" : "") + ">涉 NDC（健康保健/贴类）</option></select></label>" : "", v = p ? "" : n ? '<div class="pfh-product-development-one-shot-settings-product"><small>产品类型</small><strong>' + Bz(s) + "</strong></div>" : '<div class="pfh-product-development-one-shot-settings-product">' + ug(i, "productType", "产品类型", "text") + "</div>", w = p ? "" : '<label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-one-shot-ingredient-template-input" aria-label="选择成分表模板">' + l + "</select></label>", k = p ? "" : '<label class="pfh-product-development-material-field"><span>参考工作表（可选）</span><select class="pfh-product-development-one-shot-ingredient-sheet-input" aria-label="选择参考工作表"' + (o ? "" : " disabled") + ">" + u + "</select></label>", S = [ "boxed", "bagged" ].includes(i.packagingKind) ? i.packagingKind : "", x = '<label class="pfh-product-development-material-field"><span>包装形式</span><select data-product-development-one-shot-field="packagingKind" aria-label="选择包装形式"><option value=""' + (S ? "" : " selected") + '>自动识别（按 PLM 尺寸）</option><option value="boxed"' + ("boxed" === S ? " selected" : "") + '>盒装 · 删除袋装窒息标识行</option><option value="bagged"' + ("bagged" === S ? " selected" : "") + ">袋装 · 保留窒息标识行</option></select></label>";
-        return '<div class="pfh-cw-source"><div class="pfh-cw-product"><strong>' + Bz(a) + "</strong><span>" + Bz(e || "未选择 SKU") + '</span></div><h3>生成设置</h3><div class="pfh-cw-settings">' + y + b + x + v + w + k + "</div>" + function A() {
+        }(u), h = "regular" === Bm(), y = uf.productDevelopmentOneShotInput && "object" == typeof uf.productDevelopmentOneShotInput ? uf.productDevelopmentOneShotInput : {}, b = String(y.productLine || "").trim(), v = zm(jm()), w = Rm(), k = '<label class="pfh-product-development-material-field"><span>产品线</span><select class="pfh-product-development-one-shot-product-line-input" aria-label="选择产品线"><option value="auto"' + (b ? "" : " selected") + ">自动匹配：" + ("regular" === v ? "常规产品（非食品）" : "食品") + '</option><option value="food"' + ("food" === b ? " selected" : "") + '>食品（膳食补充）</option><option value="regular"' + ("regular" === b ? " selected" : "") + ">常规产品（非食品）</option></select></label>", S = h ? '<label class="pfh-product-development-material-field"><span>NDC 类型</span><select class="pfh-product-development-one-shot-ndc-input" aria-label="选择 NDC 类型"><option value="non-ndc"' + ("non-ndc" === w ? " selected" : "") + '>非 NDC（美妆/个护）</option><option value="ndc"' + ("ndc" === w ? " selected" : "") + ">涉 NDC（健康保健/贴类）</option></select></label>" : "", x = h ? "" : n ? '<div class="pfh-product-development-one-shot-settings-product"><small>产品类型</small><strong>' + Bz(d) + "</strong></div>" : '<div class="pfh-product-development-one-shot-settings-product">' + ug(c, "productType", "产品类型", "text") + "</div>", A = h ? "" : '<label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-one-shot-ingredient-template-input" aria-label="选择成分表模板">' + p + "</select></label>", I = h ? "" : '<label class="pfh-product-development-material-field"><span>参考工作表（可选）</span><select class="pfh-product-development-one-shot-ingredient-sheet-input" aria-label="选择参考工作表"' + (u ? "" : " disabled") + ">" + g + "</select></label>", T = [ "boxed", "bagged" ].includes(c.packagingKind) ? c.packagingKind : "", C = '<label class="pfh-product-development-material-field"><span>包装形式</span><select data-product-development-one-shot-field="packagingKind" aria-label="选择包装形式"><option value=""' + (T ? "" : " selected") + '>自动识别（按 PLM 尺寸）</option><option value="boxed"' + ("boxed" === T ? " selected" : "") + '>盒装 · 删除袋装窒息标识行</option><option value="bagged"' + ("bagged" === T ? " selected" : "") + ">袋装 · 保留窒息标识行</option></select></label>";
+        return '<div class="pfh-cw-source"><div class="pfh-cw-product"><strong>' + Bz(a) + ' <small title="' + Bz(s.reason) + '">· ' + Bz(s.label) + "</small></strong><span>" + Bz(e || "未选择 SKU") + '</span></div><h3>生成设置</h3><div class="pfh-cw-settings">' + k + S + C + x + A + I + "</div>" + function E() {
             const e = function t() {
                 const e = Bs();
                 if (e.local) return e;

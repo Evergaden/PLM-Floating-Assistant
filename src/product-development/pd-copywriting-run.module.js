@@ -672,6 +672,19 @@
     return '';
   }
 
+  // Internal review guidance, not a regulatory determination. Rules use
+  // product claims/names and deliberately keep conflicting categories uncertain.
+  function productDevelopmentNdcSuggestion(value) {
+    const text = String(value || '').toLowerCase();
+    if (!text.trim()) return { label: 'NDC 待确认', reason: '缺少产品名称或功效信息' };
+    if (/去角质|去死皮|磨砂|exfoliat|\bscrub\b|祛痘|去痘|抗痘|粉刺|痤疮|\bacne\b|\bblemish\b|淡斑|祛斑|色斑|hyperpigmentation|dark\s*spots?|皮赘|skin\s*tags?|止痛|镇痛|疼痛|pain\s*relief|\banalgesic\b|关节护理|关节舒缓|关节贴|肌肉关节|joint\s*(?:pain|relief|care|wellness)|muscle\s*(?:and\s*joint\s*)?pain|抗橘皮|橘皮组织|cellulite/i.test(text)) return { label: '建议做 NDC', reason: '审核员明确要求或确认的功效' };
+    if (/抗酸|\bantacid\b|肺部呼吸|肺部护理|lung\s*care|lungcare|瘀青|淤青|bruise|静脉曲张|varicose\s*veins?|神经舒缓|nerve\s*(?:cream|relief|care)|止吐|anti[\s-]*nausea|茯苓.*(?:贴|patch)|poria.*patch|男士增强|男性增强|men'?s?\s+enhancement/i.test(text)) return { label: '建议做 NDC', reason: '同类产品曾通过 NDC 模板' };
+    if (/驱鼠|灭鼠|rodent|mouse\s*repellent|园艺|garden\s*(?:pest|repellent)/i.test(text)) return { label: 'NDC 不适用', reason: '户外园艺类需使用对应模板' };
+    if (/镁霜|magnesium|脱毛|hair\s*remov|生发|hair\s*(?:growth|regrowth)|紧致|提拉|firming|tighten|眼霜|eye\s*cream|头皮|scalp|柿子皂|persimmon\s*soap|防晒|sunscreen/i.test(text)) return { label: 'NDC 待确认', reason: '同类产品审核结果不一致，请核对已通过稿' };
+    if (/香水|香氛|香薰|perfume|fragrance|aromatherapy|牙膏|牙贴|口腔护理|toothpaste|teeth\s*whitening|dental|唇彩|粉底|foundation\s*(?:stick|cream|makeup)|护发定型|身体乳|身体油|沐浴露|body\s*(?:lotion|oil|wash|moisturizer)|宠物|\bpet\b/i.test(text)) return { label: '建议非 NDC', reason: '同类普通护理产品使用美妆或个护模板' };
+    return { label: 'NDC 待确认', reason: '现有信息不足以判断，请核对功效和审核通过稿' };
+  }
+
   function productDevelopmentOneShotSelectedSourceHtml(sku) {
     const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku
       ? state.productDevelopmentSnapshot
@@ -683,6 +696,9 @@
       ? state.productDevelopmentSelectedTask
       : {};
     const name = productDevelopmentCleanText(snapshot && snapshot.name || task.name || task.productName || '当前选中产品', 220);
+    const meta = state.productDevelopmentTaskMeta && state.productDevelopmentTaskMeta[sku] || {};
+    const review = state.productDevelopmentReview && String(state.productDevelopmentReview.sku || '').toUpperCase() === String(sku || '').toUpperCase() ? state.productDevelopmentReview : null;
+    const ndcSuggestion = productDevelopmentNdcSuggestion([name, meta.productNameCn, meta.productNameEn, snapshot && snapshot.englishName, snapshot && snapshot.sourcePlainTextCopy, task.productNameEn, review && review.plainTextCopy].filter(Boolean).join('\n'));
     const input = productDevelopmentOneShotInputForRender();
     const ingredientTemplate = productDevelopmentOneShotIngredientTemplate();
     const productType = productDevelopmentCleanText(input.productType || snapshot && snapshot.productType || '生成时按当前 SKU 读取', 180);
@@ -706,7 +722,7 @@
     const sheetSelectHtml = isRegularLine ? '' : '<label class="pfh-product-development-material-field"><span>参考工作表（可选）</span><select class="pfh-product-development-one-shot-ingredient-sheet-input" aria-label="选择参考工作表"' + (ingredientTemplate ? '' : ' disabled') + '>' + sheetOptions + '</select></label>';
     const packagingKind = ['boxed', 'bagged'].includes(input.packagingKind) ? input.packagingKind : '';
     const packagingHtml = '<label class="pfh-product-development-material-field"><span>包装形式</span><select data-product-development-one-shot-field="packagingKind" aria-label="选择包装形式"><option value=""' + (!packagingKind ? ' selected' : '') + '>自动识别（按 PLM 尺寸）</option><option value="boxed"' + (packagingKind === 'boxed' ? ' selected' : '') + '>盒装 · 删除袋装窒息标识行</option><option value="bagged"' + (packagingKind === 'bagged' ? ' selected' : '') + '>袋装 · 保留窒息标识行</option></select></label>';
-    return '<div class="pfh-cw-source"><div class="pfh-cw-product"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(sku || '未选择 SKU') + '</span></div><h3>生成设置</h3><div class="pfh-cw-settings">' + lineSelectHtml + ndcSelectHtml + packagingHtml + productTypeHtml + ingredientTemplateHtml + sheetSelectHtml + '</div>' + productDevelopmentCopywritingToolbarHtml() + '</div>';
+    return '<div class="pfh-cw-source"><div class="pfh-cw-product"><strong>' + escapeHtml(name) + ' <small title="' + escapeHtml(ndcSuggestion.reason) + '">· ' + escapeHtml(ndcSuggestion.label) + '</small></strong><span>' + escapeHtml(sku || '未选择 SKU') + '</span></div><h3>生成设置</h3><div class="pfh-cw-settings">' + lineSelectHtml + ndcSelectHtml + packagingHtml + productTypeHtml + ingredientTemplateHtml + sheetSelectHtml + '</div>' + productDevelopmentCopywritingToolbarHtml() + '</div>';
   }
 
   function productDevelopmentOneShotEditorFieldHtml(value, key, label, type, multiline, wide) {

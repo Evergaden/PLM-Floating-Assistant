@@ -56,7 +56,11 @@ context.productDevelopmentOneShotIngredientSheetOptions = () => '';
 context.productDevelopmentOneShotResultHtml = () => '';
 context.productDevelopmentOneShotPlainTextCopy = () => '';
 
+for (const [name, expected] of [['男士增强喷雾笔','建议做 NDC'], ['抗橘皮身体油','建议做 NDC'], ['祛痘沐浴露','建议做 NDC'], ['Skin Tag Remover Cream','建议做 NDC'], ['镁霜 Magnesium Cream','NDC 待确认'], ['紧致眼霜','NDC 待确认'], ['生发护理精华','NDC 待确认'], ['脱毛喷雾','NDC 待确认'], ['牙贴','建议非 NDC'], ['身体乳','建议非 NDC'], ['驱鼠丸','NDC 不适用'], ['普通产品','NDC 待确认']]) assert.equal(context.productDevelopmentNdcSuggestion(name).label, expected, name);
+
 panel.innerHTML = context.productDevelopmentOneShotEmbeddedHtml('SKU1');
+assert.match(panel.querySelector('.pfh-cw-product strong').textContent, /NDC 待确认/, 'Show an independent NDC suggestion beside the name');
+assert.equal(state.productDevelopmentOneShotInput.regularNdcKind, 'non-ndc', 'Suggestions never change the selected template');
 assert.equal(panel.querySelector('.pfh-product-development-one-shot-settings-product'), null, 'Regular product type is not displayed');
 assert.doesNotMatch(panel.textContent, /尺寸不完整时|来源：|英文支持逗号或换行/);
 assert.equal(panel.querySelectorAll('.pfh-cw-template-row').length, 1, 'One template entry inside generation settings');
