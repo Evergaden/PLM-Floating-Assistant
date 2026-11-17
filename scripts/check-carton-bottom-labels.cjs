@@ -1,0 +1,17 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('src/core-tools-size-image.module.js', 'utf8');
+const match = source.match(/function cartonBottomLabelPositions\([^]*?\n  \}/);
+assert(match, 'Carton label placement helper exists');
+const positions = vm.runInNewContext('(' + match[0] + ')');
+const ctx = { measureText: (text) => ({ width: text.length * 25 }) };
+const narrow = positions(ctx, 0, 100, 200, '1.65cm', '1.65cm');
+assert.equal(narrow[1] - narrow[0], 166, 'Narrow labels have 16px of clear space');
+assert.equal(narrow[0] + narrow[1], 200, 'Labels move equally in opposite directions');
+const wide = positions(ctx, 0, 400, 800, '1.65cm', '1.65cm');
+assert.equal(wide[0], 200, 'Unobstructed first label stays centered');
+assert.equal(wide[1], 600, 'Unobstructed second label stays centered');
+const unequal = positions(ctx, 0, 80, 220, '1cm', '10.25cm');
+assert(unequal[1] - unequal[0] >= (75 + 175) / 2 + 16, 'Different text widths do not overlap');
+console.log('Carton bottom label spacing checks passed');

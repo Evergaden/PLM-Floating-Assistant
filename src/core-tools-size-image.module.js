@@ -1934,6 +1934,14 @@
     };
   }
 
+  function cartonBottomLabelPositions(context, artX, firstEnd, secondEnd, widthText, lengthText) {
+    const first = (artX + firstEnd) / 2;
+    const second = (firstEnd + secondEnd) / 2;
+    const requiredDistance = (context.measureText(widthText).width + context.measureText(lengthText).width) / 2 + 16;
+    const shift = Math.max(0, (requiredDistance - (second - first)) / 2);
+    return [first - shift, second + shift];
+  }
+
   function generateSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc, customRemark, renderOptions) {
     const canvas = createSizeImageCanvas(3000, 3000);
     const context = canvas.getContext('2d');
@@ -2004,8 +2012,11 @@
     [artX, firstEnd, secondEnd].forEach((x) => drawSizeImageLine(context, x, bottomY - tick, x, bottomY + tick));
     context.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.textAlign = 'center';
-    context.fillText(formatSizeImageNumber(spec.width) + 'cm', (artX + firstEnd) / 2, bottomY + 34);
-    context.fillText(formatSizeImageNumber(spec.length) + 'cm', (firstEnd + secondEnd) / 2, bottomY + 34);
+    const widthText = formatSizeImageNumber(spec.width) + 'cm';
+    const lengthText = formatSizeImageNumber(spec.length) + 'cm';
+    const [widthLabelX, lengthLabelX] = cartonBottomLabelPositions(context, artX, firstEnd, secondEnd, widthText, lengthText);
+    context.fillText(widthText, widthLabelX, bottomY + 34);
+    context.fillText(lengthText, lengthLabelX, bottomY + 34);
     if (bodyWidths.length > 4) {
       const extraStart = artX + bodyWidths.slice(0, 4).reduce((sum, value) => sum + value, 0) * drawScale;
       const extraLineY = bodyTop - 48;
@@ -2218,6 +2229,7 @@
       hasSizeImageBarcodePixels,
       detectSizeImageBarcode,
       getLabelBatchNoteText,
+      cartonBottomLabelPositions,
       generateSizeImageJpeg,
       generateLabelSizeImageJpeg,
     ].map((item) => typeof item === 'string' ? item : item.toString()).join('\n');

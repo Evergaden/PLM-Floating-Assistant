@@ -40,7 +40,7 @@ const names = [
   'traceSizeImageRoundedRect', 'traceCartonSizeImageOutline', 'matchFlatSizeImageRatio',
   'analyzeSizeImageGeometry', 'analyzeLabelSizeImageGeometry', 'hasSizeImageBarcodePixels',
   'detectSizeImageBarcode', 'getLabelBatchNoteText', 'shouldUseFullLabelDateRemark',
-  'generateSizeImageJpeg', 'generateLabelSizeImageJpeg', 'getSizeImageWorkerSource',
+  'cartonBottomLabelPositions', 'generateSizeImageJpeg', 'generateLabelSizeImageJpeg', 'getSizeImageWorkerSource',
 ];
 vm.runInContext(names.map(extract).join('\n'), context);
 

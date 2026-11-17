@@ -13,7 +13,7 @@ function extract(source, name) {
   }
   throw new Error('Cannot extract ' + name);
 }
-const names = ['clamp', 'trimNumber', 'formatSizeImageNumber', 'createSizeImageCanvas', 'drawImageTraceWatermark', 'exportSizeImageCanvas', 'getSizeImageSourceDimensions', 'getCartonBodyWidths', 'drawSizeImageLine', 'isDoubleSidedPrintedBagSizeImage', 'drawSizeImageContained', 'drawPrintedBagSealDimension', 'traceSizeImageRoundedRect', 'traceCartonSizeImageOutline', 'matchFlatSizeImageRatio', 'analyzeSizeImageGeometry', 'analyzeLabelSizeImageGeometry', 'hasSizeImageBarcodePixels', 'detectSizeImageBarcode', 'getLabelBatchNoteText', 'generateSizeImageJpeg', 'generateLabelSizeImageJpeg', 'getSizeImageWorkerSource'];
+const names = ['clamp', 'trimNumber', 'formatSizeImageNumber', 'createSizeImageCanvas', 'drawImageTraceWatermark', 'exportSizeImageCanvas', 'getSizeImageSourceDimensions', 'getCartonBodyWidths', 'drawSizeImageLine', 'isDoubleSidedPrintedBagSizeImage', 'drawSizeImageContained', 'drawPrintedBagSealDimension', 'traceSizeImageRoundedRect', 'traceCartonSizeImageOutline', 'matchFlatSizeImageRatio', 'analyzeSizeImageGeometry', 'analyzeLabelSizeImageGeometry', 'hasSizeImageBarcodePixels', 'detectSizeImageBarcode', 'getLabelBatchNoteText', 'cartonBottomLabelPositions', 'generateSizeImageJpeg', 'generateLabelSizeImageJpeg', 'getSizeImageWorkerSource'];
 function OffscreenCanvas(width, height) {
   const canvas = createCanvas(width, height);
   canvas.convertToBlob = async () => new Blob([canvas.toBuffer('image/jpeg')], { type: 'image/jpeg' });
