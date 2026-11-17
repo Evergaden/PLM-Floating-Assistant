@@ -1,4 +1,122 @@
 
+  const CREATE_PROJECT_TEMPLATE_KEY = 'pfh.createProjectTemplate.v1';
+  const CREATE_PROJECT_TEMPLATE_SELECTS = [
+    ['form_item_design_type', '设计类型'], ['form_item_priority', '美工处理优先级'],
+    ['demandReviewDevBrandId', '品牌类别'], ['form_item_project_series_id', '品类'],
+    ['form_item_dev_head_user_id', '开发主管'], ['form_item_dev_work_user_id', '开发人员'],
+    ['form_item_design_head_user_id', '设计主管/组长'], ['form_item_design_work_user_id', '设计人员'],
+  ];
+  const CREATE_PROJECT_TEMPLATE_CHECKS = [['form_item_is_popular', '是否爆款'], ['form_item_is_agent_sent', '是否代发']];
+
+  function createProjectTemplateRead() {
+    try {
+      const value = typeof GM_getValue === 'function' ? GM_getValue(CREATE_PROJECT_TEMPLATE_KEY, null) : JSON.parse(localStorage.getItem(CREATE_PROJECT_TEMPLATE_KEY) || 'null');
+      return value && value.version === 1 && value.selects && value.checks ? value : null;
+    } catch (_) { return null; }
+  }
+
+  function createProjectTemplateSave(drawer) {
+    const selects = {};
+    const checks = {};
+    CREATE_PROJECT_TEMPLATE_SELECTS.forEach(([id]) => {
+      const input = drawer.querySelector('[id="' + id + '"]');
+      const selected = input && input.closest('.ant-select')?.querySelector('.ant-select-selection-item');
+      const value = selected && productDevelopmentDomText(selected.getAttribute('title') || selected.textContent);
+      if (value) selects[id] = value;
+    });
+    CREATE_PROJECT_TEMPLATE_CHECKS.forEach(([id]) => {
+      const input = drawer.querySelector('[id="' + id + '"]');
+      if (input && !input.disabled) checks[id] = Boolean(input.checked);
+    });
+    if (!Object.keys(selects).length) throw new Error('请先选择需要保存的选项');
+    const value = { version: 1, selects, checks };
+    if (typeof GM_setValue === 'function') GM_setValue(CREATE_PROJECT_TEMPLATE_KEY, value);
+    else localStorage.setItem(CREATE_PROJECT_TEMPLATE_KEY, JSON.stringify(value));
+    return Object.keys(selects).length;
+  }
+
+  async function createProjectTemplateSelect(input, wanted) {
+    if (productDevelopmentDomSelectionMatches(input, wanted)) return;
+    if (!(await productDevelopmentDomOpenDropdown(input))) throw new Error('下拉未能展开');
+    const listId = input.getAttribute('aria-controls');
+    const list = listId && document.getElementById(listId);
+    const dropdown = list && list.closest('.ant-select-dropdown');
+    if (!dropdown || !productDevelopmentDomVisible(dropdown)) throw new Error('未找到当前下拉列表');
+    const holder = dropdown.querySelector('.rc-virtual-list-holder');
+    if (holder) { holder.scrollTop = 0; holder.dispatchEvent(new Event('scroll', { bubbles: true })); await productDevelopmentDomWait(100); }
+    let found = null;
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const matches = Array.from(dropdown.querySelectorAll('.ant-select-item-option')).filter((option) => productDevelopmentDomVisible(option) && !option.classList.contains('ant-select-item-option-disabled') && productDevelopmentDomOptionText(option) === productDevelopmentDomText(wanted));
+      if (matches.length === 1) { found = matches[0]; break; }
+      if (matches.length > 1) throw new Error('下拉选项不唯一');
+      if (!holder || holder.scrollTop + holder.clientHeight >= holder.scrollHeight - 1) break;
+      const before = holder.scrollTop;
+      holder.scrollTop = Math.min(holder.scrollHeight - holder.clientHeight, before + Math.max(80, holder.clientHeight * 0.7));
+      holder.dispatchEvent(new Event('scroll', { bubbles: true }));
+      await productDevelopmentDomWait(100);
+      if (holder.scrollTop === before) break;
+    }
+    if (!found) throw new Error('找不到已保存的选项');
+    found.click();
+    if (!(await waitFor(() => productDevelopmentDomSelectionMatches(input, wanted), 3000, 80))) throw new Error('PLM 未确认选项');
+  }
+
+  async function createProjectTemplateFill(drawer) {
+    const template = createProjectTemplateRead();
+    if (!template) throw new Error('请先保存模板');
+    const failed = [];
+    for (const [id, label] of CREATE_PROJECT_TEMPLATE_SELECTS) {
+      if (!template.selects[id]) continue;
+      const input = drawer.querySelector('[id="' + id + '"]');
+      try {
+        if (!input || input.disabled) throw new Error('控件不可用');
+        await createProjectTemplateSelect(input, template.selects[id]);
+      } catch (error) { failed.push(label + '：' + formatErrorMessage(error)); }
+    }
+    for (const [id, label] of CREATE_PROJECT_TEMPLATE_CHECKS) {
+      if (!Object.prototype.hasOwnProperty.call(template.checks, id)) continue;
+      const input = drawer.querySelector('[id="' + id + '"]');
+      if (!input || input.disabled) { failed.push(label + '：控件不可用'); continue; }
+      if (input.checked !== Boolean(template.checks[id])) input.click();
+      if (input.checked !== Boolean(template.checks[id])) failed.push(label + '：PLM 未确认选项');
+    }
+    return failed;
+  }
+
+  function ensureCreateProjectTemplateButtons() {
+    if (!/\/projectManagementChemicalNew/.test(location.pathname)) return;
+    const input = document.getElementById('form_item_design_type');
+    const drawer = input && input.closest('.ant-drawer');
+    const title = drawer && drawer.querySelector('.ant-drawer-title');
+    const body = drawer && drawer.querySelector('.ant-drawer-body');
+    if (!drawer || !title || !body || productDevelopmentDomText(title.textContent) !== '创建项目' || body.querySelector('[data-pfh-project-template]')) return;
+    const toolbar = document.createElement('div');
+    toolbar.dataset.pfhProjectTemplate = 'true';
+    toolbar.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin:0 0 16px';
+    for (const [action, label] of [['save', '保存模板'], ['fill', '快捷填入']]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ant-btn ant-btn-default';
+      button.textContent = label;
+      button.addEventListener('click', async () => {
+        if (toolbar.dataset.busy) return;
+        toolbar.dataset.busy = '1';
+        try {
+          if (action === 'save') showToast('已保存 ' + createProjectTemplateSave(drawer) + ' 个选项到本地模板');
+          else {
+            const failed = await createProjectTemplateFill(drawer);
+            showToast(failed.length ? '部分选项未填入：' + failed.join('；') : '已填入模板，请检查后保存项目');
+          }
+        } catch (error) { showToast(formatErrorMessage(error)); }
+        finally { delete toolbar.dataset.busy; }
+      });
+      toolbar.appendChild(button);
+    }
+    body.prepend(toolbar);
+  }
+
+  ensureCreateProjectTemplateButtons();
+
   function uploadFileKey(sku, kind) {
     return String(sku || '') + ':' + String(kind || '');
   }

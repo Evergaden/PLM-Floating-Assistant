@@ -5,6 +5,7 @@
       clearTimeout(timer);
       timer = setTimeout(() => {
         handleDrawerState();
+        ensureCreateProjectTemplateButtons();
         ensurePageToyCopywritingButton();
         observeManualTabRead();
         scheduleProjectListPrefetch();
