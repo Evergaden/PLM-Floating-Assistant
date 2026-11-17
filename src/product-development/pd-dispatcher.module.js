@@ -642,7 +642,7 @@
           const displayValue = productDevelopmentPrefillText(value, 12000);
           const option = (detail.prefillOptions && detail.prefillOptions[definition.attrId] || []).find((item) => item.label === displayValue);
           const storedValue = option ? (Array.isArray(option.value) ? option.value : [option.value]) : value;
-          productDevelopmentRememberLocalProductField(detail, { attrId: definition.attrId }, storedValue, displayValue);
+          productDevelopmentRememberLocalProductField(detail, { attrId: definition.attrId }, storedValue, displayValue, key === 'costPrice' ? '手动成本价' : undefined);
           productDevelopmentProductFieldCollections(detail).filter((item) => Number(item && item.attrId) === Number(definition.attrId)).forEach((item) => {
             item.value = storedValue;
             item.displayValue = displayValue;
@@ -651,6 +651,7 @@
           });
           if (['outerLength', 'outerWidth', 'outerHeight'].includes(key)) productDevelopmentRefreshDerivedDimensions(detail, scope);
           if (key === 'costPrice') productDevelopmentSyncCostTierPrices(detail, scope);
+          if (key === 'procurementPrice') productDevelopmentSyncDefaultCostPrice(detail, value, scope);
           productDevelopmentMarkProductDetailDirty(detail);
           persistDetail();
         }

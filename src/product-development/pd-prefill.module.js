@@ -30,7 +30,7 @@
   function productDevelopmentPrefillProductFieldValue(detail, definition) {
     if (definition && definition.key === 'specification') productDevelopmentSyncSpecificationFromCopy(detail);
     if (definition && ['firstPrice', 'secondPrice', 'thirdPrice'].includes(definition.key)) productDevelopmentSyncCostTierPrices(detail);
-    if (definition && definition.key === 'procurementPrice') productDevelopmentSyncProcurementPrice(detail);
+    if (definition && ['procurementPrice', 'costPrice'].includes(definition.key)) productDevelopmentSyncProcurementPrice(detail);
     if (definition && ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume', 'standardPackingQuantity'].includes(definition.key)) {
       productDevelopmentSyncReworkOuterDimensions(detail);
       productDevelopmentRefreshDerivedDimensions(detail);
@@ -97,7 +97,11 @@
 
   function productDevelopmentSyncProcurementPrice(detail, scope) {
     productDevelopmentApplyBomUnitPrice(detail);
-    if (!detail || detail.productDetailProcurementPriceSource === 'manual') return;
+    if (!detail) return;
+    if (detail.productDetailProcurementPriceSource === 'manual') {
+      productDevelopmentSyncDefaultCostPrice(detail, productDevelopmentPrefillLocalAttrValue(detail, { attrId: 152 }), scope);
+      return;
+    }
     const raw = productDevelopmentPrefillText(productDevelopmentProcurementFieldValue(detail, 'materialPrice')).replace(/,/g, '');
     if (raw === '' && !productDevelopmentPrefillHasValue(detail.productDetailLocalProcurement, 'materialPrice')) return;
     const unitPrice = productDevelopmentRoundUnitPrice(raw);
@@ -108,6 +112,21 @@
       productDevelopmentProductFieldCollections(detail).filter((field) => Number(field.attrId) === 152).forEach((field) => { field.value = price; field.displayValue = price; });
     }
     if (scope) scope.querySelectorAll('[data-form-group="prefill"][data-form-key="procurementPrice"]').forEach((input) => { input.value = price; });
+    productDevelopmentSyncDefaultCostPrice(detail, price, scope);
+  }
+
+  function productDevelopmentSyncDefaultCostPrice(detail, price, scope) {
+    const raw = productDevelopmentPrefillText(price).replace(/,/g, '');
+    if (!detail || !raw || !Number.isFinite(Number(raw)) || Number(raw) < 0 || Number(raw) > 2.35) return;
+    const existing = detail.productDetailLocalValues && detail.productDetailLocalValues['153@1'];
+    if (existing && (!existing.source || existing.source === '手动成本价')) return;
+    const definition = { attrId: 153 };
+    if (String(productDevelopmentPrefillLocalAttrValue(detail, definition) ?? '') !== '4') {
+      productDevelopmentRememberLocalProductField(detail, definition, '4', '4', '采购价默认成本');
+      productDevelopmentProductFieldCollections(detail).filter((field) => Number(field.attrId) === 153 || field.key === 'costPrice').forEach((field) => { field.value = '4'; field.displayValue = '4'; });
+    }
+    if (scope) scope.querySelectorAll('[data-form-group="prefill"][data-form-key="costPrice"]').forEach((input) => { input.value = '4'; input.closest('label')?.classList.remove('is-missing'); });
+    productDevelopmentSyncCostTierPrices(detail, scope);
   }
 
   function productDevelopmentIsEntryProductName(value) {
