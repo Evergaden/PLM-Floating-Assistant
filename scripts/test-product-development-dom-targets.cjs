@@ -26,7 +26,7 @@ const context = vm.createContext({ document, PANEL_ID: 'assistant', URL,
   formatErrorMessage: (error) => error.message,
 });
 const dom = read('product-development/pd-dom');
-for (const name of ['productDevelopmentDomText', 'productDevelopmentDomAvailableValues', 'productDevelopmentDomValueMatches', 'productDevelopmentDomResolveField', 'productDevelopmentDomFillEnglishIngredients', 'productDevelopmentFillPlmPage2']) vm.runInContext(extract(dom, name), context);
+for (const name of ['productDevelopmentDomText', 'productDevelopmentDomAvailableValues', 'productDevelopmentDomValueMatches', 'productDevelopmentDomResolveField', 'productDevelopmentDomFillEnglishIngredients', 'productDevelopmentFillPlmPage2CurrentLanguage', 'productDevelopmentFillPlmPage2']) vm.runInContext(extract(dom, name), context);
 context.productDevelopmentDomSelectedText = (element) => element.getAttribute('data-selected');
 const selectFixture = document.createElement('input');
 selectFixture.setAttribute('data-selected', '大号');
@@ -129,6 +129,16 @@ context.productDevelopmentDomNativeSetter = () => { throw new Error('Numbers mus
   assert.equal(fields[1].querySelector('textarea').value, 'AQUA 84.77\n1,2-HEXANEDIOL 0.5', 'Preserve raw ingredient percentages and commas');
   assert.equal(fields[0].querySelector('textarea').value, '', 'Never overwrite Chinese ingredients');
   assert.equal(tabs[0].getAttribute('aria-selected'), 'true', 'Restore original language');
+  fields[0].insertAdjacentHTML('beforeend', '<label for="cost-cn"><span id="153">成本价</span></label><input id="cost-cn">');
+  tabs[1].click();
+  context.PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS = [{ key:'costPrice', attrId:153, label:'成本价', type:'number' }];
+  context.productDevelopmentDomCommitNumber = async (input, value) => { input.value = value; };
+  result = await context.productDevelopmentFillPlmPage2({ costPrice:'4' }, 'SKU1');
+  assert.equal(result.warnings.length, 0, 'English start switches to Chinese for standard fields');
+  assert.equal(document.getElementById('cost-cn').value, '4');
+  assert.equal(tabs[0].getAttribute('aria-selected'), 'true', 'Leave the form on Chinese after filling');
+  context.PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS = [];
+  tabs[0].click();
   context.productDevelopmentOneShotLoadDraft = () => ({ regularIngredientsEn: '' });
   result = await context.productDevelopmentFillPlmPage2({}, 'SKU2');
   assert(result.warnings.some(warning => warning.includes('暂无可填写')), 'Do not reuse another SKU ingredients');

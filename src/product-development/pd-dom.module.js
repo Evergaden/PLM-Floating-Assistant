@@ -784,6 +784,24 @@
   }
 
   async function productDevelopmentFillPlmPage2(detail, sku) {
+    const panel = typeof PANEL_ID === 'string' ? document.getElementById(PANEL_ID) : null;
+    const tabs = Array.from(document.querySelectorAll('[role="tab"]')).filter((tab) => !(panel && panel.contains(tab)) && productDevelopmentDomVisible(tab));
+    const chinese = tabs.filter((tab) => productDevelopmentDomText(tab.textContent) === '中文-简体');
+    const english = tabs.filter((tab) => productDevelopmentDomText(tab.textContent) === '英语(美国)');
+    if (!chinese.length && !english.length) return productDevelopmentFillPlmPage2CurrentLanguage(detail, sku);
+    if (chinese.length !== 1 || english.length > 1 || (english.length && chinese[0].closest('[role="tablist"]') !== english[0].closest('[role="tablist"]'))) throw new Error('无法确定页面2的语言标签，请切换到中文后重试');
+    const tabList = chinese[0].closest('[role="tablist"]');
+    const previous = tabList && tabList.querySelector('[role="tab"][aria-selected="true"]');
+    if (!previous) throw new Error('无法判断页面2当前语言，请切换到中文后重试');
+    if (previous !== chinese[0]) {
+      chinese[0].click();
+      if (!(await waitFor(() => chinese[0].getAttribute('aria-selected') === 'true', 4000, 80))) throw new Error('无法切换到中文，请手动切换后重试');
+      await productDevelopmentDomWait(180);
+    }
+    return productDevelopmentFillPlmPage2CurrentLanguage(detail, sku);
+  }
+
+  async function productDevelopmentFillPlmPage2CurrentLanguage(detail, sku) {
     if (detail && detail.projectId) {
       detail.bomRows = await productDevelopmentReadBomRows(detail.projectId);
       delete detail.productDetailBomPriceSignature;
