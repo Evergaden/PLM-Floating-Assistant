@@ -699,13 +699,13 @@
     const ndcSelectHtml = isRegularLine
       ? '<label class="pfh-product-development-material-field"><span>NDC 类型</span><select class="pfh-product-development-one-shot-ndc-input" aria-label="选择 NDC 类型"><option value="non-ndc"' + (ndcKind === 'non-ndc' ? ' selected' : '') + '>非 NDC（美妆/个护）</option><option value="ndc"' + (ndcKind === 'ndc' ? ' selected' : '') + '>涉 NDC（健康保健/贴类）</option></select></label>'
       : '';
-    const productTypeHtml = result
+    const productTypeHtml = isRegularLine ? '' : result
       ? '<div class="pfh-product-development-one-shot-settings-product"><small>产品类型</small><strong>' + escapeHtml(productType) + '</strong></div>'
       : '<div class="pfh-product-development-one-shot-settings-product">' + productDevelopmentOneShotFieldHtml(input, 'productType', '产品类型', 'text') + '</div>';
     const ingredientTemplateHtml = isRegularLine ? '' : '<label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-one-shot-ingredient-template-input" aria-label="选择成分表模板">' + templateOptions + '</select></label>';
     const sheetSelectHtml = isRegularLine ? '' : '<label class="pfh-product-development-material-field"><span>参考工作表（可选）</span><select class="pfh-product-development-one-shot-ingredient-sheet-input" aria-label="选择参考工作表"' + (ingredientTemplate ? '' : ' disabled') + '>' + sheetOptions + '</select></label>';
     const packagingKind = ['boxed', 'bagged'].includes(input.packagingKind) ? input.packagingKind : '';
-    const packagingHtml = '<label class="pfh-product-development-material-field"><span>包装形式</span><select data-product-development-one-shot-field="packagingKind" aria-label="选择包装形式"><option value=""' + (!packagingKind ? ' selected' : '') + '>自动识别（按 PLM 尺寸）</option><option value="boxed"' + (packagingKind === 'boxed' ? ' selected' : '') + '>盒装 · 删除袋装窒息标识行</option><option value="bagged"' + (packagingKind === 'bagged' ? ' selected' : '') + '>袋装 · 保留窒息标识行</option></select><small>尺寸不完整时，请手动选择盒装或袋装。</small></label>';
+    const packagingHtml = '<label class="pfh-product-development-material-field"><span>包装形式</span><select data-product-development-one-shot-field="packagingKind" aria-label="选择包装形式"><option value=""' + (!packagingKind ? ' selected' : '') + '>自动识别（按 PLM 尺寸）</option><option value="boxed"' + (packagingKind === 'boxed' ? ' selected' : '') + '>盒装 · 删除袋装窒息标识行</option><option value="bagged"' + (packagingKind === 'bagged' ? ' selected' : '') + '>袋装 · 保留窒息标识行</option></select></label>';
     return '<div class="pfh-cw-source"><div class="pfh-cw-product"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(sku || '未选择 SKU') + '</span></div><h3>生成设置</h3><div class="pfh-cw-settings">' + lineSelectHtml + ndcSelectHtml + packagingHtml + productTypeHtml + ingredientTemplateHtml + sheetSelectHtml + '</div>' + productDevelopmentCopywritingToolbarHtml() + '</div>';
   }
 
@@ -1045,7 +1045,7 @@
     if (isRegularProductLine) {
       // 常规产品（非食品）：无需成分表，跳过成分表生成，直接由用户成分生成 文案。
       const isNdc = productDevelopmentEffectiveRegularNdcKind() === 'ndc';
-      const configHtml = '<section class="pfh-cw-ingredients"><header><h3>成分输入</h3><span>来源：手动输入</span></header><p>英文支持逗号或换行分隔，可带占比；中文用于对照。</p>' +
+      const configHtml = '<section class="pfh-cw-ingredients"><header><h3>成分输入</h3></header>' +
         productDevelopmentCopywritingIngredientPairHtml(input, 'regularIngredientsEn', 'regularIngredientsCn', isNdc ? '活性成分' : '') +
         (isNdc ? productDevelopmentCopywritingIngredientPairHtml(input, 'regularIngredientsInactiveEn', 'regularIngredientsInactiveCn', '非活性成分') : '') + '</section>';
       const actionLabel = state.productDevelopmentCopywritingBusy ? '正在生成文案…' : copywritingState && copywritingState.sku === sku && copywritingState.content ? '重新生成文案' : '生成文案';
@@ -1199,7 +1199,7 @@
       .concat(state.productDevelopmentTemplateBase64 ? ['<option value="local"' + (template.local ? ' selected' : '') + '>本地自定义模板</option>'] : []).join('');
     const moreItems = '<button type="button" role="menuitem" data-action="product-development-template-import">导入 DOCX 模板</button>' +
       '<button type="button" role="menuitem" data-action="product-development-template-reset"' + (state.productDevelopmentTemplateBase64 ? '' : ' disabled') + '>恢复内置模板</button>';
-    return '<div class="pfh-cw-template-row"><label class="pfh-product-development-material-field"><span>文案模板</span><select class="pfh-product-development-copywriting-template-input" aria-label="选择文案模板">' + templateOptions + '</select></label><div class="pfh-cw-tools"><button type="button" class="pfh-cw-tools-toggle" data-action="product-development-copywriting-more" aria-expanded="false" aria-controls="pfh-cw-template-menu" aria-haspopup="menu">模板工具</button><div class="pfh-cw-tools-menu" id="pfh-cw-template-menu" role="menu" aria-label="模板工具">' + moreItems + '</div></div><input hidden type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"><p>来源：' + (template.local ? '本地自定义模板' : '内置模板 · 根据产品线' + (regular ? '和 NDC 类型' : '及所选剂型') + '匹配') + '</p></div>';
+    return '<div class="pfh-cw-template-row"><label class="pfh-product-development-material-field"><span>文案模板</span><select class="pfh-product-development-copywriting-template-input" aria-label="选择文案模板">' + templateOptions + '</select></label><div class="pfh-cw-tools"><button type="button" class="pfh-cw-tools-toggle" data-action="product-development-copywriting-more" aria-expanded="false" aria-controls="pfh-cw-template-menu" aria-haspopup="menu">模板工具</button><div class="pfh-cw-tools-menu" id="pfh-cw-template-menu" role="menu" aria-label="模板工具">' + moreItems + '</div></div><input hidden type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></div>';
   }
 
   let productDevelopmentCopywritingProgressTimer = 0;

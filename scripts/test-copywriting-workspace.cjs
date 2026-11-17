@@ -57,6 +57,8 @@ context.productDevelopmentOneShotResultHtml = () => '';
 context.productDevelopmentOneShotPlainTextCopy = () => '';
 
 panel.innerHTML = context.productDevelopmentOneShotEmbeddedHtml('SKU1');
+assert.equal(panel.querySelector('.pfh-product-development-one-shot-settings-product'), null, 'Regular product type is not displayed');
+assert.doesNotMatch(panel.textContent, /尺寸不完整时|来源：|英文支持逗号或换行/);
 assert.equal(panel.querySelectorAll('.pfh-cw-template-row').length, 1, 'One template entry inside generation settings');
 assert.equal(panel.querySelector('.pfh-product-development-copywriting-template-input').value, 'regular-non-ndc');
 assert.equal(panel.querySelectorAll('.pfh-product-development-copywriting-template-input option').length, 1, 'Food templates cannot conflict with regular product classification');
@@ -80,6 +82,7 @@ assert.equal(panel.querySelectorAll('.pfh-cw-pair').length, 2, 'NDC active and i
 state.productDevelopmentOneShotInput.productLine = 'food';
 panel.innerHTML = context.productDevelopmentOneShotEmbeddedHtml('SKU1');
 assert.equal(state.productDevelopmentCopywritingTemplateId, 'capsule');
+assert.ok(panel.querySelector('.pfh-product-development-one-shot-settings-product'), 'Food product type control remains available');
 assert.equal(panel.querySelectorAll('.pfh-product-development-copywriting-template-input option').length, 2);
 state.productDevelopmentTemplateBase64 = 'custom';
 state.productDevelopmentCopywritingTemplateId = 'local';
