@@ -966,6 +966,10 @@
     });
   }
 
+  function productDevelopmentEnsureCellParagraph(cell, doc) {
+    if (!productDevelopmentXmlElements(cell, 'p').length) cell.appendChild(doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:p'));
+  }
+
   function productDevelopmentBodyRunProperties(source, doc) {
     if (!doc) return null;
     const clone = source ? source.cloneNode(true) : doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:rPr');
@@ -1024,6 +1028,7 @@
       paragraph.appendChild(run);
       cell.appendChild(paragraph);
     });
+    productDevelopmentEnsureCellParagraph(cell, doc);
   }
 
   function productDevelopmentDocxTextLines(value) {
@@ -1064,6 +1069,7 @@
       );
       cell.appendChild(paragraph);
     });
+    productDevelopmentEnsureCellParagraph(cell, doc);
   }
 
   function productDevelopmentCellGridSpan(cell) {
@@ -1142,6 +1148,7 @@
       appendRun(paragraph, String(group.body || '').trim(), productDevelopmentBodyRunProperties(bodyRPr, doc));
       cell.appendChild(paragraph);
     });
+    productDevelopmentEnsureCellParagraph(cell, doc);
   }
 
   function productDevelopmentCellHeadingPrefix(cell, pattern) {

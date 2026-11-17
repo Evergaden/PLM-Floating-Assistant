@@ -59,7 +59,7 @@ const context = vm.createContext({
   productDevelopmentCopywritingText: (text) => String(text || '').trim(),
   productDevelopmentLog: () => {},
 });
-for (const name of ['productDevelopmentXmlElements', 'productDevelopmentCellText', 'productDevelopmentClearCell', 'productDevelopmentXmlSafeText', 'productDevelopmentBodyRunProperties', 'productDevelopmentSetCellLines', 'productDevelopmentDocxTextLines', 'productDevelopmentSetCellHeadingAndLines', 'productDevelopmentCellGridSpan', 'productDevelopmentSetDirectionsCells', 'productDevelopmentIngredientHeading', 'productDevelopmentCellHeadingPrefix', 'productDevelopmentFindRow', 'productDevelopmentSectionLines']) {
+for (const name of ['productDevelopmentXmlElements', 'productDevelopmentCellText', 'productDevelopmentClearCell', 'productDevelopmentEnsureCellParagraph', 'productDevelopmentXmlSafeText', 'productDevelopmentBodyRunProperties', 'productDevelopmentSetCellLines', 'productDevelopmentDocxTextLines', 'productDevelopmentSetCellHeadingAndLines', 'productDevelopmentCellGridSpan', 'productDevelopmentSetDirectionsCells', 'productDevelopmentIngredientHeading', 'productDevelopmentCellHeadingPrefix', 'productDevelopmentFindRow', 'productDevelopmentSectionLines']) {
   vm.runInContext(extract(review, name), context);
 }
 vm.runInContext(extract(views, 'productDevelopmentCopywritingReferenceUrl'), context);
@@ -94,6 +94,7 @@ const lines = (node) => elements(node, 'p').map((p) => context.productDevelopmen
   assert.deepEqual(lines(findCell('警告语')), ['WARNING: Keep original warning.']);
   assert.deepEqual(lines(findCell('使用说明(固定不改动)')), ['For external use only.']);
   assert.deepEqual(lines(findCell('成分表', 2)), ['']);
+  for (const tableCell of elements(outputDoc, 'tc')) assert(elements(tableCell, 'p').length, 'Every Word table cell must contain a paragraph, including cleared cells');
   assert(elements(findCell('产品名称'), 'b').some((node) => node.getAttribute('w:val') === '0'));
   assert.deepEqual(lines(elements(elements(currentDoc, 'tr')[0], 'tc')[1]), ['PRODUCT NAME:']);
 
@@ -113,6 +114,7 @@ const lines = (node) => elements(node, 'p').map((p) => context.productDevelopmen
   context.productDevelopmentSetDirectionsCells([cell('食用方法'), merged, auxiliary], { directionsEn: 'Use as directed.', directionsCn: '按说明使用。' }, currentDoc);
   assert.deepEqual(lines(merged), ['DIRECTIONS:', 'Use as directed.', '按说明使用。']);
   assert.equal(elements(auxiliary, 't').length, 0);
+  assert.equal(elements(auxiliary, 'p').length, 1, 'Cleared merged-cell auxiliary content retains an empty Word paragraph');
 
   const workerSource = fs.readFileSync(path.join(root, 'cloudflare/plm-cloud-backup/src/index.js'), 'utf8');
   const workerStart = workerSource.indexOf('function normalizeProductDevelopmentCopywritingCandidate(');
