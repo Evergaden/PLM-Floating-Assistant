@@ -180,7 +180,7 @@
       const originalLabel = actionTarget ? actionTarget.textContent : '';
       if (actionTarget) { actionTarget.disabled = true; actionTarget.textContent = '翻译中…'; }
       productDevelopmentTranslateZhToEn(cnValue).then((translated) => {
-        const value = translated.slice(0, 180);
+        const value = productDevelopmentEnglishProductNameCase(translated.slice(0, 180));
         if (enInput) {
           enInput.value = value;
           enInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -725,7 +725,15 @@
       if (sku && ['brand', 'productNameCn', 'productNameEn', 'reworkProductCode'].includes(field)) {
         if (!state.productDevelopmentTaskMeta || typeof state.productDevelopmentTaskMeta !== 'object') state.productDevelopmentTaskMeta = Object.create(null);
         const meta = getProductDevelopmentTaskMeta(state.productDevelopmentSelectedTask, state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku]);
-        const rawValue = String(target.value || '').slice(0, field === 'reworkProductCode' ? 120 : 180);
+        let rawValue = String(target.value || '').slice(0, field === 'reworkProductCode' ? 120 : 180);
+        if (field === 'productNameEn' && !event.isComposing) {
+          const start = target.selectionStart, end = target.selectionEnd, direction = target.selectionDirection;
+          rawValue = productDevelopmentEnglishProductNameCase(rawValue);
+          if (target.value !== rawValue) {
+            target.value = rawValue;
+            if (typeof target.setSelectionRange === 'function' && start !== null && end !== null) target.setSelectionRange(start, end, direction || 'none');
+          }
+        }
         meta[field] = field === 'brand' ? productDevelopmentNormalizeBrandValue(rawValue) : rawValue;
         state.productDevelopmentTaskMeta[sku] = meta;
         saveProductDevelopmentTaskMeta(sku, meta);

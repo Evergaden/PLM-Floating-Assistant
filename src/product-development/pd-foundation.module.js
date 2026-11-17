@@ -773,6 +773,10 @@
     return entries;
   }
 
+  function productDevelopmentEnglishProductNameCase(value) {
+    return String(value || '').toLowerCase().replace(/(^|[\s\-/(])([a-z])/g, (match, separator, letter) => separator + letter.toUpperCase());
+  }
+
   function productDevelopmentTaskMetaFallback(task, detail) {
     const baseFields = detail && Array.isArray(detail.baseFields) ? detail.baseFields : [];
     const baseValue = (keys) => {

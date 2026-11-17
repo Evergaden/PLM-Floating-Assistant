@@ -1,0 +1,11 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('src/product-development/pd-foundation.module.js', 'utf8');
+const match = source.match(/function productDevelopmentEnglishProductNameCase\([^]*?\n  \}/);
+assert(match, 'English name formatter exists');
+const format = vm.runInNewContext('(' + match[0] + ')');
+assert.equal(format('MAN ENHANCEMENT MASSAGE BEADS'), 'Man Enhancement Massage Beads');
+assert.equal(format("MEN'S  BODY-OIL / FACE CREAM"), "Men's  Body-Oil / Face Cream");
+assert.equal(format(''), '');
+console.log('English product name capitalization checks passed');
