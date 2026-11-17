@@ -55,6 +55,11 @@ assert.equal(normalized.materialId, 'CURRENT', 'Reference material IDs must not 
 assert.equal(normalized.referenceRemark, '哑膜');
 assert.equal(normalized.shelfLife, '');
 const noReference = { ...detail, productDevelopmentReworkLookup: null, bomRows: [] };
+const renamed = { ...noReference, productDetailLocalNames: { productNameCn: '新产品' } };
+const generated = context.productDevelopmentNormalizeMaterialDraft({ materialName: 'SKU1纸盒', nameSource: 'generated' }, 'box', renamed, {});
+assert.equal(generated.materialName, '新产品纸盒', 'Generated cached SKU names follow the locally edited product name');
+const manualName = context.productDevelopmentNormalizeMaterialDraft({ materialName: '人工名称', nameSource: 'manual' }, 'box', renamed, {});
+assert.equal(manualName.materialName, '人工名称', 'Manually edited material names are preserved');
 const oldFood = context.productDevelopmentNormalizeMaterialDraft({materialName:'镁霜标签（圆弧 食品两年）',referenceRemark:'食品两年',shelfLife:'食品两年'}, 'label', noReference, {});
 assert(!oldFood.materialName.includes('食品两年'));
 assert.equal(oldFood.referenceRemark, '');
@@ -114,6 +119,9 @@ context.productDevelopmentSyncMaterialDraftDom('SKU1', 'box', detail.materialDra
 assert.equal(specificationInput.value, '100ml/盒，4x4x13.5cm，白卡', 'Changed product specification replaces the prefix without duplicates or lost remarks');
 const labelDraft = context.productDevelopmentNormalizeMaterialDraft({ specification: '50ml/盒，10x6cm（玻璃加粘）', specificationSource: 'manual' }, 'label', detail, {});
 assert.equal(labelDraft.specification, '100ml/盒，10x6cm（玻璃加粘）', 'Labels share the current product prefix and retain their own size and remarks');
+currentSpecification = '50g/盒';
+const duplicated = context.productDevelopmentNormalizeMaterialDraft({ nameSource: 'generated', specificationSource: 'generated', specification: '50g，6.3x6.3x5.4cm', length: '6.3', width: '6.3', height: '5.4' }, 'box', renamed, {});
+assert.equal(duplicated.specification, '50g/盒，6.3x6.3x5.4cm', 'A legacy bare net quantity is not repeated after the product prefix');
 inputs[4].value = '';
 context.productDevelopmentHandleMaterialField(inputs[4]);
 assert(inputs[4].closest('label').classList.contains('is-invalid'));

@@ -620,6 +620,16 @@
             state.productDevelopmentTaskMeta[sku] = meta;
             saveProductDevelopmentTaskMeta(sku, meta);
           }
+          if (key === 'productNameCn' && detail.materialDrafts) {
+            const task = getProductDevelopmentTaskBySku(sku) || state.productDevelopmentSelectedTask || {};
+            productDevelopmentEnsureMaterialDrafts(detail, task);
+            ['box', 'label', 'instruction'].forEach((kind) => {
+              productDevelopmentRecalculateMaterialDraft(kind, detail.materialDrafts[kind], detail, task);
+              productDevelopmentSyncMaterialDraftDom(sku, kind, detail.materialDrafts[kind]);
+            });
+            detail.bomDraftDirty = true;
+            detail.bomDraftSaveState = 'dirty';
+          }
           productDevelopmentMarkProductDetailDirty(detail);
           persistDetail();
         }
@@ -724,6 +734,7 @@
         if (field === 'productNameCn') {
           const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
           if (detail) {
+            productDevelopmentRememberLocalProductName(detail, field, meta[field]);
             productDevelopmentEnsureMaterialDrafts(detail, state.productDevelopmentSelectedTask || {});
             ['box', 'label', 'instruction'].forEach((kind) => productDevelopmentRecalculateMaterialDraft(kind, detail.materialDrafts[kind], detail, state.productDevelopmentSelectedTask || {}));
             detail.bomDraftDirty = true;

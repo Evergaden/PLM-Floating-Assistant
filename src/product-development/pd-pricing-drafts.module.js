@@ -184,7 +184,7 @@
   function productDevelopmentMaterialBaseName(task, detail) {
     const meta = getProductDevelopmentTaskMeta(task, detail);
     return productDevelopmentCleanText(
-      meta.productNameCn || detail && detail.productNameCn || task && task.name || detail && detail.name || detail && detail.sku,
+      detail && detail.productDetailLocalNames && detail.productDetailLocalNames.productNameCn || meta.productNameCn || detail && detail.productNameCn || task && task.name || detail && detail.name || detail && detail.sku,
       180,
     );
   }
@@ -347,7 +347,7 @@
       price: productDevelopmentCleanText(raw.price !== undefined ? raw.price : existing && existing.price, 40),
     };
     if (!isSupplement) draft.materialName = String(draft.materialName || '').replace(/食品两年/g, '').replace(/[（(]\s*[）)]/g, '').replace(/\s+([）)])/g, '$1').trim();
-    if (!draft.materialName && draft.nameSource !== 'manual') draft.materialName = productDevelopmentMaterialDefaultName(kind, baseName, draft);
+    if (draft.nameSource === 'generated' || (!draft.materialName && draft.nameSource !== 'manual')) draft.materialName = productDevelopmentMaterialDefaultName(kind, baseName, draft);
     if (!draft.specification && draft.specificationSource !== 'manual') draft.specification = productDevelopmentMaterialDefaultSpecification(kind, draft);
     if (kind !== 'instruction') {
       const specificationDimensions = productDevelopmentMaterialDimensions(draft.specification);
@@ -423,7 +423,12 @@
     if (!current) return;
     const packSpec = current[0].trim();
     draft.packSpec = packSpec;
-    const body = String(draft.specification || '').replace(prefix, '').replace(/^[\s，,;；]+/, '');
+    let body = String(draft.specification || '').replace(prefix, '').replace(/^[\s，,;；]+/, '');
+    if (draft.specificationSource !== 'manual') {
+      const quantity = packSpec.match(/^\s*(\d+(?:\.\d+)?\s*(?:ml|kg|g|l|粒|片|个|袋|支|capsules?|tablets?|gummies|pcs?))\s*\//i);
+      const leading = body.match(/^\s*(\d+(?:\.\d+)?\s*(?:ml|kg|g|l|粒|片|个|袋|支|capsules?|tablets?|gummies|pcs?))\s*([，,;；])/i);
+      if (quantity && leading && quantity[1].replace(/\s/g, '').toLowerCase() === leading[1].replace(/\s/g, '').toLowerCase()) body = body.slice(leading[0].length).trim();
+    }
     draft.specification = [packSpec, body].filter(Boolean).join('，');
   }
 
