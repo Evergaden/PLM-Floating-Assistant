@@ -369,12 +369,13 @@
     try {
       stage = '读取 PLM 产品资料';
       const snapshot = await withCopywritingTimeout(
-        loadProductDevelopmentSnapshot(sku, false, { requireIngredients: false, includeImage: false }),
+        loadProductDevelopmentSnapshot(sku, false, { requireIngredients: false, includeImage: true, allowMissingImage: true }),
         180000,
         '产品资料读取',
       );
       snapshot.packagingKind = await productDevelopmentResolvePackagingKind(snapshot);
       state.productDevelopmentSnapshot = snapshot;
+      const copywritingImage = snapshot.imageUrl ? await productDevelopmentFetchImage(snapshot.imageUrl, snapshot.imageFallbackUrl) : null;
       const referenceUrl = productDevelopmentCopywritingReferenceUrl(input, snapshot);
       const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
       stage = '加载 DOCX 模板';
@@ -406,6 +407,7 @@
         timeoutMs: 600000,
         body: {
           sku: snapshot.sku,
+          imageDataUrl: copywritingImage ? copywritingImage.dataUrl : '',
           name: snapshot.name,
           englishName: regularSnapshot.englishName || snapshot.englishName || '',
           referenceUrl,

@@ -3989,6 +3989,8 @@ async function handleProductDevelopmentCopywriting(request, env) {
   const sku = cleanText(body.sku, 80);
   const name = cleanText(body.name, 300);
   const englishName = cleanText(body.englishName, 300);
+  const copywritingImage = cleanModelScopeImages([body.imageDataUrl])[0] || '';
+  if (body.imageDataUrl && !copywritingImage) return json({ ok: false, error: '效果图格式不支持，请重新选择图片' }, 400);
   const brand = cleanText(body.brand, 160);
   const sourcePlainTextCopy = cleanText(
     body.sourcePlainTextCopy || body.infringementPlainTextCopy || body.plainTextCopy,
@@ -4059,7 +4061,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   const commonSystem = [
     '你是美国电商产品的双语包装文案草稿助手，必须依据当前产品类型、用途和资料写作。',
     '当模板 id 为 regular-ndc 或 regular-non-ndc 时，sections 必须包含至少一条非空双语 directions，每项为 {"en":"","cn":""}，按步骤逐条对应中英文。有 sourceCopywriting.usage 或 sourcePlainTextCopy 的明确用法时，优先据此整理和翻译；没有时根据当前产品的明确剂型和用途写合理、简洁的基础用法草稿，不得编造数值、频次、部位、配件或无法确认的留存、冲洗步骤。用法独立于 A-D，不套用 A-D 的禁用用法词规则。referenceUrl 仅为原样导出线索，不抓取、不虚构或声称已验证链接内容。',
-    '本任务只使用提交的产品资料、成分、sourcePlainTextCopy 和已有卖点，不读取、不分析也不要求产品效果图。',
+    copywritingImage ? '先仔细观察当前产品效果图，识别实物形态和容器；将可见事实与用户确认的用法结合，包装容器与内容物必须分开描述，不得把颗粒、软珠写成软管或膏霜。图片不能证明不可见成分、包装数量或使用动作；信息不清楚时不要猜测。图文冲突时不得沿用不符的旧描述。' : '本任务使用提交的产品资料、成分、sourcePlainTextCopy 和已有卖点；没有效果图时不得猜测产品形态和包装。',
     '如果存在 sourcePlainTextCopy，它是侵权图修改后的纯文字文案版本；先用它理解产品名称、定位、用途和卖点，再把这些事实改写成 A-D。没有它时才使用其他已提交资料。',
     '必须使用符合跨境电商平台合规宣传的客观、克制、可验证表达：可以说明成分、配方特点、产品属性、使用场景和日常营养支持，但不能承诺结果或暗示预防、治疗、诊断、替代药物。',
     '只能围绕输入的成分、产品类型和 PLM 卖点写，不能虚构其他成分、配比、认证、实验、疾病、治疗或数字。',
@@ -4099,6 +4101,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   const options = {
     primaryModel: getProductDevelopmentPrimaryQwenModel(env),
     model: getProductDevelopmentPrimaryQwenModel(env),
+    images: copywritingImage ? [copywritingImage] : [],
     temperature: 0,
     maxTokens: 6000,
     primaryTimeoutMs: 240000,

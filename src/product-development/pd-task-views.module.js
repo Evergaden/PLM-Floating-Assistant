@@ -883,7 +883,7 @@
         : '文案生成不读取效果图',
       updatedAt: new Date().toLocaleString(),
     };
-    if (includeImage && !result.imageUrl) {
+    if (includeImage && !result.imageUrl && !opts.allowMissingImage) {
       throw new Error(imageKind === 'benchmark'
         ? '当前 SKU 没有可读取的对标图片'
         : '当前 SKU 没有可读取的主产品效果图');
