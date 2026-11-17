@@ -71,6 +71,20 @@ function checkDimensions() {
   assert.equal(detail.productDetailLocalValues['133@1'].value, 8);
   detail.productDevelopmentReworkLookup = { status: 'idle' };
   assert.equal(context.productDevelopmentSyncReworkOuterDimensions(detail), false);
+  const local = { fields: definitions.map((item) => ({ ...item, value: '' })), attrs: {}, productDetailLocalValues: {}, materialDrafts: { box: { enabled: true, length: '6.3', width: '', height: '' } } };
+  const displayed = {};
+  const scope = { querySelectorAll(selector) { const key = selector.match(/data-form-key="([^"]+)"/)[1]; return [{ set value(value) { displayed[key] = value; }, closest() { return null; } }]; } };
+  assert.equal(context.productDevelopmentSyncReworkOuterDimensions(local, null, scope), true, 'Local carton dimensions do not require a reference lookup');
+  assert.equal(local.attrs[133], 6.3);
+  assert.equal(displayed.outerLength, '6.3', 'Visible outer length updates immediately');
+  local.materialDrafts.box.width = '5';
+  local.materialDrafts.box.height = '4';
+  context.productDevelopmentSyncReworkOuterDimensions(local, null, scope);
+  assert.deepEqual(keys.map((key, index) => local.attrs[133 + index]), [6.3, 5, 4, 126]);
+  local.productDetailLocalValues['133@1'] = { value: 8, displayValue: '8', source: 'manual' };
+  local.materialDrafts.box.length = '7';
+  context.productDevelopmentSyncReworkOuterDimensions(local);
+  assert.equal(local.productDetailLocalValues['133@1'].value, 8, 'Manually entered outer dimensions are preserved');
 }
 
 async function checkPrice() {

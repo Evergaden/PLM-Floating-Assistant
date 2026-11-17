@@ -620,13 +620,19 @@
     return null;
   }
 
-  function productDevelopmentSyncReworkOuterDimensions(detail, lookupOverride) {
+  function productDevelopmentSyncReworkOuterDimensions(detail, lookupOverride, scope) {
     if (!detail) return false;
     const lookup = lookupOverride || productDevelopmentReworkLookupState(detail).data;
-    if (!lookup) return false;
-    const dimensions = productDevelopmentReworkLookupPaperBoxDimensions(detail);
+    const draft = detail.materialDrafts && detail.materialDrafts.box;
+    const draftDimensions = draft && draft.enabled !== false
+      ? ['length', 'width', 'height'].map((key) => productDevelopmentReworkLookupNumber(draft[key])) : null;
+    const hasPartialDraft = draftDimensions && draftDimensions.some((value) => value !== null && value > 0)
+      && !draftDimensions.every((value) => value !== null && value > 0);
+    const dimensions = hasPartialDraft ? draftDimensions : productDevelopmentReworkLookupPaperBoxDimensions(detail);
+    if (!dimensions && !lookup) return false;
     const keys = ['outerLength', 'outerWidth', 'outerHeight', 'outerVolume'];
-    const values = dimensions ? dimensions.concat(Number((dimensions[0] * dimensions[1] * dimensions[2]).toFixed(2))) : keys.map((key) => lookup[key]);
+    const complete = dimensions && dimensions.every((value) => value !== null && value > 0);
+    const values = dimensions ? dimensions.concat(complete ? Number((dimensions[0] * dimensions[1] * dimensions[2]).toFixed(2)) : null) : keys.map((key) => lookup[key]);
     const referenceLabel = productDevelopmentReferenceLabel(detail);
     const source = dimensions ? 'BOM 纸盒尺寸' : referenceLabel + '编码 API';
     let changed = false;
@@ -647,6 +653,11 @@
         field.displayValue = text;
         field.status = dimensions ? '已预填（BOM 纸盒）' : '已预填（' + referenceLabel + '编码）';
         field.source = source;
+      });
+      if (scope && scope.querySelectorAll) scope.querySelectorAll('[data-form-group="prefill"][data-form-key="' + key + '"]').forEach((input) => {
+        input.value = text;
+        const label = input.closest('.pfh-product-development-form-field');
+        if (label) label.classList.toggle('is-missing', !text);
       });
       changed = true;
     });

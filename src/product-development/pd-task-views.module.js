@@ -200,7 +200,7 @@
     productDevelopmentSyncMaterialDimensions(kind, draft, field, detail);
     productDevelopmentRecalculateMaterialDraft(kind, draft, detail, task);
     if (kind === 'box') {
-      productDevelopmentSyncReworkOuterDimensions(detail);
+      productDevelopmentSyncReworkOuterDimensions(detail, null, target.closest && target.closest('.pfh-detail'));
       productDevelopmentRefreshDerivedDimensions(detail, target.closest && target.closest('.pfh-detail'));
     }
     detail.bomDraftDirty = true;
