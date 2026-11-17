@@ -74,6 +74,8 @@ assert.equal(detail.bomRows[0].length, '10', 'Bound PLM BOM is not an editable d
 const html = context.productDevelopmentReadonlyDetailHtml(detail);
 assert(!html.includes('文件上传'));
 assert(!html.includes('product-development-product-save-local'));
+assert(!html.includes('页面 1 · 建品基础信息'));
+assert(html.includes('product-development-product-fill-page1'), 'Page 1 fill remains available');
 assert(html.includes('pfh-product-development-detail-heading'));
 const meta = context.productDevelopmentTaskLocalMetaHtml({ sku: 'SKU1' }, detail);
 assert(meta.includes('对标产品编码'));

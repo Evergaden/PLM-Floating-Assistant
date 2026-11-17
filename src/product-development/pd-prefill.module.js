@@ -146,6 +146,12 @@
     const task = getProductDevelopmentTaskBySku(detail && detail.sku) || state.productDevelopmentSelectedTask || {};
     const meta = getProductDevelopmentTaskMeta(task, detail);
     const entryEnglishProductName = productDevelopmentEntryEnglishProductName(detail, task, meta);
+    // The local product fields above the form are the visible source of these values.
+    // Old page-1 edits can remain in cache, but must not mask newer local changes.
+    if (['productNameCn', 'productNameEn', 'brand'].includes(key) && productDevelopmentPrefillHasValue(meta, key)) {
+      if (key === 'brand') return productDevelopmentNormalizeBrandValue(meta[key]);
+      return key === 'productNameEn' && entryEnglishProductName ? entryEnglishProductName : meta[key];
+    }
     if (productDevelopmentPrefillHasValue(localPage1, key)) {
       if (key === 'categoryPath') return productDevelopmentNormalizeCategoryPathValue(localPage1[key]);
       if (key === 'brand') return productDevelopmentNormalizeBrandValue(localPage1[key]);

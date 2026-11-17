@@ -24,9 +24,22 @@ const context = vm.createContext({
   productDevelopmentSetProductAttrValue: (detail, attrId, languageId, value) => { detail.attrs[attrId] = value; },
 });
 const prefill = read('pd-prefill');
+context.state = { productDevelopmentSelectedTask: {} };
+context.getProductDevelopmentTaskBySku = () => ({});
+context.getProductDevelopmentTaskMeta = () => ({ productNameCn: '最新中文名', productNameEn: 'New name', brand: 'NEW' });
+context.productDevelopmentEntryEnglishProductName = () => '';
+context.productDevelopmentNormalizeBrandValue = (value) => value;
+context.productDevelopmentNormalizeCategoryPathValue = (value) => value;
+vm.runInContext(extract(prefill, 'productDevelopmentPage1FieldValue'), context);
 for (const name of ['productDevelopmentPrefillHasValue', 'productDevelopmentPrefillText', 'productDevelopmentPrefillLocalAttrValue', 'productDevelopmentPrefillProductFieldValue', 'productDevelopmentRememberLocalProductField', 'productDevelopmentMarkProductDetailDirty', 'productDevelopmentNormalizeReworkProductCode', 'productDevelopmentReworkLookupState', 'productDevelopmentReworkLookupValuePresent', 'productDevelopmentReworkLookupNumber', 'productDevelopmentReworkLookupValue', 'productDevelopmentReadonlyDimensionText', 'productDevelopmentReworkLookupDimensions', 'productDevelopmentReworkLookupObjectDimensions', 'productDevelopmentReworkLookupPaperBoxDimensions', 'productDevelopmentSyncReworkOuterDimensions']) {
   vm.runInContext(extract(prefill, name), context);
 }
+const cachedPage1 = { sku: 'SKU1', productDetailLocalPage1: { productNameCn: '旧中文名', productNameEn: 'Old name', brand: 'OLD', categoryPath: '旧分类', productGroupPath: '旧分组' } };
+assert.equal(context.productDevelopmentPage1FieldValue(cachedPage1, 'productNameCn'), '最新中文名');
+assert.equal(context.productDevelopmentPage1FieldValue(cachedPage1, 'productNameEn'), 'New name');
+assert.equal(context.productDevelopmentPage1FieldValue(cachedPage1, 'brand'), 'NEW');
+assert.equal(context.productDevelopmentPage1FieldValue(cachedPage1, 'categoryPath'), '旧分类');
+assert.equal(context.productDevelopmentPage1FieldValue(cachedPage1, 'productGroupPath'), '旧分组');
 function checkDimensions() {
   const original = { outerLength: 1, outerWidth: 1, outerHeight: 1, outerVolume: 1, outerDimensions: [1, 1, 1], packagingType: 'bottle' };
   const detail = {

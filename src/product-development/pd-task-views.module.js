@@ -19,7 +19,6 @@
       : '已读取 PLM · 更新时间 ' + String(detail.loadedAt || '');
     const domFillBusy = state.productDevelopmentDomFillSku === formSku;
     const domFillDisabled = domFillBusy || productPlmBusy ? ' disabled' : '';
-    const page1Fields = PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS.map((definition) => ({ ...definition, formGroup: 'page1' }));
     const page2Fields = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.filter((definition) => !['outerVolume', 'standardPackingQuantity'].includes(definition.key)).map((definition) => ({ ...definition, formGroup: 'prefill' }));
     const procurementFields = PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS.map((definition) => ({ ...definition, formGroup: 'procurement' }));
     const renderFields = (fields, valueReader) => fields.map((field) => productDevelopmentPrefillFieldHtml(field, formSku, valueReader(field))).join('');
@@ -28,7 +27,6 @@
         ? '<p class="pfh-product-development-material-plm-status is-error">' + escapeHtml(detail.error) + '</p>'
         : '') +
       productPlmStatus +
-      '<section class="pfh-product-development-form-section"><h4>页面 1 · 建品基础信息（' + page1Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page1Fields, (field) => productDevelopmentPage1FieldValue(detail, field.key)) + '</div></section>' +
       '<section class="pfh-product-development-form-section"><h4>页面 2 · 产品详情（' + page2Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page2Fields, (field) => productDevelopmentPrefillProductFieldValue(detail, field)) + '</div></section>' +
       '<section class="pfh-product-development-form-section"><h4>页面 2 · 采购明细（' + procurementFields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(procurementFields, (field) => productDevelopmentProcurementFieldValue(detail, field.key)) + '</div></section></section>';
   }

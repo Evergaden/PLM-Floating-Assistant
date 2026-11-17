@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      3.0.10
+// @version      3.0.11
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "3.0.10";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "3.0.11";
     function r() {
         return r.promise || (r.promise = new Promise((e, t) => {
             const n = indexedDB.open("plm-floating-helper-image-cache-v1", 1);
@@ -4989,6 +4989,7 @@
     }
     function ec(e, t) {
         const n = e && e.productDetailLocalPage1 && "object" == typeof e.productDetailLocalPage1 ? e.productDetailLocalPage1 : {}, r = El(e && e.sku) || lf.productDevelopmentSelectedTask || {}, a = Ds(r, e), i = $l(e, r, a);
+        if ([ "productNameCn", "productNameEn", "brand" ].includes(t) && Gl(a, t)) return "brand" === t ? xs(a[t]) : "productNameEn" === t && i ? i : a[t];
         if (Gl(n, t)) return "categoryPath" === t ? As(n[t]) : "brand" === t ? xs(n[t]) : "productNameEn" === t && i ? i : n[t];
         const o = e && e.productInfo && "object" == typeof e.productInfo ? e.productInfo : {}, s = o.product_group && "object" == typeof o.product_group ? o.product_group : {};
         return "categoryPath" === t ? As(e && (e.categoryName || o.category_name || r.plmCategory) || "") : "productNameCn" === t ? e && e.productDetailLocalNames && Gl(e.productDetailLocalNames, t) ? e.productDetailLocalNames[t] : a.productNameCn || e && e.productNameCn || "" : "productNameEn" === t ? e && e.productDetailLocalNames && Gl(e.productDetailLocalNames, t) ? i || e.productDetailLocalNames[t] : i || a.productNameEn || e && e.productNameEn || "" : "brand" === t ? xs(a.brand || e && e.brand || o.brand_name || o.brandName || "") : "productGroupPath" === t && (o.product_group_path || o.product_group_full_name || o.product_group_name || s.path || s.full_name || s.name || e && e.productGroupName) || "";
@@ -6748,17 +6749,14 @@
             return '<section class="pfh-product-development-product-naming pfh-product-development-task-local-meta"><header><div><h3>产品本地填写</h3></div></header><div class="pfh-product-development-product-naming-grid">' + i("brand", "产品品牌", xs(r.brand), "") + i("productNameCn", "产品中文名", r.productNameCn, "") + i("productNameEn", "产品英文名", r.productNameEn, "") + i("reworkProductCode", Ts(t, n) + "产品编码", r.reworkProductCode, "没有则留空") + '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-task-meta-translate" data-product-sku="' + D_(a) + '">中文名翻英文名</button></div></section>';
         }(t, n) + function i(e) {
             if (!e) return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>正在读取只读字段…</span></header><div class="pfh-product-development-form-empty">正在读取 BOM 和建品字段…</div></section>';
-            const t = String(e.sku || "").trim().toUpperCase(), n = lf.productDevelopmentProductSaveSku === t, r = e.productDetailDraftDirty ? "有未保存修改" : e.productDetailSaveMessage || (e.productDetailSavedAt ? "已保存本地 · " + e.productDetailSavedAt : "尚未保存"), a = e.productDetailDraftDirty ? " is-dirty" : "error" === e.productDetailSaveState || "error" === e.productDetailPlmSaveState ? " is-error" : e.productDetailSavedAt ? " is-saved" : "", i = e.productDetailPlmSaveMessage ? '<p class="pfh-product-development-material-plm-status' + ("error" === e.productDetailPlmSaveState ? " is-error" : " is-saved") + '">' + D_(e.productDetailPlmSaveMessage) + "</p>" : "", o = "local-cache" === e.cacheSource ? "本地缓存" + (e.loadedAt ? " · 更新时间 " + String(e.loadedAt) : "") : "已读取 PLM · 更新时间 " + String(e.loadedAt || ""), s = lf.productDevelopmentDomFillSku === t, l = s || n ? " disabled" : "", c = Wo.map(e => ({
-                ...e,
-                formGroup: "page1"
-            })), u = Qo.filter(e => ![ "outerVolume", "standardPackingQuantity" ].includes(e.key)).map(e => ({
+            const t = String(e.sku || "").trim().toUpperCase(), n = lf.productDevelopmentProductSaveSku === t, r = e.productDetailDraftDirty ? "有未保存修改" : e.productDetailSaveMessage || (e.productDetailSavedAt ? "已保存本地 · " + e.productDetailSavedAt : "尚未保存"), a = e.productDetailDraftDirty ? " is-dirty" : "error" === e.productDetailSaveState || "error" === e.productDetailPlmSaveState ? " is-error" : e.productDetailSavedAt ? " is-saved" : "", i = e.productDetailPlmSaveMessage ? '<p class="pfh-product-development-material-plm-status' + ("error" === e.productDetailPlmSaveState ? " is-error" : " is-saved") + '">' + D_(e.productDetailPlmSaveMessage) + "</p>" : "", o = "local-cache" === e.cacheSource ? "本地缓存" + (e.loadedAt ? " · 更新时间 " + String(e.loadedAt) : "") : "已读取 PLM · 更新时间 " + String(e.loadedAt || ""), s = lf.productDevelopmentDomFillSku === t, l = s || n ? " disabled" : "", c = Qo.filter(e => ![ "outerVolume", "standardPackingQuantity" ].includes(e.key)).map(e => ({
                 ...e,
                 formGroup: "prefill"
-            })), d = Jo.map(e => ({
+            })), u = Jo.map(e => ({
                 ...e,
                 formGroup: "procurement"
-            })), p = (e, n) => e.map(e => nd(e, t, n(e))).join("");
-            return '<section class="pfh-product-development-detail-form"><header class="pfh-product-development-product-form-header" title="' + D_(o) + '"><div class="pfh-product-development-detail-heading"><h3>填写建品信息</h3><span class="pfh-product-development-material-save-status' + a + '">' + D_(s ? "正在填写 PLM…" : r) + '</span></div><div class="pfh-product-development-material-header-actions"><button type="button" class="is-primary" data-action="product-development-product-fill-page1" data-product-sku="' + D_(t) + '"' + l + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">填写页面 1</button><button type="button" class="is-primary" data-action="product-development-product-fill-page2" data-product-sku="' + D_(t) + '"' + l + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">填写页面 2</button><button type="button" data-action="product-development-product-save-plm" data-product-sku="' + D_(t) + '"' + (n ? " disabled" : "") + ">" + (n ? "正在保存…" : "保存到 PLM") + "</button></div></header>" + (e.error ? '<p class="pfh-product-development-material-plm-status is-error">' + D_(e.error) + "</p>" : "") + i + '<section class="pfh-product-development-form-section"><h4>页面 1 · 建品基础信息（' + c.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + p(c, t => ec(e, t.key)) + '</div></section><section class="pfh-product-development-form-section"><h4>页面 2 · 产品详情（' + u.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + p(u, t => Ql(e, t)) + '</div></section><section class="pfh-product-development-form-section"><h4>页面 2 · 采购明细（' + d.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + p(d, t => tc(e, t.key)) + "</div></section></section>";
+            })), d = (e, n) => e.map(e => nd(e, t, n(e))).join("");
+            return '<section class="pfh-product-development-detail-form"><header class="pfh-product-development-product-form-header" title="' + D_(o) + '"><div class="pfh-product-development-detail-heading"><h3>填写建品信息</h3><span class="pfh-product-development-material-save-status' + a + '">' + D_(s ? "正在填写 PLM…" : r) + '</span></div><div class="pfh-product-development-material-header-actions"><button type="button" class="is-primary" data-action="product-development-product-fill-page1" data-product-sku="' + D_(t) + '"' + l + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">填写页面 1</button><button type="button" class="is-primary" data-action="product-development-product-fill-page2" data-product-sku="' + D_(t) + '"' + l + ' title="请在 PLM 停留在对应页面时使用；只填写当前表单，不会自动点下一步或保存">填写页面 2</button><button type="button" data-action="product-development-product-save-plm" data-product-sku="' + D_(t) + '"' + (n ? " disabled" : "") + ">" + (n ? "正在保存…" : "保存到 PLM") + "</button></div></header>" + (e.error ? '<p class="pfh-product-development-material-plm-status is-error">' + D_(e.error) + "</p>" : "") + i + '<section class="pfh-product-development-form-section"><h4>页面 2 · 产品详情（' + c.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + d(c, t => Ql(e, t)) + '</div></section><section class="pfh-product-development-form-section"><h4>页面 2 · 采购明细（' + u.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + d(u, t => tc(e, t.key)) + "</div></section></section>";
         }(n) + r;
     }
     function pd(e, t, n, r) {
