@@ -513,6 +513,7 @@
       'productDetailDraftDirty',
       'productDetailSavedAt',
       'productDetailProcurementPriceSource',
+      'productDetailProcurementProcessTypeSource',
       'productDetailSaveState',
       'productDetailSaveMessage',
       'productDetailPlmSaveState',

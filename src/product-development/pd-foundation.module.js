@@ -219,7 +219,7 @@
   const PRODUCT_DEVELOPMENT_PURCHASE_PRICE_FIELD = Object.freeze({ attrId: 152, key: 'procurement_rice', label: '采购价（含税运）' });
   const PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT = Object.freeze({
     supplier: 'JSJ',
-    processType: '直采',
+    processType: '来料加工',
     processFee: '0',
     taxRate: '0.00%',
     quantity: '1000',
@@ -257,7 +257,7 @@
 
   const PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS = Object.freeze([
     Object.freeze({ key: 'supplier', label: '供应商子公司名称', domId: 'form_item_0_company_supplier_id', control: 'select', placeholder: '如：JSJ' }),
-    Object.freeze({ key: 'processType', label: '加工方式', domId: 'form_item_0_process_type', control: 'select', placeholder: '如：直采' }),
+    Object.freeze({ key: 'processType', label: '加工方式', domId: 'form_item_0_process_type', control: 'select', placeholder: '如：来料加工' }),
     Object.freeze({ key: 'processFee', label: '加工费', domId: 'form_item_0_process_fee', type: 'number' }),
     Object.freeze({ key: 'taxRate', label: '税率', domId: 'form_item_0_tax_rate_id', control: 'select', placeholder: '如：0.00%' }),
     Object.freeze({ key: 'quantity', label: '采购数量', domId: 'form_item_0_quantity', type: 'number' }),

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      3.0.15
+// @version      3.0.16
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "3.0.15";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", n = "3.0.16";
     function r() {
         return r.promise || (r.promise = new Promise((e, t) => {
             const n = indexedDB.open("plm-floating-helper-image-cache-v1", 1);
@@ -3158,7 +3158,7 @@
         label: "采购价（含税运）"
     }), Go = Object.freeze({
         supplier: "JSJ",
-        processType: "直采",
+        processType: "来料加工",
         processFee: "0",
         taxRate: "0.00%",
         quantity: "1000"
@@ -3282,7 +3282,7 @@
         label: "加工方式",
         domId: "form_item_0_process_type",
         control: "select",
-        placeholder: "如：直采"
+        placeholder: "如：来料加工"
     }), Object.freeze({
         key: "processFee",
         label: "加工费",
@@ -4762,7 +4762,7 @@
             t.productDetailLocalPage1 && "object" == typeof t.productDetailLocalPage1 && (e.productDetailLocalPage1 = ql(t.productDetailLocalPage1)),
             t.productDetailLocalProcurement && "object" == typeof t.productDetailLocalProcurement && (e.productDetailLocalProcurement = ql(t.productDetailLocalProcurement)),
             t.productDevelopmentReworkLookup && "object" == typeof t.productDevelopmentReworkLookup && (e.productDevelopmentReworkLookup = ql(t.productDevelopmentReworkLookup)),
-            [ "productDetailDraftDirty", "productDetailSavedAt", "productDetailProcurementPriceSource", "productDetailSaveState", "productDetailSaveMessage", "productDetailPlmSaveState", "productDetailPlmSaveMessage" ].forEach(n => {
+            [ "productDetailDraftDirty", "productDetailSavedAt", "productDetailProcurementPriceSource", "productDetailProcurementProcessTypeSource", "productDetailSaveState", "productDetailSaveMessage", "productDetailPlmSaveState", "productDetailPlmSaveMessage" ].forEach(n => {
                 Object.prototype.hasOwnProperty.call(t, n) && (e[n] = t[n]);
             }), sc(e);
             const n = e.productDetailLocalNames || {};
@@ -5015,8 +5015,10 @@
         "materialPrice" === t && ac(e);
         const n = e && e.productDetailLocalProcurement && "object" == typeof e.productDetailLocalProcurement ? e.productDetailLocalProcurement : {};
         if (Gl(n, t)) {
+            if ("processType" === t && (!Kl(n[t]) || "直采" === n[t] && "manual" !== e.productDetailProcurementProcessTypeSource)) return Go.processType;
             return "quantity" === t && "100" === String(n[t]) && "manual" !== e.productDetailProcurementQuantitySource && ("default" === e.productDetailProcurementQuantitySource || e.productDevelopmentReworkLookup) ? Go.quantity : "materialPrice" === t ? rc(n[t]) : n[t];
         }
+        if ("processType" === t) return Go.processType;
         if ("quantity" === t) return Go.quantity;
         const r = function a(e) {
             const t = e && e.productInfo && "object" == typeof e.productInfo ? e.productInfo : {}, n = [ t.product_procure_infos, t.productProcureInfos, e && e.productProcureInfos, e && e.productProcureInfo ], r = n.find(e => Array.isArray(e) && e.length) || n.find(e => e && "object" == typeof e && !Array.isArray(e));
@@ -5029,7 +5031,7 @@
             quantity: [ "quantity", "purchase_quantity", "purchaseQuantity" ],
             materialPrice: [ "material_price", "materialPrice", "unit_price", "unitPrice" ]
         }[t] || []).find(e => void 0 !== r[e] && null !== r[e] && "" !== r[e]);
-        return i ? "materialPrice" === t ? rc(r[i]) : r[i] : "";
+        return i ? "materialPrice" === t ? rc(r[i]) : r[i] : Go[t] || "";
     }
     function rc(e) {
         const t = String(e ?? "").trim().replace(/,/g, ""), n = Number(t);
@@ -6414,6 +6416,22 @@
         if (!r.length && !a.length && !l) return {
             warnings: [ "悬浮助手页面2暂无可填写的数据" ]
         };
+        const u = nc(t, "processType");
+        if (u) {
+            const e = {
+                key: "productProcessType",
+                attrId: 118,
+                label: "加工方式",
+                domId: "form_item_3_attr_group_0_2_attr_language_config_json_0_value",
+                control: "select"
+            }, t = Qu(e);
+            try {
+                if (!t) throw new Error("未找到采购信息中的加工方式控件");
+                Wu(t, u, e) || await Uu(t, u, e.control);
+            } catch (e) {
+                c.push("采购信息加工方式：" + Q_(e));
+            }
+        }
         for (const e of r) {
             const t = e.definition, n = Qu(t);
             if (!n) {
@@ -6446,7 +6464,7 @@
                 const r = Kl(e.value, 800);
                 try {
                     if (Wu(n, r, t)) continue;
-                    t.control ? await Uu(n, r, t.control) : "materialPrice" === t.key ? await fu(n, r) : gu(n, r);
+                    t.control ? await Uu(n, r, t.control) : "materialPrice" === t.key || "quantity" === t.key ? await fu(n, r, t.label) : gu(n, r);
                 } catch (e) {
                     c.push(t.label + "：" + Q_(e));
                 }
@@ -11199,9 +11217,10 @@
                         !0;
                     }
                     o.productDetailLocalProcurement && "object" == typeof o.productDetailLocalProcurement || (o.productDetailLocalProcurement = Object.create(null)),
-                    o.productDetailLocalProcurement[i] = e, "materialPrice" === i && (o.productDetailProcurementPriceSource = "default",
-                    Xl(o, n.closest && n.closest(".pfh-detail"))), "quantity" === i && (o.productDetailProcurementQuantitySource = "manual"),
-                    dc(o), s();
+                    o.productDetailLocalProcurement[i] = e, "processType" === i && (o.productDetailProcurementProcessTypeSource = "manual"),
+                    "materialPrice" === i && (o.productDetailProcurementPriceSource = "default", Xl(o, n.closest && n.closest(".pfh-detail"))),
+                    "quantity" === i && (o.productDetailProcurementQuantitySource = "manual"), dc(o),
+                    s();
                 }
                 return !0;
             }

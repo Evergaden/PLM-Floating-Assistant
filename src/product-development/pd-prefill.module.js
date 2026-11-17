@@ -209,11 +209,13 @@
       ? detail.productDetailLocalProcurement
       : {};
     if (productDevelopmentPrefillHasValue(local, key)) {
+      if (key === 'processType' && (!productDevelopmentPrefillText(local[key]) || (local[key] === '直采' && detail.productDetailProcurementProcessTypeSource !== 'manual'))) return PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT.processType;
       const legacyDefault = key === 'quantity' && String(local[key]) === '100'
         && detail.productDetailProcurementQuantitySource !== 'manual'
         && (detail.productDetailProcurementQuantitySource === 'default' || detail.productDevelopmentReworkLookup);
       return legacyDefault ? PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT.quantity : key === 'materialPrice' ? productDevelopmentRoundUnitPrice(local[key]) : local[key];
     }
+    if (key === 'processType') return PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT.processType;
     if (key === 'quantity') return PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT.quantity;
     const row = productDevelopmentProcurementRow(detail);
     const candidates = {
@@ -225,7 +227,7 @@
       materialPrice: ['material_price', 'materialPrice', 'unit_price', 'unitPrice'],
     }[key] || [];
     const sourceKey = candidates.find((candidate) => row[candidate] !== undefined && row[candidate] !== null && row[candidate] !== '');
-    return sourceKey ? (key === 'materialPrice' ? productDevelopmentRoundUnitPrice(row[sourceKey]) : row[sourceKey]) : '';
+    return sourceKey ? (key === 'materialPrice' ? productDevelopmentRoundUnitPrice(row[sourceKey]) : row[sourceKey]) : (PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT[key] || '');
   }
 
   function productDevelopmentRoundUnitPrice(value) {

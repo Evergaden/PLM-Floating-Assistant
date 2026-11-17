@@ -26,6 +26,11 @@ const raw = [[0.19,1],[0.04,1],[1.08,1],[2,0.05]].map(([price, usage], i) => ({ 
 for (const [value, rounded] of [['1.2462','1.25'],['1.2449','1.24'],['1.005','1.01'],['10.075','10.08'],['0','0.00'],['2','2.00']]) assert.equal(context.productDevelopmentRoundUnitPrice(value),rounded);
 detail.bomRows = raw.map(context.productDevelopmentReadonlyBomRow);
 const procurementDefinition = { key:'procurementPrice', attrId:152, formGroup:'prefill', type:'number', label:'采购价' };
+assert.equal(context.productDevelopmentProcurementFieldValue({ productDetailLocalProcurement:{processType:'直采'} }, 'processType'), '来料加工', 'Old automatic direct-purchase defaults are migrated');
+assert.equal(context.productDevelopmentProcurementFieldValue({ productDetailLocalProcurement:{processType:'直采'}, productDetailProcurementProcessTypeSource:'manual' }, 'processType'), '直采', 'An explicit user choice is retained');
+assert.equal(context.productDevelopmentProcurementFieldValue({}, 'quantity'), '1000');
+for (const [key, expected] of [['supplier','JSJ'],['processType','来料加工'],['processFee','0'],['taxRate','0.00%']]) assert.equal(context.productDevelopmentProcurementFieldValue({}, key), expected);
+assert.equal(vm.runInContext("PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS.some(field => field.domId === 'form_item_0_minimum_order_quantity')", context), false, 'Procurement row minimum order is not filled');
 assert.equal(context.productDevelopmentProcurementFieldValue(detail, 'materialPrice'), '1.41');
 assert.equal(context.productDevelopmentPrefillProductFieldValue(detail, procurementDefinition), '1.91');
 assert.equal(detail.productAttrValues.find(item=>item.attr_id === 152).value, '1.91');

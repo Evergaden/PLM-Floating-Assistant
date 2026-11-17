@@ -136,6 +136,21 @@ context.productDevelopmentDomNativeSetter = () => { throw new Error('Numbers mus
   result = await context.productDevelopmentFillPlmPage2({}, 'SKU1');
   assert(result.warnings.some(warning => warning.includes('英文成分占比')));
   assert.equal(tabs[0].getAttribute('aria-selected'), 'true', 'Restore language after a missing field');
+  plm.innerHTML = '<div class="ant-form-item"><label for="top-process"><span id="118">加工方式</span></label><input id="top-process"></div>' +
+    '<input id="supplier"><input id="row-process"><input id="row-quantity"><input id="form_item_0_minimum_order_quantity" value="1">';
+  context.state.productDevelopmentOneShotInput = null;
+  context.PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS = [];
+  context.PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS = [{key:'supplier',label:'供应商',domId:'supplier'}, {key:'processType',label:'加工方式',domId:'row-process',control:'select'}, {key:'quantity',label:'采购数量',domId:'row-quantity',type:'number'}];
+  context.productDevelopmentProcurementFieldValue = (_, key) => ({supplier:'JSJ',processType:'来料加工',quantity:'1000'})[key] || '';
+  const selected = [];
+  context.productDevelopmentDomSelectOption = async (input, value) => { selected.push([input.id, value]); };
+  context.productDevelopmentDomNativeSetter = (input, value) => { input.value = value; };
+  context.productDevelopmentDomCommitNumber = async (input, value) => { input.value = value; };
+  result = await context.productDevelopmentFillPlmPage2({});
+  assert.equal(result.warnings.length, 0);
+  assert.deepEqual(selected, [['top-process','来料加工'],['row-process','来料加工']], 'Both independent processing selectors receive the same choice');
+  assert.equal(document.getElementById('row-quantity').value, '1000');
+  assert.equal(document.getElementById('form_item_0_minimum_order_quantity').value, '1', 'Leave procurement row minimum order untouched');
   for (const [file, name] of [['product-development/pd-task-sync', 'productDevelopmentTaskImageUrl'], ['core-ledger-workbench', 'getLedgerThumbnailUrl'], ['core-ledger-workbench', 'productThumbHtml']]) vm.runInContext(extract(read(file), name), context);
   const source = 'https://oss-pro.plm.westmonth.cn/working.png';
   const image = context.productDevelopmentTaskImageUrl({ benchmarkImageUrl: source }, { skuImageUrl: 'https://test/stale.png' });

@@ -798,6 +798,15 @@
     const ingredients = draft ? [draft.regularIngredientsEn, draft.regularIngredientsInactiveEn].map((text) => String(text || '').trim()).filter(Boolean).join('\n') : '';
     const warnings = [];
     if (!values.length && !procurementValues.length && !ingredients) return { warnings: ['悬浮助手页面2暂无可填写的数据'] };
+    const processType = productDevelopmentProcurementFieldValue(detail, 'processType');
+    if (processType) {
+      const definition = { key: 'productProcessType', attrId: 118, label: '加工方式', domId: 'form_item_3_attr_group_0_2_attr_language_config_json_0_value', control: 'select' };
+      const element = productDevelopmentDomResolveField(definition);
+      try {
+        if (!element) throw new Error('未找到采购信息中的加工方式控件');
+        if (!productDevelopmentDomValueMatches(element, processType, definition)) await productDevelopmentDomSelectOption(element, processType, definition.control);
+      } catch (error) { warnings.push('采购信息加工方式：' + formatErrorMessage(error)); }
+    }
     for (const item of values) {
       const definition = item.definition;
       const element = productDevelopmentDomResolveField(definition);
@@ -839,7 +848,7 @@
           try {
             if (productDevelopmentDomValueMatches(element, value, definition)) continue;
             if (definition.control) await productDevelopmentDomSelectOption(element, value, definition.control);
-            else if (definition.key === 'materialPrice') await productDevelopmentDomCommitNumber(element, value);
+            else if (definition.key === 'materialPrice' || definition.key === 'quantity') await productDevelopmentDomCommitNumber(element, value, definition.label);
             else productDevelopmentDomNativeSetter(element, value);
           } catch (error) {
             warnings.push(definition.label + '：' + formatErrorMessage(error));

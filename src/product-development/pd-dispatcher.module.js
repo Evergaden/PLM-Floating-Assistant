@@ -674,6 +674,7 @@
           }
           if (!detail.productDetailLocalProcurement || typeof detail.productDetailLocalProcurement !== 'object') detail.productDetailLocalProcurement = Object.create(null);
           detail.productDetailLocalProcurement[key] = value;
+          if (key === 'processType') detail.productDetailProcurementProcessTypeSource = 'manual';
           if (key === 'materialPrice') {
             detail.productDetailProcurementPriceSource = 'default';
             productDevelopmentSyncProcurementPrice(detail, target.closest && target.closest('.pfh-detail'));
