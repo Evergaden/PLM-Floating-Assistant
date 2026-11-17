@@ -685,7 +685,6 @@
   }
 
   function ledgerViewContentHtml(records) {
-    if (state.ledgerView === 'canvas') return ledgerCanvasViewHtml();
     const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
     const filteredRecords = filterLedgerWorkbenchRecords(records, mode);
     const groups = groupLedgerRecordsByDate(filteredRecords, mode === 'trash' ? 'design' : mode);
@@ -735,16 +734,15 @@
       style.textContent = LEDGER_WORKSPACE_CSS;
       document.documentElement.appendChild(style);
     }
-    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : (state.ledgerView === 'canvas' ? 'canvas' : 'design'));
+    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page pfh-ledger-unified">' +
-      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : (mode === 'finalized' ? '默认只显示图包未完成；选中多个产品后，点击纸盒、标签或图包会同步选中产品，图包完成后自动收纳。' : (mode === 'canvas' ? '画布汇总今日出图与定稿：拖动卡片与视口，手动备注只保存在本地。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。'))) + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(mode === 'canvas' ? ledgerCanvasRecordCountLabel(month) : records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell">' +
+      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : (mode === 'finalized' ? '默认只显示图包未完成；选中多个产品后，点击纸盒、标签或图包会同步选中产品，图包完成后自动收纳。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。')) + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell">' +
            '<div class="pfh-ledger-tabs-main"><div class="pfh-ledger-tabs" data-active-tab="' + mode + '">' +
              '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
              '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + '" data-action="ledger-view-design">待定稿</button>' +
              '<button type="button" class="' + (mode === 'finalized' ? 'is-active active' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
-             '<button type="button" class="' + (mode === 'canvas' ? 'is-active active' : '') + '" data-action="ledger-view-canvas">画布</button>' +
            '</div></div>' +
            '<button type="button" class="pfh-ledger-trash-entry' + (mode === 'trash' ? ' is-active' : '') + '" data-action="ledger-view-trash" aria-label="垃圾篓" title="垃圾篓" aria-current="' + (mode === 'trash' ? 'page' : 'false') + '">' + iconHtml('trash') + '</button>' +
          '</div></div></div>' +
@@ -818,11 +816,6 @@
   }
 
   function refreshLedgerCard(record) {
-    // Canvas view shows a frozen snapshot; per-card repaints would rebuild the
-    // dragged layout, so background record updates wait for an explicit refresh.
-    // Narrow to the ledger view: a stale ledgerView must not swallow the
-    // renderShell() fallback that other views rely on.
-    if (state.view === 'ledger' && state.ledgerView === 'canvas') return;
     if (!record || state.view !== 'ledger') {
       renderShell();
       return;
