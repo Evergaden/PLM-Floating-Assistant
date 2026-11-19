@@ -516,7 +516,8 @@
 
   async function productDevelopmentBomDomAddReferencePackaging(drawer, row) {
     const code = String(row && row.code || '').trim();
-    if (!code) throw new Error('对标包材缺少物料编码');
+    if (!code) throw new Error('物料缺少编码');
+    const materialLabel = row.materialLabel === '半成品' ? '半成品' : '包材';
     let card = productDevelopmentBomDomPackagingCard(drawer, code);
     if (!card) {
       if (productDevelopmentBomDomActiveEditor(drawer) || productDevelopmentBomDomProductSearch(drawer) || productDevelopmentBomDomMaterialSearch(drawer)) throw new Error('PLM 还有未确认的搜索行，请先确认或取消');
@@ -538,11 +539,11 @@
     }
     const typeInput = card.querySelector('.ant-select:not(.ant-select-disabled) input[role="combobox"], .ant-select:not(.ant-select-disabled) input');
     if (!typeInput) {
-      if (Array.from(card.querySelectorAll('.ant-select-selection-item')).some((item) => productDevelopmentDomText(item.textContent) === '包材')) return false;
+      if (Array.from(card.querySelectorAll('.ant-select-selection-item')).some((item) => productDevelopmentDomText(item.textContent) === materialLabel)) return false;
       throw new Error('对标包材“' + code + '”未找到可选择的类型控件');
     }
-    if (productDevelopmentDomSelectionMatches(typeInput, '包材')) return false;
-    await productDevelopmentDomSelectOption(typeInput, '包材', 'select');
+    if (productDevelopmentDomSelectionMatches(typeInput, materialLabel)) return false;
+    await productDevelopmentDomSelectOption(typeInput, materialLabel, 'select');
     return true;
   }
 
@@ -650,18 +651,24 @@
       added.push(title);
     }
     let searchedReworkProduct = '';
+    for (const row of packagingRows) {
+      const changed = await productDevelopmentBomDomAddReferencePackaging(drawer, row);
+      (changed ? added : skipped).push('对标包材 ' + row.code);
+    }
+    for (const [field, label] of [['packaging', '包材'], ['inner', '半成品']]) {
+      const codes = String(detail.bomExtraCodes && detail.bomExtraCodes[field] || '').split(/[\s,，;；]+/).map((code) => code.trim()).filter(Boolean);
+      for (const code of [...new Set(codes)]) {
+        const changed = await productDevelopmentBomDomAddReferencePackaging(drawer, { code, materialLabel: label });
+        (changed ? added : skipped).push(label + ' ' + code);
+      }
+    }
     if (reworkProductCode && isSupplement) {
-      if (productDevelopmentBomDomHasProductCode(drawer, reworkProductCode)) {
-        skipped.push(referenceLabel + '成品 ' + reworkProductCode);
-      } else {
+      if (productDevelopmentBomDomHasProductCode(drawer, reworkProductCode)) skipped.push(referenceLabel + '成品 ' + reworkProductCode);
+      else {
         state.productDevelopmentStatus = '正在搜索' + referenceLabel + '成品：' + reworkProductCode + '…';
         await productDevelopmentBomDomSearchProduct(drawer, reworkProductCode);
         searchedReworkProduct = reworkProductCode;
       }
-    }
-    for (const row of packagingRows) {
-      const changed = await productDevelopmentBomDomAddReferencePackaging(drawer, row);
-      (changed ? added : skipped).push('对标包材 ' + row.code);
     }
     if (!added.length && !searchedReworkProduct && !skipped.length) throw new Error('没有启用的 BOM 物料可填写');
     const filledMessage = added.length ? '已填入 PLM 待保存行：' + added.join('、') : '';
@@ -1498,5 +1505,7 @@
     const anyBomBusy = plmBusy || bomDomFillBusy;
     const plmStatus = detail.bomPlmSaveMessage ? '<p class="pfh-product-development-material-plm-status' + (detail.bomPlmSaveState === 'error' ? ' is-error' : ' is-saved') + '">' + escapeHtml(detail.bomPlmSaveMessage) + '</p>' : '';
     const existingBom = '<section class="pfh-product-development-form-section pfh-product-development-bom-existing"><h4>PLM 当前绑定 BOM（' + escapeHtml(String((detail.bomRows || []).length)) + ' 项）</h4>' + productDevelopmentReadonlyBomHtml(detail.bomRows || [], formSku) + '</section>';
-    return '<section class="pfh-product-development-material-planner pfh-bom-form"><header><h3>BOM 物料</h3><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><div class="pfh-product-development-material-header-actions"><button type="button" class="is-primary" data-action="product-development-bom-fill-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + ' title="填写 PLM BOM 表单，需在 PLM 中确认保存">' + (bomDomFillBusy ? '正在填入…' : '填入 PLM 表单') + '</button><button type="button" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + ' title="直接保存到 PLM">' + (plmBusy ? '正在保存…' : '保存到 PLM') + '</button></div></header>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div>' + existingBom + '</section>';
+    const extraCodes = detail.bomExtraCodes || {};
+    const codeFields = [['packaging', '包材编码'], ['inner', '内料编码（半成品）']].map(([key, label]) => '<label class="pfh-product-development-material-field"><span>' + label + '（多个编码换行填写）</span><textarea class="pfh-product-development-bom-codes" data-bom-code-sku="' + escapeHtml(formSku) + '" data-bom-code-kind="' + key + '">' + escapeHtml(extraCodes[key] || '') + '</textarea></label>').join('');
+    return '<section class="pfh-product-development-material-planner pfh-bom-form"><header><h3>BOM 物料</h3><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><div class="pfh-product-development-material-header-actions"><button type="button" class="is-primary" data-action="product-development-bom-fill-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + ' title="填写 PLM BOM 表单，需在 PLM 中确认保存">' + (bomDomFillBusy ? '正在填入…' : '填入 PLM 表单') + '</button><button type="button" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + ' title="直接保存到 PLM">' + (plmBusy ? '正在保存…' : '保存到 PLM') + '</button></div></header>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + codeFields + '</div>' + existingBom + '</section>';
   }

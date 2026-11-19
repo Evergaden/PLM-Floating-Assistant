@@ -606,6 +606,7 @@
     const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
     const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
     if (!detail) throw new Error('当前 SKU 详情还未读取完成');
+    if (detail.bomExtraCodes && Object.values(detail.bomExtraCodes).some((value) => String(value || '').trim())) throw new Error('包材和内料编码请使用“填入 PLM 表单”，核对后在 PLM 点击批量保存');
     if (typeof fetchPlmApiJson !== 'function') throw new Error('当前脚本没有可用的 PLM 写入请求能力');
     const projectId = String(detail.projectId || task.projectId || task.rowId || '').trim();
     if (!/^\d+$/.test(projectId)) throw new Error('当前开发任务缺少有效项目 ID');

@@ -486,6 +486,7 @@
   function productDevelopmentPreserveLocalBomState(target, previous) {
     if (!target || !previous || typeof previous !== 'object') return target;
     if (previous.materialDrafts) target.materialDrafts = previous.materialDrafts;
+    if (previous.bomExtraCodes) target.bomExtraCodes = previous.bomExtraCodes;
     ['bomDraftDirty', 'bomDraftSavedAt', 'bomDraftSaveState', 'bomDraftSaveMessage', 'bomPlmSaveState', 'bomPlmSaveMessage'].forEach((key) => {
       if (Object.prototype.hasOwnProperty.call(previous, key)) target[key] = previous[key];
     });

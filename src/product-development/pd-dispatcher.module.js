@@ -507,6 +507,17 @@
 
   function productDevelopmentHandleInput(event) {
     const target = event && event.target;
+    if (target && target.classList && target.classList.contains('pfh-product-development-bom-codes')) {
+      const sku = String(target.getAttribute('data-bom-code-sku') || '').trim().toUpperCase();
+      const kind = target.getAttribute('data-bom-code-kind');
+      const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+      if (detail && ['packaging', 'inner'].includes(kind)) {
+        detail.bomExtraCodes = { ...(detail.bomExtraCodes || {}), [kind]: target.value };
+        detail.cacheSource = 'local-cache';
+        scheduleProductDevelopmentReadonlyDetailCache(sku, detail);
+      }
+      return true;
+    }
     if (!target || !target.classList) return false;
     if (target.classList.contains('pfh-product-development-pricing-input')) {
       const field = String(target.getAttribute('data-product-development-pricing-field') || '').trim();
