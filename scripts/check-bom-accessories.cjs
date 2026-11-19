@@ -35,13 +35,12 @@ const context = {
   extractApiTubeFields: () => ({}),
   isTubePrintRow: () => false,
   getApiPrintMaterialDimensions: (item) => context.getApiMaterialDimensions(item, 2, true),
-  extractNetContentFromMaterial: () => '100ml',
   escapeHtml: (text) => String(text).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'),
 };
 vm.createContext(context);
 for (const name of ['normalizeAccessories', 'getApiMaterialCode', 'getApiMaterialSourceText', 'getApiMaterialUnitIssue', 'getApiMaterialDimensions', 'detectMaterialDimensionUnitIssue', 'normalizeMaterialDimensionUnitIssue', 'normalizeMaterialDimensionUnitIssues', 'extractDimensionString', 'normalizeDimensionText', 'normalizeDimensionParts', 'parseDimension', 'firstNumber', 'formatApiMaterialDimensions', 'extractBomAccessory', 'extractDomAccessories', 'mergeApiPackagingData', 'formatExcelAccessorySize', 'formatExcelQuantityText', 'buildExcelProductSizeWithAccessories', 'buildExcelSpecificationWithAccessories', 'materialSummaryCardHtml', 'accessoryCardsHtml', 'setCell']) vm.runInContext(extract(name), context);
+for (const name of ['getApiMaterialItems', 'hasApiMaterialItemsPayload', 'getApiFieldState', 'isApiBoxMaterial', 'extractNetContentFromMaterial', 'extractApiMaterialPackaging', 'retainKnownMaterialFields']) vm.runInContext(extract(name), context);
 const sponge = context.extractBomAccessory({ name: '黄色圆形海绵', code: 'JU-C01-0002-01', category_name: '成品 - 家居百货 - 厨房清洁', specification: '黄色圆形海绵,1个,直径7cmx高2cm' });
-for (const name of ['getApiMaterialItems', 'hasApiMaterialItemsPayload', 'getApiFieldState', 'isApiBoxMaterial', 'extractApiMaterialPackaging']) vm.runInContext(extract(name), context);
 const api = context.extractApiMaterialPackaging({ data: { pms: [
   { name: '黄色圆形海绵', code: sponge.code, category_name: '成品 - 厨房清洁', specification: sponge.specification },
   { name: '大灯焕新剂纸盒', code: 'MTL00083040', category_name: '包材 - 纸盒', specification: '100ml瓶+1海绵/盒,4.6x4x17.5cm' },
@@ -50,6 +49,28 @@ const api = context.extractApiMaterialPackaging({ data: { pms: [
 assert.equal(api.accessories.length, 1);
 assert.equal(api.packageCode, 'MTL00083040');
 assert.equal(api.printCode, 'MTL00083042');
+const legacyMaterials = context.extractApiMaterialPackaging({ data: { pms: [
+  { material_name: '肌肤紧致按摩珠纸盒', jst_old_code: 'MTL00094327', category_name: '包材 - 纸盒', spec_model: '30g/盒，6.7x6.7x6.2cm' },
+  { materialName: '肌肤紧致按摩珠标签（圆弧）', jstOldCode: 'MTL00094331', categoryName: '包材 - 标签', specModel: '30g/盒，10x3cm' },
+] } });
+const knownFields = { packageCode: 'MTL00094327', printCode: 'MTL00094331', netContent: '30g' };
+for (const [field, value] of Object.entries(knownFields)) {
+  assert.equal(legacyMaterials[field], value);
+  assert.equal(legacyMaterials.apiFieldStates[field], 'value');
+}
+assert.equal(legacyMaterials.packageSizeText, '6.7x6.7x6.2cm');
+assert.equal(legacyMaterials.printSizeText, '10x3cm');
+const incompleteMaterials = context.extractApiMaterialPackaging({ data: { pms: [
+  { name: '肌肤紧致按摩珠标签', category_name: '包材 - 标签', specification: '10x3cm' },
+] } });
+assert.ok(incompleteMaterials.apiMaterialSource);
+const retained = context.mergeApiPackagingData(knownFields, incompleteMaterials);
+for (const [field, value] of Object.entries(knownFields)) assert.equal(retained[field], value);
+assert.equal(context.mergeApiPackagingData(retained, { netContent: '40g' }).netContent, '40g');
+assert.equal(context.mergeApiPackagingData(retained, { packageCode: 'MTL00094328' }).packageCode, 'MTL00094328');
+assert.equal(context.mergeApiPackagingData(retained, { printCode: 'MTL00094332' }).printCode, 'MTL00094332');
+assert.deepEqual({ ...context.retainKnownMaterialFields({ packageCode: '', printCode: '', netContent: '40g' }, knownFields) },
+  { ...knownFields, netContent: '40g' });
 assert.equal(context.extractApiMaterialPackaging({ data: { pms: [] } }).apiFieldStates.accessories, 'empty');
 assert.equal(context.extractApiMaterialPackaging({}).apiFieldStates.accessories, undefined);
 assert.equal(sponge.sizeText, '直径7cm × 高2cm');

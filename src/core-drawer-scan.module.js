@@ -815,6 +815,9 @@
       plmCategory: cached.plmCategory || '',
       departmentName: cached.departmentName || '',
       manualFieldOverrides: cached.manualFieldOverrides || {},
+      packageCode: cached.packageCode || '',
+      printCode: cached.printCode || '',
+      netContent: cached.netContent || '',
       recentFieldChanges: Array.isArray(cached.recentFieldChanges) ? cached.recentFieldChanges : [],
       recentFieldChangesAcknowledgedSignature: cached.recentFieldChangesAcknowledgedSignature || '',
       dataUpdateLog: Array.isArray(cached.dataUpdateLog) ? cached.dataUpdateLog : [],
@@ -1009,6 +1012,9 @@
     if (hasInnerCardMark(packaging) !== hasInnerCardMark(data)) return true;
     if (packaging.printSizeText && packaging.printSizeText !== data.printSizeText) return true;
     if (packaging.printSizeLabel && packaging.printSizeLabel !== data.printSizeLabel) return true;
+    if (packaging.packageCode && !trackedDataValuesEqual('packageCode', packaging.packageCode, data.packageCode)) return true;
+    if (packaging.printCode && !trackedDataValuesEqual('printCode', packaging.printCode, data.printCode)) return true;
+    if (packaging.netContent && !data.netContent) return true;
     return false;
   }
 
@@ -1062,12 +1068,14 @@
       && !isApiFieldResolved(cached, 'packageLabel');
     const missingPrintLabel = Boolean((cached.printCode || cached.printSizeText) && !cached.printSizeLabel)
       && !isApiFieldResolved(cached, 'printLabel');
+    const missingMaterialCode = (!cached.packageCode && Boolean(cached.packageSizeLabel || cached.packageSizeText))
+      || (!cached.printCode && Boolean(cached.printSizeLabel || cached.printSizeText));
     const hasIngredientCache = Boolean(cached.ingredientChinese || cached.ingredientEnglish || cached.plmIngredientText);
     const ingredientCheckFresh = Number(cached.plmIngredientParserVersion || 0) === PLM_INGREDIENT_CACHE_VERSION
       && Number(cached.plmIngredientCheckedAt || 0) > 0
       && Date.now() - Number(cached.plmIngredientCheckedAt || 0) < PLM_INGREDIENT_CHECK_WINDOW_MS;
     const materialNeedsTab = (!cached.seenMaterial && !isApiFieldResolved(cached, 'material'))
-      || missingMaterialSize || missingPackageSize || missingPrintSize || missingPackageLabel || missingPrintLabel;
+      || missingMaterialSize || missingPackageSize || missingPrintSize || missingPackageLabel || missingPrintLabel || missingMaterialCode;
     if (materialNeedsTab) tabs.push(L.materialTab);
     const productNeedsTab = (!cached.seenProduct && !isApiFieldResolved(cached, 'product'))
       || (!cached.grossWeight && !isApiFieldResolved(cached, 'grossWeight'))
@@ -1194,6 +1202,7 @@
         addLog('success', '已用 PLM 数据服务读取国内三档价格', sku + ' | ' + apiDomesticThirdTierPrice);
       }
       if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
+      merged = retainKnownMaterialFields(merged, loadData(sku));
       saveData(sku, merged, { changeSource: 'PLM 数据服务' });
       apiDataSaved = true;
       if (state.selectedSku === sku) state.data = normalizeData(loadData(sku) || merged);
@@ -1409,6 +1418,16 @@
       seenProduct,
       updatedAt: new Date().toLocaleString(),
       updatedAtMs: Date.now(),
+    };
+  }
+
+  function retainKnownMaterialFields(data, cached) {
+    if (!cached) return data;
+    return {
+      ...data,
+      packageCode: data.packageCode || cached.packageCode || '',
+      printCode: data.printCode || cached.printCode || '',
+      netContent: data.netContent || cached.netContent || '',
     };
   }
 

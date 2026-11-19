@@ -1009,11 +1009,13 @@
       item && item.materialCode,
       item && item.material_id_code,
       item && item.materialIdCode,
+      item && item.jst_old_code,
+      item && item.jstOldCode,
     ];
-    const fromFields = candidates.map((value) => compactText(value)).find(Boolean) || '';
+    const codes = candidates.map((value) => compactText(value)).filter((value) => getApiFieldState(value, true) === 'value');
     const fromText = getApiMaterialSourceText(item);
-    const match = (fromFields + ' ' + fromText).match(/\bMTL\d+\b/i);
-    return match ? match[0].toUpperCase() : fromFields;
+    const match = codes.concat(fromText).join(' ').match(/\bMTL\d+\b/i);
+    return match ? match[0].toUpperCase() : (codes[0] || '');
   }
 
   function getApiMaterialSourceText(item) {
@@ -1029,6 +1031,8 @@
       item && item.specificationModelName,
       item && item.specification,
       item && item.specificationModel,
+      item && item.spec_model,
+      item && item.specModel,
     ].map((value) => compactText(value)).filter(Boolean).join(' ');
   }
 
@@ -1410,7 +1414,8 @@
     const merged = { ...(base || {}) };
     const source = packaging || {};
     const preserveProductDetailPackage = hasProductDetailPackage(merged);
-    const packageKeys = new Set(['packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums']);
+    const packageKeys = new Set(['packageSizeText', 'packageSizeLabel', 'packageNums']);
+    const keepKnownFields = new Set(['packageCode', 'printCode', 'netContent']);
     [
       'accessories', 'packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums', 'hasInnerCard',
       'printSizeText', 'printSizeLabel', 'printCode', 'printRawText', 'isTubePrintMaterial',
@@ -1419,7 +1424,7 @@
     ].forEach((key) => {
       if (preserveProductDetailPackage && packageKeys.has(key)) return;
       if (isUsefulValue(source[key])) merged[key] = source[key];
-      else if (source.apiFieldStates && source.apiFieldStates[key === 'infringementImageUrls' || key === 'infringementImageUrl' ? 'infringementImage' : key] === 'empty') {
+      else if (!keepKnownFields.has(key) && source.apiFieldStates && source.apiFieldStates[key === 'infringementImageUrls' || key === 'infringementImageUrl' ? 'infringementImage' : key] === 'empty') {
         merged[key] = Array.isArray(source[key]) ? [] : '';
       }
     });
@@ -1439,7 +1444,6 @@
     if (source.apiMaterialSource && !incomingPackage && !preserveProductDetailPackage) {
       merged.packageSizeText = '';
       merged.packageSizeLabel = '';
-      merged.packageCode = '';
       merged.packageNums = null;
       merged.packageSource = '';
     }
@@ -1715,12 +1719,12 @@
         return;
       }
       phase = '合并 PLM 数据';
-      merged = normalizeData({
+      merged = normalizeData(retainKnownMaterialFields({
         ...current,
         ...apiResult.data,
         updatedAt: new Date().toLocaleString(),
         updatedAtMs: Date.now(),
-      });
+      }, loadData(sku)));
       phase = '保存 PLM 数据';
       saveData(sku, merged, { changeSource: 'PLM 数据服务' });
     } catch (error) {
