@@ -19,10 +19,43 @@
         history: sanitizeUploadRecords(loadUploadHistory()),
       },
       productDevelopmentTranslateWorkspaces: buildProductDevelopmentTranslateWorkspacesBackup(undefined, { includeLocalImages: Boolean(opts.includeLocalTranslateImages) }),
+      productDevelopmentLocalCache: buildProductDevelopmentLocalCacheBackup(),
       dailyLedger: sanitizeLedgerRecords(state.ledgerRecords || loadDailyLedger()),
       dailyLedgerTrash: sanitizeLedgerTrashRecords(state.ledgerTrashRecords || loadDailyLedgerTrash()),
       insights: state.insights || emptyInsights(),
     };
+  }
+
+  function buildProductDevelopmentLocalCacheBackup() {
+    const prefix = 'plm-floating-helper:product-development-';
+    const entries = {};
+    try {
+      if (typeof GM_listValues === 'function' && typeof GM_getValue === 'function') {
+        GM_listValues().filter((key) => String(key).startsWith(prefix)).forEach((key) => {
+          const value = GM_getValue(key, null);
+          if (value !== null && value !== undefined) entries[key] = value;
+        });
+      } else if (typeof localStorage !== 'undefined') {
+        for (let index = 0; index < localStorage.length; index += 1) {
+          const key = localStorage.key(index);
+          if (!key || !key.startsWith(prefix)) continue;
+          const raw = localStorage.getItem(key);
+          try { entries[key] = JSON.parse(raw); } catch (error) { entries[key] = raw; }
+        }
+      }
+    } catch (error) {
+      console.warn('PLM product-development cache backup scan failed:', error);
+    }
+    return { version: 1, entries };
+  }
+
+  function restoreProductDevelopmentLocalCacheBackup(value) {
+    const prefix = 'plm-floating-helper:product-development-';
+    const entries = value && value.entries && typeof value.entries === 'object' ? value.entries : {};
+    Object.keys(entries).forEach((key) => {
+      if (!key.startsWith(prefix)) return;
+      writeProductDevelopmentStorage(key, entries[key]);
+    });
   }
 
   function buildCompactCopywritingBackup(record) {
@@ -79,6 +112,7 @@
       items,
       uploadRecords: compactUploadRecords,
       productDevelopmentTranslateWorkspaces: buildProductDevelopmentTranslateWorkspacesBackup(source.productDevelopmentTranslateWorkspaces),
+      productDevelopmentLocalCache: source.productDevelopmentLocalCache || { version: 1, entries: {} },
       dailyLedger: sanitizeLedgerRecords(source.dailyLedger).slice(0, 600),
       dailyLedgerTrash: sanitizeLedgerTrashRecords(source.dailyLedgerTrash).slice(0, 600),
       insights,
@@ -306,6 +340,7 @@
         history: buildMinimalUploadRecords(uploadRecords.history),
       },
       productDevelopmentTranslateWorkspaces: buildProductDevelopmentTranslateWorkspacesBackup(source.productDevelopmentTranslateWorkspaces),
+      productDevelopmentLocalCache: source.productDevelopmentLocalCache || { version: 1, entries: {} },
       dailyLedger: buildMinimalLedgerRecords(source.dailyLedger),
       dailyLedgerTrash: buildMinimalLedgerTrashRecords(source.dailyLedgerTrash),
       insights,
@@ -342,6 +377,7 @@
       items,
       uploadRecords: { queue: [], history: [] },
       productDevelopmentTranslateWorkspaces: buildProductDevelopmentTranslateWorkspacesBackup(source.productDevelopmentTranslateWorkspaces),
+      productDevelopmentLocalCache: source.productDevelopmentLocalCache || { version: 1, entries: {} },
       dailyLedger: [],
       dailyLedgerTrash: [],
       insights: emptyInsights(),
@@ -692,6 +728,7 @@
       const latest = Object.values(current).sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt))[0];
       if (latest) writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_ACTIVE_KEY, { sku: latest.sku, updatedAt: latest.updatedAt });
     }
+    if (payload.productDevelopmentLocalCache) restoreProductDevelopmentLocalCacheBackup(payload.productDevelopmentLocalCache);
   }
 
   function getCloudBackupKey() {
