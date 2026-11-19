@@ -13590,6 +13590,8 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
 #plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header strong { font-size: 20px; font-weight: 700; line-height: 1.4; }
 #plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled { padding-top: 12px; }
 #plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled small { margin-left: 12px; color: var(--pfh-theme-muted); font-size: 11px; font-weight: 400; }
+#plm-floating-helper .pfh-bom-form .pfh-bom-code-row { display: flex; align-items: end; gap: 12px; }
+#plm-floating-helper .pfh-bom-form .pfh-bom-code-row > label { flex: 1; min-width: 0; }
 #plm-floating-helper .pfh-bom-form .pfh-product-development-material-grid,
 #plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-grid { grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); align-items: start; gap: 12px; }
 #plm-floating-helper .pfh-bom-form .pfh-product-development-material-field { gap: 8px; color: var(--pfh-theme-text); font-size: 11px; }

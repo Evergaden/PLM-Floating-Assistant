@@ -220,6 +220,20 @@
       productDevelopmentRunBomPlmSave(actionTarget && actionTarget.getAttribute('data-bom-sku') || getProductDevelopmentCurrentSku());
       return true;
     }
+    if (action === 'product-development-bom-code-add' || action === 'product-development-bom-code-remove') {
+      const sku = String(actionTarget.getAttribute('data-bom-sku') || '').trim().toUpperCase();
+      const kind = actionTarget.getAttribute('data-bom-code-kind');
+      const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+      if (detail && ['packaging', 'inner'].includes(kind)) {
+        const codes = String(detail.bomExtraCodes && detail.bomExtraCodes[kind] || '').split('\n');
+        if (action === 'product-development-bom-code-add') codes.push('');
+        else codes.splice(Number(actionTarget.getAttribute('data-bom-code-index')), 1);
+        detail.bomExtraCodes = { ...(detail.bomExtraCodes || {}), [kind]: codes.join('\n') };
+        scheduleProductDevelopmentReadonlyDetailCache(sku, detail);
+        renderShell();
+      }
+      return true;
+    }
     if (action === 'product-development-bom-toggle-material') {
       const enabled = actionTarget && actionTarget.getAttribute('data-material-enabled') === 'true';
       productDevelopmentSetMaterialEnabled(
@@ -512,7 +526,11 @@
       const kind = target.getAttribute('data-bom-code-kind');
       const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
       if (detail && ['packaging', 'inner'].includes(kind)) {
-        detail.bomExtraCodes = { ...(detail.bomExtraCodes || {}), [kind]: target.value };
+        const codes = String(detail.bomExtraCodes && detail.bomExtraCodes[kind] || '').split('\n');
+        const index = Number(target.getAttribute('data-bom-code-index'));
+        codes[index] = target.value.replace(/[\s,，;；]+/g, '');
+        if (target.value !== codes[index]) target.value = codes[index];
+        detail.bomExtraCodes = { ...(detail.bomExtraCodes || {}), [kind]: codes.join('\n') };
         detail.cacheSource = 'local-cache';
         scheduleProductDevelopmentReadonlyDetailCache(sku, detail);
       }
