@@ -533,9 +533,43 @@
       await productDevelopmentDomWait(80);
       const button = productDevelopmentBomDomButton(search.scope, '搜索') || productDevelopmentBomDomButton(drawer, '搜索');
       if (!button) throw new Error('未找到包材“搜索”按钮');
-      button.click();
-      card = await waitFor(() => productDevelopmentBomDomPackagingCard(drawer, code), 12000, 120);
-      if (!card) throw new Error('未找到对标包材“' + code + '”，请核对搜索结果');
+      let invalidCode = false;
+      const matchesError = (text) => {
+        const message = productDevelopmentDomText(text);
+        return message.includes(code) && /物料编码/.test(message) && /无效|禁用|作废/.test(message) && /无法添加/.test(message);
+      };
+      const observer = typeof MutationObserver === 'function' ? new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          const node = mutation.target && (mutation.target.nodeType === 1 ? mutation.target : mutation.target.parentElement);
+          const notice = node && node.closest && node.closest('.ant-message-notice, .ant-notification-notice, [role="alert"]');
+          if (notice && matchesError(notice.textContent)) invalidCode = true;
+          Array.from(mutation.addedNodes || []).forEach((added) => {
+            if (added.nodeType === 1 && (added.matches('.ant-message-notice, .ant-notification-notice, [role="alert"]') || added.querySelector('.ant-message-notice, .ant-notification-notice, [role="alert"]')) && matchesError(added.textContent)) invalidCode = true;
+          });
+        });
+      }) : null;
+      if (observer) observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      try {
+        button.click();
+        const outcome = await waitFor(() => productDevelopmentBomDomPackagingCard(drawer, code) || (invalidCode ? 'invalid' : null), 12000, 120);
+        if (outcome === 'invalid') {
+          const oldInput = Array.from(drawer.querySelectorAll('input[placeholder="搜索聚水潭旧编码"]')).find(productDevelopmentDomVisible);
+          if (!oldInput) throw new Error('未找到聚水潭旧编码搜索框');
+          const selector = search.input.closest('.ant-select');
+          const clear = selector && selector.querySelector('.ant-select-clear, .ant-select-selection-item-remove');
+          if (clear) clear.click();
+          productDevelopmentDomNativeSetter(search.input, '');
+          productDevelopmentDomNativeSetter(oldInput, code);
+          await productDevelopmentDomWait(80);
+          const before = new Map(Array.from(drawer.querySelectorAll('.cardBox, .ant-table-row')).map((item) => [item, item.textContent]));
+          button.click();
+          card = await waitFor(() => Array.from(drawer.querySelectorAll('.cardBox, .ant-table-row')).filter(productDevelopmentDomVisible).find((item) => (!before.has(item) || before.get(item) !== item.textContent) && !item.querySelector('input[placeholder="搜索物料编码"]') && item.querySelector('.ant-select')), 12000, 120);
+          if (!card) throw new Error('聚水潭旧编码“' + code + '”未找到物料，请核对搜索结果');
+        } else card = outcome;
+      } finally {
+        if (observer) observer.disconnect();
+      }
+      if (!card) throw new Error('未找到物料“' + code + '”，请核对搜索结果');
     }
     const typeInput = card.querySelector('.ant-select:not(.ant-select-disabled) input[role="combobox"], .ant-select:not(.ant-select-disabled) input');
     if (!typeInput) {
