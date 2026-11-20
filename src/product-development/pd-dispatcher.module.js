@@ -414,10 +414,6 @@
       runProductDevelopmentRegularCopywriting();
       return true;
     }
-    if (action === 'product-development-copywriting-file-review') {
-      openProductDevelopmentFileReview(actionTarget);
-      return true;
-    }
     if (action === 'product-development-copywriting-download') {
       downloadProductDevelopmentCopywritingResult().catch((error) => {
         state.productDevelopmentError = productDevelopmentFriendlyCopywritingError(error);

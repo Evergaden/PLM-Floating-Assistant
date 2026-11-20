@@ -72,30 +72,39 @@
         : [escapeHtml(active.expected), escapeHtml(active.actual)];
       body = '<div class="pfh-psd-comparison">' + nav + '<section class="pfh-psd-readout"><div class="pfh-psd-field-heading"><h4>' +
         active.label + '</h4><span data-status="' + active.status + '">' + PRODUCT_DEVELOPMENT_PSD_REVIEW_STATUS[active.status] + '</span></div>' +
-        '<div class="pfh-psd-pair"><div><h5>助手对照文案</h5><pre>' + (expected || '当前 SKU 暂无对照值') +
+        '<div class="pfh-psd-pair"><div><h5>设计端 PLM 文案</h5><pre>' + (expected || '当前 PLM 文案中无此字段') +
         '</pre></div><div><h5>PSD 图层原文</h5><pre>' + (actual || '可读取的图层中未定位到此字段') + '</pre></div></div>' +
-        (active.key === 'net' ? '<p class="pfh-psd-field-note">按助手已有的计量单位核对。</p>' : '') + '</section></div>';
+        (active.key === 'net' ? '<p class="pfh-psd-field-note">按 PLM 文案里的计量单位核对。</p>' : '') + '</section></div>';
     }
     return '<div class="pfh-psd-toolbar">' + controls + rawButton + '</div>' + body + summary;
   }
 
-  function openProductDevelopmentFileReview(trigger) {
-    const sku = getProductDevelopmentCurrentSku();
-    const result = state.productDevelopmentCopywriting;
-    if (!result || result.sku !== sku || !result.content) {
-      showToast('请先生成或恢复当前 SKU 的文案结果');
+  function plmCopywritingFileReviewUnavailable(record) {
+    if (state.copywritingLoading || state.copywritingChecking) return '正在获取 PLM 文案，请稍候';
+    if (state.copywritingError) return '请重新获取当前 SKU 的 PLM 文案';
+    if (!record?.fileName || !record.sections.length) return '请先获取当前 SKU 的 PLM 产品文案';
+    return '';
+  }
+
+  function openPlmCopywritingFileReview(trigger) {
+    if (state.view !== 'detail' || !state.copywritingMode || !state.data?.sku) return;
+    const sku = state.data.sku;
+    const record = getCopywritingDisplayRecord(state.data);
+    const unavailable = plmCopywritingFileReviewUnavailable(record);
+    if (unavailable) {
+      showToast(unavailable);
       return;
     }
-    const context = productDevelopmentPsdReviewReference(result);
+    const reference = productDevelopmentPsdReviewReference(record);
     const panel = ensurePanel();
     if (panel.querySelector('.pfh-psd-review')) return;
     const dialog = document.createElement('dialog');
     dialog.className = 'pfh-psd-review';
     dialog.setAttribute('aria-label', 'PSD 文件审核');
-    dialog.innerHTML = '<header class="pfh-psd-header"><div><h3>包装文件审核</h3><p>' + escapeHtml(sku) + ' · 本地读取 PSD 文本</p></div>' +
-      '<form method="dialog"><button type="submit" class="pfh-psd-close" aria-label="关闭文件审核">' + iconHtml('close') + '</button></form></header>' +
+    dialog.innerHTML = '<header class="pfh-psd-header"><div><h3>包装文件审核</h3><p>' + escapeHtml(sku) +
+      ' · PLM 文案 · ' + escapeHtml(record.fileName) + '</p></div>' +
+      '<form method="dialog"><button type="submit" class="pfh-psd-close" aria-label="关闭文件审核">' + CORE_ICON_ASSETS.close + '</button></form></header>' +
       '<div class="pfh-psd-body">' +
-      (state.productDevelopmentCopywritingDirtySku === sku ? '<p class="pfh-psd-message">文案输入有待更新，本次以已生成的文案结果为准。</p>' : '') +
       '<button type="button" class="pfh-psd-drop" data-psd-control="browse" autofocus>' + iconHtml('upload') +
       '<span><strong>拖入 PSD，或点击选择</strong><small>也可将鼠标停在这里，按 Ctrl+V 粘贴文件</small></span></button>' +
       '<input type="file" accept=".psd,image/vnd.adobe.photoshop" multiple hidden>' +
@@ -149,7 +158,7 @@
         if (!entry.pending) continue;
         try {
           const report = await productDevelopmentReadPsdText(entry.pending);
-          entry.report = productDevelopmentPsdReviewAssess(report, entry.name, context);
+          entry.report = productDevelopmentPsdReviewAssess(report, entry.name, reference);
         } catch (error) {
           entry.error = formatErrorMessage(error);
         }

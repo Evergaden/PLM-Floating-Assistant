@@ -413,6 +413,7 @@
 
   function copywritingHeroControlsHtml(data) {
     const record = getCopywritingDisplayRecord(data);
+    const reviewUnavailable = plmCopywritingFileReviewUnavailable(record);
     const view = state.copywritingView === 'full' ? 'full' : 'file';
     const visibleSections = record && record.sections ? record.sections.filter(isCopywritingFileViewSection) : [];
     const collapsed = Boolean(state.settings && state.settings.copywritingCollapsed);
@@ -425,6 +426,7 @@
       '</select></label>' +
       '<div class="pfh-copywriting-hero-action-row">' + collapseButton + '<button type="button" data-action="copywriting-refresh"' + (state.copywritingLoading || state.copywritingChecking ? ' disabled' : '') + '>' + iconHtml('refresh') + '重新获取</button>' +
       (record && record.fullText ? '<button type="button" data-action="copywriting-copy">' + copywritingCopyIconHtml() + '复制全文</button>' : '') +
+      '<button type="button" data-action="copywriting-file-review"' + (reviewUnavailable ? ' disabled title="' + escapeHtml(reviewUnavailable) + '"' : '') + '>文件审核</button>' +
       '</div></div>';
   }
 

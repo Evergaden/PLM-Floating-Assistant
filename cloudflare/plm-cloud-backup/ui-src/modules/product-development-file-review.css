@@ -52,6 +52,8 @@
   border-bottom: 1px solid var(--pfh-theme-border);
 }
 #plm-floating-helper .pfh-psd-header h3 { font-size: 22px; font-weight: 720; letter-spacing: -.025em; }
+#plm-floating-helper .pfh-psd-header > div { min-width: 0; overflow-wrap: anywhere; }
+#plm-floating-helper .pfh-psd-header form { flex: none; margin: 0; }
 #plm-floating-helper .pfh-psd-header p { margin-top: 2px; }
 #plm-floating-helper .pfh-psd-review .pfh-psd-close { display: grid; width: 36px; height: 36px; padding: 0; place-items: center; }
 #plm-floating-helper .pfh-psd-body { padding: 20px 24px 24px; }

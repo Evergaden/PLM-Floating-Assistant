@@ -129,7 +129,7 @@
         state.copywritingLoading = false;
         state.copywritingChecking = false;
         state.copywritingStatus = '';
-        state.copywritingError = '';
+        state.copywritingError = hasCachedCopywriting ? 'PLM 未找到当前 SKU 的产品文案，现有文案为历史缓存' : '';
         addLog('info', '产品文案：未找到 Word，不再读取页面附件', sku);
         renderShell();
         return;

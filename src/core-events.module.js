@@ -751,6 +751,10 @@
       openCopywritingFromCurrent(true);
       return;
     }
+    if (action === 'copywriting-file-review') {
+      openPlmCopywritingFileReview(actionTarget);
+      return;
+    }
     if (action === 'copywriting-ack') {
       acknowledgeCopywritingUpdate();
       return;

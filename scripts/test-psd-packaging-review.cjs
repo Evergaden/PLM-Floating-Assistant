@@ -5,6 +5,8 @@ const vm = require('node:vm');
 
 const modules = ['pd-psd-review-template', 'pd-file-review'].map((name) =>
   fs.readFileSync(path.join(__dirname, '..', 'src', 'product-development', name + '.module.js'), 'utf8'));
+const detail = fs.readFileSync(path.join(__dirname, '../src/core-ledger-detail.module.js'), 'utf8');
+const copyValueSource = detail.slice(detail.indexOf('  function copywritingSectionCopyValue('), detail.indexOf('  function isToyCopywritingProduct('));
 const eu = {
   company: 'Approved EU company',
   address: '1 Test Street\nParis, France',
@@ -12,37 +14,51 @@ const eu = {
   phone: '+33 100000000',
   postal_code: '75002',
 };
-const { reference, assess, render, highlight } = vm.runInNewContext(modules.join('\n') + `
+const state = { productDevelopmentCopywriting: { content: { directions: [{ en: 'Development draft only' }] } } };
+const { reference, assess, render, highlight, unavailable } = vm.runInNewContext([copyValueSource, ...modules].join('\n') + `
   ({
     reference: productDevelopmentPsdReviewReference,
     assess: productDevelopmentPsdReviewAssess,
     render: productDevelopmentPsdReviewCurrentHtml,
     highlight: productDevelopmentPsdReviewHighlight,
+    unavailable: plmCopywritingFileReviewUnavailable,
   })
 `, {
-  getProductDevelopmentSeedData: () => ({ origin: 'China' }),
-  findBrandCompliance: ({ brand }) => brand === 'TEST' ? {
-    distributed_by: 'Distributor Inc.', address: '1 Test Street, Paris', eu_rep: eu,
-  } : null,
+  state,
   escapeHtml: (value) => String(value).replaceAll('<', '&lt;').replaceAll('>', '&gt;'),
   iconHtml: () => '',
 });
 
-const expected = reference({
-  sku: 'SKU00000001',
-  snapshot: {
-    brand: 'TEST',
-    englishName: 'Firming Roll-On',
-    netContent: '50 mL',
-    ingredients: [{ en: 'AQUA' }, { en: '1,2-HEXANEDIOL' }, { en: 'GLYCERIN' }],
-    labeling: { directionsEn: 'DIRECTIONS OF SAFE USE: Massage onto clean skin.', warningsEn: 'Keep away from children.' },
-  },
-  content: {
-    productNameTranslations: ['Firming Roll-On', 'Titre A', 'Titre B', 'Titre C', 'Titre D'],
-    sellingPoints: [{ en: 'Editorial prose for a different surface' }],
-  },
-});
 const titles = 'Firming Roll-On;Titre A;Titre B;Titre C;Titre D';
+const record = {
+  fileName: 'PLM-final.docx',
+  sections: [
+    ['productName', 'PRODUCT NAME:\nFirming Roll-On'],
+    ['functions', titles],
+    ['netContent', '50 mL'],
+    ['ingredients', 'INGREDIENTS:\nAQUA, 1,2-HEXANEDIOL, GLYCERIN'],
+    ['directions', 'Directions of Safe Use:\nMassage onto clean skin.'],
+    ['warning', 'WARNINGS: Keep away from children.'],
+    ['email', 'e-mail:\ncontact@example.com'],
+    ['origin', 'China'],
+    ['distributedBy', 'DISTRIBUTED BY: Distributor Inc.'],
+    ['address', 'ADDRESS: 1 Test Street, Paris'],
+    ['euRep', 'EU REP\n' + Object.values(eu).join('\n')],
+  ].map(([key, text]) => ({ key, text })),
+};
+assert.match(unavailable(null), /获取.*PLM/);
+assert.equal(unavailable(record), '');
+state.copywritingChecking = true;
+assert.match(unavailable(record), /正在获取/);
+state.copywritingChecking = false;
+state.copywritingError = 'PLM unavailable';
+assert.match(unavailable(record), /重新获取/);
+state.copywritingError = '';
+const expected = reference(record);
+assert.equal(expected.directions, 'Massage onto clean skin.');
+assert.equal(reference({ ...record, sections: [] }).directions, '');
+assert.match(detail, /data-action="copywriting-file-review"/);
+assert.doesNotMatch(fs.readFileSync(path.join(__dirname, '../src/product-development/pd-copywriting-run.module.js'), 'utf8'), /data-action="product-development-copywriting-file-review"/);
 const common = '50ML / 1.69 FL.OZ  MADE IN CHINA\nDISTRIBUTED BY:Distributor Inc.\nADDRESS:1 Test Street,Paris';
 const layers = (text) => ({
   hiddenCount: 1,
@@ -68,7 +84,7 @@ const cartonText = [
   'PRODUCT NAME:', 'Firming Roll-On', 'Functions|Stray words|Fonctions:', titles,
   'INGREDIENTS:AQUA、1,2-HEXANEDIOL、GLYCERIN',
   'DIRECTIONS OF SAFE USE:Massage onto damp skin.',
-  'WARNING:Keep away from children.', 'SHELF LIFE: 3 years', common,
+  'WARNING:Keep away from children.', 'e-mail: contact@example.com', 'SHELF LIFE: 3 years', common,
 ].join('\n');
 const carton = assess(layers(cartonText), '纸盒.psd', expected);
 assert.equal(carton.type, 'carton');
@@ -76,6 +92,7 @@ assert.equal(map(carton).name.actual, 'Firming Roll-On');
 assert.equal(map(carton).ingredients.status, 'match');
 assert.equal(map(carton).directions.status, 'difference');
 assert.equal(map(carton).warnings.status, 'match');
+assert.equal(map(carton).email.status, 'match');
 assert.equal(map(carton).shelfLife.status, 'reference');
 assert.equal(map(assess(layers(cartonText.replace('WARNING:Keep away from children.\n', '')), '纸盒.psd', expected)).warnings.status, 'unread');
 assert.equal(map(assess(layers(cartonText.replace('50ML', '150ML')), '纸盒.psd', expected)).net.status, 'difference');
@@ -84,10 +101,10 @@ assert.equal(assess(layers('Unregistered layout'), '标签.psd', expected).rows.
 assert.equal(assess({ layers: [...layers(cartonText).layers, ...label.layers] }, 'combined.psd', expected).type, '');
 
 const html = render({ report: carton, field: 'directions', filter: 'review', raw: false });
-assert.match(html, /助手对照文案/);
+assert.match(html, /设计端 PLM 文案/);
 assert.match(html, /PSD 图层原文/);
 assert.match(html, /<mark>clean<\/mark>/);
 assert.match(html, /<mark>damp<\/mark>/);
-assert.doesNotMatch(html, /Editorial prose|Stray words/);
+assert.doesNotMatch(html, /Editorial prose|Stray words|Development draft only/);
 assert.doesNotMatch(highlight('<script>', '<img>').join(''), /<(script|img)>/);
 console.log('PSD label and carton scope, representatives, unknown templates, and field differences verified');

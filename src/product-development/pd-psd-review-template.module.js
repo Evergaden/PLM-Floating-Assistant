@@ -75,35 +75,40 @@
       productDevelopmentPsdReviewNormalize(layer.text.split('\n')[0]).toLowerCase() === expected)?.text || '';
   }
 
-  function productDevelopmentPsdReviewReference(result) {
-    const snapshot = result.snapshot || {};
-    const content = result.content;
-    const labeling = snapshot.labeling || {};
-    const regular = snapshot.regularIngredients || {};
-    const seed = getProductDevelopmentSeedData(result.sku) || {};
-    const compliance = findBrandCompliance({ brand: snapshot.brand || seed.brand }) || {};
-    const names = (content.productNameTranslations || []).filter(Boolean);
-    const ingredientNames = (regular.activeEn || []).concat(regular.inactiveEn || []);
+  function productDevelopmentPsdReviewReference(record) {
+    const sections = new Map(record.sections.map((section) => [section.key, section]));
+    const value = (key, heading) => {
+      const text = copywritingSectionCopyValue(sections.get(key));
+      return heading ? text.replace(heading, '').trim() : text;
+    };
+    const name = value('productName', /^PRODUCT\s+NAME\s*[:：]\s*/i).split('\n')[0];
+    const names = productDevelopmentPsdReviewNameList((sections.get('functions')?.text || '').replace(/\n+/g, ';'));
+    if (name && productDevelopmentPsdReviewMatches(names[0] || '', name, 'name')) names.shift();
+    const ingredients = value('ingredients', /^INGREDIENTS?\s*[:：]\s*/i) ||
+      [value('activeIngredients', /^ACTIVE\s+INGREDIENTS?\s*[:：]\s*/i),
+        value('inactiveIngredients', /^INACTIVE\s+INGREDIENTS?\s*[:：]\s*/i)].filter(Boolean).join('\n');
     const reference = {
-      name: snapshot.englishName,
-      translations: names.slice(1).join('\n'),
-      net: snapshot.netContent,
-      ingredients: ingredientNames.concat(ingredientNames.length ? [] : (snapshot.ingredients || []).map((item) => item.en)).filter(Boolean).join('\n'),
-      directions: String(labeling.directionsEn || (content.directions || []).map((item) => item.en).filter(Boolean).join('\n')).replace(/^\s*DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*[:：]\s*/i, ''),
-      warnings: String(labeling.warningsEn || '').replace(/^\s*WARNINGS?\s*[:：]\s*/i, ''),
-      origin: seed.origin || seed.countryOfOrigin || seed.madeIn,
-      distributor: compliance.distributed_by,
-      address: compliance.address,
+      name,
+      translations: names.join('\n'),
+      net: sections.get('netContent')?.text || '',
+      ingredients: productDevelopmentPsdReviewIngredients(ingredients).join('\n'),
+      directions: value('directions', /^DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*[:：]\s*/i),
+      warnings: value('warning', /^WARNINGS?\s*[:：]\s*/i),
+      safeUse: value('safeUse'),
+      shelfLife: value('shelfLife'),
+      email: value('email', /^E[ -]?MAIL\s*[:：]\s*/i),
+      origin: value('origin'),
+      distributor: value('distributedBy'),
+      address: value('address'),
+      eu: value('euRep'),
+      uk: value('ukRep'),
+      us: value('usRep'),
     };
     if (reference.origin && !/^MADE\s+IN\b/i.test(reference.origin)) reference.origin = 'MADE IN ' + reference.origin;
-    for (const role of ['eu', 'uk', 'us']) {
-      const rep = compliance[role + '_rep'] || {};
-      reference[role] = [rep.company, rep.address, rep.contact, rep.phone, rep.postal_code].filter(Boolean).join('\n');
-    }
-    return { reference, compliance };
+    return reference;
   }
 
-  function productDevelopmentPsdReviewExtract(layers, fileName, compliance) {
+  function productDevelopmentPsdReviewExtract(layers, fileName, reference) {
     const candidates = layers.map((layer) => {
       const blocks = productDevelopmentPsdReviewBlocks(layer.text);
       const names = productDevelopmentPsdReviewNameList(layer.text.split('\n').find((line) => line.split(/[;；]/).length >= 5) || '');
@@ -136,7 +141,7 @@
       safeUse: layers.find((layer) => /^safe\s+use\s*\|/i.test(layer.text))?.text.match(/[:：]\s*([\s\S]+)/)?.[1]?.trim(),
     };
     for (const role of ['eu', 'uk', 'us']) {
-      values[role] = productDevelopmentPsdReviewRepresentative(layers, role, compliance[role + '_rep']?.company);
+      values[role] = productDevelopmentPsdReviewRepresentative(layers, role, reference[role]?.split('\n')[0]);
     }
     return { type, values };
   }
@@ -163,13 +168,13 @@
     return productDevelopmentPsdReviewComparable(actual, field) === productDevelopmentPsdReviewComparable(expected, field);
   }
 
-  function productDevelopmentPsdReviewAssess(report, fileName, context) {
-    const extracted = productDevelopmentPsdReviewExtract(report.layers, fileName, context.compliance);
+  function productDevelopmentPsdReviewAssess(report, fileName, reference) {
+    const extracted = productDevelopmentPsdReviewExtract(report.layers, fileName, reference);
     if (!extracted) return { ...report, type: '', rows: [] };
     const rows = PRODUCT_DEVELOPMENT_ROLL_ON_PSD_FIELDS.flatMap(([key, label, type]) => {
       if (type && type !== extracted.type) return [];
       const actual = extracted.values[key] || '';
-      const expected = context.reference[key] || '';
+      const expected = reference[key] || '';
       if (!actual && !expected) return [];
       const status = !actual ? 'unread' : !expected ? 'reference' :
         productDevelopmentPsdReviewMatches(actual, expected, key) ? 'match' : 'difference';
