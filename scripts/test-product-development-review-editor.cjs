@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const context = vm.createContext({ state: {}, window: {}, console });
-for (const name of ['pd-task-views', 'pd-review-copywriting']) {
+for (const name of ['pd-foundation', 'pd-task-views', 'pd-review-copywriting']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/product-development', name + '.module.js'), 'utf8'), context);
 }
 const original = 'Brand*\nNET: 50ml / 1.7 fl.oz';
@@ -13,6 +13,10 @@ assert.equal(context.productDevelopmentFormatReviewNetContent('0g'), '');
 assert.equal(context.productDevelopmentFormatReviewNetContent('-60g'), '');
 assert.equal(context.productDevelopmentFormatReviewNetContent('60kg'), '');
 assert.equal(context.productDevelopmentFormatReviewNetContent('12abc'), '');
+assert.equal(context.productDevelopmentReviewNetContentCandidate('8 PATCHES'), '8PCS/盒');
+const patchReview = context.productDevelopmentValidateReview({ reviewMode: 'original-report', items: [{ sourceText: '8 PATCHES' }] }, {});
+assert.equal(patchReview.netContent, '8PCS/盒');
+assert.equal(patchReview.items[0].replacementEn, '8PCS/盒');
 assert.equal(context.productDevelopmentReviewSuggestions({ sourceText: 'Brand', replacementEn: 'OWN LOGO', replacementZh: '自有标识' })[0].en, 'OWN LOGO');
 const review = context.productDevelopmentValidateReview({ reviewMode: 'original-report', items: [{ sourceText: original, riskTypes: ['brand'], riskReason: '品牌需核查', replacementEn: 'AI rewrite' }] }, {});
 assert.equal(review.items[0].replacementEn, original, 'Analysis must use exact OCR, including stars and case');

@@ -994,7 +994,24 @@
   }
 
   function productDevelopmentIsNetContentText(textRole, sourceText) {
-    return /net[\s_-]*(?:content|contents|wt|weight)|净含量/i.test(String(textRole || '') + ' ' + String(sourceText || ''));
+    const text = String(textRole || '') + ' ' + String(sourceText || '');
+    return /net[\s_-]*(?:content|contents|wt|weight)|净含量/i.test(text)
+      || Boolean(productDevelopmentReviewNetContentCandidate(sourceText));
+  }
+
+  function productDevelopmentReviewNetContentCandidate(value) {
+    const text = String(value || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+    const match = text.match(/^(?:(?:net[\s_-]*(?:content|contents|wt|weight))\s*[:：-]?\s*)?(\d+(?:\.\d+)?|\.\d+)\s*(?:patch(?:es)?|pieces?|pcs?)\s*(?:\/\s*(?:box|pack|盒))?$/i)
+      || text.match(/^净含量\s*[:：-]?\s*(\d+(?:\.\d+)?|\.\d+)\s*(?:贴|片)\s*(?:\/\s*盒)?$/i);
+    if (!match || !Number.isFinite(Number(match[1])) || Number(match[1]) <= 0) return '';
+    const amount = String(Number(match[1])).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    return amount + 'PCS/盒';
+  }
+
+  function productDevelopmentReviewNetContentFromItems(items) {
+    return (Array.isArray(items) ? items : [])
+      .map((item) => productDevelopmentReviewNetContentCandidate(item && (item.sourceText || item.replacementEn)))
+      .find(Boolean) || '';
   }
 
   function productDevelopmentNormalizeReviewBbox(value) {
@@ -1401,7 +1418,8 @@
       const textRole = productDevelopmentCleanText(sourceItem.textRole || sourceItem.role, 40).toLowerCase();
       let rawReplacementEn = productDevelopmentCompactSemanticText(sourceItem.replacementEn || sourceItem.modifiedEnglish || sourceItem.english || sourceText, 300);
       const rawReplacementZh = productDevelopmentCompactSemanticText(sourceItem.replacementZh || sourceItem.chinese || sourceItem.translation || sourceItem.translationZh || sourceText, 300);
-      if (productDevelopmentIsNetContentText(textRole, sourceText)) rawReplacementEn = netContentStandard || rawReplacementEn.toUpperCase();
+      const detectedNetContent = productDevelopmentReviewNetContentCandidate(sourceText);
+      if (productDevelopmentIsNetContentText(textRole, sourceText)) rawReplacementEn = netContentStandard || detectedNetContent || rawReplacementEn.toUpperCase();
       const key = [sourceText.toLowerCase(), hasBbox ? x.toFixed(4) + '|' + y.toFixed(4) : 'no-bbox'].join('|');
       if (!sourceText || !rawReplacementEn || !rawReplacementZh || seen.has(key)) return null;
       if (normalizedBbox && !productDevelopmentReviewBboxTouchesPackaging(normalizedBbox, packagingBboxes)) return null;
@@ -1563,10 +1581,17 @@
     const source = result && typeof result === 'object' ? result : {};
     if (source.reviewMode === 'original-report') {
       const items = (source.items || source.texts || []).filter((item) => item.onPackaging !== false && typeof item.sourceText === 'string' && item.sourceText.trim()).slice(0, 80).map((item, index) => ({
-        ...item, id: String(item.id || index + 1), replacementEn: item.sourceText, replacementZh: '',
+        ...item,
+        id: String(item.id || index + 1),
+        replacementEn: productDevelopmentReviewNetContentCandidate(item.sourceText) || item.sourceText,
+        replacementZh: '',
         riskTypes: Array.isArray(item.riskTypes) ? item.riskTypes : [], revisionAction: '', replacementOptions: Array.isArray(item.replacementOptions) ? item.replacementOptions : [],
       }));
-      return { items, extractedTexts: items.map((item) => ({ ...item })), warnings: source.warnings || [], provider: source.provider, model: source.model, packagingBboxes: [], productNaming: {} };
+      const netContent = productDevelopmentReviewNetContentFromItems(items);
+      items.forEach((item) => {
+        if (netContent && productDevelopmentReviewNetContentCandidate(item.sourceText)) item.revisionAction = PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.standardizeNetContent;
+      });
+      return { items, extractedTexts: items.map((item) => ({ ...item })), netContent, warnings: source.warnings || [], provider: source.provider, model: source.model, packagingBboxes: [], productNaming: {} };
     }
     const brand = snapshot && snapshot.brand ? [snapshot.brand] : [];
     const sourceItems = Array.isArray(source.texts) && source.texts.length ? source.texts : source.items;

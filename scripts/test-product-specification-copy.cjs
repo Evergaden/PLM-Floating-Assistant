@@ -27,6 +27,8 @@ state.productDevelopmentReview.editorDocument.replacementEn = 'Body Oil\nNET CON
 assert.equal(get(), '100ml/盒', 'Read latest English document rather than cached reference dimensions');
 state.productDevelopmentReview.editorDocument.replacementEn = 'NET WT. 60 G / 2.12 OZ';
 assert.equal(get(), '60g/盒');
+state.productDevelopmentReview.editorDocument.replacementEn = 'FIRMING MICRONEEDLE PATCHES\nFOR ARMS AND THIGHS\n\n8 PATCHES';
+assert.equal(get(), '8PCS/盒', 'Recognize PATCHES and preserve the PCS specification format');
 state.productDevelopmentReview.editorDocument.replacementEn = 'Body Oil\n4x4x13.5cm\n1% Essential Oil';
 assert.equal(get(), '', 'Do not reuse old derived contents when current copy has no net amount');
 state.productDevelopmentReview.editorDocument.replacementEn = 'Body Oil\n80ML / 2.71 FL.OZ\n100ML / 3.38 FL.OZ';

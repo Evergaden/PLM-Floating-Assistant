@@ -59,11 +59,17 @@
       ? review.editorDocument.replacementEn
       : review.plainTextCopy || review.approvedPlainText || review.finalCopy || (review.items || []).map((item) => item.replacementEn || item.sourceText || '').join('\n');
     const lines = String(text || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-    const amount = '(\\d+(?:\\.\\d+)?)\\s*(ml|kg|g|l|capsules?|tablets?|gummies|pcs?)\\b';
+    const amount = '(\\d+(?:\\.\\d+)?)\\s*(ml|kg|g|l|capsules?|tablets?|gummies|patch(?:es)?|pieces?|pcs?)\\b';
     const marked = lines.flatMap((line, index) => /\bnet\s*(?:content|contents|wt\.?|weight)\b|净含量/i.test(line) ? [line + ' ' + (lines[index + 1] || '')] : []);
     const candidates = marked.length ? marked : lines.filter((line) => new RegExp('^(?:NET\\s*(?:WT\\.?|CONTENTS?)\\s*[:：]?\\s*)?' + amount, 'i').test(line));
     const matches = candidates.map((line) => line.match(new RegExp('(?:^|[^a-z0-9.])' + amount, 'i'))).filter(Boolean).filter((match) => Number(match[1]) > 0);
-    const contents = Array.from(new Set(matches.map((match) => Number(match[1]) + ({ l: 'L', capsules: '粒', capsule: '粒', tablets: '片', tablet: '片', gummies: '粒', pc: '个', pcs: '个' }[match[2].toLowerCase()] || match[2].toLowerCase()))));
+    const contents = Array.from(new Set(matches.map((match) => {
+      const unit = match[2].toLowerCase();
+      const normalizedUnit = ['patch', 'patches', 'piece', 'pieces', 'pc', 'pcs'].includes(unit)
+        ? 'PCS'
+        : ({ l: 'L', capsules: '粒', capsule: '粒', tablets: '片', tablet: '片', gummies: '粒' }[unit] || unit);
+      return Number(match[1]) + normalizedUnit;
+    })));
     const fields = productDevelopmentProductFieldCollections(detail);
     const definition = { attrId: 119 };
     const previous = productDevelopmentPrefillLocalAttrValue(detail, definition);

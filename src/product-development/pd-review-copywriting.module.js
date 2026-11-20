@@ -104,7 +104,7 @@
         sku: snapshot.sku,
         brand: reviewBrand,
         productType: reviewProductType,
-        netContent: reviewNetContent,
+        netContent: validated.netContent || reviewNetContent,
         humanSupplement,
         sourceImageDataUrl: image.dataUrl,
         sourceImageName: state.productDevelopmentBenchmarkImageName,
