@@ -108,11 +108,13 @@
       const count = Math.abs((await read(infoOffset, 2, infoEnd)).getInt16(0));
       offset = infoOffset + 2;
       for (let i = 0; i < count; i++) {
-        const channels = (await read(offset, 18, infoEnd)).getUint16(16);
+        const record = await read(offset, 18, infoEnd);
+        const bounds = { top: record.getInt32(0), left: record.getInt32(4), bottom: record.getInt32(8), right: record.getInt32(12) };
+        const channels = record.getUint16(16);
         offset += 18 + channels * 6;
         const blend = await read(offset, 16, infoEnd);
         if (key(blend, 0) !== '8BIM') fail();
-        const layer = { name: '', divider: 0, visible: !(blend.getUint8(10) & 2), smart: false, unreadable: false };
+        const layer = { name: '', bounds, divider: 0, visible: !(blend.getUint8(10) & 2), smart: false, unreadable: false };
         offset += 16;
         const extraEnd = offset + blend.getUint32(12);
         if (extraEnd > infoEnd) fail();
@@ -170,7 +172,7 @@
       if (layer.smart && visible) smartCount++;
       if (!visible && (layer.text || layer.unreadable)) hiddenCount++;
       else if (layer.unreadable) unreadableCount++;
-      else if (layer.text) layers.push({ name: path, text: layer.text });
+      else if (layer.text) layers.push({ name: path, text: layer.text, bounds: layer.bounds });
     }
     return { layers, hiddenCount, unreadableCount, smartCount };
   }

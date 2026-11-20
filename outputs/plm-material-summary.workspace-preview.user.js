@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      3.0.31
+// @version      3.0.32
 // @description  [布局验证版] Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -39,8 +39,8 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '3.0.31';
-  const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }\n#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n\n/* Text-only BOM controls, full-width material groups and aligned fields. */\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field.is-invalid input {\n  border-color: #d92d20;\n  background: color-mix(in srgb, var(--pfh-theme-control-surface) 94%, #d92d20);\n}\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field.is-invalid > span,\n#plm-floating-helper .pfh-bom-form .pfh-bom-field-error { color: #b42318; }\n#plm-floating-helper .pfh-bom-form .pfh-bom-field-error { font-size: 11px; font-weight: 400; line-height: 1.5; }\n#plm-floating-helper .pfh-product-development-material-planner.pfh-bom-form {\n  display: grid;\n  gap: 16px;\n  min-width: 0;\n  padding: 16px;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-bom-form > header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-bom-form > header > .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; }\n#plm-floating-helper .pfh-product-development-detail-form > .pfh-product-development-product-form-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-detail-heading { display: contents; }\n#plm-floating-helper .pfh-product-development-product-form-header .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-bom-form > header h3 { font-size: 16px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card button[data-action] {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-bom-form button.is-primary { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-bom-form button:hover:not(:disabled) { border-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form button:disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-list { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card { align-content: start; gap: 12px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header { flex-direction: row; align-items: center; min-height: 36px; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header strong { font-size: 20px; font-weight: 700; line-height: 1.4; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled { padding-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled small { margin-left: 12px; color: var(--pfh-theme-muted); font-size: 11px; font-weight: 400; }\n#plm-floating-helper .pfh-bom-form .pfh-bom-code-row { display: flex; align-items: end; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-bom-code-row > label { flex: 1; min-width: 0; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-grid,\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-grid { grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); align-items: start; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field { gap: 8px; color: var(--pfh-theme-text); font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field > span { overflow: visible; white-space: normal; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field :is(input, select) { min-height: 36px; padding: 8px 12px; font: inherit; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form :is(button, input, select):focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 2px; }\n#plm-floating-helper .pfh-bom-dimensions { display: grid; grid-column: 1 / -1; grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-bom-dimensions.is-box { grid-template-columns: var(--pfh-bom-field-columns, repeat(3, minmax(0, 1fr))); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-options { gap: 12px; padding-top: 12px; border-top-style: solid; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group { gap: 8px; font-size: 11px; color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group > div { display: flex; min-height: 36px; box-sizing: border-box; align-items: center; gap: 16px; padding: 8px 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group input { accent-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-product-binding { padding: 12px; border-radius: 8px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid { gap: 12px; margin-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid small { font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-bom-form { --pfh-bom-field-columns: minmax(0, 1fr); }\n}\n\n#plm-floating-helper .pfh-psd-review {\n  width: min(760px, calc(100vw - 32px));\n  max-height: calc(100vh - 32px);\n  margin: auto;\n  padding: 20px;\n  overflow: auto;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 18px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font-size: 13px;\n  line-height: 1.5;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper .pfh-psd-review::backdrop { background: rgba(22, 18, 35, .45); }\n#plm-floating-helper .pfh-psd-review :is(label, section) {\n  display: block;\n  margin-top: 12px;\n  padding: 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n}\n#plm-floating-helper .pfh-psd-review input { display: block; margin-top: 6px; max-width: 100%; }\n#plm-floating-helper .pfh-psd-review :is(p, details, li) { margin-top: 6px; }\n#plm-floating-helper .pfh-psd-review summary { cursor: pointer; }\n#plm-floating-helper .pfh-psd-review details > details { margin-inline-start: 16px; }\n#plm-floating-helper .pfh-psd-review small { display: block; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-psd-review pre { white-space: pre-wrap; font: inherit; }\n";
+  const SCRIPT_VERSION = '3.0.32';
+  const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = "/* Copywriting form, template tools and actual generation stages. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {\n  min-height: 0;\n  padding: 12px 14px 0;\n}\n#plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {\n  flex: 1 1 auto;\n  min-height: 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 12px 0;\n}\n#plm-floating-helper .pfh-product-development.pfh-cw-workspace {\n  display: grid;\n  align-content: start;\n  min-width: 0;\n  gap: 24px;\n  padding: 0 0 24px;\n  color: var(--pfh-theme-text);\n  font-family: \"MiSans\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-cw-workspace :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {\n  gap: 8px;\n  font-size: 11px;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field > span {\n  overflow: visible;\n  white-space: normal;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input:not([type=\"file\"]), select, textarea) {\n  width: 100%;\n  min-width: 0;\n  box-sizing: border-box;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  caret-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-workspace textarea {\n  min-height: 192px;\n  resize: vertical;\n  scrollbar-width: thin;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n}\n#plm-floating-helper .pfh-cw-workspace :is(input, select, textarea, button):focus-visible {\n  outline: 2px solid var(--pfh-theme-primary);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-form {\n  min-width: 0;\n  padding: var(--pfh-cw-form-padding, 16px);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n}\n#plm-floating-helper .pfh-cw-fields {\n  display: grid;\n  min-width: 0;\n  gap: 24px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n}\n#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }\n#plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }\n#plm-floating-helper .pfh-cw-product {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n  padding-bottom: 16px;\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-cw-product strong { font-size: 16px; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-cw-product span { font-size: 11px; color: var(--pfh-theme-muted); }\n#plm-floating-helper .pfh-cw-settings {\n  display: grid;\n  grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));\n  align-items: start;\n  gap: 12px;\n}\n#plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }\n#plm-floating-helper .pfh-cw-template-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: end;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-template-row > p {\n  grid-column: 1 / -1;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.5;\n}\n#plm-floating-helper .pfh-cw-tools { position: relative; }\n#plm-floating-helper .pfh-cw-tools-toggle,\n#plm-floating-helper .pfh-cw-result-head button,\n#plm-floating-helper .pfh-cw-actions button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-cw-action-border, var(--pfh-theme-border));\n  border-radius: 8px;\n  background: var(--pfh-cw-action-background, var(--pfh-theme-control-surface));\n  color: var(--pfh-cw-action-color, var(--pfh-theme-text));\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-menu {\n  display: none;\n  position: absolute;\n  z-index: 30;\n  top: calc(100% + 8px);\n  right: 0;\n  width: 216px;\n  max-width: calc(100cqw - 64px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-cw-tools.is-open .pfh-cw-tools-menu { display: grid; gap: 4px; }\n#plm-floating-helper .pfh-cw-tools-menu button {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  width: 100%;\n  min-height: 36px;\n  padding: 8px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  font: inherit;\n  text-align: left;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-cw-tools-toggle:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-tools-menu button:hover:not(:disabled),\n#plm-floating-helper .pfh-cw-result-head button:hover:not(:disabled) {\n  background: var(--pfh-theme-primary-soft);\n  color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }\n#plm-floating-helper .pfh-cw-ingredients > header,\n#plm-floating-helper .pfh-cw-progress > header,\n#plm-floating-helper .pfh-cw-result-head {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px 12px;\n}\n#plm-floating-helper .pfh-cw-ingredients > p,\n#plm-floating-helper .pfh-cw-ingredients > header > span,\n#plm-floating-helper .pfh-cw-progress > header > span,\n#plm-floating-helper .pfh-cw-result-head p,\n#plm-floating-helper .pfh-cw-count {\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.6;\n}\n#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }\n#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }\n#plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions,\n#plm-floating-helper .pfh-cw-result-head > div:last-child { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }\n#plm-floating-helper .pfh-cw-actions { --pfh-cw-action-background: var(--pfh-theme-primary); --pfh-cw-action-border: var(--pfh-theme-primary); --pfh-cw-action-color: #fff; }\n#plm-floating-helper .pfh-cw-actions button:hover:not(:disabled) { background: var(--pfh-theme-primary-hover); }\n#plm-floating-helper .pfh-cw-actions button.is-secondary { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download { background: var(--pfh-theme-control-surface); border-color: var(--pfh-theme-border); color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-actions .pfh-cw-download.is-ready { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-cw-progress {\n  display: grid;\n  gap: 12px;\n  padding: 16px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-control-surface);\n}\n#plm-floating-helper .pfh-cw-progress[hidden] { display: none; }\n#plm-floating-helper .pfh-cw-progress ol { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }\n#plm-floating-helper .pfh-cw-progress li { display: flex; align-items: center; gap: 8px; color: var(--pfh-theme-muted); font-size: 11px; }\n#plm-floating-helper .pfh-cw-progress li.is-running { color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-cw-progress li.is-complete { color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-cw-step-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-cw-step-icon i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n#plm-floating-helper .is-running > .pfh-cw-step-icon { animation: var(--pfh-cw-progress-animation, pfh-cw-pulse 1.4s ease-out infinite); }\n#plm-floating-helper [data-cw-elapsed] { font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-cw-progress-error { overflow-wrap: anywhere; }\n@keyframes pfh-cw-pulse { 50% { opacity: .4; } }\n@media (prefers-reduced-motion: reduce) {\n  #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }\n}\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }\n}\n\n/* Text-only BOM controls, full-width material groups and aligned fields. */\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field.is-invalid input {\n  border-color: #d92d20;\n  background: color-mix(in srgb, var(--pfh-theme-control-surface) 94%, #d92d20);\n}\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field.is-invalid > span,\n#plm-floating-helper .pfh-bom-form .pfh-bom-field-error { color: #b42318; }\n#plm-floating-helper .pfh-bom-form .pfh-bom-field-error { font-size: 11px; font-weight: 400; line-height: 1.5; }\n#plm-floating-helper .pfh-product-development-material-planner.pfh-bom-form {\n  display: grid;\n  gap: 16px;\n  min-width: 0;\n  padding: 16px;\n  font-size: 12px;\n}\n#plm-floating-helper .pfh-bom-form > header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-bom-form > header > .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; }\n#plm-floating-helper .pfh-product-development-detail-form > .pfh-product-development-product-form-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-detail-heading { display: contents; }\n#plm-floating-helper .pfh-product-development-product-form-header .pfh-product-development-material-save-status { flex: 1 1 60px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n#plm-floating-helper .pfh-product-development-product-form-header > .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form :is(h3, h4, p) { margin: 0; }\n#plm-floating-helper .pfh-bom-form > header h3 { font-size: 16px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-header-actions { display: flex; flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card button[data-action] {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: var(--pfh-theme-control-surface);\n  color: var(--pfh-theme-text);\n  font: inherit;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-bom-form button.is-primary { background: var(--pfh-theme-primary); border-color: var(--pfh-theme-primary); color: #fff; }\n#plm-floating-helper .pfh-bom-form button:hover:not(:disabled) { border-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form button:disabled { opacity: .55; cursor: default; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-list { grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card { align-content: start; gap: 12px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header { flex-direction: row; align-items: center; min-height: 36px; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card > header strong { font-size: 20px; font-weight: 700; line-height: 1.4; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled { padding-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-card.is-disabled small { margin-left: 12px; color: var(--pfh-theme-muted); font-size: 11px; font-weight: 400; }\n#plm-floating-helper .pfh-bom-form .pfh-bom-code-row { display: flex; align-items: end; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-bom-code-row > label { flex: 1; min-width: 0; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-grid,\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-grid { grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); align-items: start; gap: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field { gap: 8px; color: var(--pfh-theme-text); font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field > span { overflow: visible; white-space: normal; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-field :is(input, select) { min-height: 36px; padding: 8px 12px; font: inherit; line-height: 1.5; }\n#plm-floating-helper .pfh-bom-form :is(button, input, select):focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 2px; }\n#plm-floating-helper .pfh-bom-dimensions { display: grid; grid-column: 1 / -1; grid-template-columns: var(--pfh-bom-field-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }\n#plm-floating-helper .pfh-bom-dimensions.is-box { grid-template-columns: var(--pfh-bom-field-columns, repeat(3, minmax(0, 1fr))); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-options { gap: 12px; padding-top: 12px; border-top-style: solid; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group { gap: 8px; font-size: 11px; color: var(--pfh-theme-text); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group > div { display: flex; min-height: 36px; box-sizing: border-box; align-items: center; gap: 16px; padding: 8px 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-material-option-group input { accent-color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-product-binding { padding: 12px; border-radius: 8px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid { gap: 12px; margin-top: 12px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid small { font-size: 11px; }\n#plm-floating-helper .pfh-bom-form .pfh-product-development-binding-grid b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }\n@container (max-width: 540px) {\n  #plm-floating-helper .pfh-bom-form { --pfh-bom-field-columns: minmax(0, 1fr); }\n}\n\n#plm-floating-helper .pfh-psd-review {\n  box-sizing: border-box;\n  width: min(1060px, calc(100vw - 32px));\n  max-height: min(880px, calc(100dvh - 32px));\n  margin: auto;\n  padding: 0;\n  overflow: auto;\n  scrollbar-color: var(--pfh-theme-border) transparent;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 20px;\n  box-shadow: 0 20px 68px rgba(34, 24, 59, .22);\n  background: var(--pfh-theme-control-surface, #fff);\n  color: var(--pfh-theme-text, #252037);\n  font: inherit;\n  font-size: 13px;\n  line-height: 1.55;\n}\n#plm-floating-helper .pfh-psd-review::backdrop { background: rgba(27, 22, 39, .44); }\n#plm-floating-helper .pfh-psd-review ::selection { background: var(--pfh-theme-primary-soft, #e9e1ff); color: var(--pfh-theme-text, #252037); }\n#plm-floating-helper .pfh-psd-review :is(h3, h4, h5, p, pre) { margin: 0; }\n#plm-floating-helper .pfh-psd-review svg { width: 18px; height: 18px; flex: none; }\n#plm-floating-helper .pfh-psd-review button {\n  appearance: none;\n  min-height: 34px;\n  padding: 6px 10px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 8px;\n  background: transparent;\n  color: inherit;\n  font: inherit;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-psd-review button:hover { background: var(--pfh-theme-primary-soft); }\n#plm-floating-helper .pfh-psd-review button:focus-visible {\n  outline: 2px solid var(--pfh-theme-primary, #6c49ab);\n  outline-offset: 2px;\n}\n#plm-floating-helper .pfh-psd-review button[aria-pressed=\"true\"] {\n  background: var(--pfh-theme-primary-soft);\n  border-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-psd-header {\n  position: sticky;\n  z-index: 1;\n  top: 0;\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: 16px;\n  padding: 18px 24px;\n  background: var(--pfh-theme-control-surface, #fff);\n  border-bottom: 1px solid var(--pfh-theme-border);\n}\n#plm-floating-helper .pfh-psd-header h3 { font-size: 22px; font-weight: 720; letter-spacing: -.025em; }\n#plm-floating-helper .pfh-psd-header p { margin-top: 2px; }\n#plm-floating-helper .pfh-psd-review .pfh-psd-close { display: grid; width: 36px; height: 36px; padding: 0; place-items: center; }\n#plm-floating-helper .pfh-psd-body { padding: 20px 24px 24px; }\n#plm-floating-helper .pfh-psd-review .pfh-psd-drop {\n  display: flex;\n  width: 100%;\n  align-items: center;\n  gap: 14px;\n  padding: 14px 16px;\n  text-align: left;\n  border-style: dashed;\n  border-radius: 12px;\n}\n#plm-floating-helper .pfh-psd-drop span { display: grid; gap: 2px; }\n#plm-floating-helper .pfh-psd-review .pfh-psd-drop:is(.is-dragging, :hover, :focus-visible) {\n  background: var(--pfh-theme-primary-soft);\n  border-color: var(--pfh-theme-primary);\n}\n#plm-floating-helper .pfh-psd-review :is(.pfh-psd-message, .pfh-psd-coverage, .pfh-psd-header p, .pfh-psd-drop small, .pfh-psd-empty p) {\n  font-size: 12px;\n  color: var(--pfh-theme-muted, #625870);\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper .pfh-psd-review .pfh-psd-message { margin: 8px 0; }\n#plm-floating-helper .pfh-psd-files { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }\n#plm-floating-helper .pfh-psd-files button { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: min(368px, 100%); }\n#plm-floating-helper .pfh-psd-files span { flex: none; font-weight: 650; }\n#plm-floating-helper .pfh-psd-files strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 450; }\n#plm-floating-helper .pfh-psd-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }\n#plm-floating-helper .pfh-psd-filter { display: flex; flex-wrap: wrap; gap: 6px; }\n#plm-floating-helper .pfh-psd-filter b { margin-inline-start: 4px; font-variant-numeric: tabular-nums; }\n#plm-floating-helper .pfh-psd-comparison {\n  display: grid;\n  grid-template-columns: minmax(168px, 218px) minmax(0, 1fr);\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n}\n#plm-floating-helper .pfh-psd-fields { display: grid; align-content: start; max-height: 400px; overflow: auto; gap: 3px; padding: 8px; }\n#plm-floating-helper .pfh-psd-fields button { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: start; border-color: transparent; }\n#plm-floating-helper .pfh-psd-fields [data-status] { flex-shrink: 0; }\n#plm-floating-helper .pfh-psd-readout { min-width: 0; border-inline-start: 1px solid var(--pfh-theme-border); }\n#plm-floating-helper .pfh-psd-field-heading { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--pfh-theme-border); }\n#plm-floating-helper .pfh-psd-field-heading h4 { font-size: 15px; }\n#plm-floating-helper .pfh-psd-review [data-status] { font-size: 11px; font-weight: 620; }\n#plm-floating-helper .pfh-psd-review [data-status=\"difference\"] { color: #963e31; }\n#plm-floating-helper .pfh-psd-review [data-status=\"unread\"] { color: #825315; }\n#plm-floating-helper .pfh-psd-review [data-status=\"match\"] { color: #28664f; }\n#plm-floating-helper .pfh-psd-review [data-status=\"reference\"] { color: var(--pfh-theme-muted, #625870); }\n#plm-floating-helper .pfh-psd-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }\n#plm-floating-helper .pfh-psd-pair > div { min-width: 0; padding: 12px 16px; }\n#plm-floating-helper .pfh-psd-pair > div + div { border-inline-start: 1px solid var(--pfh-theme-border); }\n#plm-floating-helper .pfh-psd-pair h5 { margin-bottom: 8px; color: var(--pfh-theme-muted, #625870); font-size: 12px; }\n#plm-floating-helper .pfh-psd-review pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }\n#plm-floating-helper .pfh-psd-pair pre { max-height: 320px; overflow: auto; overscroll-behavior: contain; }\n#plm-floating-helper .pfh-psd-pair mark { background: #fff0c9; color: #603b15; border-radius: 3px; }\n#plm-floating-helper .pfh-psd-pair > div + div mark { background: #fbe3de; color: #7c3028; }\n#plm-floating-helper .pfh-psd-coverage { margin-top: 10px; }\n#plm-floating-helper .pfh-psd-review .pfh-psd-field-note { padding: 0 16px 12px; color: var(--pfh-theme-muted, #625870); font-size: 12px; }\n#plm-floating-helper .pfh-psd-empty { display: grid; gap: 4px; justify-items: start; padding: 24px 0; }\n#plm-floating-helper .pfh-psd-empty strong { font-size: 15px; }\n#plm-floating-helper .pfh-psd-raw details { padding: 8px 0; border-top: 1px solid var(--pfh-theme-border); }\n#plm-floating-helper .pfh-psd-raw summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; list-style: none; cursor: pointer; overflow-wrap: anywhere; }\n#plm-floating-helper .pfh-psd-raw summary::-webkit-details-marker { display: none; }\n#plm-floating-helper .pfh-psd-raw summary::after { content: \"\"; width: 7px; height: 7px; flex: none; margin-right: 4px; border-inline-end: 1px solid; border-bottom: 1px solid; transform: rotate(-45deg); }\n#plm-floating-helper .pfh-psd-raw details[open] summary::after { transform: rotate(45deg); }\n#plm-floating-helper .pfh-psd-raw pre { padding: 8px 0 4px; }\n@media (max-width: 700px) {\n  #plm-floating-helper :is(.pfh-psd-header, .pfh-psd-body) { padding: 14px; }\n  #plm-floating-helper .pfh-psd-comparison { grid-template-columns: minmax(0, 1fr); }\n  #plm-floating-helper .pfh-psd-fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); max-height: 156px; }\n  #plm-floating-helper .pfh-psd-readout { border-inline-start: 0; border-top: 1px solid var(--pfh-theme-border); }\n}\n@media (max-width: 480px) {\n  #plm-floating-helper .pfh-psd-review { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }\n  #plm-floating-helper .pfh-psd-pair { grid-template-columns: minmax(0, 1fr); }\n  #plm-floating-helper .pfh-psd-pair > div + div { border-inline-start: 0; border-top: 1px solid var(--pfh-theme-border); }\n}\n";
   const SKU_DETAIL_LAYOUT_CSS = "/* Detail view navigation owns its layout, indicator motion, and interaction states. */\r\n#plm-floating-helper .pfh-detail-view-frame {\r\n  display: flex;\r\n  flex-direction: column;\r\n  height: 100%;\r\n  min-width: 0;\r\n  min-height: 0;\r\n  box-sizing: border-box;\r\n  padding: 12px;\r\n  overflow: hidden;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-frame > :is(.pfh-size-image-scroll, .pfh-parameter-scroll) {\r\n  flex: 1 1 auto;\r\n  height: auto;\r\n  min-width: 0;\r\n  min-height: 0;\r\n  box-sizing: border-box;\r\n  overflow-x: hidden;\r\n  overflow-y: auto;\r\n  padding: 0 6px 12px 0;\r\n}\r\n\r\n@container (max-width: 540px) {\r\n  #plm-floating-helper .pfh-detail-view-frame {\r\n    padding: 9px;\r\n  }\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs {\r\n  position: sticky;\r\n  top: 0;\r\n  z-index: 20;\r\n  isolation: isolate;\r\n  display: grid;\r\n  flex: 0 0 42px;\r\n  grid-template-columns: repeat(4, minmax(0, 1fr));\r\n  grid-auto-rows: 34px;\r\n  gap: 0;\r\n  box-sizing: border-box;\r\n  width: 100%;\r\n  height: 42px;\r\n  min-height: 42px;\r\n  max-height: 42px;\r\n  align-self: stretch;\r\n  margin: 0 0 12px;\r\n  padding: 3px;\r\n  overflow: hidden;\r\n  border: 1px solid var(--pfh-theme-border);\r\n  border-radius: 13px;\r\n  background: var(--pfh-theme-surface);\r\n  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86), 0 7px 18px var(--pfh-theme-shadow-soft);\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-indicator {\r\n  position: absolute;\r\n  z-index: 0;\r\n  top: 3px;\r\n  left: 3px;\r\n  width: calc((100% - 6px) / 4);\r\n  height: 34px;\r\n  max-height: 34px;\r\n  border: 0;\r\n  border-radius: 10px;\r\n  background: linear-gradient(135deg, var(--pfh-theme-primary), var(--pfh-theme-primary-hover));\r\n  box-shadow: 0 7px 16px var(--pfh-theme-shadow-soft);\r\n  pointer-events: none;\r\n  will-change: left, width;\r\n  transition: left .6s cubic-bezier(.25, 1.2, .35, 1), width .6s cubic-bezier(.25, 1.2, .35, 1);\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button {\r\n  position: relative;\r\n  z-index: 1;\r\n  display: flex;\r\n  min-width: 0;\r\n  height: 34px;\r\n  min-height: 34px;\r\n  max-height: 34px;\r\n  align-items: center;\r\n  justify-content: center;\r\n  margin: 0;\r\n  padding: 0 8px;\r\n  border: 0;\r\n  border-radius: 10px;\r\n  background: transparent;\r\n  color: var(--pfh-theme-muted);\r\n  font: inherit;\r\n  font-size: 12px;\r\n  font-weight: 400;\r\n  line-height: 1;\r\n  cursor: pointer;\r\n  transition: color .28s ease;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button.is-active {\r\n  background: transparent;\r\n  box-shadow: none;\r\n  color: #fff;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button::after {\r\n  content: \"\";\r\n  position: absolute;\r\n  inset: 0;\r\n  border-radius: 10px;\r\n  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .18) 0%, transparent 65%);\r\n  opacity: 0;\r\n  pointer-events: none;\r\n  transition: opacity .25s;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button:hover::after {\r\n  opacity: 1;\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button.is-active::after {\r\n  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .28) 0%, transparent 65%);\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-view-tabs button:disabled,\r\n#plm-floating-helper .pfh-detail-view-tabs button.is-access-locked {\r\n  cursor: not-allowed;\r\n  opacity: .48;\r\n}\r\n\r\n/* Integrated design/development navigation keeps the selected tool compact. */\r\n#plm-floating-helper .pfh-design-development-tabs {\r\n  display: flex;\r\n  overflow-x: auto;\r\n  scrollbar-width: none;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button {\r\n  flex: 1 0 auto;\r\n  padding: 0 9px;\r\n  white-space: nowrap;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button.is-active {\r\n  flex: 0 0 34px;\r\n  padding: 0;\r\n  color: var(--pfh-theme-primary);\r\n}\r\n\r\n#plm-floating-helper .pfh-detail-tab-icon,\r\n#plm-floating-helper .pfh-design-development-tabs button.is-active .pfh-detail-tab-label {\r\n  display: none;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button.is-active .pfh-detail-tab-icon {\r\n  display: inline-flex;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs .pfh-detail-tab-icon .pfh-icon {\r\n  display: inline-flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  width: 18px;\r\n  min-width: 18px;\r\n  height: 18px;\r\n  min-height: 18px;\r\n  margin: 0;\r\n  padding: 0;\r\n  border: 0;\r\n  border-radius: 0;\r\n  background: transparent;\r\n  box-shadow: none;\r\n  color: inherit;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button.is-development,\r\n#plm-floating-helper .pfh-design-development-tabs button.is-development.is-active {\r\n  color: #1b8d6c;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs .pfh-detail-view-indicator,\r\n#plm-floating-helper .pfh-design-development-tabs button.is-active::after {\r\n  display: none;\r\n}\r\n\r\n#plm-floating-helper .pfh-design-development-tabs button:focus-visible {\r\n  outline: 2px solid var(--pfh-theme-primary);\r\n  outline-offset: -2px;\r\n}\r\n\r\n@media (prefers-reduced-motion: reduce) {\r\n  #plm-floating-helper .pfh-detail-view-tabs button,\r\n  #plm-floating-helper .pfh-detail-view-indicator {\r\n    transition: none;\r\n  }\r\n}\r\n\n/* Keep SKU identity above the independently scrolling detail content. */\n#plm-floating-helper .pfh-detail-view-frame.pfh-sku-detail-frame {\n  display: flex;\n  flex-direction: column;\n  flex: 1 1 auto;\n  height: auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  padding: 12px 14px 0;\n  overflow: hidden;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-file-section {\n  flex: 0 0 auto;\n}\n\n#plm-floating-helper .pfh-sku-detail-frame > .pfh-sku-detail-content {\n  flex: 1 1 auto;\n  min-width: 0;\n  min-height: 0;\n  box-sizing: border-box;\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n  padding: 0 4px 0 0;\n}\n\n#plm-floating-helper .pfh-material-card {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 8px;\r\n  min-width: 0;\r\n  padding: 16px 18px;\r\n  border: 1px solid var(--pfh-theme-border, #e8e2ff);\r\n  border-radius: 16px;\r\n  background: var(--pfh-theme-card, #fff);\r\n}\r\n#plm-floating-helper .pfh-material-card small {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key] {\r\n  display: block;\r\n  min-width: 0;\r\n  overflow-wrap: anywhere;\r\n  /* Fill the inter-row gap without moving the text or overlapping targets. */\r\n  padding: 4px 10px;\r\n  margin: -4px -10px;\r\n  cursor: pointer;\r\n  border-radius: 6px;\r\n  transition: color .15s, background .15s;\r\n}\r\n#plm-floating-helper .pfh-material-size {\r\n  color: var(--pfh-theme-text, #17213a);\r\n  font-size: 15px;\r\n  font-weight: 700;\r\n}\r\n#plm-floating-helper .pfh-material-code {\r\n  color: var(--pfh-theme-muted, #8793ad);\r\n  font-size: 12px;\r\n}\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:hover,\r\n#plm-floating-helper .pfh-material-card [data-material-copy-key]:focus-visible,\r\n#plm-floating-helper .pfh-material-card .is-copied {\r\n  color: var(--pfh-theme-primary, #7c3aed);\r\n  background: var(--pfh-theme-soft, #f4efff);\r\n  outline: none;\r\n}\r\n\n/* Keep product context in the selected SKU card while the editor owns the detail pane. */\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active) {\n  position: relative;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-sku, .pfh-sku-waterfall-card, .pfh-workspace-row):not(.is-active)::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  z-index: 10;\n  border-radius: inherit;\n  background: color-mix(in srgb, var(--pfh-theme-page, #f8f9ff) 58%, transparent);\n  pointer-events: none;\n}\n#plm-floating-helper[data-view=\"parameterImage\"] .pfh-list :is(.pfh-list-head, .pfh-sku-list-toolbar, .pfh-sku-filter-toolbar, .pfh-list-pager, .pfh-search-result-toolbar, .pfh-workspace-search-host) {\n  opacity: .5;\n}\n\n#plm-floating-helper .pfh-development-detail-jump {\n  position: absolute;\n  z-index: 80;\n  display: grid;\n  gap: 4px;\n  width: 188px;\n  max-width: calc(100% - 16px);\n  box-sizing: border-box;\n  padding: 8px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 12px;\n  background: var(--pfh-theme-surface);\n  box-shadow: 0 12px 32px var(--pfh-theme-shadow-soft);\n}\n#plm-floating-helper .pfh-development-detail-jump button {\n  min-height: 36px;\n  padding: 8px 12px;\n  border: 0;\n  border-radius: 8px;\n  background: transparent;\n  color: var(--pfh-theme-text);\n  text-align: left;\n  font: inherit;\n  font-size: 12px;\n  line-height: 1.5;\n  cursor: pointer;\n}\n#plm-floating-helper .pfh-development-detail-jump button:is(:hover, :focus-visible, .is-active) { background: var(--pfh-theme-primary-soft); color: var(--pfh-theme-primary); }\n#plm-floating-helper .pfh-development-detail-jump button:focus-visible { outline: 2px solid var(--pfh-theme-primary); outline-offset: 1px; }\n#plm-floating-helper .pfh-development-detail-jump button:disabled { opacity: .45; cursor: default; }\n";
   const HOME_COLLECTION_CSS = "/* Lucian UX/UI Prompt #083 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#083 */\n/* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection {\n  display: grid;\n  gap: 10px;\n  min-width: 0;\n  padding: 15px 16px 12px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 16px;\n  background: var(--pfh-theme-surface);\n  color: var(--pfh-theme-text);\n  box-shadow: none;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header {\n  align-items: flex-start;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-width: 0;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {\n  position: relative;\n  margin: 0;\n  padding-left: 10px;\n  font-size: 13px;\n  line-height: 1.3;\n  color: var(--pfh-theme-text);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection h3::before {\n  content: \"\";\n  position: absolute;\n  left: 0;\n  top: 2px;\n  width: 3px;\n  height: 13px;\n  border-radius: 99px;\n  background: var(--pfh-theme-primary);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 11px;\n  line-height: 1.4;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection header span {\n  flex: 0 0 auto;\n  height: 22px;\n  display: inline-flex;\n  align-items: center;\n  padding: 0 9px;\n  border: 1px solid var(--pfh-theme-border);\n  border-radius: 999px;\n  color: var(--pfh-theme-primary);\n  font-size: 10px;\n  line-height: 1;\n  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .pfh-home-collection-progress {\n  display: block;\n  width: 100%;\n  height: auto;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n  overflow: visible;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .u083-fill {\n  background: linear-gradient(90deg, var(--pfh-theme-primary), var(--pfh-theme-secondary, var(--pfh-theme-primary)));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection .is-done .u083-fill {\n  background: var(--ux-mint);\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection p,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary,\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer small {\n  margin: 0;\n  color: var(--pfh-theme-muted);\n  font-size: 12px;\n  line-height: 1.6;\n  overflow-wrap: anywhere;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {\n  padding: 8px 10px;\n  border-radius: 10px;\n  background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary strong {\n  color: var(--pfh-theme-text);\n  font-size: 12px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {\n  font-variant-numeric: tabular-nums;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {\n  padding-top: 2px;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {\n  flex: 0 0 auto;\n  height: 30px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: 9px;\n  background: var(--pfh-theme-primary);\n  color: #fff;\n  font-size: 11px;\n  line-height: 1;\n  cursor: pointer;\n}\n#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button:disabled {\n  opacity: .55;\n  cursor: default;\n}\n";
   // <local-image-cache-module>
@@ -17063,11 +17063,13 @@
       const count = Math.abs((await read(infoOffset, 2, infoEnd)).getInt16(0));
       offset = infoOffset + 2;
       for (let i = 0; i < count; i++) {
-        const channels = (await read(offset, 18, infoEnd)).getUint16(16);
+        const record = await read(offset, 18, infoEnd);
+        const bounds = { top: record.getInt32(0), left: record.getInt32(4), bottom: record.getInt32(8), right: record.getInt32(12) };
+        const channels = record.getUint16(16);
         offset += 18 + channels * 6;
         const blend = await read(offset, 16, infoEnd);
         if (key(blend, 0) !== '8BIM') fail();
-        const layer = { name: '', divider: 0, visible: !(blend.getUint8(10) & 2), smart: false, unreadable: false };
+        const layer = { name: '', bounds, divider: 0, visible: !(blend.getUint8(10) & 2), smart: false, unreadable: false };
         offset += 16;
         const extraEnd = offset + blend.getUint32(12);
         if (extraEnd > infoEnd) fail();
@@ -17125,107 +17127,268 @@
       if (layer.smart && visible) smartCount++;
       if (!visible && (layer.text || layer.unreadable)) hiddenCount++;
       else if (layer.unreadable) unreadableCount++;
-      else if (layer.text) layers.push({ name: path, text: layer.text });
+      else if (layer.text) layers.push({ name: path, text: layer.text, bounds: layer.bounds });
     }
     return { layers, hiddenCount, unreadableCount, smartCount };
   }
-  function productDevelopmentFileReviewReference(result) {
-    const snapshot = result.snapshot || {};
-    const content = result.content;
-    const labeling = snapshot.labeling || {};
-    const ingredients = snapshot.regularIngredients || {};
-    const fields = [
-      ['英文产品名', snapshot.englishName],
-      ['净含量', snapshot.netContent],
-      ['使用方法', labeling.directionsEn],
-      ['警示语', labeling.warningsEn],
-      ['免责声明', labeling.disclaimerEn],
-      ['其他成分', (snapshot.ingredientTable || {}).otherIngredientsEn],
-    ];
-    for (const [label, values] of [
-      ['产品名译文', content.productNameTranslations],
-      ['活性成分', ingredients.activeEn],
-      ['非活性成分', ingredients.inactiveEn],
-    ]) {
-      for (const value of values || []) fields.push([label, value]);
-    }
-    for (const [label, entries] of [
-      ['使用方法', content.directions],
-      ['产品功效', content.efficacy],
-      ['产品优势', content.advantages],
-      ['产品卖点', content.sellingPoints],
-      ['成分功能', content.ingredientFunctions],
-    ]) {
-      for (const item of entries || []) {
-        if (item.titleEn) fields.push([label + '标题', item.titleEn]);
-        if (item.ingredientEn) fields.push(['成分名称', item.ingredientEn]);
-        fields.push([label, item.en]);
-      }
-    }
-    for (const item of snapshot.ingredients || []) fields.push(['成分名称', item.en]);
-    const seen = new Set();
-    return fields.flatMap(([label, text]) => {
-      const normalized = productDevelopmentFileReviewNormalize(text);
-      if (!normalized || seen.has(normalized)) return [];
-      seen.add(normalized);
-      return [{ label, text }];
-    });
-  }
+  // SKU00064102 established this template. Add new layouts as separate rules
+  // once a matching carton and/or label has been reviewed.
+  const PRODUCT_DEVELOPMENT_ROLL_ON_PSD_FIELDS = [
+    ['name', '英文品名'], ['translations', '多语言品名'], ['net', '净含量'],
+    ['ingredients', '成分表', 'carton'], ['directions', '使用方法', 'carton'],
+    ['warnings', '警示语', 'carton'], ['safeUse', '安全使用提示', 'carton'],
+    ['shelfLife', '保质期', 'carton'], ['email', '联系邮箱', 'carton'],
+    ['origin', '产地'], ['distributor', '经销商'], ['address', '经销商地址'],
+    ['eu', '欧代 EU REP'], ['uk', '英代 UK REP'], ['us', '美代 US REP'],
+  ];
 
-  function productDevelopmentFileReviewNormalize(text) {
+  function productDevelopmentPsdReviewNormalize(text) {
     return String(text || '').normalize('NFC').replace(/\s+/gu, ' ').trim();
   }
 
-  function productDevelopmentComparePsdText(layers, reference) {
-    const sources = layers.map((layer) => ({
-      ...layer,
-      normalized: productDevelopmentFileReviewNormalize(layer.text),
-    }));
-    return reference.map((field) => {
-      const value = productDevelopmentFileReviewNormalize(field.text);
-      const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // Limit matches to whole words so, for example, 50 mL never matches 150 mL.
-      const pattern = (/^[\p{L}\p{N}]/u.test(value) ? '(?<![\\p{L}\\p{N}\\p{M}])' : '') +
-        escaped + (/[\p{L}\p{N}\p{M}]$/u.test(value) ? '(?![\\p{L}\\p{N}\\p{M}])' : '');
-      const exact = new RegExp(pattern, 'u');
-      const anyCase = new RegExp(pattern, 'iu');
-      const matching = sources.find((layer) => exact.test(layer.normalized));
-      const candidate = matching || sources.find((layer) => anyCase.test(layer.normalized));
-      return {
-        ...field,
-        status: matching ? 'matched' : candidate ? 'case' : 'missing',
-        layer: candidate && candidate.name,
-        actual: candidate && candidate.normalized.match(matching ? exact : anyCase)[0],
-      };
-    });
+  function productDevelopmentPsdReviewNameList(value) {
+    return String(value || '').split(/[;；]/).map((name) => name.trim()).filter(Boolean);
   }
 
-  function productDevelopmentPsdReviewFileHtml(fileName, report, reference) {
-    const compared = productDevelopmentComparePsdText(report.layers, reference);
-    const sections = [
-      ['missing', '未找到一致文字'],
-      ['case', '大小写有差异'],
-      ['matched', '找到一致文字'],
-    ];
-    const checks = sections.map(([status, title]) => {
-      const rows = compared.filter((row) => row.status === status);
-      if (!rows.length) return '';
-      return '<details' + (status === 'case' ? ' open' : '') + '><summary>' + title + ' · ' + rows.length + ' 项</summary><ul>' +
-        rows.map((row) => '<li><strong>' + escapeHtml(row.label) + '</strong> · ' + escapeHtml(row.text) +
-          (row.actual ? '<small>PSD 命中 · ' + escapeHtml(row.actual) + ' ｜ ' + escapeHtml(row.layer) + '</small>' : '') + '</li>').join('') +
-        '</ul></details>';
-    }).join('');
-    const layers = '<details><summary>可见文本框原文 · ' + report.layers.length + ' 个</summary>' +
-      report.layers.map((layer) => '<details><summary>' + escapeHtml(layer.name) + '</summary><pre>' +
-        escapeHtml(layer.text) + '</pre></details>').join('') + '</details>';
-    const coverage = [
-      report.hiddenCount ? '已排除 ' + report.hiddenCount + ' 个隐藏文本框' : '',
-      report.smartCount ? '有 ' + report.smartCount + ' 个可见智能对象需另外核对' : '',
-      report.unreadableCount ? '有 ' + report.unreadableCount + ' 个文本框无法读取' : '',
-    ].filter(Boolean).join('，');
-    return '<section><h4>' + escapeHtml(fileName) + '</h4>' +
-      (coverage ? '<p>' + coverage + '。</p>' : '') +
-      (report.layers.length ? checks + layers : '<p>未找到可读取的可见文本框，请检查源文件是否保留可编辑文字。</p>') + '</section>';
+  function productDevelopmentPsdReviewIngredients(value) {
+    // Preserve INCI locants such as 1,2-HEXANEDIOL and commas inside parentheses.
+    const items = [];
+    let start = 0;
+    let depth = 0;
+    for (let index = 0; index < value.length; index++) {
+      const char = value[index];
+      if (char === '(') depth++;
+      if (char === ')') depth = Math.max(0, depth - 1);
+      if (depth || !/[,，、;；\n]/.test(char)) continue;
+      if (char === ',' && /\d/.test(value[index - 1] || '') && /\d/.test(value[index + 1] || '')) continue;
+      items.push(value.slice(start, index).trim());
+      start = index + 1;
+    }
+    return items.concat(value.slice(start).trim()).filter(Boolean);
+  }
+
+  function productDevelopmentPsdReviewBlocks(text) {
+    const blocks = Object.create(null);
+    let key = '';
+    for (const raw of text.split('\n')) {
+      const line = raw.trim();
+      const heading = /^(PRODUCT\s+NAME|INGREDIENTS?|DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?|WARNINGS?|SHELF\s+LIFE|E[ -]?MAIL|DISTRIBUTED\s+BY|ADDRESS)\s*[:：]\s*(.*)$/i.exec(line);
+      if (heading) {
+        key = heading[1].toUpperCase().replace(/\s+/g, ' ');
+        blocks[key] = heading[2] || '';
+        continue;
+      }
+      const net = line.match(/^(?:NET\s+(?:CONTENT|WT\.?)\s*[:：]?\s*)?(\d+(?:[.,]\d+)?\s*(?:ML|G|L|MG)\b.*?)(?=\s+MADE\s+IN\b|$)/i);
+      const origin = line.match(/(?:^|\s)(MADE\s+IN\s+.+)$/i);
+      if (net || /^MADE\s+IN\b/i.test(line)) {
+        if (net) blocks.net = net[1];
+        if (origin) blocks.origin = origin[1];
+        key = '';
+      } else if (key && line) {
+        blocks[key] += (blocks[key] ? '\n' : '') + line;
+      }
+    }
+    return blocks;
+  }
+
+  function productDevelopmentPsdReviewRepresentative(layers, role, company) {
+    const marker = layers.find((layer) => layer.text.trim().toUpperCase() === role.toUpperCase());
+    if (marker && marker.bounds) {
+      const tag = marker.bounds;
+      const height = Math.max(tag.bottom - tag.top, 1);
+      const candidates = layers.filter((layer) => {
+        const box = layer.bounds;
+        return box && layer.text.split('\n').length >= 3 &&
+          Math.abs(box.left - tag.left) <= height * 2 && box.top >= tag.bottom && box.top - tag.bottom <= height * 5;
+      });
+      if (candidates.length === 1) return candidates[0].text;
+    }
+    const expected = productDevelopmentPsdReviewNormalize(company).toLowerCase();
+    return expected && layers.find((layer) => layer.text.includes('\n') &&
+      productDevelopmentPsdReviewNormalize(layer.text.split('\n')[0]).toLowerCase() === expected)?.text || '';
+  }
+
+  function productDevelopmentPsdReviewReference(result) {
+    const snapshot = result.snapshot || {};
+    const content = result.content;
+    const labeling = snapshot.labeling || {};
+    const regular = snapshot.regularIngredients || {};
+    const seed = getProductDevelopmentSeedData(result.sku) || {};
+    const compliance = findBrandCompliance({ brand: snapshot.brand || seed.brand }) || {};
+    const names = (content.productNameTranslations || []).filter(Boolean);
+    const ingredientNames = (regular.activeEn || []).concat(regular.inactiveEn || []);
+    const reference = {
+      name: snapshot.englishName,
+      translations: names.slice(1).join('\n'),
+      net: snapshot.netContent,
+      ingredients: ingredientNames.concat(ingredientNames.length ? [] : (snapshot.ingredients || []).map((item) => item.en)).filter(Boolean).join('\n'),
+      directions: String(labeling.directionsEn || (content.directions || []).map((item) => item.en).filter(Boolean).join('\n')).replace(/^\s*DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*[:：]\s*/i, ''),
+      warnings: String(labeling.warningsEn || '').replace(/^\s*WARNINGS?\s*[:：]\s*/i, ''),
+      origin: seed.origin || seed.countryOfOrigin || seed.madeIn,
+      distributor: compliance.distributed_by,
+      address: compliance.address,
+    };
+    if (reference.origin && !/^MADE\s+IN\b/i.test(reference.origin)) reference.origin = 'MADE IN ' + reference.origin;
+    for (const role of ['eu', 'uk', 'us']) {
+      const rep = compliance[role + '_rep'] || {};
+      reference[role] = [rep.company, rep.address, rep.contact, rep.phone, rep.postal_code].filter(Boolean).join('\n');
+    }
+    return { reference, compliance };
+  }
+
+  function productDevelopmentPsdReviewExtract(layers, fileName, compliance) {
+    const candidates = layers.map((layer) => {
+      const blocks = productDevelopmentPsdReviewBlocks(layer.text);
+      const names = productDevelopmentPsdReviewNameList(layer.text.split('\n').find((line) => line.split(/[;；]/).length >= 5) || '');
+      const cartonName = blocks['PRODUCT NAME']?.split('\n')[0] || '';
+      const cartonEvidence = Boolean(blocks.INGREDIENTS || blocks['DIRECTIONS OF SAFE USE'] || blocks.DIRECTIONS);
+      return { blocks, names, cartonName, cartonEvidence };
+    });
+    const cartons = candidates.filter((item) => item.cartonName && item.cartonEvidence);
+    const labels = candidates.filter((item) => item.names.length >= 5 && item.blocks.net &&
+      (item.blocks['DISTRIBUTED BY'] || item.blocks.ADDRESS) && !item.cartonName && !item.cartonEvidence);
+    if (cartons.length + labels.length !== 1) return null;
+    const [carton] = cartons;
+    const [label] = labels;
+    const type = carton ? 'carton' : 'label';
+    if (type === 'label' && /纸盒|carton/i.test(fileName) || type === 'carton' && /标签|(?:^|\b)label\b/i.test(fileName)) return null;
+    const { blocks, names } = carton || label;
+    const ingredients = blocks.INGREDIENTS || blocks.INGREDIENT || '';
+    const values = {
+      name: carton ? carton.cartonName : names[0],
+      translations: names.slice(1).join('\n'),
+      net: blocks.net,
+      origin: blocks.origin,
+      distributor: blocks['DISTRIBUTED BY'],
+      address: blocks.ADDRESS,
+      ingredients: ingredients && productDevelopmentPsdReviewIngredients(ingredients).join('\n'),
+      directions: blocks['DIRECTIONS OF SAFE USE'] || blocks.DIRECTIONS,
+      warnings: blocks.WARNING || blocks.WARNINGS,
+      shelfLife: blocks['SHELF LIFE'],
+      email: blocks['E-MAIL'] || blocks.EMAIL || blocks['E MAIL'],
+      safeUse: layers.find((layer) => /^safe\s+use\s*\|/i.test(layer.text))?.text.match(/[:：]\s*([\s\S]+)/)?.[1]?.trim(),
+    };
+    for (const role of ['eu', 'uk', 'us']) {
+      values[role] = productDevelopmentPsdReviewRepresentative(layers, role, compliance[role + '_rep']?.company);
+    }
+    return { type, values };
+  }
+
+  function productDevelopmentPsdReviewComparable(value, field) {
+    const normalize = (text) => productDevelopmentPsdReviewNormalize(text).toLowerCase();
+    if (field === 'ingredients' || field === 'translations') return String(value || '').split('\n').map(normalize).filter(Boolean).join('\n');
+    return normalize(value).replace(/\s*([,，])\s*/g, ',');
+  }
+
+  function productDevelopmentPsdReviewMatches(actual, expected, field) {
+    if (field === 'net') {
+      const units = (value) => Array.from(value.toLowerCase().matchAll(/(\d+(?:[.,]\d+)?)\s*(fl\.?\s*oz\.?|ml|g|l|mg|oz\.?)\b/g),
+        ([, amount, unit]) => ({ amount: Number(amount.replace(',', '.')), unit: unit.replace(/[.\s]/g, '') }));
+      const target = units(expected);
+      if (target.length) {
+        const measured = units(actual);
+        return target.every(({ unit, amount }) => {
+          const sameUnit = measured.filter((item) => item.unit === unit);
+          return sameUnit.length && sameUnit.every((item) => item.amount === amount);
+        });
+      }
+    }
+    return productDevelopmentPsdReviewComparable(actual, field) === productDevelopmentPsdReviewComparable(expected, field);
+  }
+
+  function productDevelopmentPsdReviewAssess(report, fileName, context) {
+    const extracted = productDevelopmentPsdReviewExtract(report.layers, fileName, context.compliance);
+    if (!extracted) return { ...report, type: '', rows: [] };
+    const rows = PRODUCT_DEVELOPMENT_ROLL_ON_PSD_FIELDS.flatMap(([key, label, type]) => {
+      if (type && type !== extracted.type) return [];
+      const actual = extracted.values[key] || '';
+      const expected = context.reference[key] || '';
+      if (!actual && !expected) return [];
+      const status = !actual ? 'unread' : !expected ? 'reference' :
+        productDevelopmentPsdReviewMatches(actual, expected, key) ? 'match' : 'difference';
+      return [{ key, label, actual, expected, status }];
+    });
+    return { ...report, type: extracted.type, rows };
+  }
+  const PRODUCT_DEVELOPMENT_PSD_REVIEW_STATUS = {
+    difference: '有差异', unread: '待确认图层', match: '一致', reference: '仅提取',
+  };
+
+  function productDevelopmentPsdReviewHighlight(expected, actual) {
+    const tokenize = (value) => value.match(/[\p{L}\p{N}\p{M}]+|[^\s]|\s+/gu) || [];
+    const left = tokenize(expected);
+    const right = tokenize(actual);
+    // Bound the token alignment cost for long multilingual paragraphs.
+    if (left.length * right.length > 160000) return [escapeHtml(expected), escapeHtml(actual)];
+    const normalized = (tokens) => tokens.map((value) => /^\s+$/.test(value) ? ' ' : value.toLowerCase());
+    const a = normalized(left);
+    const b = normalized(right);
+    const matrix = Array.from({ length: a.length + 1 }, () => new Uint16Array(b.length + 1));
+    for (let i = a.length - 1; i >= 0; i--) {
+      for (let j = b.length - 1; j >= 0; j--) {
+        matrix[i][j] = a[i] === b[j] ? matrix[i + 1][j + 1] + 1 : Math.max(matrix[i + 1][j], matrix[i][j + 1]);
+      }
+    }
+    let i = 0;
+    let j = 0;
+    const keptLeft = new Set();
+    const keptRight = new Set();
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) {
+        keptLeft.add(i++);
+        keptRight.add(j++);
+      } else if (matrix[i + 1][j] >= matrix[i][j + 1]) i++;
+      else j++;
+    }
+    const render = (tokens, kept) => tokens.map((token, index) => kept.has(index) || !token.trim()
+      ? escapeHtml(token) : '<mark>' + escapeHtml(token) + '</mark>').join('');
+    return [render(left, keptLeft), render(right, keptRight)];
+  }
+
+  function productDevelopmentPsdReviewCurrentHtml(file) {
+    if (!file) return '<div class="pfh-psd-empty"><strong>选择要核对的包装稿</strong><p>可以一次加入纸盒和标签，逐份查看对照结果。</p></div>';
+    if (file.error) return '<div class="pfh-psd-empty"><strong>文件读取失败</strong><p>' + escapeHtml(file.error) + '</p></div>';
+    const report = file.report;
+    if (!report) return '<div class="pfh-psd-empty"><strong>正在读取 PSD 图层</strong></div>';
+    const coverage = [report.layers.length + ' 个可见文本框'];
+    if (report.hiddenCount) coverage.push('已过滤 ' + report.hiddenCount + ' 个隐藏文本框');
+    if (report.smartCount) coverage.push(report.smartCount + ' 个智能对象需人工确认');
+    if (report.unreadableCount) coverage.push(report.unreadableCount + ' 个文本框读取失败');
+    const summary = '<div class="pfh-psd-coverage">' + escapeHtml(coverage.join(' · ')) + '</div>';
+    const rawButton = report.layers.length ? '<button type="button" data-psd-control="raw" aria-pressed="' + file.raw + '">' +
+      (file.raw ? '返回对照' : '查看图层原文') + '</button>' : '';
+    if (file.raw) {
+      return '<div class="pfh-psd-toolbar"><strong>可见文本框</strong>' + rawButton + '</div><div class="pfh-psd-raw">' +
+        report.layers.map((layer) => '<details><summary>' + escapeHtml(layer.name) + '</summary><pre>' + escapeHtml(layer.text) + '</pre></details>').join('') + '</div>' + summary;
+    }
+    if (!report.type) {
+      return '<div class="pfh-psd-toolbar"><strong>模板待确认</strong>' + rawButton + '</div><div class="pfh-psd-empty">' +
+        (report.layers.length ? '<p>此文件的版面尚未登记。可查看图层原文。</p>' : '<p>没有读到可编辑的可见文字。请检查 Photoshop 源文件。</p>') + '</div>' + summary;
+    }
+
+    const review = report.rows.filter((row) => row.status === 'difference' || row.status === 'unread');
+    const rows = file.filter === 'review' ? review : report.rows;
+    const active = rows.find((row) => row.key === file.field) || rows[0];
+    const consistent = report.rows.filter((row) => row.status === 'match').length;
+    const controls = '<div class="pfh-psd-filter" aria-label="筛选审核字段">' +
+      '<button type="button" data-psd-filter="review" aria-pressed="' + (file.filter === 'review') + '">待复核 <b>' + review.length + '</b></button>' +
+      '<button type="button" data-psd-filter="all" aria-pressed="' + (file.filter === 'all') + '">全部字段 <b>' + report.rows.length + '</b></button></div>';
+    const nav = '<div class="pfh-psd-fields" aria-label="对照字段">' + rows.map((row) =>
+      '<button type="button" data-psd-field="' + row.key + '" aria-pressed="' + (row === active) + '"><strong>' + row.label +
+      '</strong><span data-status="' + row.status + '">' + PRODUCT_DEVELOPMENT_PSD_REVIEW_STATUS[row.status] + '</span></button>').join('') + '</div>';
+    let body = '<div class="pfh-psd-empty">' + iconHtml('check') + '<strong>本次没有待复核字段</strong><p>已核对一致 ' + consistent +
+      ' 项。可在「全部字段」查看结果和仅提取项。</p></div>';
+    if (active) {
+      const [expected, actual] = active.status === 'difference'
+        ? productDevelopmentPsdReviewHighlight(active.expected, active.actual)
+        : [escapeHtml(active.expected), escapeHtml(active.actual)];
+      body = '<div class="pfh-psd-comparison">' + nav + '<section class="pfh-psd-readout"><div class="pfh-psd-field-heading"><h4>' +
+        active.label + '</h4><span data-status="' + active.status + '">' + PRODUCT_DEVELOPMENT_PSD_REVIEW_STATUS[active.status] + '</span></div>' +
+        '<div class="pfh-psd-pair"><div><h5>助手对照文案</h5><pre>' + (expected || '当前 SKU 暂无对照值') +
+        '</pre></div><div><h5>PSD 图层原文</h5><pre>' + (actual || '可读取的图层中未定位到此字段') + '</pre></div></div>' +
+        (active.key === 'net' ? '<p class="pfh-psd-field-note">按助手已有的计量单位核对。</p>' : '') + '</section></div>';
+    }
+    return '<div class="pfh-psd-toolbar">' + controls + rawButton + '</div>' + body + summary;
   }
 
   function openProductDevelopmentFileReview(trigger) {
@@ -17235,53 +17398,149 @@
       showToast('请先生成或恢复当前 SKU 的文案结果');
       return;
     }
-    const reference = productDevelopmentFileReviewReference(result);
-    if (!reference.length) {
-      showToast('当前文案结果没有可核对的包装用语');
-      return;
-    }
+    const context = productDevelopmentPsdReviewReference(result);
     const panel = ensurePanel();
     if (panel.querySelector('.pfh-psd-review')) return;
     const dialog = document.createElement('dialog');
     dialog.className = 'pfh-psd-review';
     dialog.setAttribute('aria-label', 'PSD 文件审核');
-    const version = [sku, result.fileName].filter(Boolean).join(' · ');
-    dialog.innerHTML = '<header class="pfh-cw-result-head"><div><h3>PSD 文件审核</h3><p>' + escapeHtml(version) +
-      ' · ' + reference.length + ' 项文案</p></div><form method="dialog"><button type="submit">关闭</button></form></header>' +
-      (state.productDevelopmentCopywritingDirtySku === sku ? '<p>文案输入有待更新。本次以屏幕中的文案结果为准。</p>' : '') +
-      '<label>选择纸盒或标签 PSD <input type="file" accept=".psd,image/vnd.adobe.photoshop" multiple autofocus></label>' +
-      '<p>文件在浏览器内读取。转曲字、像素字及智能对象内的文字需另行核对。文案可能分布在不同包材，未找到的项目需结合实际版面复核。</p>' +
-      '<div role="status"></div><div data-psd-review-results></div>';
+    dialog.innerHTML = '<header class="pfh-psd-header"><div><h3>包装文件审核</h3><p>' + escapeHtml(sku) + ' · 本地读取 PSD 文本</p></div>' +
+      '<form method="dialog"><button type="submit" class="pfh-psd-close" aria-label="关闭文件审核">' + iconHtml('close') + '</button></form></header>' +
+      '<div class="pfh-psd-body">' +
+      (state.productDevelopmentCopywritingDirtySku === sku ? '<p class="pfh-psd-message">文案输入有待更新，本次以已生成的文案结果为准。</p>' : '') +
+      '<button type="button" class="pfh-psd-drop" data-psd-control="browse" autofocus>' + iconHtml('upload') +
+      '<span><strong>拖入 PSD，或点击选择</strong><small>也可将鼠标停在这里，按 Ctrl+V 粘贴文件</small></span></button>' +
+      '<input type="file" accept=".psd,image/vnd.adobe.photoshop" multiple hidden>' +
+      '<div class="pfh-psd-message" role="status" hidden></div><div data-psd-results></div></div>';
     const input = dialog.querySelector('input');
+    const drop = dialog.querySelector('.pfh-psd-drop');
     const status = dialog.querySelector('[role="status"]');
-    const results = dialog.querySelector('[data-psd-review-results]');
-    let selection = 0;
-    input.addEventListener('change', async () => {
-      const files = Array.from(input.files || []);
-      if (!files.length) return;
-      input.value = '';
-      const request = ++selection;
-      results.replaceChildren();
+    const results = dialog.querySelector('[data-psd-results]');
+    const entries = [];
+    let selected = -1;
+    let reading = false;
+
+    function render() {
+      const previous = results.contains(document.activeElement) && document.activeElement;
+      const focused = previous && Array.from(previous.attributes).find(({ name }) => name.startsWith('data-psd-'));
+      const files = entries.length ? '<nav class="pfh-psd-files" aria-label="包装文件">' + entries.map((file, index) => {
+        const type = file.report?.type;
+        const label = type === 'carton' ? '纸盒' : type === 'label' ? '标签' : file.error ? '失败' : file.report ? '待确认' : '读取中';
+        return '<button type="button" data-psd-file="' + index + '" aria-pressed="' + (index === selected) + '" title="' +
+          escapeHtml(file.name) + '"><span>' + label + '</span><strong>' + escapeHtml(file.name) + '</strong></button>';
+      }).join('') + '</nav>' : '';
+      results.innerHTML = files + productDevelopmentPsdReviewCurrentHtml(entries[selected]);
+      if (focused) results.querySelector('[' + focused.name + '="' + focused.value + '"]')?.focus({ preventScroll: true });
+    }
+
+    function message(text) {
+      status.textContent = text;
+      status.hidden = !text;
+    }
+
+    async function addFiles(files) {
+      let added = 0;
+      let unsupported = 0;
       for (const file of files) {
-        status.textContent = '正在读取 ' + file.name + '…';
-        let html;
-        try {
-          const report = await productDevelopmentReadPsdText(file);
-          html = productDevelopmentPsdReviewFileHtml(file.name, report, reference);
-        } catch (error) {
-          html = '<section><h4>' + escapeHtml(file.name) + '</h4><p>' + escapeHtml(formatErrorMessage(error)) + '</p></section>';
+        if (!/\.psd$/i.test(file.name) && file.type !== 'image/vnd.adobe.photoshop') {
+          unsupported++;
+          continue;
         }
-        if (!dialog.isConnected || selection !== request) return;
-        results.insertAdjacentHTML('beforeend', html);
+        const id = [file.name, file.size, file.lastModified].join('|');
+        if (entries.some((entry) => entry.id === id)) continue;
+        if (!added) selected = entries.length;
+        entries.push({ id, name: file.name, pending: file, filter: 'review', field: '', raw: false });
+        added++;
       }
-      status.textContent = '已处理 ' + files.length + ' 个文件。';
+      message(unsupported ? '仅支持 PSD。已忽略 ' + unsupported + ' 个其他格式的文件。' : added ? '' : '所选 PSD 已在列表中。');
+      if (!added) return;
+      render();
+      if (reading) return;
+      reading = true;
+      for (const entry of entries) {
+        if (!entry.pending) continue;
+        try {
+          const report = await productDevelopmentReadPsdText(entry.pending);
+          entry.report = productDevelopmentPsdReviewAssess(report, entry.name, context);
+        } catch (error) {
+          entry.error = formatErrorMessage(error);
+        }
+        delete entry.pending;
+        if (!dialog.open || !dialog.isConnected) break;
+        render();
+      }
+      reading = false;
+    }
+
+    dialog.addEventListener('click', (event) => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      if (button.dataset.psdControl === 'browse') {
+        input.click();
+        return;
+      }
+      const file = entries[selected];
+      const setting = [
+        ['psdFile', 'file'], ['psdFilter', 'filter'], ['psdField', 'field'], ['psdControl', 'control'],
+      ].find(([key]) => button.dataset[key] !== undefined);
+      if (!file || !setting) return;
+      const [key, attribute] = setting;
+      const value = button.dataset[key];
+      if (attribute === 'file') selected = Number(value);
+      if (attribute === 'filter') file.filter = value;
+      if (attribute === 'field') file.field = value;
+      if (value === 'raw') file.raw = !file.raw;
+      render();
     });
+    input.addEventListener('change', () => {
+      const files = Array.from(input.files || []);
+      input.value = '';
+      if (files.length) addFiles(files);
+    });
+    dialog.addEventListener('dragover', (event) => {
+      if (!Array.from(event.dataTransfer?.types || []).includes('Files')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = 'copy';
+      drop.classList.add('is-dragging');
+    });
+    dialog.addEventListener('dragleave', (event) => {
+      if (!event.relatedTarget || !dialog.contains(event.relatedTarget)) drop.classList.remove('is-dragging');
+    });
+    dialog.addEventListener('drop', (event) => {
+      const files = Array.from(event.dataTransfer?.files || []);
+      drop.classList.remove('is-dragging');
+      if (!files.length) return;
+      event.preventDefault();
+      event.stopPropagation();
+      addFiles(files);
+    });
+    function handlePaste(event) {
+      if (!dialog.isConnected) {
+        document.removeEventListener('paste', handlePaste, true);
+        return;
+      }
+      if (!dialog.open || !dialog.contains(document.activeElement) && !drop.matches(':hover')) return;
+      const clipboard = event.clipboardData;
+      const files = Array.from(clipboard?.files || []);
+      if (!files.length) files.push(...Array.from(clipboard?.items || []).filter((item) => item.kind === 'file').map((item) => item.getAsFile()).filter(Boolean));
+      if (!files.length) {
+        if (drop.matches(':hover, :focus')) message('剪贴板中没有浏览器可读取的文件。可把 PSD 拖进此窗口。');
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      addFiles(files);
+    }
     dialog.addEventListener('close', () => {
+      document.removeEventListener('paste', handlePaste, true);
       dialog.remove();
       if (trigger && trigger.isConnected) trigger.focus();
     }, { once: true });
+    render();
     panel.appendChild(dialog);
     dialog.showModal();
+    document.addEventListener('paste', handlePaste, true);
   }
 
   function productDevelopmentOneShotNormalizeResponse(response, input, options) {
