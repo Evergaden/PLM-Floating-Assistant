@@ -2077,11 +2077,13 @@ async function handleAiImageCopywritingComplete(request, env) {
   const body = await parseJson(request);
   if (!body) return json(aiImageCopywritingPayload(emptyFields, { error: 'application/json body required' }), 400);
   const sku = cleanText(body.sku, 80);
-  const name = cleanText(body.name, 500);
+  // The name is context for completion, not an authorization key. Older
+  // cached SKU records may not have a product name even though the PLM fields
+  // are available to complete, so keep the request usable with the SKU.
+  const name = cleanText(body.name || body.englishName || sku, 500);
   const fieldsError = validateAiImageCopywritingFields(body.fields);
   const fields = fieldsError ? emptyFields : normalizeAiImageCopywritingFields(body.fields);
   if (!sku) return json(aiImageCopywritingPayload(fields, { needsUserInput: listMissingAiImageCopywritingPaths(fields), error: 'sku required' }), 400);
-  if (!name) return json(aiImageCopywritingPayload(fields, { needsUserInput: listMissingAiImageCopywritingPaths(fields), error: 'name required' }), 400);
   if (fieldsError) return json(aiImageCopywritingPayload(fields, { needsUserInput: listMissingAiImageCopywritingPaths(fields), error: fieldsError }), 400);
 
   const missingPaths = listMissingAiImageCopywritingPaths(fields);
@@ -3987,8 +3989,8 @@ async function handleProductDevelopmentCopywriting(request, env) {
   if (!body) return json({ ok: false, error: 'application/json body required' }, 400);
   if (body.mode === 'partial-update') return handleProductDevelopmentCopywritingPatch(body, env);
   const sku = cleanText(body.sku, 80);
-  const name = cleanText(body.name, 300);
-  const englishName = cleanText(body.englishName, 300);
+  const englishName = cleanText(body.englishName || body.productNameEn, 300);
+  const name = cleanText(body.name || body.productNameCn || englishName, 300);
   const copywritingImage = cleanModelScopeImages([body.imageDataUrl])[0] || '';
   if (body.imageDataUrl && !copywritingImage) return json({ ok: false, error: '效果图格式不支持，请重新选择图片' }, 400);
   const brand = cleanText(body.brand, 160);

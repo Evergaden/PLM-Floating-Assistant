@@ -434,12 +434,21 @@
       ? state.productDevelopmentTaskDetailData[sku]
       : {};
     const cached = state && state.data && String(state.data.sku || '').trim().toUpperCase() === sku ? state.data : loadData(sku);
+    const taskMeta = typeof getProductDevelopmentTaskMeta === 'function'
+      ? getProductDevelopmentTaskMeta(row, detail)
+      : {};
+    const cachedName = cached && (cached.name || cached.productNameCn || cached.productNameEn) || '';
+    const productNameCn = taskMeta.productNameCn || row.name || detail.name || detail.productNameCn || cachedName || '';
+    const productNameEn = taskMeta.productNameEn || row.productNameEn || detail.productNameEn || cached && (cached.englishName || cached.productNameEn) || '';
     return normalizeData({
       ...(cached || {}),
       ...detail,
       sku,
-      brand: row.brand || detail.brand || cached && cached.brand || '',
-      name: row.name || detail.name || cached && cached.name || '',
+      brand: taskMeta.brand || row.brand || detail.brand || cached && cached.brand || '',
+      name: productNameCn || productNameEn,
+      productNameCn,
+      productNameEn,
+      englishName: productNameEn || detail.englishName || cached && cached.englishName || '',
       projectRowId: row.projectId || detail.projectRowId || cached && cached.projectRowId || '',
       projectId: row.projectId || detail.projectId || cached && cached.projectId || '',
       projectCode: row.projectCode || detail.projectCode || '',

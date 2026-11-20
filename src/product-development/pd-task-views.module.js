@@ -721,6 +721,11 @@
       return state.productDevelopmentSnapshot;
     }
     const seed = getProductDevelopmentSeedData(normalizedSku);
+    const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
+    const taskDetail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku] || {};
+    const taskMeta = typeof getProductDevelopmentTaskMeta === 'function'
+      ? getProductDevelopmentTaskMeta(task, taskDetail)
+      : {};
     const cachedIngredients = refreshIngredients ? [] : productDevelopmentCachedIngredientPairs(normalizedSku, seed);
     const startedAt = Date.now();
     productDevelopmentLog('info', '开始读取产品资料', normalizedSku + ' | 成分缓存=' + (cachedIngredients.length ? cachedIngredients.length + ' 项，优先复用' : '未命中') + ' | 强制刷新=' + (force ? '是' : '否'));
@@ -757,7 +762,8 @@
       ...seed,
       ...(snapshot || {}),
       sku: normalizedSku,
-      name: (snapshot && snapshot.chineseName) || seed.name,
+      name: (snapshot && snapshot.chineseName) || seed.name || taskMeta.productNameCn || taskMeta.productNameEn || snapshot && snapshot.englishName || seed.englishName || '',
+      englishName: snapshot && snapshot.englishName || seed.englishName || taskMeta.productNameEn || '',
       productType: (snapshot && snapshot.productType) || seed.productType || seed.manualCategory,
       ingredientEnglish: snapshot && snapshot.ingredientEnglish || seed.ingredientEnglish || '',
       ingredientChinese: snapshot && snapshot.ingredientChinese || seed.ingredientChinese || '',
@@ -840,8 +846,25 @@
     const ingredientEvidence = productDevelopmentSnapshotEvidenceText(evidenceSource, 'ingredient');
     const attributeEvidence = productDevelopmentSnapshotEvidenceText(evidenceSource, 'attribute');
     const sourceEvidence = productDevelopmentSnapshotEvidenceText(evidenceSource, 'source');
-    const productName = productDevelopmentCleanText(snapshot && snapshot.chineseName || data.name, 300);
-    const englishNameSource = productDevelopmentCleanText(snapshot && snapshot.englishName, 300);
+    const productName = productDevelopmentCleanText(
+      snapshot && snapshot.chineseName
+        || data.name
+        || taskMeta.productNameCn
+        || taskMeta.productNameEn
+        || snapshot && snapshot.englishName
+        || data.englishName
+        || data.productNameEn
+        || seed.englishName,
+      300,
+    );
+    const englishNameSource = productDevelopmentCleanText(
+      snapshot && snapshot.englishName
+        || data.englishName
+        || data.productNameEn
+        || taskMeta.productNameEn
+        || seed.englishName,
+      300,
+    );
     const result = {
       version: PRODUCT_DEVELOPMENT_VERSION,
       sku: normalizedSku,

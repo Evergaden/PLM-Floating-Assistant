@@ -69,7 +69,7 @@ worker.callPreferredAiText = async (_, config, validate) => {
 (async () => {
   const response = await worker.handleProductDevelopmentCopywriting(new Request('https://test/ai-image/product-development-copywriting', {
     method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': 'test' },
-    body: JSON.stringify({ sku: 'TEST', name: '镁霜', templateId: 'regular-non-ndc', copywritingCategory: 'regular', ingredients }),
+    body: JSON.stringify({ sku: 'TEST', englishName: 'Magnesium Cream', templateId: 'regular-non-ndc', copywritingCategory: 'regular', ingredients }),
   }), { API_KEY: 'test' });
   const body = await response.json();
   assert.equal(response.status, 200, JSON.stringify(body));

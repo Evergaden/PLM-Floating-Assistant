@@ -1800,7 +1800,7 @@
       const response = await cloudRequest('/ai-image/copywriting-complete', {
         method: 'POST',
         timeoutMs: 90000,
-        body: { sku, name: data.name || '', fields: getLedgerAiPreparationFieldsForApi(preparation) },
+        body: { sku, name: data.name || sku, fields: getLedgerAiPreparationFieldsForApi(preparation) },
       });
       if (!response || !response.ok) throw new Error(response && response.error || 'AI 未返回可用文案');
       const filledCount = await applyLedgerAiPreparationToPlmDraft(sku, response.fields || {});
