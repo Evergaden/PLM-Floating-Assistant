@@ -24,6 +24,7 @@ const context = vm.createContext({
   productDevelopmentSetProductAttrValue: (detail, attrId, languageId, value) => { detail.attrs[attrId] = value; },
 });
 const prefill = read('pd-prefill');
+assert.match(prefill, /setField\('minimumOrderQuantity', '1000', '1000'\)/, 'Reference-product prefill uses the 1000 minimum order quantity default');
 context.state = { productDevelopmentSelectedTask: {} };
 context.getProductDevelopmentTaskBySku = () => ({});
 context.getProductDevelopmentTaskMeta = () => ({ productNameCn: '最新中文名', productNameEn: 'New name', brand: 'NEW' });

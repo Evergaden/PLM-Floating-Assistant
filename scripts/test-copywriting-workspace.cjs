@@ -38,6 +38,7 @@ const context = vm.createContext({
   loadProductDevelopmentCopywritingTemplateSource: async () => 'template',
   productDevelopmentCopywritingReferenceUrl: () => '',
   productDevelopmentCopywritingFileName: () => 'copy.docx',
+  productDevelopmentNextCopywritingGeneration: () => 1,
   productDevelopmentCopywritingSnapshotValue: (snapshot) => ({ ...snapshot }),
   productDevelopmentValidateCopywriting: () => ({ efficacy: [], advantages: [], sellingPoints: [], ingredientFunctions: [] }),
   productDevelopmentFriendlyCopywritingError: (error) => error.message,

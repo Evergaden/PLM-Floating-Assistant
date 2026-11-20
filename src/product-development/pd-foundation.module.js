@@ -478,6 +478,7 @@
       sku: productDevelopmentCleanText(read('sku', ''), 80).toUpperCase(),
       name: productDevelopmentCleanText(read('name', ''), 300),
       englishName: productDevelopmentCleanText(read('englishName', ''), 300),
+      copywritingGeneration: Math.max(1, Math.floor(Number(read('copywritingGeneration', 1)) || 1)),
       brand: productDevelopmentNormalizeBrandValue(read('brand', '')),
       productType: productDevelopmentCleanText(read('productType', ''), 180),
       productTypeCn: productDevelopmentCleanText(read('productTypeCn', ''), 180),
@@ -494,18 +495,36 @@
     };
   }
 
+  function productDevelopmentCopywritingGenerationCount(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const snapshot = source.snapshot && typeof source.snapshot === 'object' ? source.snapshot : source;
+    const number = Number(source.copywritingGeneration !== undefined ? source.copywritingGeneration : snapshot.copywritingGeneration);
+    return Number.isFinite(number) && number >= 1 ? Math.floor(number) : 1;
+  }
+
+  function productDevelopmentNextCopywritingGeneration(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const current = state.productDevelopmentCopywriting
+      && String(state.productDevelopmentCopywriting.sku || '').trim().toUpperCase() === normalizedSku
+      ? state.productDevelopmentCopywriting
+      : getProductDevelopmentCopywritingCache(normalizedSku);
+    return current ? productDevelopmentCopywritingGenerationCount(current) + 1 : 1;
+  }
+
   function productDevelopmentCopywritingCacheValue(value) {
     const source = value && typeof value === 'object' ? value : {};
     const sku = String(source.sku || source.snapshot && source.snapshot.sku || '').trim().toUpperCase();
     const id = productDevelopmentCleanText(source.id, 80);
     const content = productDevelopmentNormalizeCopywriting(source.content);
     if (!sku || !id || !content.efficacy.length || !content.advantages.length || !content.sellingPoints.length || !content.ingredientFunctions.length) return null;
-    const snapshot = productDevelopmentCopywritingSnapshotValue({ ...source, sku });
+    const copywritingGeneration = productDevelopmentCopywritingGenerationCount(source);
+    const snapshot = productDevelopmentCopywritingSnapshotValue({ ...source, sku, copywritingGeneration });
     return {
       id,
       sku,
       content,
       snapshot,
+      copywritingGeneration,
       fileName: productDevelopmentCleanText(source.fileName || productDevelopmentCopywritingFileName(snapshot), 180),
       provider: productDevelopmentCleanText(source.provider, 80),
       model: productDevelopmentCleanText(source.model, 120),

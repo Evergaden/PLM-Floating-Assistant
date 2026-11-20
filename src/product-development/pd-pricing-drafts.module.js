@@ -287,6 +287,12 @@
     }
     const hasExisting = Boolean(existing);
     const dimensions = productDevelopmentMaterialDimensions(existing && existing.specification);
+    const referenceRow = productDevelopmentMaterialReferenceRow(detail, kind);
+    const referenceDimensions = productDevelopmentMaterialDimensions(referenceRow && referenceRow.specification);
+    const referenceDimensionValue = (key) => {
+      const direct = productDevelopmentMaterialNumberText(referenceRow && referenceRow[key], 6);
+      return direct || referenceDimensions[key] || '';
+    };
     const baseName = productDevelopmentMaterialBaseName(task, detail);
     const packSpec = productDevelopmentCleanText(productDevelopmentMaterialPackSpec(detail, kind) || raw.packSpec || defaults.defaultSpecification, 160);
     const hasName = Object.prototype.hasOwnProperty.call(raw, 'materialName');
@@ -297,6 +303,7 @@
     const dimensionValue = (rawKey, existingValue, parsedValue) => {
       if (Object.prototype.hasOwnProperty.call(raw, rawKey)) return raw[rawKey];
       if (existingValue !== undefined && existingValue !== null && String(existingValue).trim() !== '') return existingValue;
+      if (String(specificationSource) !== 'manual') return parsedValue || referenceDimensionValue(rawKey);
       return parsedValue;
     };
     const draft = {

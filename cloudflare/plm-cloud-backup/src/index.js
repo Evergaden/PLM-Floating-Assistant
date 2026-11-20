@@ -2238,6 +2238,7 @@ function productDevelopmentCopywritingListInfo(value, aliases) {
 
 function productDevelopmentCopywritingRestrictionCode(message) {
   const text = String(message || '').toLowerCase();
+  if (/exceeds length|超出长度/.test(text)) return 'length';
   if (/dosage|frequency|serving|supply|服用|用量|频次|供应/.test(text)) return 'usage';
   if (/dietary-attribute|素食|非转基因|无麸质|无糖|无乳制品|无过敏原/.test(text)) return 'dietary-attribute';
   if (/quality-process|manufacturing|quality|standards|质量控制|产品一致性|生产标准/.test(text)) return 'quality-process';
@@ -2246,6 +2247,7 @@ function productDevelopmentCopywritingRestrictionCode(message) {
 
 function productDevelopmentSafeCopywritingPair(ruleCode, section, options) {
   if (options && options.copywritingCategory === 'regular') return { en: 'Designed for simple everyday product routines.', cn: '便于融入日常使用场景。' };
+  if (ruleCode === 'length') return { en: 'A concise formula for everyday routines.', cn: '简洁配方，适合日常安排。' };
   if (ruleCode === 'usage' && section === 'B') {
     return { en: 'A practical formula for everyday routines.', cn: '适合融入日常营养安排。' };
   }
@@ -3990,7 +3992,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   if (body.mode === 'partial-update') return handleProductDevelopmentCopywritingPatch(body, env);
   const sku = cleanText(body.sku, 80);
   const englishName = cleanText(body.englishName || body.productNameEn, 300);
-  const name = cleanText(body.name || body.productNameCn || englishName, 300);
+  const name = cleanText(body.name || body.productNameCn || englishName || sku, 300);
   const copywritingImage = cleanModelScopeImages([body.imageDataUrl])[0] || '';
   if (body.imageDataUrl && !copywritingImage) return json({ ok: false, error: '效果图格式不支持，请重新选择图片' }, 400);
   const brand = cleanText(body.brand, 160);
@@ -4196,6 +4198,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
             '如果校验失败信息指出 D 成分与输入不匹配（D ingredient … does not match PLM input），必须把对应位置条目的 ingredientEn 和 ingredientCn 修正为输入 ingredients 中同一位置的成分英文名和中文名（可参考输入的 en/cn 翻译补齐），功效句子随之对准该成分，不要改动其他条目。',
             'A-D 不得包含服用频次、单次数量、Serving Size、per serving、daily supply、供应周期、未经输入支持的饮食属性或生产质量背书；Directions 不属于 A-D。',
             '如果校验失败信息指出某条含 dosage、frequency、serving 或 supply claim，必须把该条整句改成中性产品优势/日常支持表达，不要保留数字、capsule、serving、supply、take、daily use 等用法词。',
+            '如果校验失败信息指出 exceeds length，必须把对应条目的英文压到规定词数以内、中文压到规定字数以内：A 英文不超过 30 词/中文不超过 30 字，B 英文不超过 14 词/中文不超过 24 字，D 英文不超过 30 词/中文不超过 30 字；保留原意和双语对应关系，不删除条目。',
             '先在内部逐项检查所有 en、cn、titleEn、titleCn，再只返回修复后的完整 JSON；不要解释修复过程，不要复述限制词清单。',
           ].join(' '),
           prompt: [

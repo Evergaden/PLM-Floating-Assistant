@@ -54,6 +54,19 @@ const normalized = context.productDevelopmentNormalizeMaterialDraft(null, 'box',
 assert.equal(normalized.materialId, 'CURRENT', 'Reference material IDs must not overwrite current bindings');
 assert.equal(normalized.referenceRemark, '哑膜');
 assert.equal(normalized.shelfLife, '');
+const referenceWithDimensions = {
+  isSupplement: false,
+  sku: 'SKU1',
+  bomRows: [],
+  productDevelopmentReworkLookup: {
+    data: {
+      bomRows: [{ materialType: 0, name: '对标纸盒', specification: '50ml/盒，4.2x5.1x12.3cm' }],
+    },
+  },
+};
+const copiedReferenceDimensions = context.productDevelopmentNormalizeMaterialDraft(null, 'box', referenceWithDimensions, {});
+assert.deepEqual([copiedReferenceDimensions.length, copiedReferenceDimensions.width, copiedReferenceDimensions.height], ['4.2', '5.1', '12.3'], 'New box drafts inherit reference BOM dimensions');
+assert.match(copiedReferenceDimensions.specification, /4\.2x5\.1x12\.3cm/, 'Inherited dimensions are written into the generated specification');
 const noReference = { ...detail, productDevelopmentReworkLookup: null, bomRows: [] };
 const renamed = { ...noReference, productDetailLocalNames: { productNameCn: '新产品' } };
 const generated = context.productDevelopmentNormalizeMaterialDraft({ materialName: 'SKU1纸盒', nameSource: 'generated' }, 'box', renamed, {});

@@ -57,6 +57,9 @@ const context = vm.createContext({
   productDevelopmentCleanText: (text, max = 4000) => String(text || '').trim().slice(0, max),
   productDevelopmentCopywritingPairValues: (item) => ({ en: String(item.en || '').trim(), cn: String(item.cn || '').trim() }),
   productDevelopmentCopywritingText: (text) => String(text || '').trim(),
+  productDevelopmentCopywritingGenerationCount: (value) => Math.max(1, Math.floor(Number(value && value.copywritingGeneration) || 1)),
+  productDevelopmentFileDate: () => '20261120',
+  productDevelopmentSafeFileLabel: (value) => String(value || '').trim(),
   productDevelopmentLog: () => {},
 });
 for (const name of ['productDevelopmentXmlElements', 'productDevelopmentCellText', 'productDevelopmentClearCell', 'productDevelopmentEnsureCellParagraph', 'productDevelopmentXmlSafeText', 'productDevelopmentBodyRunProperties', 'productDevelopmentSetCellLines', 'productDevelopmentDocxTextLines', 'productDevelopmentSetCellHeadingAndLines', 'productDevelopmentCellGridSpan', 'productDevelopmentSetDirectionsCells', 'productDevelopmentIngredientHeading', 'productDevelopmentCellHeadingPrefix', 'productDevelopmentFindRow', 'productDevelopmentSectionLines']) {
@@ -65,6 +68,7 @@ for (const name of ['productDevelopmentXmlElements', 'productDevelopmentCellText
 for (const name of ['productDevelopmentCopywritingOutputBrand', 'productDevelopmentCopywritingNameWithoutInternalBrand', 'productDevelopmentCopywritingNameWithBrand']) {
   vm.runInContext(extract(review, name), context);
 }
+vm.runInContext(extract(review, 'productDevelopmentCopywritingFileName'), context);
 vm.runInContext(extract(views, 'productDevelopmentCopywritingReferenceUrl'), context);
 vm.runInContext(extract(review, 'productDevelopmentNormalizeCopywritingTitle'), context);
 vm.runInContext(extract(review, 'productDevelopmentNormalizeCopywriting'), context);
@@ -104,6 +108,7 @@ const lines = (node) => elements(node, 'p').map((p) => context.productDevelopmen
   assert.equal(context.productDevelopmentCopywritingReferenceUrl({ referenceUrl: 'N/A', benchmarkLink: '' }, { main_url: '参考：https://example.test/p?q=1&amp;x=2' }), 'https://example.test/p?q=1&x=2');
   assert.equal(context.productDevelopmentCopywritingReferenceUrl('javascript:alert(1)', { referenceUrl: '' }), '');
   assert.equal(context.productDevelopmentCopywritingReferenceUrl('https://first.test', 'https://second.test'), 'https://first.test');
+  assert.match(context.productDevelopmentCopywritingFileName({ sku: 'SKU1', name: 'Lotion', copywritingGeneration: 3 }), /-V3-产品文案\.docx$/);
 
   await context.buildProductDevelopmentDocx({ ...content, directions: [] }, null, { ...snapshot, labeling: { directionsEn: 'Approved step one.\nApproved step two.', directionsCn: '已确认步骤。' } });
   assert.deepEqual(lines(findCell('B.建议使用方法')), ['DIRECTIONS OF SAFE USE：', 'Approved step one.', 'Approved step two.']);

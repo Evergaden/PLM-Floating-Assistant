@@ -49,6 +49,12 @@ bad.advantages[0] = { en: 'Use twice a day.', cn: '每日两次。' };
 const repaired = worker.productDevelopmentLocalComplianceFallback(JSON.stringify({ sections: bad }), ingredients, '', options);
 assert(repaired);
 assert(!repaired.advantages[0].cn.includes('营养'), 'Regular repair must not add supplement positioning');
+const tooLong = structuredClone(sections);
+tooLong.advantages[1] = { en: 'This advantage sentence contains far too many words for the compact B section limit.', cn: '这条优势文案故意写得很长以覆盖超过限制时的本地兜底修复路径。' };
+const compacted = worker.productDevelopmentLocalComplianceFallback(JSON.stringify({ sections: tooLong }), ingredients, '', options);
+assert(compacted, 'Length failures should have a deterministic local fallback after AI repair fails');
+assert((compacted.advantages[1].en.match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/g) || []).length <= 14);
+assert((compacted.advantages[1].cn.match(/[\u3400-\u9fff]/g) || []).length <= 24);
 assert.match(frontend.productDevelopmentFriendlyCopywritingError(new Error('copywriting B item 2 contains unsupported manufacturing, quality or standards claim')), /B 第 2 条含无依据的生产或质量背书/);
 // Exercise the actual handler with a model stub to verify classification reaches prompts and validation.
 worker.callPreferredAiText = async (_, config, validate) => {
@@ -75,5 +81,12 @@ worker.callPreferredAiText = async (_, config, validate) => {
   assert.equal(response.status, 200, JSON.stringify(body));
   assert.equal(body.ok, true);
   assert.equal(body.sections.directions[0].cn, '将本品涂抹于肌肤。');
+  const skuOnlyResponse = await worker.handleProductDevelopmentCopywriting(new Request('https://test/ai-image/product-development-copywriting', {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': 'test' },
+    body: JSON.stringify({ sku: 'SKU-ONLY', templateId: 'regular-non-ndc', copywritingCategory: 'regular', ingredients }),
+  }), { API_KEY: 'test' });
+  const skuOnlyBody = await skuOnlyResponse.json();
+  assert.equal(skuOnlyResponse.status, 200, JSON.stringify(skuOnlyBody));
+  assert.equal(skuOnlyBody.ok, true, 'SKU-only copywriting context should use the SKU as a safe fallback name');
   console.log('Regular copywriting: frontend/Worker parity, daily-use false positives, strict claims, category routing and neutral repairs passed');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

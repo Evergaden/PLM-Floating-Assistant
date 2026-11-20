@@ -26,12 +26,19 @@ const context = vm.createContext({ document, PANEL_ID: 'assistant', URL,
   formatErrorMessage: (error) => error.message,
 });
 const dom = read('product-development/pd-dom');
-for (const name of ['productDevelopmentDomText', 'productDevelopmentDomAvailableValues', 'productDevelopmentDomValueMatches', 'productDevelopmentDomResolveField', 'productDevelopmentDomFillEnglishIngredients', 'productDevelopmentFillPlmPage2CurrentLanguage', 'productDevelopmentFillPlmPage2']) vm.runInContext(extract(dom, name), context);
+for (const name of ['productDevelopmentDomText', 'productDevelopmentDomAvailableValues', 'productDevelopmentDomValueMatches', 'productDevelopmentDomResolveField', 'productDevelopmentDomCascaderSegments', 'productDevelopmentDomSelectionMatches', 'productDevelopmentDomFillEnglishIngredients', 'productDevelopmentFillPlmPage2CurrentLanguage', 'productDevelopmentFillPlmPage2']) vm.runInContext(extract(dom, name), context);
 context.productDevelopmentDomSelectedText = (element) => element.getAttribute('data-selected');
 const selectFixture = document.createElement('input');
 selectFixture.setAttribute('data-selected', '大号');
 assert.equal(context.productDevelopmentDomValueMatches(selectFixture, '大', { control: 'select' }), false, 'A substring is not an identical selection');
 assert.equal(context.productDevelopmentDomValueMatches(selectFixture, '大号', { control: 'select' }), true);
+const categoryFixture = document.createElement('input');
+categoryFixture.id = 'form_item_category_id';
+categoryFixture.setAttribute('data-selected', '成品 / 美容个护 / 身体护理');
+assert.equal(context.productDevelopmentDomSelectionMatches(categoryFixture, '美容个护/身体护理'), true, 'A committed Cascader path may include the 成品 root');
+categoryFixture.setAttribute('data-selected', '身体护理');
+assert.equal(context.productDevelopmentDomSelectionMatches(categoryFixture, '美容个护/身体护理'), true, 'Ant Cascader leaf-only selections are accepted after commit');
+assert.equal(context.productDevelopmentDomSelectionMatches(categoryFixture, '美容个护/脸部护理'), false, 'Cascader confirmation still rejects a different leaf');
 const definitions = [
   { key: 'costPrice', attrId: 153, label: '成本价', domId: 'old-cost', type: 'number' },
   { key: 'firstPrice', attrId: 154, label: '国内一档价格', domId: 'old-first', type: 'number' },

@@ -272,6 +272,7 @@
       stage = '校验 文案';
       productDevelopmentCopywritingProgressStage(1);
       const content = productDevelopmentValidateCopywriting(response, copySnapshot);
+      copySnapshot.copywritingGeneration = productDevelopmentNextCopywritingGeneration(currentSku);
       const id = result.id + '-copy';
       const fileName = productDevelopmentCopywritingFileName(copySnapshot);
       const copyResult = {
@@ -446,6 +447,7 @@
       productDevelopmentCopywritingProgressStage(3);
       const content = productDevelopmentValidateCopywriting(response, regularSnapshot);
       productDevelopmentLog('success', '常规产品文案校验通过', sku + ' | A=' + content.efficacy.length + ' | B=' + content.advantages.length + ' | C=' + content.sellingPoints.length + ' | D=' + content.ingredientFunctions.length);
+      regularSnapshot.copywritingGeneration = productDevelopmentNextCopywritingGeneration(sku);
       const id = 'pd-regular-' + Date.now().toString(36);
       const fileName = productDevelopmentCopywritingFileName(regularSnapshot);
       const resultSnapshot = productDevelopmentCopywritingSnapshotValue(regularSnapshot);

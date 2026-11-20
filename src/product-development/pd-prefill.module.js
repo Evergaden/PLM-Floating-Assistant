@@ -409,7 +409,7 @@
     setField('outerVolume', enriched.outerVolume, enriched.outerVolume);
     productDevelopmentSyncReworkOuterDimensions(detail, enriched);
     setField('productProductionLine', enriched.productLineValue, enriched.productLine);
-    setField('minimumOrderQuantity', '100', '100');
+    setField('minimumOrderQuantity', '1000', '1000');
     setField('procurementPrice', enriched.procurementPrice, enriched.procurementPrice);
     setField('costPrice', enriched.costPrice, enriched.costPrice);
     setField('firstPrice', enriched.firstPrice, enriched.firstPrice);

@@ -25,7 +25,7 @@
     let name = productDevelopmentSafeFileLabel(productDevelopmentCopywritingNameWithoutInternalBrand(source.name), 120);
     if (brand && name.toLowerCase().startsWith(brand.toLowerCase())) name = name.slice(brand.length).trim();
     const productLabel = [brand, name].filter(Boolean).join(' ') || productDevelopmentSafeFileLabel(source.sku, 80) || '产品';
-    return date + '-' + productLabel + '-产品文案.docx';
+    return date + '-' + productLabel + '-V' + productDevelopmentCopywritingGenerationCount(source) + '-产品文案.docx';
   }
 
   async function downloadProductDevelopmentDataUrl(dataUrl, filename) {

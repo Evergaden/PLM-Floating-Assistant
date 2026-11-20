@@ -277,7 +277,20 @@
   function productDevelopmentDomSelectionMatches(input, target) {
     const current = productDevelopmentDomText(productDevelopmentDomSelectedText(input));
     const wanted = productDevelopmentDomText(target);
-    return Boolean(current && wanted && current === wanted);
+    if (!current || !wanted) return false;
+    if (current === wanted) return true;
+    if (!input || input.id !== 'form_item_category_id') return false;
+    const currentSegments = current.split(/[\/／>＞|]+/).map((item) => item.trim()).filter(Boolean);
+    const wantedSegments = productDevelopmentDomCascaderSegments(input, wanted);
+    if (!currentSegments.length || !wantedSegments.length) return false;
+    if (currentSegments.length >= wantedSegments.length) {
+      const offset = currentSegments.length - wantedSegments.length;
+      if (wantedSegments.every((segment, index) => currentSegments[offset + index] === segment)) return true;
+    }
+    // Ant Cascader sometimes exposes only the leaf in its selection input even
+    // though the visible path is already committed. The exact leaf is safe to
+    // accept here; substring matches remain intentionally rejected.
+    return currentSegments.length === 1 && wantedSegments[wantedSegments.length - 1] === currentSegments[0];
   }
 
   function productDevelopmentDomCascaderSegments(input, target) {

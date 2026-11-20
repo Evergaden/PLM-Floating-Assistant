@@ -72,6 +72,7 @@
       productDevelopmentCopywritingProgressStage(3);
       const content = productDevelopmentValidateCopywriting(response, snapshot);
       productDevelopmentLog('success', '文案校验通过', sku + ' | A=' + content.efficacy.length + ' | B=' + content.advantages.length + ' | C=' + content.sellingPoints.length + ' | D=' + content.ingredientFunctions.length);
+      snapshot.copywritingGeneration = productDevelopmentNextCopywritingGeneration(snapshot.sku);
       const id = 'pd-copywriting-' + Date.now().toString(36);
       const fileName = productDevelopmentCopywritingFileName(snapshot);
       state.productDevelopmentCopywriting = {
