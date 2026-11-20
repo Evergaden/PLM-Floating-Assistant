@@ -524,8 +524,8 @@
         if (board.dataset.count !== String(p.items.length)) {
           board.dataset.count = p.items.length;
           board.innerHTML = '<aside><h2>产品对标图</h2><div class="annotation-stage"><img id="benchmark" alt="产品对标图"></div><p>选择查看可编辑文字或查看大图；选择标注工具可在网页上绘制</p></aside><section><h2>英文文案 <small>由你编辑</small></h2><div id="english"></div></section><section class="translation"><h2>中文翻译 <small>Google 翻译</small></h2><div id="chinese"></div></section>';
-          document.getElementById('english').innerHTML = '<textarea id="english-document" aria-label="完整英文文案" placeholder="包装原文，可直接修改"></textarea>';
-          document.getElementById('chinese').innerHTML = '<textarea readonly id="chinese-document" aria-label="完整中文翻译" placeholder="等待翻译…"></textarea>';
+          document.getElementById('english').innerHTML = '<textarea id="english-document" aria-label="完整英文文案" placeholder="包装原文，可直接修改" style="font-size:16px;line-height:1.75"></textarea>';
+          document.getElementById('chinese').innerHTML = '<textarea readonly id="chinese-document" aria-label="完整中文翻译" placeholder="等待翻译…" style="font-size:16px;line-height:1.75"></textarea>';
         }
         if (annotationKey !== p.sku + p.image) { annotationKey = p.sku + p.image; marks = p.annotations || []; redo.length = 0; dirty = false; }
         const image = document.getElementById('benchmark');

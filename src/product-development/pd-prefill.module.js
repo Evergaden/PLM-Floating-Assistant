@@ -244,6 +244,13 @@
   }
 
   function productDevelopmentApplyBomUnitPrice(detail) {
+    const lookup = detail && detail.productDevelopmentReworkLookup;
+    const referenceCode = productDevelopmentNormalizeReworkProductCode(lookup && lookup.code);
+    const activeReferenceCode = productDevelopmentNormalizeReworkProductCode(detail && detail.reworkProductCode);
+    if (detail && detail.productDetailProcurementPriceSource === 'reference'
+      && lookup && lookup.status === 'ready'
+      && referenceCode && referenceCode === activeReferenceCode
+      && productDevelopmentReworkLookupNumber(lookup.data && lookup.data.procurementPrice) !== null) return;
     const rows = detail && Array.isArray(detail.bomRows) ? detail.bomRows : [];
     const materials = rows.filter((row) => Number(row.typeValue) === 2 && row.isPricing !== false && row.isPricing !== 0);
     if (!materials.length) return;
@@ -386,6 +393,7 @@
       unitDimensions: packing.unitDimensions,
     };
     productDevelopmentClearReworkLocalProductFields(detail);
+    const preserveManualPrice = detail.productDetailProcurementPriceSource === 'manual';
     const setField = (key, value, displayValue) => {
       if (!productDevelopmentReworkLookupValuePresent(value) && !productDevelopmentReworkLookupValuePresent(displayValue)) return false;
       const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
@@ -410,7 +418,7 @@
     productDevelopmentSyncReworkOuterDimensions(detail, enriched);
     setField('productProductionLine', enriched.productLineValue, enriched.productLine);
     setField('minimumOrderQuantity', '1000', '1000');
-    setField('procurementPrice', enriched.procurementPrice, enriched.procurementPrice);
+    if (!preserveManualPrice) setField('procurementPrice', enriched.procurementPrice, enriched.procurementPrice);
     setField('costPrice', enriched.costPrice, enriched.costPrice);
     setField('firstPrice', enriched.firstPrice, enriched.firstPrice);
     setField('secondPrice', enriched.secondPrice, enriched.secondPrice);
@@ -421,14 +429,24 @@
     Object.assign(detail.productDetailLocalProcurement, {
       ...PRODUCT_DEVELOPMENT_REWORK_DEFAULT_PROCUREMENT,
       quantity,
-      materialPrice: enriched.procurementPrice,
+      materialPrice: preserveManualPrice
+        ? productDevelopmentProcurementFieldValue(detail, 'materialPrice')
+        : enriched.procurementPrice,
     });
     if (detail.productDetailProcurementQuantitySource !== 'manual') detail.productDetailProcurementQuantitySource = 'default';
+    detail.reworkProductCode = enriched.code;
+    detail.productDevelopmentReworkLookup = {
+      ...(detail.productDevelopmentReworkLookup || {}),
+      status: 'ready',
+      code: enriched.code,
+      updatedAt: Date.now(),
+      data: productDevelopmentCloneValue(enriched),
+    };
+    if (!preserveManualPrice) detail.productDetailProcurementPriceSource = 'reference';
     if (Array.isArray(detail.bomRows) && detail.bomRows.length) {
       delete detail.productDetailBomPriceSignature;
       productDevelopmentSyncProcurementPrice(detail);
     }
-    detail.reworkProductCode = enriched.code;
     productDevelopmentMarkProductDetailDirty(detail);
     return enriched;
   }
@@ -773,11 +791,16 @@
     if (!/^\d+$/.test(productId) || !/^\d+$/.test(productVersionId) || !/^\d+$/.test(categoryId)) {
       throw new Error(referenceLabel + '产品“' + normalizedCode + '”缺少产品版本或类目 ID');
     }
-    const [pricePayload, contentPayload] = await Promise.all([
+    const referenceProjectId = String(productDevelopmentReworkLookupValue(product, ['project_id', 'projectId']) || '').trim();
+    const readReferenceBom = !productDevelopmentIsSupplement(detail, task) && /^\d+$/.test(referenceProjectId)
+      ? productDevelopmentReadBomRows(referenceProjectId).then((rows) => ({ rows, status: 'ready' })).catch(() => ({ rows: [], status: 'error' }))
+      : Promise.resolve({ rows: [], status: 'unavailable' });
+    const [pricePayload, contentPayload, referenceBom] = await Promise.all([
       fetchPlmJson('/api/Product/GetProductPriceInfo?type=1&product_version_id=' + encodeURIComponent(productVersionId))
         .then((payload) => productDevelopmentReworkLookupCheckPayload(payload, referenceLabel + '采购价查询')),
       fetchPlmJson('/api/Product/GetDetailContent?is_edit=true&product_id=' + encodeURIComponent(productId) + '&category_id=' + encodeURIComponent(categoryId) + '&product_version_id=' + encodeURIComponent(productVersionId))
         .then((payload) => productDevelopmentReworkLookupCheckPayload(payload, referenceLabel + '产品详情查询')),
+      readReferenceBom,
     ]);
     const attrs = productDevelopmentReadonlyAttrs(contentPayload);
     if (!attrs.length) throw new Error(referenceLabel + '产品“' + normalizedCode + '”没有读取到建品详情字段');
@@ -813,26 +836,14 @@
     ];
     const cartonDimensions = cartonCandidates.map(productDevelopmentReworkLookupDimensions).find(Boolean) || null;
     const resolvedSpecification = specification.displayValue || productDevelopmentPrefillText(specification.value, 800);
-    const referenceProjectId = String(productDevelopmentReworkLookupValue(product, ['project_id', 'projectId']) || '').trim();
-    let bomRows = [];
-    let bomLookupStatus = 'unavailable';
-    if (!productDevelopmentIsSupplement(detail, task) && /^\d+$/.test(referenceProjectId)) {
-      try {
-        bomRows = await productDevelopmentReadBomRows(referenceProjectId);
-        bomLookupStatus = 'ready';
-      } catch (_) {
-        // Price/field prefilling remains useful if the optional reference BOM is unavailable.
-        bomLookupStatus = 'error';
-      }
-    }
     return {
       code: normalizedCode,
       productCode: productDevelopmentReworkLookupValue(product, ['code', 'style_code', 'product_code']) || normalizedCode,
       productId,
       productVersionId,
       referenceProjectId,
-      bomRows,
-      bomLookupStatus,
+      bomRows: referenceBom.rows,
+      bomLookupStatus: referenceBom.status,
       categoryId,
       productNameCn: productDevelopmentPrefillText(productDevelopmentReworkLookupValue(product, ['cn_name', 'product_name', 'productName']), 180),
       specification: resolvedSpecification,

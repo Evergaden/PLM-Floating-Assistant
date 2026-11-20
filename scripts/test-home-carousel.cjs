@@ -48,6 +48,10 @@ assert.match(detailCard, /<small class="pfh-home-entry-description">查看任务
 assert.doesNotMatch(source, /entry\.meta = state\.index\.length/, 'Details card omits the local archive count');
 const legacyCss = fs.readFileSync(require('path').join(__dirname, '../cloudflare/plm-cloud-backup/ui-src/legacy.css'), 'utf8');
 assert.doesNotMatch(legacyCss, /:where\(small,em,[^}]+color:[^}]+!important/, 'Global text fallback must not override component colors');
+const featureCss = fs.readFileSync(require('path').join(__dirname, '../cloudflare/plm-cloud-backup/ui-src/modules/product-development.css'), 'utf8');
+assert.match(featureCss, /\.pfh-home-feature-viewport\s*\{[^}]*margin:\s*-10px;[^}]*padding:\s*10px;[^}]*overflow:\s*hidden;/s, 'Feature viewport leaves room for card hover shadows while keeping slide clipping');
+assert.match(featureCss, /\.pfh-product-development-plain-copy-input\s*\{[^}]*resize:\s*none;/s, 'Copy textarea avoids the native resize handle');
+assert.match(source, /class="pfh-product-development-plain-copy-input" readonly/, 'Read-only copy uses the styled textarea control');
 assert.equal((detailCard.match(/<button/g) || []).length, 1, 'The call to action is part of the card button');
 assert.doesNotMatch(featureContext.homeFeatureEntryHtml(detail, 'pfh-home-entry-edit', { editing: true }), /进入详情/);
 console.log('PASS: actual spring animations, carousel indicator and keyboard navigation');

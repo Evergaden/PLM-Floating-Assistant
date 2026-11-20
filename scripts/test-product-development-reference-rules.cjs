@@ -12,6 +12,7 @@ function extract(source, name) {
 }
 const foundation = read('pd-foundation');
 const prefill = read('pd-prefill');
+const dom = read('pd-dom');
 const definitions = [{ key: 'procurementPrice', attrId: 152 }, { key: 'minimumOrderQuantity', attrId: 2764 }];
 const context = vm.createContext({
   PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS: definitions,
@@ -60,4 +61,28 @@ assert.equal(context.productDevelopmentProcurementFieldValue(detail, 'quantity')
 const supplement = { categoryName: '食品酒水 / 滋补保健' };
 context.productDevelopmentApplyReworkProductLookup(supplement, lookup);
 assert.equal(supplement.productDetailLocalValues['152@1'].source, '返工编码 API');
-console.log('Product development reference labels, procurement default and manual quantity preservation passed');
+
+const categoryContext = vm.createContext({
+  productDevelopmentCategoryNames: () => ['目标类目'],
+  productDevelopmentCleanText: (value) => String(value || '').trim(),
+  productDevelopmentReadonlyList: (payload) => payload && payload.data && payload.data.list || [],
+  setTimeout,
+  fetchPlmJson: async (url) => {
+    const parentId = Number(new URLSearchParams(url.split('?')[1]).get('parent_id'));
+    categoryContextState.active += 1;
+    categoryContextState.maxActive = Math.max(categoryContextState.maxActive, categoryContextState.active);
+    await new Promise((resolve) => setTimeout(resolve, 8));
+    categoryContextState.active -= 1;
+    const list = parentId === 0
+      ? Array.from({ length: 6 }, (_, index) => ({ id: index + 1, name: '一级' + index, exists_child: 1 }))
+      : parentId === 5 ? [{ id: 105, name: '目标类目' }] : [];
+    return { data: { list } };
+  },
+});
+const categoryContextState = { active: 0, maxActive: 0 };
+vm.runInContext(extract(dom, 'productDevelopmentFindCategoryIdByName'), categoryContext);
+categoryContext.productDevelopmentFindCategoryIdByName({}, {}, {}).then((id) => {
+  assert.equal(id, '105', 'Category lookup still finds the matching leaf');
+  assert.equal(categoryContextState.maxActive, 4, 'Category lookup resolves branches with bounded parallel requests');
+  console.log('Product development reference labels, procurement default and parallel category lookup passed');
+}).catch((error) => { console.error(error); process.exitCode = 1; });

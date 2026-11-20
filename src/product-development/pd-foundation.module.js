@@ -856,7 +856,7 @@
     productDevelopmentReworkLookupTimers[normalizedSku] = window.setTimeout(() => {
       delete productDevelopmentReworkLookupTimers[normalizedSku];
       productDevelopmentRunReworkProductLookup(normalizedSku, normalizedCode, { silent: true });
-    }, 650);
+    }, 300);
   }
 
   function productDevelopmentRunReworkProductLookup(sku, codeOverride, options) {

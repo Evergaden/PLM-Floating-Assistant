@@ -26,6 +26,21 @@ const raw = [[0.19,1],[0.04,1],[1.08,1],[2,0.05]].map(([price, usage], i) => ({ 
 for (const [value, rounded] of [['1.2462','1.25'],['1.2449','1.24'],['1.005','1.01'],['10.075','10.08'],['0','0.00'],['2','2.00']]) assert.equal(context.productDevelopmentRoundUnitPrice(value),rounded);
 detail.bomRows = raw.map(context.productDevelopmentReadonlyBomRow);
 const procurementDefinition = { key:'procurementPrice', attrId:152, formGroup:'prefill', type:'number', label:'采购价' };
+const originalPacking = context.productDevelopmentReworkLookupPacking;
+const originalDimensionSync = context.productDevelopmentSyncReworkOuterDimensions;
+context.productDevelopmentReworkLookupPacking = () => ({ quantity: 24, source: 'BOM', unitDimensions: [1, 2, 3] });
+context.productDevelopmentSyncReworkOuterDimensions = () => {};
+const referencePriceDetail = {
+  sku: 'SKU-REFERENCE-PRICE', categoryName: '美容个护',
+  fields: [{ attrId: 152, key: 'procurementPrice', value: '1.91' }], productAttrValues: [],
+  productDetailLocalProcurement: { quantity: '1000', materialPrice: '1.41' },
+  bomRows: [{ typeValue: 2, isPricing: true, price: '1.41', usage: '1' }],
+};
+context.productDevelopmentApplyReworkProductLookup(referencePriceDetail, { code: 'REF123', procurementPrice: 2.02 });
+assert.equal(referencePriceDetail.productDetailLocalProcurement.materialPrice, 2.02, 'A selected reference product price is not replaced by the current SKU BOM total');
+assert.equal(context.productDevelopmentPrefillProductFieldValue(referencePriceDetail, procurementDefinition), '2.52', 'Reference price updates the purchase price immediately using the existing +0.5 rule');
+context.productDevelopmentReworkLookupPacking = originalPacking;
+context.productDevelopmentSyncReworkOuterDimensions = originalDimensionSync;
 assert.equal(context.productDevelopmentProcurementFieldValue({ productDetailLocalProcurement:{processType:'直采'} }, 'processType'), '来料加工', 'Old automatic direct-purchase defaults are migrated');
 assert.equal(context.productDevelopmentProcurementFieldValue({ productDetailLocalProcurement:{processType:'直采'}, productDetailProcurementProcessTypeSource:'manual' }, 'processType'), '直采', 'An explicit user choice is retained');
 assert.equal(context.productDevelopmentProcurementFieldValue({}, 'quantity'), '1000');

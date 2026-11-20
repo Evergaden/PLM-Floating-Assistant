@@ -1334,24 +1334,31 @@
     const visited = new Set();
     const pendingParents = [0];
     while (pendingParents.length && visited.size < 80) {
-      const parentId = pendingParents.shift();
-      if (visited.has(parentId)) continue;
-      visited.add(parentId);
-      let nodes = [];
-      try {
-        const payload = await fetchPlmJson('/api/ProjectFormData/GetCategorySelectOptionNew?types=1&parent_id=' + encodeURIComponent(parentId));
-        nodes = productDevelopmentReadonlyList(payload);
-      } catch (error) {
-        continue;
+      const batch = [];
+      while (pendingParents.length && batch.length < 4 && visited.size + batch.length < 80) {
+        const parentId = pendingParents.shift();
+        if (visited.has(parentId) || batch.includes(parentId)) continue;
+        batch.push(parentId);
       }
-      for (const node of nodes) {
-        const nodeName = productDevelopmentCleanText(node && node.name, 180);
-        if (nodeName && (nodeName === targetName || targetName.endsWith('/' + nodeName))) return String(node.id || '').trim();
-        const children = Array.isArray(node && node.children) ? node.children : [];
-        children.forEach((child) => {
-          if (child && child.id !== undefined) pendingParents.push(Number(child.id));
-        });
-        if (node && Number(node.exists_child) === 1 && node.id !== undefined) pendingParents.push(Number(node.id));
+      batch.forEach((parentId) => visited.add(parentId));
+      const responses = await Promise.all(batch.map(async (parentId) => {
+        try {
+          const payload = await fetchPlmJson('/api/ProjectFormData/GetCategorySelectOptionNew?types=1&parent_id=' + encodeURIComponent(parentId));
+          return productDevelopmentReadonlyList(payload);
+        } catch (error) {
+          return [];
+        }
+      }));
+      for (const nodes of responses) {
+        for (const node of nodes) {
+          const nodeName = productDevelopmentCleanText(node && node.name, 180);
+          if (nodeName && (nodeName === targetName || targetName.endsWith('/' + nodeName))) return String(node.id || '').trim();
+          const children = Array.isArray(node && node.children) ? node.children : [];
+          children.forEach((child) => {
+            if (child && child.id !== undefined) pendingParents.push(Number(child.id));
+          });
+          if (node && Number(node.exists_child) === 1 && node.id !== undefined) pendingParents.push(Number(node.id));
+        }
       }
     }
     return '';
