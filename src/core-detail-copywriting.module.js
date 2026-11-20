@@ -1267,12 +1267,23 @@
     const existingKeys = new Set(record.sections.map((section) => section.key));
     const complianceSections = formatBrandComplianceSections(data)
       .filter((section) => section && section.key && !existingKeys.has(section.key));
-    if (!complianceSections.length) return record;
-    const complianceText = complianceSections.map((section) => section.text).filter(Boolean).join('\n');
+    const net = record.fullText && !existingKeys.has('netContent') ? formatCopywritingNetContent(data.netContent) : null;
+    const netSection = net?.text ? { key: 'netContent', label: '净含量', text: net.text } : null;
+    const missingSections = existingKeys.has('netContent') || netSection
+      ? record.missingSections.filter((label) => label !== '净含量')
+      : record.missingSections;
+    if (netSection && net.warning && !missingSections.includes(net.warning)) missingSections.push(net.warning);
+    if (!netSection && !complianceSections.length && missingSections.length === record.missingSections.length) return record;
+    const sections = record.sections.slice();
+    if (netSection) {
+      const insertBefore = sections.findIndex(({ key }) => ['origin', 'shelfLife', 'distributedBy', 'address', 'euRep', 'ukRep', 'usRep'].includes(key));
+      sections.splice(insertBefore < 0 ? sections.length : insertBefore, 0, netSection);
+    }
     return normalizeCopywritingRecord({
       ...record,
-      sections: record.sections.concat(complianceSections),
-      fullText: [record.fullText, complianceText].filter(Boolean).join('\n'),
+      sections: sections.concat(complianceSections),
+      fullText: [record.fullText, netSection?.text, ...complianceSections.map((section) => section.text)].filter(Boolean).join('\n'),
+      missingSections,
     });
   }
 
