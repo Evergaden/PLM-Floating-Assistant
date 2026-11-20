@@ -1320,7 +1320,7 @@
 
   function productDevelopmentCopywritingResultHeaderHtml(result, content) {
     if (!content) return '';
-    return '<header class="pfh-cw-result-head"><div><h3>文案结果</h3><p data-cw-result-status>' + escapeHtml(state.productDevelopmentCopywritingDirtySku === getProductDevelopmentCurrentSku() ? '输入已修改；下载时更新名称和成分，其他文案保留' : result && (result.partialUpdateWarning || result.templateLabel) || '当前模板') + '</p></div><div><button type="button" data-action="product-development-copywriting-copy">复制全文</button></div></header>';
+    return '<header class="pfh-cw-result-head"><div><h3>文案结果</h3><p data-cw-result-status>' + escapeHtml(state.productDevelopmentCopywritingDirtySku === getProductDevelopmentCurrentSku() ? '输入已修改；下载时更新名称和成分，其他文案保留' : result && (result.partialUpdateWarning || result.templateLabel) || '当前模板') + '</p></div><div><button type="button" data-action="product-development-copywriting-file-review">文件审核</button><button type="button" data-action="product-development-copywriting-copy">复制全文</button></div></header>';
   }
 
   function productDevelopmentCopywritingDownloadButtonHtml(sku) {

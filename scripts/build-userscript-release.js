@@ -57,7 +57,7 @@ const ledgerCss = fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backu
 if (!/^  const LEDGER_WORKSPACE_CSS = .*;$/m.test(syncedSource)) throw new Error('Ledger CSS build marker is missing');
 syncedSource = syncedSource.replace(/^  const LEDGER_WORKSPACE_CSS = .*;$/m, () => '  const LEDGER_WORKSPACE_CSS = ' + JSON.stringify(ledgerCss) + ';');
 const historyCss = fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', 'data-log-trigger.css'), 'utf8');
-const copywritingCss = ['product-development-copywriting.css', 'bom-material-form.css']
+const copywritingCss = ['product-development-copywriting.css', 'bom-material-form.css', 'product-development-file-review.css']
   .map((name) => fs.readFileSync(path.join(root, 'cloudflare', 'plm-cloud-backup', 'ui-src', 'modules', name), 'utf8')).join('\n');
 if (!/^  const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = .*;$/m.test(syncedSource)) throw new Error('Copywriting CSS build marker is missing');
 syncedSource = syncedSource.replace(/^  const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = .*;$/m, () => '  const PRODUCT_DEVELOPMENT_COPYWRITING_CSS = ' + JSON.stringify(copywritingCss) + ';');

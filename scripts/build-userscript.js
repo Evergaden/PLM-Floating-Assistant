@@ -47,6 +47,8 @@ const modules = [
       path.join(root, 'src', 'product-development', 'pd-review-copywriting.module.js'),
       path.join(root, 'src', 'product-development', 'pd-docx-builders.module.js'),
       path.join(root, 'src', 'product-development', 'pd-copywriting-run.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-psd-text.module.js'),
+      path.join(root, 'src', 'product-development', 'pd-file-review.module.js'),
       path.join(root, 'src', 'product-development', 'pd-one-shot.module.js'),
       path.join(root, 'src', 'product-development', 'pd-batch-runners.module.js'),
       path.join(root, 'src', 'product-development', 'pd-dispatcher.module.js'),

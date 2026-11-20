@@ -1,0 +1,28 @@
+#plm-floating-helper .pfh-psd-review {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  margin: auto;
+  padding: 20px;
+  overflow: auto;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 18px;
+  background: var(--pfh-theme-control-surface);
+  color: var(--pfh-theme-text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+#plm-floating-helper .pfh-psd-review::backdrop { background: rgba(22, 18, 35, .45); }
+#plm-floating-helper .pfh-psd-review :is(label, section) {
+  display: block;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 12px;
+}
+#plm-floating-helper .pfh-psd-review input { display: block; margin-top: 6px; max-width: 100%; }
+#plm-floating-helper .pfh-psd-review :is(p, details, li) { margin-top: 6px; }
+#plm-floating-helper .pfh-psd-review summary { cursor: pointer; }
+#plm-floating-helper .pfh-psd-review details > details { margin-inline-start: 16px; }
+#plm-floating-helper .pfh-psd-review small { display: block; color: var(--pfh-theme-muted); }
+#plm-floating-helper .pfh-psd-review pre { white-space: pre-wrap; font: inherit; }
