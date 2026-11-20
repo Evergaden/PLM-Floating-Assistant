@@ -1,3 +1,9 @@
+#plm-floating-helper {
+  /* Pass palette follows the ready and selected states in export-readiness.css. */
+  --pfh-status-pass-surface: #edf8f0;
+  --pfh-status-pass-border: #7fba92;
+  --pfh-status-pass-text: #356649;
+}
 #plm-floating-helper .pfh-psd-review {
   box-sizing: border-box;
   width: min(1060px, calc(100vw - 32px));
@@ -100,7 +106,7 @@
 #plm-floating-helper .pfh-psd-review [data-status] { font-size: 11px; font-weight: 620; }
 #plm-floating-helper .pfh-psd-review [data-status="difference"] { color: #963e31; }
 #plm-floating-helper .pfh-psd-review [data-status="unread"] { color: #825315; }
-#plm-floating-helper .pfh-psd-review [data-status="match"] { color: #28664f; }
+#plm-floating-helper .pfh-psd-review [data-status="match"] { color: var(--pfh-status-pass-text); }
 #plm-floating-helper .pfh-psd-review [data-status="reference"] { color: var(--pfh-theme-muted, #625870); }
 #plm-floating-helper .pfh-psd-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #plm-floating-helper .pfh-psd-pair > div { min-width: 0; padding: 12px 16px; }
@@ -114,6 +120,28 @@
 #plm-floating-helper .pfh-psd-review .pfh-psd-field-note { padding: 0 16px 12px; color: var(--pfh-theme-muted, #625870); font-size: 12px; }
 #plm-floating-helper .pfh-psd-empty { display: grid; gap: 4px; justify-items: start; padding: 24px 0; }
 #plm-floating-helper .pfh-psd-empty strong { font-size: 15px; }
+#plm-floating-helper .pfh-psd-pass {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px solid var(--pfh-status-pass-border);
+  border-radius: 12px;
+  background: var(--pfh-status-pass-surface);
+  color: var(--pfh-status-pass-text);
+}
+#plm-floating-helper .pfh-psd-pass-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--pfh-status-pass-border) 22%, var(--pfh-status-pass-surface));
+}
+#plm-floating-helper .pfh-psd-pass strong { font-size: 15px; font-weight: 700; }
+#plm-floating-helper .pfh-psd-pass p { margin-top: 2px; font-size: 12px; }
 #plm-floating-helper .pfh-psd-raw details { padding: 8px 0; border-top: 1px solid var(--pfh-theme-border); }
 #plm-floating-helper .pfh-psd-raw summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; list-style: none; cursor: pointer; overflow-wrap: anywhere; }
 #plm-floating-helper .pfh-psd-raw summary::-webkit-details-marker { display: none; }

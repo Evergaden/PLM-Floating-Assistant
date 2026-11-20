@@ -27,6 +27,7 @@ const { reference, assess, render, highlight, unavailable } = vm.runInNewContext
   state,
   escapeHtml: (value) => String(value).replaceAll('<', '&lt;').replaceAll('>', '&gt;'),
   iconHtml: () => '',
+  CORE_ICON_ASSETS: { check: '<svg aria-hidden="true"></svg>' },
 });
 
 const titles = 'Firming Roll-On;Titre A;Titre B;Titre C;Titre D';
@@ -119,5 +120,15 @@ assert.match(html, /PSD 图层原文/);
 assert.match(html, /<mark>clean<\/mark>/);
 assert.match(html, /<mark>damp<\/mark>/);
 assert.doesNotMatch(html, /Editorial prose|Stray words|Development draft only/);
+assert.doesNotMatch(html, /class="pfh-psd-pass"/);
 assert.doesNotMatch(highlight('<script>', '<img>').join(''), /<(script|img)>/);
+const summary = (rows, filter = 'review') => render({ report: { ...label, rows }, field: '', filter, raw: false });
+const matches = label.rows.filter(({ status }) => status === 'match');
+const onlyExtracted = { ...matches[0], status: 'reference' };
+const passed = summary([matches[1], onlyExtracted]);
+assert.match(passed, /class="pfh-psd-pass"/);
+assert.match(passed, /已核对一致 1 项 · 仅提取 1 项/);
+assert.match(summary(matches, 'all'), /class="pfh-psd-pass"/);
+assert.match(summary([onlyExtracted]), /暂无可核对字段/);
+assert.doesNotMatch(summary([onlyExtracted]), /class="pfh-psd-pass"/);
 console.log('PSD label and carton scope, representatives, unknown templates, and field differences verified');

@@ -64,8 +64,13 @@
     const nav = '<div class="pfh-psd-fields" aria-label="对照字段">' + rows.map((row) =>
       '<button type="button" data-psd-field="' + row.key + '" aria-pressed="' + (row === active) + '"><strong>' + row.label +
       '</strong><span data-status="' + row.status + '">' + PRODUCT_DEVELOPMENT_PSD_REVIEW_STATUS[row.status] + '</span></button>').join('') + '</div>';
-    let body = '<div class="pfh-psd-empty">' + iconHtml('check') + '<strong>本次没有待复核字段</strong><p>已核对一致 ' + consistent +
-      ' 项。可在「全部字段」查看结果和仅提取项。</p></div>';
+    const extractedOnly = report.rows.filter((row) => row.status === 'reference').length;
+    const passed = !review.length && consistent > 0
+      ? '<div class="pfh-psd-pass"><span class="pfh-psd-pass-icon">' + CORE_ICON_ASSETS.check + '</span>' +
+        '<div><strong>本次没有待复核字段</strong><p>已核对一致 ' + consistent + ' 项' +
+        (extractedOnly ? ' · 仅提取 ' + extractedOnly + ' 项' : '') + '</p></div></div>'
+      : '';
+    let body = passed ? '' : '<div class="pfh-psd-empty"><strong>暂无可核对字段</strong><p>可在「全部字段」查看已提取的原文。</p></div>';
     if (active) {
       const [expected, actual] = active.status === 'difference'
         ? productDevelopmentPsdReviewHighlight(active.expected, active.actual)
@@ -76,7 +81,7 @@
         '</pre></div><div><h5>PSD 图层原文</h5><pre>' + (actual || '可读取的图层中未定位到此字段') + '</pre></div></div>' +
         (active.key === 'net' ? '<p class="pfh-psd-field-note">按 PLM 文案里的计量单位核对。</p>' : '') + '</section></div>';
     }
-    return '<div class="pfh-psd-toolbar">' + controls + rawButton + '</div>' + body + summary;
+    return '<div class="pfh-psd-toolbar">' + controls + rawButton + '</div>' + passed + body + summary;
   }
 
   function plmCopywritingFileReviewUnavailable(record) {
