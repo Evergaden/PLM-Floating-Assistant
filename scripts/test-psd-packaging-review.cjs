@@ -100,6 +100,19 @@ assert.equal(assess(layers(cartonText), '标签.psd', expected).type, '');
 assert.equal(assess(layers('Unregistered layout'), '标签.psd', expected).rows.length, 0);
 assert.equal(assess({ layers: [...layers(cartonText).layers, ...label.layers] }, 'combined.psd', expected).type, '');
 
+const separateDistributor = layers(cartonText.replace(/\nDISTRIBUTED BY:[\s\S]+$/, ''));
+separateDistributor.layers.push({
+  name: 'Distributor panel',
+  text: 'DISTRIBUTED\u00a0BY:\nOther Distributor Ltd.\nADDRESS:\n5 Other Street,\nParis',
+});
+const separateRows = map(assess(separateDistributor, '纸盒.psd', expected));
+assert.equal(separateRows.distributor.actual, 'Other Distributor Ltd.');
+assert.equal(separateRows.distributor.status, 'difference');
+assert.equal(separateRows.address.actual, '5 Other Street,\nParis');
+assert.equal(separateRows.address.status, 'difference');
+separateDistributor.layers.push({ name: 'Another address panel', text: 'ADDRESS:\n8 Other Street' });
+assert.equal(map(assess(separateDistributor, '纸盒.psd', expected)).address.status, 'unread');
+
 const html = render({ report: carton, field: 'directions', filter: 'review', raw: false });
 assert.match(html, /设计端 PLM 文案/);
 assert.match(html, /PSD 图层原文/);

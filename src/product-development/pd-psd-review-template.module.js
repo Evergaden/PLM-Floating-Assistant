@@ -114,7 +114,8 @@
       const names = productDevelopmentPsdReviewNameList(layer.text.split('\n').find((line) => line.split(/[;；]/).length >= 5) || '');
       const cartonName = blocks['PRODUCT NAME']?.split('\n')[0] || '';
       const cartonEvidence = Boolean(blocks.INGREDIENTS || blocks['DIRECTIONS OF SAFE USE'] || blocks.DIRECTIONS);
-      return { blocks, names, cartonName, cartonEvidence };
+      const distributorBlock = /^(?:DISTRIBUTED\s+BY|ADDRESS)\s*[:：]/i.test(layer.text.trim());
+      return { blocks, names, cartonName, cartonEvidence, distributorBlock };
     });
     const cartons = candidates.filter((item) => item.cartonName && item.cartonEvidence);
     const labels = candidates.filter((item) => item.names.length >= 5 && item.blocks.net &&
@@ -126,13 +127,20 @@
     if (type === 'label' && /纸盒|carton/i.test(fileName) || type === 'carton' && /标签|(?:^|\b)label\b/i.test(fileName)) return null;
     const { blocks, names } = carton || label;
     const ingredients = blocks.INGREDIENTS || blocks.INGREDIENT || '';
+    // Some cartons keep the distributor panel in its own editable text layer.
+    const distributorBlocks = carton ? candidates.filter((item) => item.distributorBlock) : [];
+    const distributorValue = (key) => {
+      if (blocks[key]) return blocks[key];
+      const values = [...new Set(distributorBlocks.map((item) => item.blocks[key]).filter(Boolean))];
+      return values.length === 1 ? values[0] : '';
+    };
     const values = {
       name: carton ? carton.cartonName : names[0],
       translations: names.slice(1).join('\n'),
       net: blocks.net,
       origin: blocks.origin,
-      distributor: blocks['DISTRIBUTED BY'],
-      address: blocks.ADDRESS,
+      distributor: distributorValue('DISTRIBUTED BY'),
+      address: distributorValue('ADDRESS'),
       ingredients: ingredients && productDevelopmentPsdReviewIngredients(ingredients).join('\n'),
       directions: blocks['DIRECTIONS OF SAFE USE'] || blocks.DIRECTIONS,
       warnings: blocks.WARNING || blocks.WARNINGS,
