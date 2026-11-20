@@ -144,9 +144,13 @@ async function run() {
   assert.equal(renders, 2);
   const buttonHost = document.createElement('div');
   buttonHost.innerHTML = context.productDevelopmentCopywritingDownloadButtonHtml('SKU1');
-  assert.equal(buttonHost.firstElementChild.textContent, '更新并下载文案');
+  assert.equal(buttonHost.firstElementChild.textContent, '下载文案', 'Unchanged copywriting should not claim an update is pending');
   assert.equal(buttonHost.firstElementChild.classList.contains('is-ready'), true, 'Available document downloads are highlighted');
   assert.equal(buttonHost.firstElementChild.disabled, false);
+  state.productDevelopmentCopywritingDirtySku = 'SKU1';
+  buttonHost.innerHTML = context.productDevelopmentCopywritingDownloadButtonHtml('SKU1');
+  assert.equal(buttonHost.firstElementChild.textContent, '更新并下载文案');
+  state.productDevelopmentCopywritingDirtySku = '';
   const previousResult = state.productDevelopmentCopywriting;
   context.cloudRequest = async () => { throw new Error('AI unavailable'); };
   await context.runProductDevelopmentRegularCopywriting();

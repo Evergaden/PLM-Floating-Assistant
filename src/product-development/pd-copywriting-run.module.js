@@ -1326,7 +1326,8 @@
   function productDevelopmentCopywritingDownloadButtonHtml(sku) {
     const result = state.productDevelopmentCopywriting;
     const ready = Boolean(result && result.content && result.sku === sku && !state.productDevelopmentOneShotBusy && !state.productDevelopmentCopywritingBusy);
-    return '<button type="button" class="pfh-cw-download' + (ready ? ' is-ready' : '') + '" data-action="product-development-copywriting-download"' + (ready ? '' : ' disabled') + '>更新并下载文案</button>';
+    const hasPendingUpdate = state.productDevelopmentCopywritingDirtySku === sku;
+    return '<button type="button" class="pfh-cw-download' + (ready ? ' is-ready' : '') + '" data-action="product-development-copywriting-download"' + (ready ? '' : ' disabled') + '>' + (hasPendingUpdate ? '更新并下载文案' : '下载文案') + '</button>';
   }
 
   function productDevelopmentCopywritingHtml() {

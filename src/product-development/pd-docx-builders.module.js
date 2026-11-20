@@ -99,8 +99,10 @@
     const labeling = snapshot && snapshot.labeling && typeof snapshot.labeling === 'object' ? { ...snapshot.labeling } : {};
     const directions = Array.isArray(content.directions) ? content.directions : [];
     const usage = snapshot.sourceCopywriting && snapshot.sourceCopywriting.usage || {};
-    labeling.directionsEn = labeling.directionsEn || usage.en || productDevelopmentSectionLines(directions, (item, index) => index + '. ' + item.en).join('\n');
-    labeling.directionsCn = labeling.directionsCn || usage.cn || productDevelopmentSectionLines(directions, (item, index) => index + '、' + item.cn).join('\n');
+    const generatedDirectionsEn = productDevelopmentSectionLines(directions, (item, index) => index + '. ' + item.en).join('\n');
+    const generatedDirectionsCn = productDevelopmentSectionLines(directions, (item, index) => index + '、' + item.cn).join('\n');
+    labeling.directionsEn = generatedDirectionsEn || labeling.directionsEn || usage.en || '';
+    labeling.directionsCn = generatedDirectionsCn || labeling.directionsCn || usage.cn || '';
     const ingredientTable = snapshot && snapshot.ingredientTable && typeof snapshot.ingredientTable === 'object' ? snapshot.ingredientTable : null;
     const hasLabeling = Boolean(snapshot.labeling && Object.values(snapshot.labeling).some((value) => String(value || '').trim()));
     const hasIngredientTable = Boolean(ingredientTable && Object.values(ingredientTable).some((value) => String(value || '').trim()));

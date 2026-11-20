@@ -1080,8 +1080,18 @@
 
   function productDevelopmentSetDirectionsCells(cells, labeling, doc) {
     if (!cells || !cells[1]) return;
-    const directionsEn = productDevelopmentDocxTextLines(labeling && labeling.directionsEn);
-    const directionsCn = productDevelopmentDocxTextLines(labeling && labeling.directionsCn);
+    const stripDirectionsHeading = (value, language) => {
+      const lines = productDevelopmentDocxTextLines(value);
+      if (!lines.length) return lines;
+      const pattern = language === 'cn'
+        ? /^(?:建议使用方法|使用说明|食用方法|用法用量)\s*[:：]?\s*/i
+        : /^DIRECTIONS?(?:\s+OF\s+(?:SAFE\s+)?USE)?\s*[:：]?\s*/i;
+      lines[0] = lines[0].replace(pattern, '').trim();
+      if (!lines[0]) lines.shift();
+      return lines;
+    };
+    const directionsEn = stripDirectionsHeading(labeling && labeling.directionsEn, 'en');
+    const directionsCn = stripDirectionsHeading(labeling && labeling.directionsCn, 'cn');
     const isMergedLanguageCell = productDevelopmentCellGridSpan(cells[1]) > 1 || cells.length < 4;
     if (isMergedLanguageCell) {
       productDevelopmentSetCellHeadingAndLines(cells[1], productDevelopmentCellHeadingPrefix(cells[1], /DIRECTIONS?/i) || 'DIRECTIONS:', directionsEn.concat(directionsCn), doc);
@@ -1368,12 +1378,12 @@
 
   function productDevelopmentCopywritingOutputBrand(value) {
     const brandText = productDevelopmentCleanText(value, 160);
-    return /^AMZ$/i.test(brandText) ? '' : brandText;
+    return /^(?:AMZ|ODM)$/i.test(brandText) ? '' : brandText;
   }
 
   function productDevelopmentCopywritingNameWithoutInternalBrand(value) {
     return productDevelopmentCleanText(value, 300)
-      .replace(/^\s*AMZ(?=\s|[\/／>＞|:_：-]|[\u3400-\u9fff])[\s\/／>＞|:_：-]*/i, '')
+      .replace(/^\s*(?:AMZ|ODM)(?=\s|[\/／>＞|:_：-]|[\u3400-\u9fff])[\s\/／>＞|:_：-]*/i, '')
       .trim();
   }
 

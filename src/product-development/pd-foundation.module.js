@@ -697,7 +697,7 @@
   // brand fields, copywriting or compliance checks.
   const PRODUCT_DEVELOPMENT_BRAND_TOKENS = Object.freeze(['AMZ', 'HANCHOBIT', 'ODM', 'OEM', 'DOWMOO']);
   const PRODUCT_DEVELOPMENT_BRAND_SPLIT_RE = new RegExp(
-    '^(' + PRODUCT_DEVELOPMENT_BRAND_TOKENS.join('|') + ')(?:\\s+|[\\/／>＞|]+)(.+)$', 'i');
+    '^(' + PRODUCT_DEVELOPMENT_BRAND_TOKENS.join('|') + ')(?:\\s+|[\\/／>＞|]+|(?=[\\u3400-\\u9fff]))(.+)$', 'i');
 
   function productDevelopmentBrandAndCategory(value) {
     const text = productDevelopmentCleanText(value, 180);

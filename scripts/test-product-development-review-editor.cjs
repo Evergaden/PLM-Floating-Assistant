@@ -17,6 +17,8 @@ assert.equal(context.productDevelopmentReviewNetContentCandidate('8 PATCHES'), '
 const patchReview = context.productDevelopmentValidateReview({ reviewMode: 'original-report', items: [{ sourceText: '8 PATCHES' }] }, {});
 assert.equal(patchReview.netContent, '8PCS/盒');
 assert.equal(patchReview.items[0].replacementEn, '8PCS/盒');
+assert.deepEqual(JSON.parse(JSON.stringify(context.productDevelopmentBrandAndCategory('ODM美容个护'))), { brand: 'ODM', category: '' });
+assert.equal(context.productDevelopmentCopywritingNameWithBrand('ODM', 'Lotion'), 'Lotion');
 assert.equal(context.productDevelopmentReviewSuggestions({ sourceText: 'Brand', replacementEn: 'OWN LOGO', replacementZh: '自有标识' })[0].en, 'OWN LOGO');
 const review = context.productDevelopmentValidateReview({ reviewMode: 'original-report', items: [{ sourceText: original, riskTypes: ['brand'], riskReason: '品牌需核查', replacementEn: 'AI rewrite' }] }, {});
 assert.equal(review.items[0].replacementEn, original, 'Analysis must use exact OCR, including stars and case');

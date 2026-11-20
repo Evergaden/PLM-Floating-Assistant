@@ -62,6 +62,9 @@ const context = vm.createContext({
 for (const name of ['productDevelopmentXmlElements', 'productDevelopmentCellText', 'productDevelopmentClearCell', 'productDevelopmentEnsureCellParagraph', 'productDevelopmentXmlSafeText', 'productDevelopmentBodyRunProperties', 'productDevelopmentSetCellLines', 'productDevelopmentDocxTextLines', 'productDevelopmentSetCellHeadingAndLines', 'productDevelopmentCellGridSpan', 'productDevelopmentSetDirectionsCells', 'productDevelopmentIngredientHeading', 'productDevelopmentCellHeadingPrefix', 'productDevelopmentFindRow', 'productDevelopmentSectionLines']) {
   vm.runInContext(extract(review, name), context);
 }
+for (const name of ['productDevelopmentCopywritingOutputBrand', 'productDevelopmentCopywritingNameWithoutInternalBrand', 'productDevelopmentCopywritingNameWithBrand']) {
+  vm.runInContext(extract(review, name), context);
+}
 vm.runInContext(extract(views, 'productDevelopmentCopywritingReferenceUrl'), context);
 vm.runInContext(extract(review, 'productDevelopmentNormalizeCopywritingTitle'), context);
 vm.runInContext(extract(review, 'productDevelopmentNormalizeCopywriting'), context);
@@ -107,6 +110,14 @@ const lines = (node) => elements(node, 'p').map((p) => context.productDevelopmen
   assert.deepEqual(lines(findCell('警告语')), ['WARNING: Keep original warning.']);
   await context.buildProductDevelopmentDocx({ ...content, directions: [] }, null, snapshot);
   assert.deepEqual(lines(findCell('B.建议使用方法')), ['DIRECTIONS OF SAFE USE：']);
+  currentDoc = fixture();
+  await context.buildProductDevelopmentDocx({ ...content, directions: [{ en: 'Use as directed.', cn: '按说明使用。' }] }, null, {
+    ...snapshot,
+    labeling: { directionsEn: 'DIRECTIONS OF SAFE USE:\\nUse as directed.', directionsCn: '使用说明：按说明使用。' },
+  });
+  assert.deepEqual(lines(findCell('B.建议使用方法')), ['DIRECTIONS OF SAFE USE：', '1. Use as directed.']);
+  assert.deepEqual(lines(findCell('B.建议使用方法', 2)), ['1、按说明使用。']);
+  assert.equal(context.productDevelopmentCopywritingNameWithBrand('ODM', 'Lotion'), 'Lotion');
 
   const merged = cell('DIRECTIONS:');
   const span = el('gridSpan'); span.setAttribute('w:val', '2'); merged.firstChild.appendChild(span);
