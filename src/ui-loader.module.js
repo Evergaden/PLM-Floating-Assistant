@@ -1,5 +1,5 @@
   const UI_STYLE_ID = 'pfh-ui-styles';
-  // Full component and theme CSS is delivered by the versioned cloud UI asset. Keep only the offline skeleton locally.
+  // Normal installs load versioned cloud CSS. Layout previews carry a snapshot for use before publication.
   let uiFallbackNoticeTimer = 0;
   let uiAssetRetryTimer = 0;
   let uiAssetRetryCount = 0;
@@ -149,6 +149,17 @@
     return typeof getCachedCloudUiStyles === 'function' ? getCachedCloudUiStyles() : '';
   }
 
+  function getBundledUiStyleText() {
+    if (!BUNDLED_UI_CSS_GZIP) return '';
+    const codec = (typeof fflate !== 'undefined' && fflate) || (typeof unsafeWindow !== 'undefined' && unsafeWindow.fflate);
+    try {
+      const bytes = Uint8Array.from(atob(BUNDLED_UI_CSS_GZIP), (value) => value.charCodeAt(0));
+      return codec.strFromU8(codec.gunzipSync(bytes));
+    } catch {
+      return '';
+    }
+  }
+
   function getStaleCloudUiStyleText() {
     const css = cloudAssetCache && cloudAssetCache.uiCss;
     return typeof css === 'string' && css.length > 10000 && css.includes('#' + PANEL_ID) ? css : '';
@@ -290,7 +301,7 @@
     }
   }
 
-  function applyCloudUiStyles(cssText) {
+  function applyCloudUiStyles(cssText, source = 'cloud-cache') {
     const text = String(cssText || '');
     if (text.length < 10000 || !text.includes('#' + PANEL_ID)) return false;
     const legacy = document.getElementById('pfh-parameter-image-styles');
@@ -299,13 +310,12 @@
     window.clearTimeout(uiAssetRetryTimer);
     uiAssetRetryCount = 0;
     updateUiFallbackState('ready');
-    return setUiStyleText(text, 'cloud-cache');
+    return setUiStyleText(text, source);
   }
 
   function injectStyle() {
     bindUiAssetRecovery();
-    const cached = getCloudUiStyleText();
-    if (!applyCloudUiStyles(cached)) {
+    if (!applyCloudUiStyles(getCloudUiStyleText()) && !applyCloudUiStyles(getBundledUiStyleText(), 'bundled-preview')) {
       // Keep the last complete stylesheet usable while the newly versioned
       // stylesheet is downloaded in the background.
       const staleCached = getStaleCloudUiStyleText();

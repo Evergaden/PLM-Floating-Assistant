@@ -2,9 +2,9 @@
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  margin: 0 0 14px;
-  padding: 13px 14px;
+  gap: var(--pfh-space-field);
+  margin: 0;
+  padding: var(--pfh-space-field);
   border: 1px solid color-mix(in srgb, var(--pfh-theme-primary, #6d35e8) 26%, #f1c76c);
   border-radius: 15px;
   background: color-mix(in srgb, var(--pfh-theme-surface, #fff) 88%, #fff4cf);
@@ -30,7 +30,7 @@
 
 #plm-floating-helper .pfh-cloud-recovery strong {
   display: block;
-  margin-bottom: 3px;
+  margin-bottom: var(--pfh-space-label);
   font-size: 14px;
   line-height: 1.35;
 }
@@ -45,7 +45,7 @@
 #plm-floating-helper .pfh-cloud-recovery button {
   min-width: 104px;
   height: 36px;
-  padding: 0 15px;
+  padding: 0 var(--pfh-space-section);
   border: 1px solid var(--pfh-theme-primary, #6d35e8);
   border-radius: 11px;
   background: var(--pfh-theme-primary, #6d35e8);
@@ -59,7 +59,7 @@
   background: var(--pfh-theme-primary-hover, #5422c9);
 }
 
-@media (max-width: 720px) {
+@container (max-width: 720px) {
   #plm-floating-helper[data-view="home"] .pfh-cloud-recovery {
     grid-template-columns: 34px minmax(0, 1fr);
   }

@@ -40,23 +40,23 @@
   box-shadow: 0 12px 32px rgba(25, 21, 40, .12);
   transform-origin: 18px 0;
 }
-#plm-floating-helper .pfh-my-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 0; }
+#plm-floating-helper .pfh-my-header { display: flex; align-items: center; justify-content: space-between; padding: var(--pfh-space-section) var(--pfh-space-section) 0; }
 #plm-floating-helper .pfh-my-header > strong { font-size: 13px; font-weight: 700; }
 #plm-floating-helper .pfh-my-header button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--pfh-theme-muted); font-size: 22px; box-shadow: none; }
-#plm-floating-helper .pfh-my-body { padding: 20px; }
-#plm-floating-helper .pfh-my-identity { display: flex; gap: 14px; align-items: center; }
+#plm-floating-helper .pfh-my-body { padding: var(--pfh-space-section); }
+#plm-floating-helper .pfh-my-identity { display: flex; gap: var(--pfh-space-field); align-items: center; }
 #plm-floating-helper .pfh-my-portrait { display: grid; place-items: center; flex: 0 0 56px; width: 56px; height: 56px; border-radius: 50%; background: var(--pfh-theme-primary-soft); color: var(--pfh-theme-primary); font-size: 22px; overflow: hidden; }
 #plm-floating-helper .pfh-my-identity h3 { margin: 0; font-size: 19px; line-height: 1.4; font-weight: 700; overflow-wrap: anywhere; }
-#plm-floating-helper .pfh-my-identity p { margin: 4px 0 0; color: var(--pfh-theme-muted); font-size: 11px; }
-#plm-floating-helper .pfh-my-usage { display: grid; gap: 4px; margin: 18px 0 22px; color: var(--pfh-theme-muted); font-size: 11px; }
+#plm-floating-helper .pfh-my-identity p { margin: var(--pfh-space-label) 0 0; color: var(--pfh-theme-muted); font-size: 11px; }
+#plm-floating-helper .pfh-my-usage { display: grid; gap: var(--pfh-space-label); margin: var(--pfh-space-section) 0; color: var(--pfh-theme-muted); font-size: 11px; }
 #plm-floating-helper .pfh-my-usage small { font-size: 10px; }
-#plm-floating-helper .pfh-my-tasks > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+#plm-floating-helper .pfh-my-tasks > header { display: flex; align-items: center; justify-content: space-between; gap: var(--pfh-space-inline); margin-bottom: var(--pfh-space-inline); }
 #plm-floating-helper .pfh-my-tasks > header strong { font-size: 13px; font-weight: 700; }
 #plm-floating-helper .pfh-my-tasks > header span { font-size: 10px; color: var(--pfh-theme-muted); }
-#plm-floating-helper .pfh-my-task { display: grid; grid-template-columns: 20px minmax(0, 1fr) 36px; align-items: center; gap: 10px; width: 100%; padding: 12px 0; border: 0; border-bottom: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; color: var(--pfh-theme-text); text-align: left; cursor: pointer; box-shadow: none; }
+#plm-floating-helper .pfh-my-task { display: grid; grid-template-columns: 20px minmax(0, 1fr) 36px; align-items: center; gap: var(--pfh-space-inline); width: 100%; padding: var(--pfh-space-field) 0; border: 0; border-bottom: 1px solid var(--pfh-theme-border); border-radius: 0; background: transparent; color: var(--pfh-theme-text); text-align: left; cursor: pointer; box-shadow: none; }
 #plm-floating-helper .pfh-my-task:last-child { border-bottom: 0; }
 #plm-floating-helper .pfh-my-task strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 400; }
-#plm-floating-helper .pfh-my-task small { display: block; margin: 3px 0 6px; color: var(--pfh-theme-muted); font-size: 10px; overflow-wrap: anywhere; }
+#plm-floating-helper .pfh-my-task small { display: block; margin: var(--pfh-space-label) 0 var(--pfh-space-inline); color: var(--pfh-theme-muted); font-size: 10px; overflow-wrap: anywhere; }
 #plm-floating-helper .pfh-my-task em { font-size: 10px; font-style: normal; color: var(--pfh-theme-primary); }
 #plm-floating-helper .pfh-my-task > span { color: var(--pfh-theme-primary); }
 #plm-floating-helper .pfh-my-task[data-tone="error"] em { color: #c84747; }

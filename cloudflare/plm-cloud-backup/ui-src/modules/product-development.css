@@ -199,8 +199,8 @@
   max-height: 100%;
   flex-direction: column;
   align-content: initial;
-  gap: 12px;
-  padding: 2px 2px 20px;
+  gap: var(--pfh-space-field);
+  padding: 2px 2px var(--pfh-space-page);
   color: var(--pfh-theme-text);
   overflow-x: hidden;
   overflow-y: auto;
@@ -520,8 +520,8 @@
 }
 
 #plm-floating-helper .pfh-product-development-review-view {
-  gap: 16px;
-  padding: 4px 4px 26px;
+  gap: var(--pfh-space-section);
+  padding: var(--pfh-space-label) var(--pfh-space-label) var(--pfh-space-page);
 }
 
 #plm-floating-helper .pfh-product-development-review-head {
@@ -627,7 +627,7 @@
 
 #plm-floating-helper .pfh-product-development-review-launch-main {
   min-width: 0;
-  padding: 20px 21px;
+  padding: var(--pfh-page-inset);
   background:
     radial-gradient(circle at 94% 6%, var(--pfh-theme-primary-soft) 0, transparent 38%),
     linear-gradient(145deg, var(--pfh-theme-surface), var(--pfh-theme-surface-alt));
@@ -685,7 +685,7 @@
   min-width: 0;
   flex-direction: column;
   justify-content: center;
-  padding: 19px;
+  padding: var(--pfh-page-inset);
   border-left: 1px solid var(--pfh-theme-border);
   background: var(--pfh-theme-control-surface);
 }
@@ -913,8 +913,8 @@
 #plm-floating-helper .pfh-product-development-review-results {
   display: grid;
   min-width: 0;
-  gap: 14px;
-  padding: 16px;
+  gap: var(--pfh-space-section);
+  padding: var(--pfh-page-inset);
   border: 1px solid var(--pfh-theme-border);
   border-radius: 16px;
   background: var(--pfh-theme-surface);
@@ -926,7 +926,7 @@
   min-width: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: var(--pfh-space-field);
 }
 
 #plm-floating-helper .pfh-product-development-review-results > header > p {
@@ -942,7 +942,7 @@
   display: grid;
   grid-template-columns: minmax(210px, .78fr) minmax(0, 1.72fr);
   min-width: 0;
-  gap: 12px;
+  gap: var(--pfh-space-field);
 }
 
 #plm-floating-helper .pfh-product-development-review-workspace > .pfh-product-development-result-empty:only-child {
@@ -1202,8 +1202,8 @@
 
 #plm-floating-helper .pfh-product-development-review-editor {
   display: grid;
-  gap: 8px;
-  padding: 12px;
+  gap: var(--pfh-space-field);
+  padding: var(--pfh-page-inset);
   border: 1px solid var(--pfh-theme-border);
   border-radius: 15px;
   background: var(--pfh-theme-surface);
@@ -1252,7 +1252,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: var(--pfh-space-page);
   border-color: rgba(139, 106, 200, .3);
   box-shadow: 0 22px 56px rgba(31, 25, 55, .24);
 }
@@ -1267,7 +1267,7 @@
   overflow-y: auto;
   display: grid;
   grid-template-columns: minmax(0, .9fr) minmax(0, 1fr) minmax(0, 1.1fr);
-  gap: 12px;
+  gap: var(--pfh-space-field);
   align-items: start;
   padding: 2px;
 }
@@ -1443,13 +1443,13 @@
 
 #plm-floating-helper .pfh-product-development-review-editor-list {
   display: grid;
-  gap: 6px;
+  gap: var(--pfh-space-field);
 }
 
 #plm-floating-helper .pfh-product-development-review-editor-row {
   display: grid;
-  gap: 6px;
-  padding: 8px;
+  gap: var(--pfh-space-inline);
+  padding: var(--pfh-space-inline);
   border: 1px solid var(--pfh-theme-border);
   border-left: 3px solid #cbd5e1;
   border-radius: 12px;
@@ -2214,7 +2214,7 @@
   #plm-floating-helper .pfh-product-development-review-editor-float.is-open > .pfh-product-development-review-editor {
     width: 96vw;
     max-height: 94vh;
-    padding: 12px;
+    padding: var(--pfh-space-field);
   }
 
   #plm-floating-helper .pfh-product-development-review-editor-compare {
@@ -2530,7 +2530,7 @@
 #plm-floating-helper .pfh-product-development-plain-copy {
   display: grid;
   gap: var(--pfh-space-section);
-  padding: var(--pfh-space-section);
+  padding: var(--pfh-page-inset);
   border: 1px solid var(--pfh-theme-border);
   border-radius: 16px;
   background: var(--pfh-theme-surface);
@@ -2869,7 +2869,7 @@
 #plm-floating-helper .pfh-product-development-material-planner {
   display: grid;
   gap: var(--pfh-space-field);
-  padding: var(--pfh-space-section);
+  padding: var(--pfh-page-inset);
   border: 1px solid var(--pfh-theme-border-strong);
   border-radius: 16px;
   background: var(--pfh-theme-surface);

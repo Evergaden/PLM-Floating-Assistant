@@ -12,8 +12,8 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px 16px;
-  padding: 12px 0;
+  gap: var(--pfh-space-inline) var(--pfh-space-section);
+  padding: var(--pfh-space-field) 0;
   border-top: 1px solid var(--pfh-theme-border, #e2e0f0);
 }
 
@@ -25,19 +25,20 @@
 
 #plm-floating-helper .pfh-shortcut-row small {
   display: block;
-  margin-top: 4px;
+  margin-top: var(--pfh-space-label);
   color: var(--pfh-theme-muted, #6b7897);
   font-size: 11px;
 }
 
 #plm-floating-helper .pfh-shortcut-hint {
   min-height: 20px;
-  margin: 0 0 10px;
+  margin: 0 0 var(--pfh-space-inline);
   color: var(--pfh-theme-primary, #7c3aed);
   font-size: 12px;
   line-height: 1.6;
 }
 
 #plm-floating-helper .pfh-shortcut-row .pfh-about-actions {
+  --pfh-settings-actions-margin: 0;
   flex-wrap: wrap;
 }

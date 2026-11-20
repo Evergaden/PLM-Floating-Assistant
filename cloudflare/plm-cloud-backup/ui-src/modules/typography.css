@@ -5,11 +5,16 @@
   --pfh-space-field: 12px;
   --pfh-space-section: 16px;
   --pfh-space-page: 24px;
+  --pfh-page-inset: var(--pfh-space-section);
   --pfh-font-weight-regular: 400;
   --pfh-font-weight-support: 400;
   --pfh-font-weight-control: 400;
   --pfh-font-weight-heading: 700;
   font-weight: var(--pfh-font-weight-regular);
+}
+
+#plm-floating-helper.is-narrow-panel {
+  --pfh-page-inset: var(--pfh-space-field);
 }
 
 /* Reset browser b/strong/heading defaults without blocking component rules. */

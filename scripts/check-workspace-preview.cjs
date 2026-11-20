@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { gunzipSync } = require('node:zlib');
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'outputs/plm-material-summary.user.js'), 'utf8');
 function functionText(name) {
@@ -119,8 +120,22 @@ assert.ok(source.includes('const SKU_FILTER_MODAL_CSS = ' + JSON.stringify(filte
 assert.ok(normal.includes('pfh-sku-color-dot'), 'Normal minified build includes the filter dialog styles');
 assert.ok(full.includes('const WORKSPACE_PREVIEW = true;'));
 assert.ok(full.includes('const WORKSPACE_PREVIEW_CSS = ' + JSON.stringify(css) + ';'));
+const bundledDeclaration = full.match(/const BUNDLED_UI_CSS_GZIP = ("[^"]+");/);
+assert.ok(bundledDeclaration, 'Full preview includes the compiled stylesheet snapshot');
+const assetVersion = source.match(/const UI_ASSET_VERSION = '([^']+)'/)[1];
+const compiledCss = fs.readFileSync(path.join(root, 'cloudflare/plm-cloud-backup/static/assets/v15', 'ui-' + assetVersion + '.css'), 'utf8');
+const previewContext = vm.createContext({
+  BUNDLED_UI_CSS_GZIP: JSON.parse(bundledDeclaration[1]),
+  atob,
+  fflate: { gunzipSync, strFromU8: (bytes) => bytes.toString('utf8') },
+});
+vm.runInContext(functionText('getBundledUiStyleText'), previewContext);
+assert.equal(previewContext.getBundledUiStyleText(), compiledCss, 'Preview can load the exact release stylesheet without the hosted asset');
+previewContext.BUNDLED_UI_CSS_GZIP = '';
+assert.equal(previewContext.getBundledUiStyleText(), '', 'The normal package uses the hosted stylesheet');
 assert.equal(full
   .replace('const WORKSPACE_PREVIEW = true;', 'const WORKSPACE_PREVIEW = false;')
+  .replace(bundledDeclaration[0], "const BUNDLED_UI_CSS_GZIP = '';")
   .replace('// @description  [布局验证版] ', '// @description  '), source, 'Full test package matches current source');
 assert.ok(min.includes('布局验证版') && min.includes('pfh-workspace-stage'));
 assert.ok(normal.includes('pfh-workspace-stage'), 'Normal minified build includes optional layout CSS');

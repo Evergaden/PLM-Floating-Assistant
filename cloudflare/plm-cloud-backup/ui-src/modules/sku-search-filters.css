@@ -1,9 +1,9 @@
 #plm-floating-helper .pfh-sku-filter-toolbar {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--pfh-space-inline);
   min-width: 0;
-  margin: 0 0 9px;
+  margin: 0 0 var(--pfh-space-field);
 }
 
 #plm-floating-helper .pfh-sku-filter-toolbar button {
@@ -41,7 +41,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: var(--pfh-space-section);
   box-sizing: border-box;
   background: rgba(30, 23, 61, .24);
   backdrop-filter: blur(6px);
@@ -67,13 +67,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 18px 22px;
+  gap: var(--pfh-space-field);
+  padding: var(--pfh-space-section) clamp(var(--pfh-space-section), 5%, var(--pfh-space-page));
 }
 
 #plm-floating-helper .pfh-sku-filter-dialog > header > div {
   display: grid;
-  gap: 5px;
+  gap: var(--pfh-space-label);
 }
 
 #plm-floating-helper .pfh-sku-filter-dialog > header strong {
@@ -100,14 +100,14 @@
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 0 22px;
+  padding: 0 clamp(var(--pfh-space-section), 5%, var(--pfh-space-page));
 }
 
 #plm-floating-helper .pfh-sku-filter-dialog .pfh-sku-filter-panel {
   display: grid;
-  gap: 14px;
+  gap: var(--pfh-space-field);
   margin: 0;
-  padding: 0 0 14px;
+  padding: 0 0 var(--pfh-space-section);
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -117,7 +117,7 @@
   display: grid;
   grid-template-columns: 58px minmax(0, 1fr);
   align-items: center;
-  gap: 7px;
+  gap: var(--pfh-space-inline);
   color: var(--pfh-theme-muted, #7a82a0);
   font-size: 11px;
 }
@@ -152,13 +152,13 @@
 
 #plm-floating-helper .pfh-sku-color-field {
   min-width: 0;
-  margin: 4px 0 0;
+  margin: 0;
   padding: 0;
   border: 0;
 }
 
 #plm-floating-helper .pfh-sku-color-field legend {
-  padding: 0 0 12px;
+  padding: 0 0 var(--pfh-space-field);
   font-size: 12px;
   color: var(--pfh-theme-text, #253047);
 }
@@ -166,15 +166,15 @@
 #plm-floating-helper .pfh-sku-color-options {
   display: grid;
   grid-template-columns: repeat(auto-fit,minmax(60px,1fr));
-  gap: 10px 6px;
+  gap: var(--pfh-space-inline);
 }
 
 #plm-floating-helper .pfh-sku-color-options .pfh-sku-color-option {
   display: grid;
   justify-items: center;
-  gap: 8px;
+  gap: var(--pfh-space-inline);
   min-width: 0;
-  padding: 8px 3px;
+  padding: var(--pfh-space-inline) 3px;
   border: 1px solid transparent;
   border-radius: 12px;
   background: transparent;
@@ -220,7 +220,7 @@
 
 #plm-floating-helper .pfh-sku-filter-dialog > footer button {
   min-height: 34px;
-  padding: 0 18px;
+  padding: 0 var(--pfh-space-section);
   border-radius: 11px;
 }
 

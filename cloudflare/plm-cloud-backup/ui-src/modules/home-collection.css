@@ -2,9 +2,9 @@
 /* Third home carousel page. Reuse #083 bar motion; fit its progress-only slot. */
 #plm-floating-helper[data-pfh-theme] .pfh-home-collection {
   display: grid;
-  gap: 10px;
+  gap: var(--pfh-space-field);
   min-width: 0;
-  padding: 15px 16px 12px;
+  padding: var(--pfh-space-section);
   border: 1px solid var(--pfh-theme-border);
   border-radius: 16px;
   background: var(--pfh-theme-surface);
@@ -18,7 +18,7 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--pfh-space-inline);
 }
 #plm-floating-helper[data-pfh-theme] .pfh-home-collection header {
   align-items: flex-start;
@@ -26,7 +26,7 @@
 #plm-floating-helper[data-pfh-theme] .pfh-home-collection-heading {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--pfh-space-label);
   min-width: 0;
 }
 #plm-floating-helper[data-pfh-theme] .pfh-home-collection h3 {
@@ -94,7 +94,7 @@
   overflow-wrap: anywhere;
 }
 #plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary {
-  padding: 8px 10px;
+  padding: var(--pfh-space-inline) var(--pfh-space-field);
   border-radius: 10px;
   background: var(--pfh-theme-surface-alt, var(--pfh-theme-primary-soft));
 }
@@ -104,9 +104,6 @@
 }
 #plm-floating-helper[data-pfh-theme] .pfh-home-collection-summary span {
   font-variant-numeric: tabular-nums;
-}
-#plm-floating-helper[data-pfh-theme] .pfh-home-collection footer {
-  padding-top: 2px;
 }
 #plm-floating-helper[data-pfh-theme] .pfh-home-collection footer button {
   flex: 0 0 auto;

@@ -2,12 +2,15 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
+  gap: var(--pfh-space-inline);
   min-width: 0;
-  padding: 16px 18px;
+  padding: var(--pfh-material-card-inset, var(--pfh-space-section));
   border: 1px solid var(--pfh-theme-border, #e8e2ff);
   border-radius: 16px;
   background: var(--pfh-theme-card, #fff);
+}
+#plm-floating-helper.is-narrow-panel .pfh-material-card {
+  --pfh-material-card-inset: var(--pfh-space-field);
 }
 #plm-floating-helper .pfh-material-card small {
   color: var(--pfh-theme-muted, #8793ad);

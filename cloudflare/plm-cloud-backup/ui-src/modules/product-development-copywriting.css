@@ -1,21 +1,21 @@
 /* Copywriting form, template tools and actual generation stages. */
 #plm-floating-helper .pfh-detail-view-frame.pfh-cw-task-frame {
   min-height: 0;
-  padding: 12px 14px 0;
+  padding: var(--pfh-space-field) var(--pfh-page-inset) 0;
 }
 #plm-floating-helper .pfh-cw-task-frame > .pfh-cw-task-content {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 0 4px 12px 0;
+  padding: 0 4px var(--pfh-space-field) 0;
 }
 #plm-floating-helper .pfh-product-development.pfh-cw-workspace {
   display: grid;
   align-content: start;
   min-width: 0;
-  gap: 24px;
-  padding: 0 0 24px;
+  gap: var(--pfh-space-section);
+  padding: 0 0 var(--pfh-space-page);
   color: var(--pfh-theme-text);
   font-family: "MiSans", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   font-size: 12px;
@@ -24,7 +24,7 @@
 #plm-floating-helper .pfh-cw-workspace h3 { font-size: 14px; line-height: 1.5; }
 #plm-floating-helper .pfh-cw-workspace h4 { font-size: 12px; line-height: 1.5; }
 #plm-floating-helper .pfh-cw-workspace .pfh-product-development-material-field {
-  gap: 8px;
+  gap: var(--pfh-space-inline);
   font-size: 11px;
   color: var(--pfh-theme-text);
 }
@@ -60,7 +60,7 @@
 #plm-floating-helper .pfh-cw-workspace ::selection { background: var(--pfh-theme-primary-soft); }
 #plm-floating-helper .pfh-cw-form {
   min-width: 0;
-  padding: var(--pfh-cw-form-padding, 16px);
+  padding: var(--pfh-cw-form-padding, var(--pfh-page-inset));
   border: 1px solid var(--pfh-theme-border);
   border-radius: 16px;
   background: var(--pfh-theme-surface);
@@ -68,13 +68,13 @@
 #plm-floating-helper .pfh-cw-fields {
   display: grid;
   min-width: 0;
-  gap: 24px;
+  gap: var(--pfh-space-section);
   margin: 0;
   padding: 0;
   border: 0;
 }
-#plm-floating-helper .pfh-cw-source { display: grid; gap: 12px; min-width: 0; }
-#plm-floating-helper .pfh-cw-compose { display: grid; gap: 8px; align-content: start; min-width: 0; }
+#plm-floating-helper .pfh-cw-source { display: grid; gap: var(--pfh-space-field); min-width: 0; }
+#plm-floating-helper .pfh-cw-compose { display: grid; gap: var(--pfh-space-inline); align-content: start; min-width: 0; }
 #plm-floating-helper .pfh-cw-settings small { color: var(--pfh-theme-muted); font-size: 11px; line-height: 1.5; }
 #plm-floating-helper .pfh-cw-product {
   display: flex;
@@ -91,7 +91,7 @@
   display: grid;
   grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr)));
   align-items: start;
-  gap: 12px;
+  gap: var(--pfh-space-field);
 }
 #plm-floating-helper .pfh-cw-settings > .pfh-product-development-one-shot-settings-product { grid-column: 1 / -1; }
 #plm-floating-helper .pfh-cw-template-row {
@@ -161,7 +161,7 @@
   background: var(--pfh-theme-primary-soft);
   color: var(--pfh-theme-primary);
 }
-#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: 12px; min-width: 0; }
+#plm-floating-helper .pfh-cw-ingredients { display: grid; gap: var(--pfh-space-field); min-width: 0; }
 #plm-floating-helper .pfh-cw-ingredients > header,
 #plm-floating-helper .pfh-cw-progress > header,
 #plm-floating-helper .pfh-cw-result-head {
@@ -180,8 +180,8 @@
   font-size: 11px;
   line-height: 1.6;
 }
-#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: 8px; min-width: 0; }
-#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: 12px; }
+#plm-floating-helper .pfh-cw-ingredient-group { display: grid; gap: var(--pfh-space-inline); min-width: 0; }
+#plm-floating-helper .pfh-cw-pair { display: grid; grid-template-columns: var(--pfh-cw-pair-columns, repeat(2, minmax(0, 1fr))); gap: var(--pfh-space-field); }
 #plm-floating-helper .pfh-cw-pair-wrap { grid-column: 1 / -1; min-width: 0; }
 #plm-floating-helper .pfh-cw-count.is-warning { color: var(--pfh-theme-text); }
 #plm-floating-helper .pfh-cw-actions,
@@ -194,8 +194,8 @@
 #plm-floating-helper .pfh-cw-workspace :is(button, input, select, textarea):disabled { opacity: .55; cursor: default; }
 #plm-floating-helper .pfh-cw-progress {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: var(--pfh-space-field);
+  padding: var(--pfh-page-inset);
   border: 1px solid var(--pfh-theme-border);
   border-radius: 12px;
   background: var(--pfh-theme-control-surface);
@@ -215,5 +215,5 @@
   #plm-floating-helper .pfh-cw-workspace:where([class]) { --pfh-cw-progress-animation: none; }
 }
 @container (max-width: 540px) {
-  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: 12px; }
+  #plm-floating-helper .pfh-cw-workspace { --pfh-cw-pair-columns: minmax(0, 1fr); --pfh-cw-form-padding: var(--pfh-space-field); }
 }

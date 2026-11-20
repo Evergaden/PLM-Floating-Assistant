@@ -16,9 +16,9 @@
   min-height: 34px;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: var(--pfh-space-inline);
   margin: 0;
-  padding: 8px 12px;
+  padding: var(--pfh-space-inline) var(--pfh-space-field);
   border: 1px solid var(--pfh-theme-border, #d8deea);
   border-radius: 12px;
   background: linear-gradient(135deg, var(--pfh-theme-surface, #fff), var(--pfh-theme-primary-soft, #f3efff));

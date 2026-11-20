@@ -11,7 +11,7 @@
   flex-direction: column;
   gap: 0;
   box-sizing: border-box;
-  padding: 8px 12px;
+  padding: var(--pfh-space-inline) var(--pfh-page-inset);
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -21,7 +21,7 @@
 #plm-floating-helper[data-pfh-theme][data-view="ledger"] .pfh-ledger-unified > .pfh-ledger-hero {
   flex: 0 0 auto;
   margin: 0;
-  padding: 0 0 16px;
+  padding: 0 0 var(--pfh-space-section);
   border: 0;
   border-bottom: 1px solid var(--pfh-theme-border);
   border-radius: 0;
@@ -39,7 +39,7 @@
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 12px 0 0;
+  padding: var(--pfh-space-field) 0 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -50,7 +50,7 @@
 #plm-floating-helper[data-pfh-theme] .pfh-ledger-unified .pfh-ledger-content-anchor {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--pfh-space-field);
   min-height: 0;
   height: 100%;
 }
@@ -68,7 +68,7 @@
 #plm-floating-helper[data-pfh-theme][data-view="ledger"] .pfh-ledger-unified .pfh-ledger-tools-body,
 #plm-floating-helper[data-pfh-theme][data-view="ledger"] .pfh-ledger-unified .pfh-ledger-controlbar {
   margin: 0;
-  padding: 8px 0;
+  padding: var(--pfh-space-inline) 0;
   border: 0;
   border-radius: 0;
   background: transparent;

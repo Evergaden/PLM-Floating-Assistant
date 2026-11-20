@@ -41,8 +41,8 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 11px 13px 8px;
+  gap: var(--pfh-space-field, 12px);
+  padding: var(--pfh-space-field, 12px) var(--pfh-space-field, 12px) var(--pfh-space-inline, 8px);
   color: var(--pfh-theme-text, #342d45);
 }
 
@@ -67,7 +67,7 @@
   position: relative;
   display: block;
   flex: 0 0 auto;
-  margin: 0 10px 7px;
+  margin: 0 var(--pfh-space-field, 12px) var(--pfh-space-inline, 8px);
 }
 
 .pfh-custom-select-search > svg {
@@ -90,7 +90,7 @@
   width: 100%;
   min-height: 32px;
   box-sizing: border-box;
-  padding: 0 10px 0 30px;
+  padding: 0 var(--pfh-space-field, 12px) 0 30px;
   border: 1px solid var(--pfh-theme-border, #ded7f0);
   border-radius: 9px;
   outline: 0;
@@ -114,10 +114,10 @@
   min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--pfh-space-label, 4px);
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 4px 7px 8px;
+  padding: var(--pfh-space-label, 4px) var(--pfh-space-inline, 8px) var(--pfh-space-inline, 8px);
   scrollbar-color: color-mix(in srgb, var(--pfh-theme-primary, #6d35e8) 28%, transparent) transparent;
   scrollbar-width: thin;
 }
@@ -134,11 +134,11 @@
 .pfh-custom-select-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--pfh-space-label, 4px);
 }
 
 .pfh-custom-select-group-label {
-  padding: 8px 9px 3px;
+  padding: var(--pfh-space-inline, 8px) var(--pfh-space-inline, 8px) var(--pfh-space-label, 4px);
   color: var(--pfh-theme-muted, #8d849c);
   font-size: 9px;
   font-weight: 700;
@@ -153,8 +153,8 @@
   min-height: 34px;
   grid-template-columns: minmax(0, 1fr) 18px;
   align-items: center;
-  gap: 8px;
-  padding: 7px 9px 7px 11px;
+  gap: var(--pfh-space-inline, 8px);
+  padding: var(--pfh-space-inline, 8px) var(--pfh-space-inline, 8px) var(--pfh-space-inline, 8px) var(--pfh-space-field, 12px);
   border: 0;
   border-radius: 9px;
   outline: 0;
@@ -224,7 +224,7 @@
 }
 
 .pfh-custom-select-empty {
-  padding: 22px 12px;
+  padding: var(--pfh-space-page, 24px) var(--pfh-space-field, 12px);
   color: var(--pfh-theme-muted, #8d849c);
   font-size: 11px;
   line-height: 1.5;

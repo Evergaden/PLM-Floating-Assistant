@@ -41,7 +41,7 @@
 }
 
 #plm-floating-helper .pfh-script-update-guide {
-  margin: 10px 0 0;
+  margin: var(--pfh-space-inline) 0 0;
   color: var(--pfh-theme-primary, #7c3aed);
   font-size: 12px;
   line-height: 1.5;

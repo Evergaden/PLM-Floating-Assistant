@@ -2,18 +2,18 @@
 #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-page{
   display:flex;
   flex-direction:column;
-  gap:12px;
-  padding:14px 16px 22px;
+  gap:var(--pfh-space-section);
+  padding:var(--pfh-space-section) var(--pfh-page-inset);
 }
 #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-card{
   display:flex;
   flex-direction:column;
-  gap:10px;
+  gap:var(--pfh-space-field);
 }
 #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-form{
   display:flex;
   flex-direction:column;
-  gap:8px;
+  gap:var(--pfh-space-label);
 }
 #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-form label{
   font-size:11px;
@@ -26,7 +26,7 @@
   resize:vertical;
 }
 #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-hint{
-  margin:0;
+  margin:var(--pfh-space-label) 0 0;
   color:var(--pfh-theme-muted,#64748b);
   font-size:10px;
   line-height:1.55;
@@ -35,7 +35,7 @@
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:8px;
+  gap:var(--pfh-space-inline);
   flex-wrap:wrap;
   color:var(--pfh-theme-muted,#64748b);
   font-size:10px;
@@ -47,7 +47,7 @@
 #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-queue{
   display:flex;
   flex-direction:column;
-  gap:7px;
+  gap:var(--pfh-space-inline);
   max-height:310px;
   overflow:auto;
   padding-right:2px;
@@ -55,9 +55,9 @@
 #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row{
   display:flex;
   align-items:center;
-  gap:8px;
+  gap:var(--pfh-space-inline);
   min-width:0;
-  padding:8px 9px;
+  padding:var(--pfh-space-inline);
   border:1px solid var(--pfh-theme-border,#d8deea);
   border-radius:11px;
   background:var(--pfh-theme-surface-alt,#f7f8fc);
@@ -67,7 +67,7 @@
   flex:1 1 auto;
   min-width:0;
   flex-direction:column;
-  gap:2px;
+  gap:var(--pfh-space-label);
 }
 #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row-main b{
   overflow:hidden;
@@ -109,7 +109,7 @@
   color:var(--pfh-theme-primary,#7c3aed);
 }
 #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-empty{
-  padding:18px 10px;
+  padding:var(--pfh-space-section) var(--pfh-space-field);
   border:1px dashed var(--pfh-theme-border,#d8deea);
   border-radius:11px;
   color:var(--pfh-theme-muted,#64748b);
@@ -121,7 +121,8 @@
 #plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-form .pfh-mini-tool-actions{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:8px;
+  gap:var(--pfh-space-inline);
+  margin-top:var(--pfh-space-label);
 }
 #plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-form .pfh-mini-tool-actions > button{
   display:inline-flex;
@@ -133,7 +134,7 @@
   align-items:center;
   justify-content:center;
   overflow:hidden;
-  padding:0 12px;
+  padding:0 var(--pfh-space-field);
   border:1px solid var(--pfh-theme-border);
   border-radius:12px;
   background:var(--pfh-theme-surface);
@@ -167,7 +168,7 @@
 #plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-actions{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:7px;
+  gap:var(--pfh-space-inline);
 }
 #plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-actions > button{
   display:inline-flex;
@@ -179,7 +180,7 @@
   align-items:center;
   justify-content:center;
   overflow:hidden;
-  padding:0 8px;
+  padding:0 var(--pfh-space-inline);
   border:1px solid var(--pfh-theme-border);
   border-radius:10px;
   background:var(--pfh-theme-surface);
@@ -225,13 +226,13 @@
   font-size:10px;
   line-height:1.5;
 }
-#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-head{
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-head{
   display:flex;
   flex-direction:column;
-  gap:2px;
+  gap:var(--pfh-space-label);
 }
-#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-head h3{margin:2px 0 0;}
-#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-head p{
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-head h3{margin:0;}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-head p{
   margin:0;
   color:var(--pfh-theme-muted,#64748b);
   font-size:10px;
