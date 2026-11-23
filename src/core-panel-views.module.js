@@ -807,7 +807,7 @@
     panel.classList.toggle('is-ledger-fullscreen', state.view === 'ledger' && Boolean(state.ledgerFullscreen));
     syncLedgerSurfaceBridge(panel);
     const main = panel.querySelector('.pfh-main');
-    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload' || state.view === 'magicUpload' || state.view === 'tools' || state.view === 'batchExcel' || state.view === 'feedback';
+    const isFullView = (state.view === 'sizeImage' && state.sizeImageFreeMode) || state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload' || state.view === 'magicUpload' || state.view === 'tools' || state.view === 'batchExcel' || state.view === 'feedback';
     if (main) {
       main.classList.toggle('is-home', state.view === 'home');
       main.classList.toggle('is-full', isFullView);
@@ -849,7 +849,7 @@
       const list = panel.querySelector('.pfh-list');
       if (list) list.innerHTML = '';
     }
-    else if (state.view !== 'about' && state.view !== 'ledger' && state.view !== 'tools' && state.view !== 'batchExcel' && state.view !== 'magicUpload' && state.view !== 'feedback' && state.view !== 'productDevelopmentTasks') renderSkuList(panel);
+    else if (!isFullView && state.view !== 'productDevelopmentTasks') renderSkuList(panel);
     if (state.view === 'about') {
       renderAbout(panel);
       updateSettingsNotice(panel);

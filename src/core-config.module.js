@@ -97,12 +97,13 @@
     Object.freeze({ id: 'upload', action: 'upload-toggle', icon: 'upload', title: '批量提审上传', description: '批量添加文件并提交上传，\n在队列中查看每项处理状态。' }),
     Object.freeze({ id: 'magicUpload', action: 'home-magic-upload', icon: 'upload', title: '魔法上传', description: '自动识别图包中的商品编码，\n批量上传文件并跟踪进度。' }),
     Object.freeze({ id: 'parameterImage', action: 'home-parameter-image', icon: 'image', title: '生成参数图', description: '整理产品尺寸与相关参数，\n生成尺寸图和英文参数图。' }),
+    Object.freeze({ id: 'freeSizeImage', action: 'home-free-size-image', icon: 'image', title: '自由尺寸', description: '无需产品编码，\n制作纸盒和标签尺寸图。' }),
     Object.freeze({ id: 'ledger', action: 'ledger-open', icon: 'taskPlan', title: '今日工作台', description: '集中查看设计分配与定稿，\n跟进纸盒、标签和图包进度。' }),
     Object.freeze({ id: 'tools', action: 'home-tools', icon: 'tools', title: '小工具', description: '常用换算和编码整理，\n支持批量补全玩具文案。' }),
     Object.freeze({ id: 'feedback', action: 'home-feedback', icon: 'messageCircle', title: '提交反馈', description: '记录使用中遇到的问题，\n也欢迎分享你的改进建议。' }),
   ]);
   const DEFAULT_HOME_FEATURE_GROUPS = Object.freeze({
-    common: Object.freeze(['detail', 'batchExcel', 'upload', 'magicUpload', 'parameterImage']),
+    common: Object.freeze(['detail', 'batchExcel', 'upload', 'magicUpload', 'parameterImage', 'freeSizeImage']),
     more: Object.freeze(['ledger', 'tools', 'feedback']),
   });
   function normalizeHomeFeatureGroups(value) {

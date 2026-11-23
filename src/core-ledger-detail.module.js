@@ -2114,6 +2114,12 @@
           : definition.description;
         entry.disabled = parameterImageLocked;
       }
+      if (entry.id === 'freeSizeImage') {
+        entry.description = !state.sizeImageAccessEnabled
+          ? (state.sizeImageAccessLoading ? '正在准备功能' : '该功能暂未开放')
+          : definition.description;
+        entry.disabled = !state.sizeImageAccessEnabled;
+      }
       return entry;
     });
   }

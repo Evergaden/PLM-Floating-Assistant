@@ -654,6 +654,7 @@
       return;
     }
     if (action === 'home-main') {
+      state.sizeImageFreeMode = false;
       state.sizeImageCustomData = null;
       state.sizeImageCustomDraft = null;
       state.sizeImageCustomOpen = false;
@@ -783,12 +784,26 @@
       renderShell();
       return;
     }
-    if (action === 'home-size-image') {
+    if (action === 'home-size-image' || action === 'home-free-size-image') {
       if (!state.sizeImageAccessEnabled) {
         showToast(state.sizeImageAccessLoading ? '正在准备功能' : '该功能暂未开放，敬请期待');
         scheduleSizeImageAccessRefresh(0);
         return;
       }
+      if (action === 'home-free-size-image') {
+        state.sizeImageCustomData = null;
+        state.sizeImageFreeMode = true;
+        state.detailReturnView = '';
+        state.detailReturnScroll = null;
+        state.view = 'sizeImage';
+        state.copywritingMode = false;
+        state.sizeImageCustomDraft = getSizeImageCustomDraft(null);
+        state.sizeImageCustomOpen = true;
+        expandPanel();
+        renderShell();
+        return;
+      }
+      state.sizeImageFreeMode = false;
       state.view = 'sizeImage';
       state.copywritingMode = false;
       state.skuPage = 1;
@@ -799,6 +814,7 @@
       return;
     }
     if (action === 'size-image-custom-open') {
+      if (state.sizeImageBusySku) return;
       openSizeImageCustomEditor();
       return;
     }
@@ -1244,6 +1260,12 @@
       return;
     }
     if (action === 'home-back') {
+      if (state.view === 'sizeImage' && state.sizeImageFreeMode) {
+        state.sizeImageFreeMode = false;
+        state.sizeImageCustomData = null;
+        state.sizeImageCustomOpen = false;
+        state.sizeImageCustomDraft = null;
+      }
       if (state.searchQuery.trim()) {
         state.searchQuery = '';
         state.skuPage = 1;
@@ -1540,6 +1562,7 @@
       const sku = skuButton.getAttribute('data-sku');
       const data = loadData(sku) || state.index.find((entry) => entry && entry.sku === sku) || null;
       state.sizeImageCustomData = null;
+      state.sizeImageFreeMode = false;
       state.sizeImageCustomDraft = null;
       state.sizeImageCustomOpen = false;
       state.selectedSku = sku;

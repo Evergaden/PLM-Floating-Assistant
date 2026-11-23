@@ -522,6 +522,7 @@
     sizeImageSessions: {},
     sizeImageBusySku: '',
     sizeImageCustomData: null,
+    sizeImageFreeMode: false,
     sizeImageCustomDraft: null,
     sizeImageCustomOpen: false,
     sizeImageAccessName: '',

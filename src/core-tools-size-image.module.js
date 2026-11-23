@@ -1048,7 +1048,7 @@
   }
 
   function getActiveSizeImageData() {
-    const source = state.sizeImageCustomData || state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
+    const source = state.sizeImageFreeMode ? state.sizeImageCustomData : (state.sizeImageCustomData || state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     return source ? normalizeData(source) : null;
   }
 
@@ -1073,9 +1073,9 @@
     const firstLabel = labelSpecs[0] || null;
     const customFlatKind = source.sizeImageCustomFlatKind === 'label' || source.sizeImageCustomFlatKind === 'print'
       ? source.sizeImageCustomFlatKind
-      : (firstLabel && firstLabel.kind === 'label' ? 'label' : 'print');
+      : (!firstLabel || firstLabel.kind === 'label' ? 'label' : 'print');
     return {
-      sku,
+      sku: source.sizeImageFreeSku !== undefined ? source.sizeImageFreeSku : (source.sizeImageNoSku ? '' : sku),
       brand: source.brand || '',
       name: source.name || '',
       packageTitle: source.sizeImageCustomPackageTitle || source.packageSizeLabel || '纸盒',
@@ -1104,10 +1104,10 @@
     const selectedPrint = draft.flatKind === 'print' ? ' selected' : '';
     return '<div class="pfh-size-image-custom-layer" data-action="size-image-custom-close">' +
       '<div class="pfh-size-image-custom-modal" role="dialog" aria-modal="true" aria-label="自定义尺寸图">' +
-        '<div class="pfh-size-image-custom-head"><div><h3>自定义尺寸图</h3><p>不依赖 PLM 缓存，填写后上传底图即可生成尺寸图。</p></div><button type="button" class="pfh-size-image-custom-close" data-action="size-image-custom-close" aria-label="关闭">×</button></div>' +
+        '<div class="pfh-size-image-custom-head"><div><h3>自定义尺寸图</h3><p>填写实际尺寸后上传底图；图片可识别类型和比例，无法直接确定实际尺寸。</p></div><button type="button" class="pfh-size-image-custom-close" data-action="size-image-custom-close" aria-label="关闭">×</button></div>' +
         '<div class="pfh-size-image-custom-form">' +
           '<section class="pfh-size-image-custom-section"><strong class="pfh-size-image-custom-section-title">基础信息</strong><div class="pfh-size-image-custom-grid">' +
-            sizeImageCustomInput('sku', 'SKU（必填）', draft.sku, '例如 SKU00050446') +
+            sizeImageCustomInput('sku', 'SKU（可不填）', draft.sku, '例如 SKU00050446') +
             sizeImageCustomInput('brand', '品牌', draft.brand, '可不填') +
             sizeImageCustomInput('name', '商品名称', draft.name, '可不填', true) +
           '</div></section>' +
@@ -1156,18 +1156,16 @@
 
   function saveSizeImageCustomConfig() {
     const panel = ensurePanel();
-    const sku = readSizeImageCustomField(panel, 'sku');
+    const enteredSku = readSizeImageCustomField(panel, 'sku');
+    const sku = state.sizeImageFreeMode || !enteredSku ? '__PFH_FREE_SIZE__' : enteredSku;
+    const previousData = state.sizeImageCustomData;
+    const previousSession = previousData && state.sizeImageSessions[previousData.sku];
+    const previousSpecs = previousData ? getLabelSizeImageSpecs(previousData) : [];
     const packageSizeText = readSizeImageCustomField(panel, 'packageSizeText');
     const flatSizeText = readSizeImageCustomField(panel, 'flatSizeText');
     const flatKind = readSizeImageCustomField(panel, 'flatKind') === 'label' ? 'label' : 'print';
     const packageTitle = readSizeImageCustomField(panel, 'packageTitle') || '纸盒';
     const flatTitle = readSizeImageCustomField(panel, 'flatTitle') || (flatKind === 'label' ? '标签' : '印刷');
-    if (!sku) {
-      showToast('请填写 SKU');
-      const input = panel.querySelector('[data-size-image-custom-key="sku"]');
-      if (input) input.focus();
-      return;
-    }
     const customData = normalizeData({
       sku,
       brand: readSizeImageCustomField(panel, 'brand'),
@@ -1181,6 +1179,8 @@
       printCode: readSizeImageCustomField(panel, 'flatCode'),
       materialDimensionUnitIssues: { package: null, print: null },
       isCustomSizeImage: true,
+      sizeImageNoSku: !enteredSku,
+      ...(state.sizeImageFreeMode ? { sizeImageFreeSku: enteredSku } : {}),
       sizeImageCustomFlatKind: flatKind,
       sizeImageCustomPackageTitle: packageTitle,
       sizeImageCustomFlatTitle: flatTitle,
@@ -1206,6 +1206,16 @@
     state.sizeImageCustomOpen = false;
     delete state.sizeImageSessions[customData.sku];
     const session = ensureSizeImageSession(customData.sku);
+    if (previousSession) {
+      session.cartonFile = cartonSpec ? previousSession.cartonFile : null;
+      labelSpecs.forEach((spec, index) => {
+        const previousSpec = previousSpecs[index];
+        if (previousSpec && previousSpec.kind === spec.kind && previousSession.flatFiles[previousSpec.key]) {
+          session.flatFiles[spec.key] = previousSession.flatFiles[previousSpec.key];
+        }
+      });
+      session.fileName = previousSession.fileName || '';
+    }
     session.includeRemark = Boolean(panel.querySelector('[data-size-image-custom-key="includeRemark"]')?.checked);
     session.includeRoundArc = Boolean(panel.querySelector('[data-size-image-custom-key="includeRoundArc"]')?.checked);
     session.includeBatchNumber = Boolean(panel.querySelector('[data-size-image-custom-key="includeBatchNumber"]')?.checked);
@@ -1215,13 +1225,18 @@
     state.copywritingMode = false;
     expandPanel();
     renderShell();
-    showToast('自定义尺寸已保存，请上传纸盒或标签底图');
+    if (session.cartonFile || Object.keys(session.flatFiles).length) {
+      showToast('尺寸已更新，正在重新生成');
+      regenerateCurrentSizeImages();
+    } else {
+      showToast('自定义尺寸已保存，请上传纸盒或标签底图');
+    }
   }
 
   function sizeImageViewHtml() {
     const data = getActiveSizeImageData();
     if (!data || !data.sku) {
-      return '<div class="pfh-detail-view-frame">' + detailViewTabsHtml('sizeImage') + '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>选择一个 SKU 或自定义尺寸</strong><p>缓存中没有 SKU 时，也可以直接填写 SKU、尺寸、标题和备注，再上传底图生成尺寸图。</p><button type="button" class="pfh-size-image-custom-button" data-action="size-image-custom-open">自定义尺寸图</button></div></section></div>' + sizeImageCustomModalHtml() + '</div>';
+      return '<div class="pfh-detail-view-frame">' + (state.sizeImageFreeMode ? '<button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button>' : detailViewTabsHtml('sizeImage')) + '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>自定义尺寸图</strong><p>填写纸盒或标签尺寸后，即可粘贴、拖入或选择底图。</p><button type="button" class="pfh-size-image-custom-button" data-action="size-image-custom-open">填写尺寸</button></div></section></div>' + sizeImageCustomModalHtml() + '</div>';
     }
     const cartonSpec = getSizeImageSpec(data);
     const labelSpecs = getLabelSizeImageSpecs(data);
@@ -1274,8 +1289,8 @@
       }),
     ].filter(Boolean).join('');
     const pendingMatch = sizeImagePendingMatchHtml(session, cartonSpec, labelSpecs);
-    return '<div class="pfh-detail-view-frame">' + detailViewTabsHtml('sizeImage') + '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
-      '<header class="pfh-size-image-hero"><div class="pfh-size-image-hero-media">' + productThumbHtml(data) + '</div><div class="pfh-size-image-hero-copy"><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || (data.isCustomSizeImage ? '自定义数据' : '\u9009\u4e2d\u4ea7\u54c1')) + '</p></div><div class="pfh-size-image-hero-actions"><button type="button" class="pfh-size-image-custom-button" data-action="size-image-custom-open">自定义尺寸图</button></div></header>' +
+    return '<div class="pfh-detail-view-frame">' + (state.sizeImageFreeMode ? '<button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button>' : detailViewTabsHtml('sizeImage')) + '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
+      '<header class="pfh-size-image-hero"><div class="pfh-size-image-hero-media">' + productThumbHtml(data) + '</div><div class="pfh-size-image-hero-copy"><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sizeImageNoSku ? '自由尺寸图' : (data.sizeImageFreeSku || data.sku) + ' 尺寸图') + '</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || (data.isCustomSizeImage ? '自定义数据' : '\u9009\u4e2d\u4ea7\u54c1')) + '</p></div><div class="pfh-size-image-hero-actions"><button type="button" class="pfh-size-image-custom-button" data-action="size-image-custom-open">' + (data.isCustomSizeImage ? '修改尺寸' : '自定义尺寸图') + '</button></div></header>' +
       (!(cartonSpec || labelSpec) ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
       '<div class="pfh-size-image-workspace' + (busy ? ' is-busy' : '') + '"><div class="pfh-size-image-controls">' +
         '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u548c\u5370\u5237\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
@@ -2555,10 +2570,13 @@ self.onmessage = async function(event) {
       const result = session.flatResults[spec.key];
       if (!result || !result.dataUrl) return null;
       const flatLabel = (result.kind || spec.kind) === 'print' ? '\u5370\u5237' : '\u6807\u7b7e';
-      const materialCode = namingCodes(result.code || spec.code)[0] || compactText(result.code || spec.code || '') || sku;
+      const defaultCode = currentData.sizeImageNoSku
+        ? '尺寸图' + (flatSpecs.length > 1 ? '-' + formatSizeImageNumber(spec.width) + 'x' + formatSizeImageNumber(spec.height) + 'cm' : '')
+        : (currentData.sizeImageFreeSku || sku);
+      const materialCode = namingCodes(result.code || spec.code)[0] || compactText(result.code || spec.code || '') || defaultCode;
       return { name: sanitizeDownloadFileName(flatLabel + materialCode + '.jpg'), dataUrl: result.dataUrl };
     }).filter(Boolean) : [];
-    const cartonCode = namingCodes(currentData.packageCode)[0] || compactText(currentData.packageCode || '') || sku;
+    const cartonCode = namingCodes(currentData.packageCode)[0] || compactText(currentData.packageCode || '') || (currentData.sizeImageNoSku ? '尺寸图' : (currentData.sizeImageFreeSku || sku));
     const files = session ? [
       session.cartonResultDataUrl ? { name: sanitizeDownloadFileName('\u7eb8\u76d2' + cartonCode + '.jpg'), dataUrl: session.cartonResultDataUrl } : null,
       ...flatFiles,
