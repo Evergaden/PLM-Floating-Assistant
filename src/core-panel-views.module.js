@@ -2490,10 +2490,22 @@
     indicator.style.setProperty('transition', indicatorTransition, 'important');
     const buttons = Array.from(switcher.querySelectorAll('button[data-action="sku-list-mode"]'));
     const moveIndicator = (button) => {
-      if (!button) return;
+      if (!button || !button.offsetWidth) return;
       indicator.style.setProperty('left', (button.offsetLeft - switcher.clientLeft) + 'px', 'important');
       indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
     };
+    if (!switcher.pfhSkuViewResizeObserver && typeof ResizeObserver === 'function') {
+      const observer = new ResizeObserver(() => {
+        if (!switcher.isConnected) {
+          observer.disconnect();
+          switcher.pfhSkuViewResizeObserver = null;
+          return;
+        }
+        moveIndicator(switcher.querySelector('button.is-active'));
+      });
+      observer.observe(switcher);
+      switcher.pfhSkuViewResizeObserver = observer;
+    }
     buttons.forEach((button) => {
       if (button.pfhSkuViewPointerBound) return;
       button.pfhSkuViewPointerBound = true;

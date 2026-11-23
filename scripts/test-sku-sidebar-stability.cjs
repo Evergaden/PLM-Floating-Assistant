@@ -88,4 +88,28 @@ assert(!/renderShell|renderSkuListContent|renderProductDevelopmentTaskSidebarLis
 const dismiss = extract(events, '    if (state.skuSortMenuOpen &&', "    if (action === 'expand')");
 assert(!/return;|renderShell/.test(dismiss), 'Dismissing the menu must not swallow the requested button action');
 assert(!/return;/.test(extract(events, '    if (state.exportMenuOpen &&', '    if (state.skuSortMenuOpen &&')), 'Export menu dismissal also preserves the requested action');
+const fusionSource = extract(source, '  function setupSkuViewFusion(', '  function renderHome(');
+let resizeCallback;
+const callbacks = [];
+const styleValues = {};
+const indicator = { isConnected: true, style: { setProperty: (key, value) => { styleValues[key] = value; } } };
+const active = { offsetWidth: 0, offsetLeft: 48, pfhSkuViewPointerBound: false, addEventListener() {}, getAttribute: () => 'waterfall' };
+const switcher = { isConnected: true, clientLeft: 1, attrs: {},
+  querySelector: (selector) => selector.includes('indicator') ? indicator : active,
+  querySelectorAll: () => [active], setAttribute: (key, value) => { switcher.attrs[key] = value; } };
+const fusionContext = vm.createContext({
+  setupSkuProgressiveImages() {},
+  ResizeObserver: class { constructor(callback) { resizeCallback = callback; } observe() {} disconnect() {} },
+  window: { requestAnimationFrame: (callback) => callbacks.push(callback) },
+});
+vm.runInContext(fusionSource, fusionContext);
+fusionContext.setupSkuViewFusion({ querySelector: () => switcher });
+assert.equal(styleValues.width, undefined, 'A hidden switch does not overwrite the indicator width with zero');
+active.offsetWidth = 58;
+resizeCallback();
+assert.equal(styleValues.left, '47px');
+assert.equal(styleValues.width, '58px', 'The indicator moves to the selected button when the switch becomes visible');
+active.offsetWidth = 64;
+resizeCallback();
+assert.equal(styleValues.width, '64px', 'Later layout changes update the indicator width');
 console.log('SKU sidebar: normal/development refresh, sort/menu, selection, filter, scroll, image replacement and DOM identity passed');
