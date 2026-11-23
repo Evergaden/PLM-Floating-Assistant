@@ -396,6 +396,7 @@
     skuEditMode: false,
     copywritingLoading: false,
     copywritingChecking: false,
+    copywritingQuietCheck: false,
     copywritingError: '',
     copywritingStatus: '',
     toyCopywritingBusy: false,

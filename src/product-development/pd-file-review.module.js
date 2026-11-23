@@ -85,7 +85,7 @@
   }
 
   function plmCopywritingFileReviewUnavailable(record) {
-    if (state.copywritingLoading || state.copywritingChecking) return '正在获取 PLM 文案，请稍候';
+    if (state.copywritingLoading || state.copywritingChecking && !state.copywritingQuietCheck) return '正在获取 PLM 文案，请稍候';
     if (state.copywritingError) return '请重新获取当前 SKU 的 PLM 文案';
     if (!record?.fileName || !record.sections.length) return '请先获取当前 SKU 的 PLM 产品文案';
     return '';

@@ -1752,7 +1752,7 @@
         if (control.hasAttribute(attrs[0])) return node.tagName + ':' + attrs.map((attr) => control.getAttribute(attr) || '').join(':') + (control.getAttribute('type') === 'radio' ? ':' + control.getAttribute('value') : '');
       }
     }
-    const structural = ['pfh-list-head', 'pfh-sku-list-toolbar', 'pfh-sku-filter-toolbar', 'pfh-sku-list-content', 'pfh-sku-scroll', 'pfh-sku-waterfall-grid', 'pfh-list-pager', 'pfh-search-result-toolbar', 'pfh-sku-view-switch', 'pfh-sku-sort-menu', 'pfh-detail-scroll', 'pfh-detail-view-frame', 'pfh-detail-view-tabs', 'pfh-file-section', 'pfh-sku-info-section', 'pfh-graphic-section', 'pfh-infringement-section', 'pfh-note', 'pfh-loading-tip'];
+    const structural = ['pfh-list-head', 'pfh-sku-list-toolbar', 'pfh-sku-filter-toolbar', 'pfh-sku-list-content', 'pfh-sku-scroll', 'pfh-sku-waterfall-grid', 'pfh-list-pager', 'pfh-search-result-toolbar', 'pfh-sku-view-switch', 'pfh-sku-sort-menu', 'pfh-detail-scroll', 'pfh-detail-view-frame', 'pfh-detail-view-tabs', 'pfh-file-section', 'pfh-copywriting-content', 'pfh-sku-info-section', 'pfh-graphic-section', 'pfh-infringement-section', 'pfh-note', 'pfh-loading-tip'];
     return structural.find((name) => node.classList.contains(name)) || '';
   }
 

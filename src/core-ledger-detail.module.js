@@ -424,7 +424,7 @@
       '<option value="file"' + (view === 'file' ? ' selected' : '') + '>文件视图</option>' +
       '<option value="full"' + (view === 'full' ? ' selected' : '') + '>全文视图</option>' +
       '</select></label>' +
-      '<div class="pfh-copywriting-hero-action-row">' + collapseButton + '<button type="button" data-action="copywriting-refresh"' + (state.copywritingLoading || state.copywritingChecking ? ' disabled' : '') + '>' + iconHtml('refresh') + '重新获取</button>' +
+      '<div class="pfh-copywriting-hero-action-row">' + collapseButton + '<button type="button" data-action="copywriting-refresh"' + (state.copywritingLoading || state.copywritingChecking && !state.copywritingQuietCheck ? ' disabled' : '') + '>' + iconHtml('refresh') + '重新获取</button>' +
       (record && record.fullText ? '<button type="button" data-action="copywriting-copy">' + copywritingCopyIconHtml() + '复制全文</button>' : '') +
       '<button type="button" data-action="copywriting-file-review"' + (reviewUnavailable ? ' disabled title="' + escapeHtml(reviewUnavailable) + '"' : '') + '>文件审核</button>' +
       '</div></div>';
@@ -587,7 +587,7 @@
     const updateHtml = record.updatePending
       ? '<div class="pfh-copywriting-alert is-update"><strong>文案已更新</strong><span>' + escapeHtml(formatCopywritingUpdateSummary(record)) + '</span><button type="button" data-action="copywriting-ack">我知道了</button></div>'
       : '';
-    const loadingHtml = state.copywritingChecking
+    const loadingHtml = state.copywritingChecking && !state.copywritingQuietCheck
       ? '<div class="pfh-copywriting-alert is-update"><strong>正在检查新文案</strong><span>' + escapeHtml(state.copywritingStatus || '已显示历史内容，正在读取新的文案文件...') + '</span></div>'
       : state.copywritingLoading
         ? '<div class="pfh-copywriting-alert is-update"><strong>正在更新文案</strong><span>' + escapeHtml(state.copywritingStatus || '正在读取新的文案文件...') + '</span></div>'

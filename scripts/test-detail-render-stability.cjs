@@ -88,6 +88,16 @@ state.openingProjectDetail = false;
 ctx.renderDetail(panel);
 assert(detail.querySelector('.pfh-product-thumb'), 'Returning from loading cannot reuse a stale markup signature');
 
+ctx.updateAssistantDetailMarkup(detail, '<div class="pfh-detail-scroll"><section><div class="pfh-copywriting-content"><article>Copy</article></div></section></div>', 'B|copywriting');
+const copyContent = detail.querySelector('.pfh-copywriting-content');
+copyContent.scrollTop = 320;
+ctx.updateAssistantDetailMarkup(detail, '<div class="pfh-detail-scroll"><section><div class="pfh-copywriting-alert">Checking</div><div class="pfh-copywriting-content"><article>Copy</article></div></section></div>', 'B|copywriting');
+assert.equal(detail.querySelector('.pfh-copywriting-content'), copyContent, 'Adding a status preserves the copywriting scroll container');
+assert.equal(copyContent.scrollTop, 320);
+ctx.updateAssistantDetailMarkup(detail, '<div class="pfh-detail-scroll"><section><div class="pfh-copywriting-content"><article>Copy changed</article></div></section></div>', 'B|copywriting');
+assert.equal(detail.querySelector('.pfh-copywriting-content'), copyContent, 'Removing a status and updating copy preserves the scroll container');
+assert.equal(copyContent.scrollTop, 320);
+
 vm.runInContext(extract(read('core-magic-upload'), '  function renderSizeImage(', '  function loadMagicUploadQueue('), ctx);
 ctx.sizeImageViewHtml = () => '<section><img src="size.jpg"><canvas width="400" height="300"></canvas></section>';
 ctx.parameterImageFeature = { viewHtml: () => '<section><img src="parameter.jpg"><input value="draft"></section>' };

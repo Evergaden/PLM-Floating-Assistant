@@ -58,6 +58,13 @@
     }
   }
 
+  function copywritingVisibleSignature(data) {
+    const value = getCopywritingDisplayRecord(data);
+    if (!value) return '';
+    return JSON.stringify([value.fileName, value.sections, value.fullText, value.missingSections,
+      value.updatePending, value.changedSectionKeys, value.removedSections]);
+  }
+
   async function openCopywritingFromCurrent(force) {
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) {
@@ -67,16 +74,25 @@
     const sku = data.sku;
     const currentCached = normalizeCopywritingRecord(data.copywriting);
     const hasImmediateCopywriting = Boolean(currentCached && currentCached.fullText);
+    const wasViewingCopywriting = Boolean(state.copywritingMode && state.view === 'detail');
+    if (wasViewingCopywriting && state.copywritingChecking) {
+      if (force) showToast('正在检查文案，请稍候');
+      return;
+    }
+    const initialSignature = copywritingVisibleSignature(data);
+    const initialError = state.copywritingError || '';
     if (!state.copywritingMode) state.copywritingView = 'file';
     state.copywritingMode = true;
     state.copywritingLoading = !hasImmediateCopywriting;
-    state.copywritingChecking = true;
+    state.copywritingChecking = !hasImmediateCopywriting;
+    state.copywritingQuietCheck = hasImmediateCopywriting;
     state.copywritingError = '';
     state.copywritingStatus = hasImmediateCopywriting ? '正在检查新文案...' : '正在读取本地缓存...';
     stopScan();
     stopMaterialWatch();
     cancelDrawerTabFlow();
-    expandPanel();
+    expandPanel({ render: !wasViewingCopywriting || !hasImmediateCopywriting });
+    state.copywritingChecking = true;
     await wait(COPYWRITING_CACHE_DEBOUNCE_MS);
     const storedData = hasImmediateCopywriting ? data : normalizeData(loadData(sku) || data);
     const storedCached = normalizeCopywritingRecord(storedData.copywriting);
@@ -94,10 +110,11 @@
     if (skipRecentCopywritingCheck) {
       state.copywritingLoading = false;
       state.copywritingChecking = false;
+      state.copywritingQuietCheck = false;
       state.copywritingStatus = '';
       state.copywritingError = '';
       addLog('info', '产品文案：30分钟内已检查，跳过重复检查', sku);
-      renderShell();
+      if (!hasImmediateCopywriting || initialError) renderShell();
       return;
     }
     if (initialCached && initialCached.fullText && !hasImmediateCopywriting) {
@@ -113,7 +130,7 @@
         data: normalizeData(loadData(sku) || state.data || data),
         onStatus: (message) => {
           state.copywritingStatus = message;
-          renderShell();
+          if (!hasImmediateCopywriting) renderShell();
         },
       });
       if (apiResult && apiResult.handled) {
@@ -121,7 +138,6 @@
         state.copywritingStatus = '';
         state.copywritingError = '';
         if (!apiResult.skipped) showToast(apiResult.updated ? '文案已更新，差异已高亮' : '文案读取成功');
-        renderShell();
         return;
       }
       if (apiResult && apiResult.noFile) {
@@ -131,7 +147,6 @@
         state.copywritingStatus = '';
         state.copywritingError = hasCachedCopywriting ? 'PLM 未找到当前 SKU 的产品文案，现有文案为历史缓存' : '';
         addLog('info', '产品文案：未找到 Word，不再读取页面附件', sku);
-        renderShell();
         return;
       }
       let drawer = getProjectDrawerForSku(sku);
@@ -142,7 +157,7 @@
       if (!drawer) throw new Error('未打开当前编码的项目详情');
       stopScan();
       state.copywritingStatus = '正在定位产品信息里的产品文案...';
-      renderShell();
+      if (!hasImmediateCopywriting) renderShell();
       await switchDrawerTab(drawer, L.productTab);
       const productReady = await waitFor(() => {
         const tab = findTabButton(drawer, L.productTab);
@@ -174,31 +189,31 @@
       }
       if (!hasCachedCopywriting) state.copywritingLoading = true;
       state.copywritingStatus = '正在触发 Word 下载 ' + file.fileName;
-      renderShell();
+      if (!hasImmediateCopywriting) renderShell();
       let source = await withCopywritingTimeout(resolveCopywritingDocumentSource(file.card, file.fileName), 12000, 'Word 下载监听');
       if (!source || (!source.url && !source.arrayBuffer)) throw new Error('未读取到 Word 文件内容');
       addLog('info', '产品文案：已取得文件内容', source.arrayBuffer ? '内存 Word 数据' : String(source.url || '').replace(/\?.*$/, '?...'));
       let arrayBuffer;
       try {
         state.copywritingStatus = source.arrayBuffer ? '正在校验 Word 文件...' : '正在读取 Word 文件...';
-        renderShell();
+        if (!hasImmediateCopywriting) renderShell();
         arrayBuffer = source.arrayBuffer || await withCopywritingTimeout(downloadCopywritingDocument(source.url), 18000, 'Word 文件读取');
         if (!isCopywritingDocxBuffer(arrayBuffer)) throw new Error('读取到的内容不是有效 Word 文件');
       } catch (error) {
         if (source.kind === 'captured') throw error;
         addLog('warn', '产品文案：组件地址不可直接读取，改用下载监听', formatErrorMessage(error));
         state.copywritingStatus = '正在重新监听 Word 下载...';
-        renderShell();
+        if (!hasImmediateCopywriting) renderShell();
         source = { ...(await withCopywritingTimeout(captureCopywritingDownloadSource(file.card, file.fileName), 12000, '备用下载监听')), kind: 'captured' };
         if (!source.url && !source.arrayBuffer) throw error;
         state.copywritingStatus = source.arrayBuffer ? '正在校验 Word 文件...' : '正在读取 Word 文件...';
-        renderShell();
+        if (!hasImmediateCopywriting) renderShell();
         arrayBuffer = source.arrayBuffer || await withCopywritingTimeout(downloadCopywritingDocument(source.url), 18000, '备用 Word 文件读取');
         if (!isCopywritingDocxBuffer(arrayBuffer)) throw new Error('下载监听取得的内容不是有效 Word 文件');
       }
       const fileHash = await hashCopywritingBuffer(arrayBuffer);
       state.copywritingStatus = '正在解析 Word 表格...';
-      renderShell();
+      if (!hasImmediateCopywriting) renderShell();
       addLog('info', '产品文案：开始解析 Word', file.fileName + ' | ' + arrayBuffer.byteLength + 'B');
       const parsedDocument = await withCopywritingTimeout(parseCopywritingDocxRows(arrayBuffer), 20000, 'Word 表格解析');
       const built = buildMainstreamCopywriting(parsedDocument, workingData);
@@ -221,7 +236,11 @@
     } finally {
       state.copywritingLoading = false;
       state.copywritingChecking = false;
-      renderShell();
+      state.copywritingQuietCheck = false;
+      const stillViewing = state.copywritingMode && state.view === 'detail'
+        && String(state.selectedSku || state.data && state.data.sku || '') === String(sku);
+      if (stillViewing && (!hasImmediateCopywriting || initialError !== (state.copywritingError || '')
+        || initialSignature !== copywritingVisibleSignature(state.data))) renderShell();
     }
   }
 
